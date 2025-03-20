@@ -1,0 +1,10 @@
+[package]
+name = "oxide-engine-rewrite"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+vulkano = { version = "0.34.1" }
+vulkano-shaders = "0.34.0"
+winit = { version = "0.30.5", features = [ "rwh_05" ] }
+oxide-engine-macros = { path = "../oxide-engine-macros" }
