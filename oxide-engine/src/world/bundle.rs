@@ -2,16 +2,17 @@ use std::any::TypeId;
 use super::{archetype::Archetype, WorldError};
 
 pub trait Bundle: Send + Sync + 'static {
-    fn type_id(&self) -> TypeId {
-        TypeId::of::<Self>()
-    }
+    fn type_id(&self) -> TypeId;
+}
+
+pub trait IntoArchetype: 'static {
     fn archetype() -> Result<Archetype, WorldError>;
 }
 
-macro_rules! impl_bundle {
+macro_rules! impl_into_archetype {
     ($t:ident) => {
         #[allow(unused_parens)]
-        impl<$t: Send + Sync + 'static> Bundle for ($t, ) {
+        impl<$t: Send + Sync + 'static> IntoArchetype for ($t, ) {
             fn archetype() -> Result<Archetype, WorldError> {
                 Archetype::new(
                     vec![
@@ -23,7 +24,7 @@ macro_rules! impl_bundle {
     };
     ($($t:ident),*) => {
         #[allow(unused_parens)]
-        impl<$($t: Send + Sync + 'static),*> Bundle for ($($t),*) {
+        impl<$($t: Send + Sync + 'static),*> IntoArchetype for ($($t),*) {
             fn archetype() -> Result<Archetype, WorldError> {
                 Archetype::new(
                     vec![
@@ -34,6 +35,25 @@ macro_rules! impl_bundle {
                 )
             }
         } 
+    };
+}
+
+macro_rules! impl_bundle {
+    ($t:ident) => {
+        #[allow(unused_parens)]
+        impl<$t: Sized + Send + Sync + 'static> Bundle for ($t, ) {
+            fn type_id(&self) -> TypeId {
+                TypeId::of::<Self>()
+            }
+        }
+    };
+    ($($t:ident),*) => {
+        #[allow(unused_parens)]
+        impl<$($t: Sized + Send + Sync + 'static),*> Bundle for ($($t),*) {
+            fn type_id(&self) -> TypeId {
+                TypeId::of::<Self>()
+            }
+        }
     };
 }
 
@@ -48,6 +68,8 @@ macro_rules! smaller_tuples_too {
     };
 }
 
+
+smaller_tuples_too!(impl_into_archetype, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
 smaller_tuples_too!(impl_bundle, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
 
 #[cfg(test)]
