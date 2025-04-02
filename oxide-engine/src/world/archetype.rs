@@ -1,76 +1,84 @@
 use core::any::TypeId;
-use std::{any::Any, fmt::Debug};
+use std::{
+    any::Any,
+    collections::{HashMap, HashSet},
+};
 
-use super::{bundle::Bundle, WorldError};
-
-#[derive(Debug)]
-pub struct Archetype {
-    component_types: Vec<TypeId>,
-    columns: Box<dyn ColumnarTuple>
+pub trait Column: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-pub trait ColumnarTuple: Debug {
-    fn push(&mut self, value: Box<dyn Bundle>);
-    fn get<'a>(&self, index: usize) -> Vec<&'a dyn Any>;
+struct TypedColumn<T: 'static> {
+    data: Vec<T>,
 }
 
-impl<A: Debug + 'static, B: Debug + 'static> ColumnarTuple for [Vec<A>, Vec<B>] {
-    fn get<'a>(&self, index: usize) -> Vec<&'a dyn Any> {
-        self[index]
+impl<T: 'static> Column for TypedColumn<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
-
-    fn push(&mut self, value: Box<dyn Bundle>) {
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
-impl Archetype {
-    pub fn new(component_types: Vec<TypeId>) -> Result<Archetype, WorldError> {
-        Ok(
-            Archetype { 
-                component_types,
-                columns: vec![Vec::new(); component_types.len()]
-            }
-        )
+#[derive(Debug, PartialEq)]
+pub struct ArchetypeId {
+    component_types: HashSet<TypeId>,
+}
+
+impl ArchetypeId {
+    pub fn new(component_types: HashSet<TypeId>) -> ArchetypeId {
+        ArchetypeId { component_types }
     }
 
-    pub fn contains(&self, other: &Archetype) -> bool {
-        if self.component_types.len() < other.component_types.len() {
+    pub fn contains(&self, other_id: &ArchetypeId) -> bool {
+        if self.component_types.len() < other_id.component_types.len() {
             return false;
         }
-     
-        for component in other.component_types.iter() {
+
+        for component in other_id.component_types.iter() {
             if !self.component_types.contains(component) {
                 return false;
             }
         }
-
         true
     }
-    
-    pub fn mapping(&self, other: &Archetype) -> Option<Vec<usize>> {
-        if self.component_types.len() < other.component_types.len() {
-            return None;
-        }
+}
 
-        let mut self_iter = self.component_types.iter().enumerate();
-        let other_iter = other.component_types.iter();
-        let mut res = vec![];
+pub struct Archetype {
+    pub id: ArchetypeId,
+    columns: HashMap<TypeId, Box<dyn Column>>,
+    pub bundle_count: u32,
+}
 
-        for other_current in other_iter {
-            while let Some((id, self_current)) = self_iter.next() {
-                if self_current == other_current {
-                    res.push(id);
-                    break;
-                }
-            }
-        }
-        
-        if res.len() != other.component_types.len() {
-            None
-        } else {
-            Some(res)
+impl Archetype {
+    pub fn new(id: ArchetypeId) -> Archetype {
+        Archetype {
+            id,
+            columns: HashMap::new(),
+            bundle_count: 0
         }
     }
 
-    pub fn add_bundle(&mut self, bundle: )
+    pub fn add<T: 'static>(&mut self, value: T) {
+        let type_id = TypeId::of::<T>();
+
+        let bucket = self
+            .columns
+            .entry(type_id)
+            .or_insert_with(|| Box::new(TypedColumn::<T> { data: Vec::new() }));
+
+        if let Some(column) = bucket.as_mut_any().downcast_mut::<TypedColumn<T>>() {
+            column.data.push(value);
+        }
+    }
+
+    pub fn get<T: 'static>(&self) -> Option<&[T]> {
+        self.columns
+            .get(&TypeId::of::<T>())?
+            .as_any()
+            .downcast_ref::<TypedColumn<T>>()
+            .map(|storage| &storage.data[..])
+    }
 }

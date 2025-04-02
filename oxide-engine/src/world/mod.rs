@@ -1,7 +1,7 @@
-use std::{any::Any, fmt::Debug};
+use std::fmt::Debug;
 
 use archetype::Archetype;
-use bundle::{Bundle, IntoArchetype};
+use bundle::{Bundle, FromColumns, IntoArchetypeId};
 
 pub mod archetype;
 pub mod bundle;
@@ -26,41 +26,41 @@ impl World {
         }
     }
 
-    pub fn spawn<T: Bundle + IntoArchetype + 'static>(&mut self, bundle: T) -> Result<u32, WorldError> {
-        let archetype = T::archetype()?;
+    pub fn spawn<T: Bundle + IntoArchetypeId + 'static>(&mut self, bundle: T) -> Result<u32, WorldError> {
+        let archetype_id = T::archetype_id();
         let archetype_count = self.archetypes.len();
 
-        let archetype_id = match self
+        let archetype_index = match self
             .archetypes
             .iter()
             .enumerate()
-            .find(|(_, x)| archetype == **x)
+            .find(|(_, x)| archetype_id == x.id)
         {
             Some(val) => val.0,
             None => archetype_count,
         };
 
-        if archetype_id == archetype_count {
-            self.archetypes.push(archetype);
+        if archetype_index == archetype_count {
+            self.archetypes.push(Archetype::new(archetype_id));
         }
 
-        let id = self.entities[archetype_id].add(Box::new(bundle))?;
+        bundle.add_to(&mut self.archetypes[archetype_index]);
+        self.archetypes[archetype_index].bundle_count += 1;
 
-        Ok(id)
+        Ok(self.archetypes[archetype_index].bundle_count)
     }
 
-    pub fn get<T: Bundle + IntoArchetype>(&self) -> Result<Vec<&T>, WorldError> {
-        let bundle_archetype = T::archetype()?;
+    pub fn get<T: Bundle + IntoArchetypeId + FromColumns>(&self) -> Result<Vec<T>, WorldError> {
+        let bundle_archetype_id = T::archetype_id();
 
         let mut ret_vec = vec![];
 
-        for (archetype_id, archetype) in self.archetypes.iter().enumerate() {
-            if !archetype.contains(&bundle_archetype) {
+        for archetype in self.archetypes.iter() {
+            if !archetype.id.contains(&bundle_archetype_id) {
                 continue;
             }
-            println!("{:?}", archetype.mapping(&bundle_archetype));
-            let iter = self.entities[archetype_id].get();
-            ret_vec.extend(iter);
+
+            ret_vec.extend_from_slice(T::from_columns(archetype).as_slice());
         }
 
         Ok(ret_vec)
@@ -83,6 +83,6 @@ mod tests {
         world.spawn((1.0_f32, "abc")).unwrap();
         world.spawn((1.0_f32, "bcd", 1_u8)).unwrap();
         let ret = world.get::<(f32, &'static str)>().unwrap();
-        assert_eq!(vec![&(1.0, "abc"), &(1.0, "bcd")], ret);
+        assert_eq!(vec![(1.0, "abc"), (1.0, "bcd")], ret);
     }
 }
