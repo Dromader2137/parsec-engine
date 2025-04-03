@@ -9,12 +9,14 @@ pub trait Bundle: Clone + Send + Sync + Sized + 'static {
 }
 
 pub trait FromColumns: Clone + Send + Sync + Sized + 'static {
-    fn from_columns(arch: &Archetype) -> Vec<Self>;
+    fn extend_from_columns(vec: &mut Vec<Self>, arch: &Archetype);
 }
 
 pub trait IntoArchetypeId: Clone + Send + Sync + Sized + 'static {
     fn archetype_id() -> ArchetypeId;
 }
+
+pub trait UsableBundle: Bundle + FromColumns + IntoArchetypeId {}
 
 macro_rules! hset {
     () => {
@@ -63,7 +65,6 @@ macro_rules! impl_into_archetype {
 macro_rules! smaller_tuples_too {
     ($m: ident, $next: ident) => {
         $m!{$next}
-        $m!{}
     };
     ($m: ident, $next: ident, $($rest: ident),*) => {
         $m!{$next, $($rest),*}
@@ -74,7 +75,4 @@ macro_rules! smaller_tuples_too {
 
 smaller_tuples_too!(impl_into_archetype, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
 smaller_tuples_too!(impl_bundle, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
-// smaller_tuples_too!(impl_from_columns, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
-
-
-impl_from_columns!(A, B);
+smaller_tuples_too!(impl_from_columns, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);

@@ -76,12 +76,14 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
     let ImplFromColumnsInput { types } = parse_macro_input!(input as ImplFromColumnsInput);
     
     if types.len() == 1 {
-        return TokenStream::new();
         let t = types.get(0).unwrap();
         let output = quote! {
-            impl<#t: Sized + 'static> FromColumns for (#t, ) {
-                fn from_columns(arch: &mut Archetype) -> Vec<Self> {
-                    arch.get::<#t>().unwrap().to_vec()
+            impl<#t: Clone + Sized + Send + Sync + 'static> FromColumns for (#t, ) {
+                fn extend_from_columns(vec: &mut Vec<Self>, arch: &Archetype) {
+                    let sov = arch.get::<#t>().unwrap().to_vec();
+                    for i in 0..arch.bundle_count {
+                        vec.push((sov[i as usize].clone(), ));
+                    }
                 }
             }
         };
@@ -102,13 +104,11 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
 
     let output = quote! {
         impl<#(#impl_types),*> FromColumns for (#(#for_types),*) {
-            fn from_columns(arch: &Archetype) -> Vec<Self> {
+            fn extend_from_columns(vec: &mut Vec<Self>, arch: &Archetype) {
                 let sov = (#(#gets),*);
-                let mut ret = vec![];
                 for i in 0..arch.bundle_count {
-                    ret.push((#(#conv),*))
+                    vec.push((#(#conv),*))
                 }
-                ret
             }
         }
     };
