@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use archetype::Archetype;
-use bundle::{Bundle, FromColumns, IntoArchetypeId};
+use bundle::UsableBundle;
 
 pub mod archetype;
 pub mod bundle;
@@ -26,7 +26,7 @@ impl World {
         }
     }
 
-    pub fn spawn<T: Bundle + IntoArchetypeId + 'static>(&mut self, bundle: T) -> Result<(), WorldError> {
+    pub fn spawn<T: UsableBundle>(&mut self, bundle: T) -> Result<(), WorldError> {
         let archetype_id = T::archetype_id();
         let archetype_count = self.archetypes.len();
 
@@ -50,7 +50,7 @@ impl World {
         Ok(())
     }
 
-    pub fn query<T: Bundle + IntoArchetypeId + FromColumns>(&self) -> Result<Vec<T>, WorldError> {
+    pub fn query<T: UsableBundle>(&self) -> Result<Vec<T>, WorldError> {
         let bundle_archetype_id = T::archetype_id();
 
         let mut ret_vec = vec![];

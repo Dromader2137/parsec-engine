@@ -62,6 +62,17 @@ macro_rules! impl_into_archetype {
     };
 }
 
+macro_rules! impl_usable_bundle {
+    ($t:ident) => {
+        #[allow(unused_parens)]
+        impl<$t: Clone + Send + Sync + Sized + 'static> UsableBundle for ($t, ) {}
+    };
+    ($($t:ident),*) => {
+        #[allow(unused_parens)]
+        impl<$($t: Clone + Send + Sync + Sized + 'static),*> UsableBundle for ($($t),*) {}
+    };
+}
+
 macro_rules! smaller_tuples_too {
     ($m: ident, $next: ident) => {
         $m!{$next}
@@ -76,3 +87,4 @@ macro_rules! smaller_tuples_too {
 smaller_tuples_too!(impl_into_archetype, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
 smaller_tuples_too!(impl_bundle, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
 smaller_tuples_too!(impl_from_columns, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
+smaller_tuples_too!(impl_usable_bundle, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
