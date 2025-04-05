@@ -1,30 +1,42 @@
+use oxide_engine_macros::multiple_tuples;
+
+use super::archetype::{Archetype, ArchetypeId};
+use crate::oxide_engine_macros::{impl_bundle, impl_from_columns, impl_from_columns_mut};
 use std::any::TypeId;
-use std::collections::HashSet;
-use super::archetype::{ArchetypeId, Archetype};
-use crate::oxide_engine_macros::{impl_bundle, impl_from_columns};
 
 pub trait Bundle: Clone + Send + Sync + Sized + 'static {
     fn type_id(&self) -> TypeId;
     fn add_to(&self, arch: &mut Archetype);
 }
 
-pub trait FromColumns: Clone + Send + Sync + Sized + 'static {
-    fn extend_from_columns(vec: &mut Vec<Self>, arch: &Archetype);
+pub trait FromColumns<'a>: Clone + Send + Sync + Sized + 'static {
+    type Output;
+    fn iter_from_columns<'b>(arch: &'b Archetype) -> impl Iterator<Item = Self::Output>
+    where
+        'b: 'a;
+}
+
+pub trait FromColumnsMut<'a>: Clone + Send + Sync + Sized + 'static {
+    type Output;
+    fn iter_from_columns<'b>(arch: &'b mut Archetype) -> impl Iterator<Item = Self::Output>
+    where
+        'b: 'a;
 }
 
 pub trait IntoArchetypeId: Clone + Send + Sync + Sized + 'static {
     fn archetype_id() -> ArchetypeId;
 }
 
-pub trait UsableBundle: Bundle + FromColumns + IntoArchetypeId {}
+pub trait UsableBundle<'a>: Bundle + FromColumns<'a> + IntoArchetypeId {}
+pub trait UsableBundleMut<'a>: Bundle + FromColumnsMut<'a> + IntoArchetypeId {}
 
 macro_rules! hset {
     () => {
-        HashSet::new()
+        ::std::collections::HashSet::new()
     };
     ($($v:expr),*) => {
         {
-            let mut hset = HashSet::new();
+            let mut hset = ::std::collections::HashSet::new();
             $(
                 hset.insert($v);
             )*
@@ -40,11 +52,11 @@ macro_rules! impl_into_archetype {
             fn archetype_id() -> ArchetypeId {
                 ArchetypeId::new(
                     hset![
-                        std::any::TypeId::of::<$t>()
+                        ::std::any::TypeId::of::<$t>()
                     ]
                 )
             }
-        } 
+        }
     };
     ($($t:ident),*) => {
         #[allow(unused_parens)]
@@ -53,38 +65,40 @@ macro_rules! impl_into_archetype {
                 ArchetypeId::new(
                     hset![
                         $(
-                            std::any::TypeId::of::<$t>()
+                            ::std::any::TypeId::of::<$t>()
                         ),*
                     ]
                 )
             }
-        } 
+        }
     };
 }
 
 macro_rules! impl_usable_bundle {
     ($t:ident) => {
         #[allow(unused_parens)]
-        impl<$t: Clone + Send + Sync + Sized + 'static> UsableBundle for ($t, ) {}
+        impl<'a, $t: Clone + Send + Sync + Sized + 'static> UsableBundle<'a> for ($t, ) {}
     };
     ($($t:ident),*) => {
         #[allow(unused_parens)]
-        impl<$($t: Clone + Send + Sync + Sized + 'static),*> UsableBundle for ($($t),*) {}
+        impl<'a, $($t: Clone + Send + Sync + Sized + 'static),*> UsableBundle<'a> for ($($t),*) {}
     };
 }
 
-macro_rules! smaller_tuples_too {
-    ($m: ident, $next: ident) => {
-        $m!{$next}
+macro_rules! impl_usable_bundle_mut {
+    ($t:ident) => {
+        #[allow(unused_parens)]
+        impl<'a, $t: Clone + Send + Sync + Sized + 'static> UsableBundleMut<'a> for ($t, ) {}
     };
-    ($m: ident, $next: ident, $($rest: ident),*) => {
-        $m!{$next, $($rest),*}
-        smaller_tuples_too!{$m, $($rest),*}
+    ($($t:ident),*) => {
+        #[allow(unused_parens)]
+        impl<'a, $($t: Clone + Send + Sync + Sized + 'static),*> UsableBundleMut<'a> for ($($t),*) {}
     };
 }
 
-
-smaller_tuples_too!(impl_into_archetype, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
-smaller_tuples_too!(impl_bundle, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
-smaller_tuples_too!(impl_from_columns, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
-smaller_tuples_too!(impl_usable_bundle, Z, Y, X, W, V, U, T, S, R, Q, P, O, N, M, L, K, J, I, H, G, F, E, D, C, B, A);
+multiple_tuples!(impl_into_archetype, 4);
+multiple_tuples!(impl_bundle, 4);
+multiple_tuples!(impl_from_columns, 4);
+multiple_tuples!(impl_from_columns_mut, 2);
+multiple_tuples!(impl_usable_bundle, 4);
+multiple_tuples!(impl_usable_bundle_mut, 2);

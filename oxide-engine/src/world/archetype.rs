@@ -57,7 +57,7 @@ impl Archetype {
         Archetype {
             id,
             columns: HashMap::new(),
-            bundle_count: 0
+            bundle_count: 0,
         }
     }
 
@@ -80,5 +80,13 @@ impl Archetype {
             .as_any()
             .downcast_ref::<TypedColumn<T>>()
             .map(|storage| &storage.data[..])
+    }
+
+    pub fn get_mut<T: 'static>(&mut self) -> Option<&mut [T]> {
+        self.columns
+            .get_mut(&TypeId::of::<T>())?
+            .as_mut_any()
+            .downcast_mut::<TypedColumn<T>>()
+            .map(|storage| &mut storage.data[..])
     }
 }

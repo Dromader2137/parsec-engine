@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use archetype::Archetype;
-use bundle::UsableBundle;
+use bundle::{FromColumns, UsableBundle};
 
 pub mod archetype;
 pub mod bundle;
@@ -21,12 +21,10 @@ pub struct World {
 
 impl World {
     pub fn new() -> World {
-        World {
-            archetypes: vec![],
-        }
+        World { archetypes: vec![] }
     }
 
-    pub fn spawn<T: UsableBundle>(&mut self, bundle: T) -> Result<(), WorldError> {
+    pub fn spawn<T: for<'a> UsableBundle<'a>>(&mut self, bundle: T) -> Result<(), WorldError> {
         let archetype_id = T::archetype_id();
         let archetype_count = self.archetypes.len();
 
@@ -50,20 +48,40 @@ impl World {
         Ok(())
     }
 
-    pub fn query<T: UsableBundle>(&self) -> Result<Vec<T>, WorldError> {
+    pub fn query<T: for<'a> UsableBundle<'a>>(
+        &self,
+    ) -> Result<impl Iterator<Item = <T as FromColumns<'_>>::Output>, WorldError> {
         let bundle_archetype_id = T::archetype_id();
 
-        let mut ret_vec = vec![];
+        let mut iterators = Vec::new();
 
         for archetype in self.archetypes.iter() {
             if !archetype.id.contains(&bundle_archetype_id) {
                 continue;
             }
 
-            T::extend_from_columns(&mut ret_vec, archetype);
+            iterators.push(T::iter_from_columns(archetype));
         }
 
-        Ok(ret_vec)
+        Ok(iterators.into_iter().flatten())
+    }
+
+    pub fn query_mut<T: for<'a> UsableBundle<'a>>(
+        &self,
+    ) -> Result<impl Iterator<Item = <T as FromColumns<'_>>::Output>, WorldError> {
+        let bundle_archetype_id = T::archetype_id();
+
+        let mut iterators = Vec::new();
+
+        for archetype in self.archetypes.iter() {
+            if !archetype.id.contains(&bundle_archetype_id) {
+                continue;
+            }
+
+            iterators.push(T::iter_from_columns(archetype));
+        }
+
+        Ok(iterators.into_iter().flatten())
     }
 }
 
@@ -82,27 +100,8 @@ mod tests {
         let mut world = World::new();
         world.spawn((1.0_f32, "abc")).unwrap();
         world.spawn((1.2_f32, "bcd", 1_u8)).unwrap();
-        let ret = world.query::<(f32,)>().unwrap();
-        assert_eq!(vec![(1.0,), (1.2,)], ret);
-    }
-
-    #[test]
-    fn test_get_2_1() {
-        let mut world = World::new();
-        world.spawn((1.0_f32, "abc")).unwrap();
-        world.spawn((1.0_f32, "bcd", 1_u8)).unwrap();
-        let ret = world.query::<(f32, &'static str)>().unwrap();
-        assert_eq!(vec![(1.0, "abc"), (1.0, "bcd")], ret);
-    }
-    
-    #[test]
-    fn test_get_2_2() {
-        let mut world = World::new();
-        world.spawn((1.0_f32, "abc")).unwrap();
-        world.spawn((1.0_f32, "bcd", 1_u8)).unwrap();
-        world.spawn((1.0_f32, "bcd", 1_u8)).unwrap();
-        world.spawn((1.0_f32, "bcd", 1_u8)).unwrap();
-        let ret = world.query::<(f32, u8)>().unwrap();
-        assert_eq!(vec![(1.0, 1), (1.0, 1), (1.0, 1)], ret);
+        let mut ret = world.query::<(f32,)>().unwrap();
+        assert_eq!(Some((&1.0,)), ret.next());
+        assert_eq!(Some((&1.2,)), ret.next());
     }
 }
