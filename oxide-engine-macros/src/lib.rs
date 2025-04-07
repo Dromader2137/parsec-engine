@@ -77,63 +77,41 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
 
     let len = types.len();
     let mut impl_types = Vec::new();
-    let mut for_types = Vec::new();
+    let mut bundle_types = Vec::new();
+    let mut query_types = Vec::new();
     let mut gets = Vec::new();
-    let mut ref_tuple = Vec::new();
-    let mut query_def = Vec::new();
+    let mut query_ref = Vec::new();
+    let mut query_fields = Vec::new();
     let mut query_init = Vec::new();
     let mut query_get = Vec::new();
     for (i, t) in types.iter().enumerate() {
         impl_types.push(quote! { #t: Sized + Clone + Send + Sync + 'static });
-        for_types.push(quote! { #t });
-        let index = syn::Index::from(i);
+        bundle_types.push(quote! { #t });
+        query_types.push(quote! { #t });
         gets.push(quote! { arch.get::<#t>().unwrap() });
-        ref_tuple.push(quote! { &'a #t });
+        query_ref.push(quote! { &'a #t });
         let field = format_ident!("i_{}", i);
-        query_def.push(quote! { #field: std::slice::Iter<'a, #t> });
-        query_init.push(quote! { #field: sov.#index.iter() });
+        query_fields.push(quote! { #field: std::slice::Iter<'a, #t> });
         query_get.push(quote! { self.#field.next()? });
+        let index = syn::Index::from(i);
+        query_init.push(quote! { #field: sov.#index.iter() });
+    }
+
+    if types.len() == 1 {
+        bundle_types.push(quote! {});
+        query_ref.push(quote! {});
+        gets.push(quote! {});
     }
 
     let query_name = format_ident!("Query{}", len);
 
-    if types.len() == 1 {
-        let t = types.get(0).unwrap();
-        let output = quote! {
-            struct #query_name<'a, #t> {
-                #(#query_def),*
-            }
-
-            impl<'a, #t> Iterator for #query_name<'a, #t> {
-                type Item = (&'a #t, );
-                fn next(&mut self) -> Option<Self::Item> {
-                    Some((
-                        #(#query_get),*,
-                    ))
-                }
-            }
-            impl<'a, #t: Clone + Sized + Send + Sync + 'static> FromColumns<'a> for (#t, ) {
-                type Output = (&'a #t, );
-                fn iter_from_columns<'b>(arch: &'b Archetype) -> impl Iterator<Item = Self::Output> where 'b: 'a {
-                    let sov = (arch.get::<#t>().unwrap(), );
-                    #query_name {
-                        #(
-                            #query_init
-                        ),*
-                    }
-                }
-            }
-        };
-        return TokenStream::from(output);
-    }
-
     let output = quote! {
-        struct #query_name<'a, #(#for_types),*> {
-            #(#query_def),*
+        struct #query_name<'a, #(#bundle_types),*> {
+            #(#query_fields),*
         }
 
-        impl<'a, #(#for_types),*> Iterator for #query_name<'a, #(#for_types),*> {
-            type Item = (#(#ref_tuple),*);
+        impl<'a, #(#query_types),*> Iterator for #query_name<'a, #(#query_types),*> {
+            type Item = (#(#query_ref),*);
             fn next(&mut self) -> Option<Self::Item> {
                 Some((
                     #(#query_get),*,
@@ -141,8 +119,8 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl<'a, #(#impl_types),*> FromColumns<'a> for (#(#for_types),*) {
-            type Output = (#(#ref_tuple),*);
+        impl<'a, #(#impl_types),*> FromColumns<'a> for (#(#bundle_types),*) {
+            type Output = (#(#query_ref),*);
             fn iter_from_columns<'b>(arch: &'b Archetype) -> impl Iterator<Item = Self::Output> where 'b: 'a  {
                 let sov = (#(#gets),*);
                 #query_name {
@@ -163,63 +141,41 @@ pub fn impl_from_columns_mut(input: TokenStream) -> TokenStream {
 
     let len = types.len();
     let mut impl_types = Vec::new();
-    let mut for_types = Vec::new();
+    let mut bundle_types = Vec::new();
+    let mut query_types = Vec::new();
     let mut gets = Vec::new();
-    let mut ref_tuple = Vec::new();
-    let mut query_def = Vec::new();
+    let mut query_ref = Vec::new();
+    let mut query_fields = Vec::new();
     let mut query_init = Vec::new();
     let mut query_get = Vec::new();
     for (i, t) in types.iter().enumerate() {
         impl_types.push(quote! { #t: Sized + Clone + Send + Sync + 'static });
-        for_types.push(quote! { #t });
-        let index = syn::Index::from(i);
+        bundle_types.push(quote! { #t });
+        query_types.push(quote! { #t });
+        query_ref.push(quote! { &'a mut #t });
         gets.push(quote! { arch.get_mut::<#t>().unwrap() });
-        ref_tuple.push(quote! { &'a mut #t });
         let field = format_ident!("i_{}", i);
-        query_def.push(quote! { #field: std::slice::IterMut<'a, #t> });
-        query_init.push(quote! { #field: sov.#index.iter_mut() });
+        query_fields.push(quote! { #field: std::slice::IterMut<'a, #t> });
         query_get.push(quote! { self.#field.next()? });
+        let index = syn::Index::from(i);
+        query_init.push(quote! { #field: sov.#index.iter_mut() });
+    }
+
+    if types.len() == 1 {
+        bundle_types.push(quote! {});
+        query_ref.push(quote! {});
+        gets.push(quote! {});
     }
 
     let query_name = format_ident!("QueryMut{}", len);
 
-    if types.len() == 1 {
-        let t = types.get(0).unwrap();
-        let output = quote! {
-            struct #query_name<'a, #t> {
-                #(#query_def),*
-            }
-
-            impl<'a, #t> Iterator for #query_name<'a, #t> {
-                type Item = (&'a mut #t, );
-                fn next(&mut self) -> Option<Self::Item> {
-                    Some((
-                        #(#query_get),*,
-                    ))
-                }
-            }
-            impl<'a, #t: Clone + Sized + Send + Sync + 'static> FromColumnsMut<'a> for (#t, ) {
-                type Output = (&'a mut #t, );
-                fn iter_from_columns<'b>(arch: &'b mut Archetype) -> impl Iterator<Item = Self::Output> where 'b: 'a {
-                    let sov = (arch.get_mut::<#t>().unwrap(), );
-                    #query_name {
-                        #(
-                            #query_init
-                        ),*
-                    }
-                }
-            }
-        };
-        return TokenStream::from(output);
-    }
-
     let output = quote! {
-        struct #query_name<'a, #(#for_types),*> {
-            #(#query_def),*
+        struct #query_name<'a, #(#bundle_types),*> {
+            #(#query_fields),*
         }
 
-        impl<'a, #(#for_types),*> Iterator for #query_name<'a, #(#for_types),*> {
-            type Item = (#(#ref_tuple),*);
+        impl<'a, #(#bundle_types),*> Iterator for #query_name<'a, #(#bundle_types),*> {
+            type Item = (#(#query_ref),*);
             fn next(&mut self) -> Option<Self::Item> {
                 Some((
                     #(#query_get),*,
@@ -227,8 +183,8 @@ pub fn impl_from_columns_mut(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl<'a, #(#impl_types),*> FromColumnsMut<'a> for (#(#for_types),*) {
-            type Output = (#(#ref_tuple),*);
+        impl<'a, #(#impl_types),*> FromColumnsMut<'a> for (#(#bundle_types),*) {
+            type Output = (#(#query_ref),*);
             fn iter_from_columns<'b>(arch: &'b mut Archetype) -> impl Iterator<Item = Self::Output> where 'b: 'a  {
                 let sov = (#(#gets),*);
                 #query_name {
