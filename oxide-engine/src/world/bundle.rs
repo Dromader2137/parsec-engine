@@ -1,6 +1,6 @@
 use oxide_engine_macros::multiple_tuples;
 
-use super::archetype::{Archetype, ArchetypeId};
+use super::archetype::{Archetype, ArchetypeError, ArchetypeId};
 use crate::oxide_engine_macros::{impl_bundle, impl_from_columns, impl_from_columns_mut};
 use std::any::TypeId;
 
@@ -11,14 +11,18 @@ pub trait Bundle: Clone + Send + Sync + Sized + 'static {
 
 pub trait FromColumns<'a>: Clone + Send + Sync + Sized + 'static {
     type Output;
-    fn iter_from_columns<'b>(arch: &'b Archetype) -> impl Iterator<Item = Self::Output>
+    fn iter_from_columns<'b>(
+        arch: &'b Archetype,
+    ) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError>
     where
         'b: 'a;
 }
 
 pub trait FromColumnsMut<'a>: Clone + Send + Sync + Sized + 'static {
     type Output;
-    fn iter_from_columns<'b>(arch: &'b mut Archetype) -> impl Iterator<Item = Self::Output>
+    fn iter_from_columns<'b>(
+        arch: &'b mut Archetype,
+    ) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError>
     where
         'b: 'a;
 }
@@ -99,6 +103,6 @@ macro_rules! impl_usable_bundle_mut {
 multiple_tuples!(impl_into_archetype, 4);
 multiple_tuples!(impl_bundle, 4);
 multiple_tuples!(impl_from_columns, 4);
-multiple_tuples!(impl_from_columns_mut, 2);
+multiple_tuples!(impl_from_columns_mut, 4);
 multiple_tuples!(impl_usable_bundle, 4);
-multiple_tuples!(impl_usable_bundle_mut, 2);
+multiple_tuples!(impl_usable_bundle_mut, 4);

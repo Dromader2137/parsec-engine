@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use archetype::Archetype;
-use bundle::{FromColumns, UsableBundle};
+use bundle::{FromColumns, FromColumnsMut, UsableBundle, UsableBundleMut};
 
 pub mod archetype;
 pub mod bundle;
@@ -10,6 +10,7 @@ pub mod entity;
 #[derive(Debug, Clone, PartialEq)]
 pub enum WorldError {
     SpawnError(String),
+    ArchetypeError(String),
     SpawnTypeMismatch,
     DoubleTypeArchetypeNotAllowed,
     ArchetypeNotFound,
@@ -60,25 +61,35 @@ impl World {
                 continue;
             }
 
-            iterators.push(T::iter_from_columns(archetype));
+            let archetype_iter = T::iter_from_columns(archetype);
+
+            match archetype_iter {
+                Ok(val) => iterators.push(val),
+                Err(err) => return Err(WorldError::ArchetypeError(format!("{:?}", err))),
+            }
         }
 
         Ok(iterators.into_iter().flatten())
     }
 
-    pub fn query_mut<T: for<'a> UsableBundle<'a>>(
-        &self,
-    ) -> Result<impl Iterator<Item = <T as FromColumns<'_>>::Output>, WorldError> {
+    pub fn query_mut<T: for<'a> UsableBundleMut<'a>>(
+        &mut self,
+    ) -> Result<impl Iterator<Item = <T as FromColumnsMut<'_>>::Output>, WorldError> {
         let bundle_archetype_id = T::archetype_id();
 
         let mut iterators = Vec::new();
 
-        for archetype in self.archetypes.iter() {
+        for archetype in self.archetypes.iter_mut() {
             if !archetype.id.contains(&bundle_archetype_id) {
                 continue;
             }
 
-            iterators.push(T::iter_from_columns(archetype));
+            let archetype_iter = T::iter_from_columns(archetype);
+
+            match archetype_iter {
+                Ok(val) => iterators.push(val),
+                Err(err) => return Err(WorldError::ArchetypeError(format!("{:?}", err))),
+            }
         }
 
         Ok(iterators.into_iter().flatten())
@@ -103,5 +114,22 @@ mod tests {
         let mut ret = world.query::<(f32,)>().unwrap();
         assert_eq!(Some((&1.0,)), ret.next());
         assert_eq!(Some((&1.2,)), ret.next());
+    }
+
+    #[test]
+    fn test_mut_1() {
+        let mut world = World::new();
+        world.spawn((1.0_f32, "abc")).unwrap();
+        world.spawn((1.2_f32, "bcd", 1_u8)).unwrap();
+        let mut ret = world.query_mut::<(f32, &'static str)>().unwrap();
+        let first = ret.next();
+        assert_eq!(Some((&mut 1.0, &mut "abc")), first);
+        if let Some(val) = first {
+            *val.0 += 1.0;
+        }
+        assert_eq!(Some((&mut 1.2, &mut "bcd")), ret.next());
+        drop(ret);
+        let mut ret = world.query::<(f32, &'static str)>().unwrap();
+        assert_eq!(Some((&2.0, &"abc")), ret.next());
     }
 }

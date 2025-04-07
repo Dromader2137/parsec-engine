@@ -88,7 +88,7 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
         impl_types.push(quote! { #t: Sized + Clone + Send + Sync + 'static });
         bundle_types.push(quote! { #t });
         query_types.push(quote! { #t });
-        gets.push(quote! { arch.get::<#t>().unwrap() });
+        gets.push(quote! { arch.get::<#t>()? });
         query_ref.push(quote! { &'a #t });
         let field = format_ident!("i_{}", i);
         query_fields.push(quote! { #field: std::slice::Iter<'a, #t> });
@@ -121,13 +121,15 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
 
         impl<'a, #(#impl_types),*> FromColumns<'a> for (#(#bundle_types),*) {
             type Output = (#(#query_ref),*);
-            fn iter_from_columns<'b>(arch: &'b Archetype) -> impl Iterator<Item = Self::Output> where 'b: 'a  {
+            fn iter_from_columns<'b>(arch: &'b Archetype) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError> where 'b: 'a  {
                 let sov = (#(#gets),*);
+                Ok(
                 #query_name {
                     #(
                         #query_init
                     ),*
                 }
+                )
             }
         }
     };
@@ -153,12 +155,12 @@ pub fn impl_from_columns_mut(input: TokenStream) -> TokenStream {
         bundle_types.push(quote! { #t });
         query_types.push(quote! { #t });
         query_ref.push(quote! { &'a mut #t });
-        gets.push(quote! { arch.get_mut::<#t>().unwrap() });
+        gets.push(quote! { arch.get_mut::<#t>()? });
         let field = format_ident!("i_{}", i);
         query_fields.push(quote! { #field: std::slice::IterMut<'a, #t> });
         query_get.push(quote! { self.#field.next()? });
         let index = syn::Index::from(i);
-        query_init.push(quote! { #field: sov.#index.iter_mut() });
+        query_init.push(quote! { #field: (*sov.#index).iter_mut() });
     }
 
     if types.len() == 1 {
@@ -185,12 +187,16 @@ pub fn impl_from_columns_mut(input: TokenStream) -> TokenStream {
 
         impl<'a, #(#impl_types),*> FromColumnsMut<'a> for (#(#bundle_types),*) {
             type Output = (#(#query_ref),*);
-            fn iter_from_columns<'b>(arch: &'b mut Archetype) -> impl Iterator<Item = Self::Output> where 'b: 'a  {
+            fn iter_from_columns<'b>(arch: &'b mut Archetype) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError> where 'b: 'a  {
                 let sov = (#(#gets),*);
+                unsafe {
+                    Ok(
                 #query_name {
                     #(
                         #query_init
                     ),*
+                }
+                    )
                 }
             }
         }
