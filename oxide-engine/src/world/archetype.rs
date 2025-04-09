@@ -51,18 +51,17 @@ impl ArchetypeId {
 
 #[derive(Debug)]
 pub enum ArchetypeError {
-    AlreadyBorrowed,
-    AlreadyMutablyBorrowed,
+    ColumnAlreadyBorrowed,
+    ColumnAlreadyMutablyBorrowed,
     InternalTypeMismatch,
     TypeNotFound,
-    SpawnError,
-    RefCellAlreadyBorrowed,
+    ColumnStatusRefCellAlreadyBorrowed,
 }
 
 #[derive(Debug, Clone)]
 enum ColumnState {
     Free,
-    Borrowed,
+    Borrowed(u32),
     MutBorrowed,
 }
 
@@ -82,10 +81,10 @@ impl ColumnStateWrapper {
         match self.state.try_borrow() {
             Ok(val) => match val.clone() {
                 ColumnState::Free => Ok(()),
-                ColumnState::Borrowed => Ok(()),
-                ColumnState::MutBorrowed => Err(ArchetypeError::AlreadyMutablyBorrowed),
+                ColumnState::Borrowed(_) => Ok(()),
+                ColumnState::MutBorrowed => Err(ArchetypeError::ColumnAlreadyMutablyBorrowed),
             },
-            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+            Err(_) => Err(ArchetypeError::ColumnStatusRefCellAlreadyBorrowed),
         }
     }
 
@@ -93,10 +92,10 @@ impl ColumnStateWrapper {
         match self.state.try_borrow() {
             Ok(val) => match val.clone() {
                 ColumnState::Free => Ok(()),
-                ColumnState::Borrowed => Err(ArchetypeError::AlreadyBorrowed),
-                ColumnState::MutBorrowed => Err(ArchetypeError::AlreadyMutablyBorrowed),
+                ColumnState::Borrowed(_) => Err(ArchetypeError::ColumnAlreadyBorrowed),
+                ColumnState::MutBorrowed => Err(ArchetypeError::ColumnAlreadyMutablyBorrowed),
             },
-            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+            Err(_) => Err(ArchetypeError::ColumnStatusRefCellAlreadyBorrowed),
         }
     }
 
@@ -104,10 +103,16 @@ impl ColumnStateWrapper {
         self.check_borrowed()?;
         match self.state.try_borrow_mut() {
             Ok(mut val) => {
-                *val = ColumnState::Borrowed;
+                match val.clone() {
+                    ColumnState::Borrowed(num) => {
+                        *val = ColumnState::Borrowed(num + 1);
+                    }
+                    ColumnState::Free => *val = ColumnState::Borrowed(1),
+                    ColumnState::MutBorrowed => unreachable!(),
+                }
                 Ok(())
             }
-            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+            Err(_) => Err(ArchetypeError::ColumnStatusRefCellAlreadyBorrowed),
         }
     }
 
@@ -118,17 +123,27 @@ impl ColumnStateWrapper {
                 *val = ColumnState::MutBorrowed;
                 Ok(())
             }
-            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+            Err(_) => Err(ArchetypeError::ColumnStatusRefCellAlreadyBorrowed),
         }
     }
 
     pub fn free(&self) -> Result<(), ArchetypeError> {
         match self.state.try_borrow_mut() {
             Ok(mut val) => {
-                *val = ColumnState::Free;
+                match val.clone() {
+                    ColumnState::MutBorrowed => *val = ColumnState::Free,
+                    ColumnState::Borrowed(num) => {
+                        if num == 1 {
+                            *val = ColumnState::Free;
+                        } else {
+                            *val = ColumnState::Borrowed(num - 1);
+                        }
+                    }
+                    ColumnState::Free => {}
+                }
                 Ok(())
             }
-            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+            Err(_) => Err(ArchetypeError::ColumnStatusRefCellAlreadyBorrowed),
         }
     }
 }
@@ -163,7 +178,7 @@ impl ArchetypeColumn {
             column.data.push(value);
             Ok(())
         } else {
-            Err(ArchetypeError::SpawnError)
+            Err(ArchetypeError::TypeNotFound)
         }
     }
 
