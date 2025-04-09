@@ -1,3 +1,4 @@
+use crate::world::archetype::ColumnStateWrapper;
 use oxide_engine_macros::multiple_tuples;
 
 use super::archetype::{Archetype, ArchetypeError, ArchetypeId};
@@ -6,7 +7,7 @@ use std::any::TypeId;
 
 pub trait Bundle: Clone + Send + Sync + Sized + 'static {
     fn type_id(&self) -> TypeId;
-    fn add_to(&self, arch: &mut Archetype);
+    fn add_to(&self, arch: &mut Archetype) -> Result<(), ArchetypeError>;
 }
 
 pub trait FromColumns<'a>: Clone + Send + Sync + Sized + 'static {
@@ -21,7 +22,7 @@ pub trait FromColumns<'a>: Clone + Send + Sync + Sized + 'static {
 pub trait FromColumnsMut<'a>: Clone + Send + Sync + Sized + 'static {
     type Output;
     fn iter_from_columns<'b>(
-        arch: &'b mut Archetype,
+        arch: &'b Archetype,
     ) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError>
     where
         'b: 'a;

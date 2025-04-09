@@ -1,7 +1,10 @@
 use core::any::TypeId;
 use std::{
     any::Any,
+    cell::RefCell,
     collections::{HashMap, HashSet},
+    fmt::Debug,
+    rc::Rc,
 };
 
 pub trait Column: Any {
@@ -52,55 +55,135 @@ pub enum ArchetypeError {
     AlreadyMutablyBorrowed,
     InternalTypeMismatch,
     TypeNotFound,
+    SpawnError,
+    RefCellAlreadyBorrowed,
 }
 
+#[derive(Debug, Clone)]
 enum ColumnState {
     Free,
-    Borrwed,
+    Borrowed,
     MutBorrowed,
 }
 
+#[derive(Debug)]
+pub struct ColumnStateWrapper {
+    state: Rc<RefCell<ColumnState>>,
+}
+
+impl ColumnStateWrapper {
+    fn new() -> ColumnStateWrapper {
+        ColumnStateWrapper {
+            state: Rc::new(RefCell::new(ColumnState::Free)),
+        }
+    }
+
+    fn check_borrowed(&self) -> Result<(), ArchetypeError> {
+        match self.state.try_borrow() {
+            Ok(val) => match val.clone() {
+                ColumnState::Free => Ok(()),
+                ColumnState::Borrowed => Ok(()),
+                ColumnState::MutBorrowed => Err(ArchetypeError::AlreadyMutablyBorrowed),
+            },
+            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+        }
+    }
+
+    fn check_borrowed_mut(&self) -> Result<(), ArchetypeError> {
+        match self.state.try_borrow() {
+            Ok(val) => match val.clone() {
+                ColumnState::Free => Ok(()),
+                ColumnState::Borrowed => Err(ArchetypeError::AlreadyBorrowed),
+                ColumnState::MutBorrowed => Err(ArchetypeError::AlreadyMutablyBorrowed),
+            },
+            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+        }
+    }
+
+    pub fn borrow(&self) -> Result<(), ArchetypeError> {
+        self.check_borrowed()?;
+        match self.state.try_borrow_mut() {
+            Ok(mut val) => {
+                *val = ColumnState::Borrowed;
+                Ok(())
+            }
+            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+        }
+    }
+
+    pub fn borrow_mut(&self) -> Result<(), ArchetypeError> {
+        self.check_borrowed_mut()?;
+        match self.state.try_borrow_mut() {
+            Ok(mut val) => {
+                *val = ColumnState::MutBorrowed;
+                Ok(())
+            }
+            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+        }
+    }
+
+    pub fn free(&self) -> Result<(), ArchetypeError> {
+        match self.state.try_borrow_mut() {
+            Ok(mut val) => {
+                *val = ColumnState::Free;
+                Ok(())
+            }
+            Err(_) => Err(ArchetypeError::RefCellAlreadyBorrowed),
+        }
+    }
+}
+
 struct ArchetypeColumn {
-    data: Box<dyn Column>,
-    state: ColumnState,
+    data: RefCell<Box<dyn Column>>,
+    state: ColumnStateWrapper,
+}
+
+impl Debug for ArchetypeColumn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ArchetypeColumn")
+            .field("state", &self.state)
+            .finish()
+    }
 }
 
 impl ArchetypeColumn {
     fn new<T: 'static>() -> ArchetypeColumn {
         ArchetypeColumn {
-            data: Box::new(TypedColumn::<T> { data: Vec::new() }),
-            state: ColumnState::Free,
+            data: RefCell::new(Box::new(TypedColumn::<T> { data: Vec::new() })),
+            state: ColumnStateWrapper::new(),
         }
     }
 
-    fn push<T: 'static>(&mut self, value: T) {
-        if let Some(column) = self.data.as_mut_any().downcast_mut::<TypedColumn<T>>() {
+    fn push<T: 'static>(&mut self, value: T) -> Result<(), ArchetypeError> {
+        self.state.check_borrowed_mut()?;
+
+        let mut mut_borrow = self.data.borrow_mut();
+
+        if let Some(column) = mut_borrow.as_mut_any().downcast_mut::<TypedColumn<T>>() {
             column.data.push(value);
+            Ok(())
+        } else {
+            Err(ArchetypeError::SpawnError)
         }
     }
 
-    fn get_slice<T: 'static>(&self) -> Result<&[T], ArchetypeError> {
-        match self.state {
-            ColumnState::MutBorrowed => return Err(ArchetypeError::AlreadyMutablyBorrowed),
-            ColumnState::Free | ColumnState::Borrwed => (),
-        }
+    fn get_slice<T: 'static>(&self) -> Result<*const [T], ArchetypeError> {
+        self.state.check_borrowed()?;
 
-        let typed_column = self.data.as_any().downcast_ref::<TypedColumn<T>>();
+        let borrow = self.data.borrow();
+        let typed_column = borrow.as_any().downcast_ref::<TypedColumn<T>>();
 
         match typed_column {
-            Some(val) => Ok(&val.data),
+            Some(val) => Ok(&val.data as &[T]),
             None => Err(ArchetypeError::InternalTypeMismatch),
         }
     }
 
-    fn get_mut_slice<T: 'static>(&mut self) -> Result<*mut [T], ArchetypeError> {
-        match self.state {
-            ColumnState::Borrwed => return Err(ArchetypeError::AlreadyBorrowed),
-            ColumnState::MutBorrowed => return Err(ArchetypeError::AlreadyMutablyBorrowed),
-            ColumnState::Free => (),
-        }
+    fn get_mut_slice<T: 'static>(&self) -> Result<*mut [T], ArchetypeError> {
+        self.state.check_borrowed()?;
 
-        let typed_column = self.data.as_mut_any().downcast_mut::<TypedColumn<T>>();
+        let mut mut_borrow = self.data.borrow_mut();
+        let typed_column = mut_borrow.as_mut_any().downcast_mut::<TypedColumn<T>>();
 
         match typed_column {
             Some(val) => Ok(&mut val.data as &mut [T]),
@@ -109,6 +192,7 @@ impl ArchetypeColumn {
     }
 }
 
+#[derive(Debug)]
 pub struct Archetype {
     pub id: ArchetypeId,
     columns: HashMap<TypeId, ArchetypeColumn>,
@@ -124,7 +208,7 @@ impl Archetype {
         }
     }
 
-    pub fn add<T: 'static>(&mut self, value: T) {
+    pub fn add<T: 'static>(&mut self, value: T) -> Result<(), ArchetypeError> {
         let type_id = TypeId::of::<T>();
 
         let column = self
@@ -132,7 +216,7 @@ impl Archetype {
             .entry(type_id)
             .or_insert_with(|| ArchetypeColumn::new::<T>());
 
-        column.push(value);
+        column.push(value)
     }
 
     fn get_column<T: 'static>(&self) -> Result<&ArchetypeColumn, ArchetypeError> {
@@ -142,18 +226,15 @@ impl Archetype {
         }
     }
 
-    fn get_mut_column<T: 'static>(&mut self) -> Result<&mut ArchetypeColumn, ArchetypeError> {
-        match self.columns.get_mut(&TypeId::of::<T>()) {
-            Some(val) => Ok(val),
-            None => Err(ArchetypeError::TypeNotFound),
-        }
+    pub fn get<T: 'static>(&self) -> Result<(*const [T], &ColumnStateWrapper), ArchetypeError> {
+        let column = self.get_column::<T>()?;
+        let slice = column.get_slice::<T>()?;
+        Ok((slice, &column.state))
     }
 
-    pub fn get<T: 'static>(&self) -> Result<&[T], ArchetypeError> {
-        self.get_column::<T>()?.get_slice()
-    }
-
-    pub fn get_mut<T: 'static>(&mut self) -> Result<*mut [T], ArchetypeError> {
-        self.get_mut_column::<T>()?.get_mut_slice()
+    pub fn get_mut<T: 'static>(&self) -> Result<(*mut [T], &ColumnStateWrapper), ArchetypeError> {
+        let column = self.get_column::<T>()?;
+        let slice = column.get_mut_slice::<T>()?;
+        Ok((slice, &column.state))
     }
 }

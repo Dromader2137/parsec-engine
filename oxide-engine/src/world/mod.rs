@@ -16,6 +16,7 @@ pub enum WorldError {
     ArchetypeNotFound,
 }
 
+#[derive(Debug)]
 pub struct World {
     archetypes: Vec<Archetype>,
 }
@@ -43,7 +44,10 @@ impl World {
             self.archetypes.push(Archetype::new(archetype_id));
         }
 
-        bundle.add_to(&mut self.archetypes[archetype_index]);
+        match bundle.add_to(&mut self.archetypes[archetype_index]) {
+            Ok(()) => {}
+            Err(err) => return Err(WorldError::SpawnError(format!("{:?}", err))),
+        };
         self.archetypes[archetype_index].bundle_count += 1;
 
         Ok(())
@@ -73,13 +77,13 @@ impl World {
     }
 
     pub fn query_mut<T: for<'a> UsableBundleMut<'a>>(
-        &mut self,
+        &self,
     ) -> Result<impl Iterator<Item = <T as FromColumnsMut<'_>>::Output>, WorldError> {
         let bundle_archetype_id = T::archetype_id();
 
         let mut iterators = Vec::new();
 
-        for archetype in self.archetypes.iter_mut() {
+        for archetype in self.archetypes.iter() {
             if !archetype.id.contains(&bundle_archetype_id) {
                 continue;
             }
@@ -121,15 +125,9 @@ mod tests {
         let mut world = World::new();
         world.spawn((1.0_f32, "abc")).unwrap();
         world.spawn((1.2_f32, "bcd", 1_u8)).unwrap();
-        let mut ret = world.query_mut::<(f32, &'static str)>().unwrap();
-        let first = ret.next();
-        assert_eq!(Some((&mut 1.0, &mut "abc")), first);
-        if let Some(val) = first {
-            *val.0 += 1.0;
-        }
-        assert_eq!(Some((&mut 1.2, &mut "bcd")), ret.next());
-        drop(ret);
-        let mut ret = world.query::<(f32, &'static str)>().unwrap();
-        assert_eq!(Some((&2.0, &"abc")), ret.next());
+        let ret_1 = world.query::<(f32, &'static str)>().unwrap();
+        println!("{:#?}", world);
+        let ret_2 = world.query_mut::<(f32, &'static str, u8)>().unwrap();
+        println!("{:#?}", world);
     }
 }

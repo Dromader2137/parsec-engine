@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, Ident, LitInt, Token};
+use syn::{Ident, LitInt, Token, parse_macro_input};
 
 struct ImplBundleInput {
     types: Punctuated<Ident, Token![,]>,
@@ -27,8 +27,9 @@ pub fn impl_bundle(input: TokenStream) -> TokenStream {
                     TypeId::of::<Self>()
                 }
 
-                fn add_to(&self, arch: &mut Archetype) {
-                    arch.add(self.clone());
+                fn add_to(&self, arch: &mut Archetype) -> Result<(), ArchetypeError> {
+                    arch.add(self.clone())?;
+                    Ok(())
                 }
             }
         };
@@ -42,7 +43,7 @@ pub fn impl_bundle(input: TokenStream) -> TokenStream {
         impl_types.push(quote! { #t: Clone + Sized + Send + Sync + 'static });
         for_types.push(quote! { #t });
         let i = syn::Index::from(i);
-        adds.push(quote! { arch.add(self.#i.clone()); });
+        adds.push(quote! { arch.add(self.#i.clone())?; });
     }
 
     let output = quote! {
@@ -51,8 +52,9 @@ pub fn impl_bundle(input: TokenStream) -> TokenStream {
                 TypeId::of::<Self>()
             }
 
-            fn add_to(&self, arch: &mut Archetype) {
+            fn add_to(&self, arch: &mut Archetype) -> Result<(), ArchetypeError> {
                 #(#adds)*
+                Ok(())
             }
         }
     };
@@ -82,8 +84,11 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
     let mut gets = Vec::new();
     let mut query_ref = Vec::new();
     let mut query_fields = Vec::new();
+    let mut query_field_names = Vec::new();
     let mut query_init = Vec::new();
     let mut query_get = Vec::new();
+    let mut query_drop = Vec::new();
+    let mut query_borrow = Vec::new();
     for (i, t) in types.iter().enumerate() {
         impl_types.push(quote! { #t: Sized + Clone + Send + Sync + 'static });
         bundle_types.push(quote! { #t });
@@ -91,10 +96,13 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
         gets.push(quote! { arch.get::<#t>()? });
         query_ref.push(quote! { &'a #t });
         let field = format_ident!("i_{}", i);
-        query_fields.push(quote! { #field: std::slice::Iter<'a, #t> });
-        query_get.push(quote! { self.#field.next()? });
+        query_fields.push(quote! { #field: (std::slice::Iter<'a, #t>, &'a ColumnStateWrapper) });
+        query_field_names.push(quote! { #field });
+        query_get.push(quote! { self.#field.0.next()? });
         let index = syn::Index::from(i);
-        query_init.push(quote! { #field: sov.#index.iter() });
+        query_init.push(quote! { ((*sov.#index.0).iter(), sov.#index.1) });
+        query_drop.push(quote! { self.#field.1.free().unwrap(); });
+        query_borrow.push(quote! { #field.1.borrow()?; });
     }
 
     if types.len() == 1 {
@@ -110,6 +118,19 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
             #(#query_fields),*
         }
 
+        impl<'a, #(#query_types),*> #query_name<'a, #(#bundle_types),*> {
+            fn new(#(#query_fields),*) -> Result<#query_name<'a, #(#bundle_types),*>, ArchetypeError> {
+                #(#query_borrow)*
+                Ok(#query_name {#(#query_field_names),*})
+            }
+        }
+
+        impl<'a, #(#query_types),*> Drop for #query_name<'a, #(#query_types),*> {
+            fn drop(&mut self) {
+                #(#query_drop)*
+            }
+        }
+
         impl<'a, #(#query_types),*> Iterator for #query_name<'a, #(#query_types),*> {
             type Item = (#(#query_ref),*);
             fn next(&mut self) -> Option<Self::Item> {
@@ -123,13 +144,9 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
             type Output = (#(#query_ref),*);
             fn iter_from_columns<'b>(arch: &'b Archetype) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError> where 'b: 'a  {
                 let sov = (#(#gets),*);
-                Ok(
-                #query_name {
-                    #(
-                        #query_init
-                    ),*
+                unsafe {
+                #query_name::new(#(#query_init),*)
                 }
-                )
             }
         }
     };
@@ -148,8 +165,11 @@ pub fn impl_from_columns_mut(input: TokenStream) -> TokenStream {
     let mut gets = Vec::new();
     let mut query_ref = Vec::new();
     let mut query_fields = Vec::new();
+    let mut query_field_names = Vec::new();
     let mut query_init = Vec::new();
     let mut query_get = Vec::new();
+    let mut query_drop = Vec::new();
+    let mut query_borrow = Vec::new();
     for (i, t) in types.iter().enumerate() {
         impl_types.push(quote! { #t: Sized + Clone + Send + Sync + 'static });
         bundle_types.push(quote! { #t });
@@ -157,10 +177,13 @@ pub fn impl_from_columns_mut(input: TokenStream) -> TokenStream {
         query_ref.push(quote! { &'a mut #t });
         gets.push(quote! { arch.get_mut::<#t>()? });
         let field = format_ident!("i_{}", i);
-        query_fields.push(quote! { #field: std::slice::IterMut<'a, #t> });
-        query_get.push(quote! { self.#field.next()? });
+        query_fields.push(quote! { #field: (std::slice::IterMut<'a, #t>, &'a ColumnStateWrapper) });
+        query_field_names.push(quote! { #field });
+        query_get.push(quote! { self.#field.0.next()? });
         let index = syn::Index::from(i);
-        query_init.push(quote! { #field: (*sov.#index).iter_mut() });
+        query_init.push(quote! { ((*sov.#index.0).iter_mut(), sov.#index.1) });
+        query_drop.push(quote! { self.#field.1.free().unwrap(); });
+        query_borrow.push(quote! { #field.1.borrow_mut()?; });
     }
 
     if types.len() == 1 {
@@ -176,6 +199,19 @@ pub fn impl_from_columns_mut(input: TokenStream) -> TokenStream {
             #(#query_fields),*
         }
 
+        impl<'a, #(#query_types),*> #query_name<'a, #(#bundle_types),*> {
+            fn new(#(#query_fields),*) -> Result<#query_name<'a, #(#bundle_types),*>, ArchetypeError> {
+                #(#query_borrow)*
+                Ok(#query_name {#(#query_field_names),*})
+            }
+        }
+
+        impl<'a, #(#query_types),*> Drop for #query_name<'a, #(#query_types),*> {
+            fn drop(&mut self) {
+                #(#query_drop)*
+            }
+        }
+
         impl<'a, #(#bundle_types),*> Iterator for #query_name<'a, #(#bundle_types),*> {
             type Item = (#(#query_ref),*);
             fn next(&mut self) -> Option<Self::Item> {
@@ -187,16 +223,10 @@ pub fn impl_from_columns_mut(input: TokenStream) -> TokenStream {
 
         impl<'a, #(#impl_types),*> FromColumnsMut<'a> for (#(#bundle_types),*) {
             type Output = (#(#query_ref),*);
-            fn iter_from_columns<'b>(arch: &'b mut Archetype) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError> where 'b: 'a  {
+            fn iter_from_columns<'b>(arch: &'b Archetype) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError> where 'b: 'a  {
                 let sov = (#(#gets),*);
                 unsafe {
-                    Ok(
-                #query_name {
-                    #(
-                        #query_init
-                    ),*
-                }
-                    )
+                    #query_name::new(#(#query_init),*)
                 }
             }
         }
