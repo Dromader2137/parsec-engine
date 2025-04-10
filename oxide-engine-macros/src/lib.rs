@@ -28,7 +28,7 @@ pub fn impl_bundle(input: TokenStream) -> TokenStream {
                 }
 
                 fn add_to(&self, arch: &mut Archetype) -> Result<(), ArchetypeError> {
-                    arch.add(self.clone())?;
+                    arch.add(self.0.clone())?;
                     Ok(())
                 }
             }

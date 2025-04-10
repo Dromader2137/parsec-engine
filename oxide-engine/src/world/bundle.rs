@@ -29,34 +29,19 @@ pub trait FromColumnsMut<'a>: Clone + Send + Sync + Sized + 'static {
 }
 
 pub trait IntoArchetypeId: Clone + Send + Sync + Sized + 'static {
-    fn archetype_id() -> ArchetypeId;
+    fn archetype_id() -> Result<ArchetypeId, ArchetypeError>;
 }
 
 pub trait UsableBundle<'a>: Bundle + FromColumns<'a> + IntoArchetypeId {}
 pub trait UsableBundleMut<'a>: Bundle + FromColumnsMut<'a> + IntoArchetypeId {}
 
-macro_rules! hset {
-    () => {
-        ::std::collections::HashSet::new()
-    };
-    ($($v:expr),*) => {
-        {
-            let mut hset = ::std::collections::HashSet::new();
-            $(
-                hset.insert($v);
-            )*
-            hset
-        }
-    }
-}
-
 macro_rules! impl_into_archetype {
     ($t:ident) => {
         #[allow(unused_parens)]
         impl<$t: Clone + Send + Sync + Sized + 'static> IntoArchetypeId for ($t, ) {
-            fn archetype_id() -> ArchetypeId {
+            fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
                 ArchetypeId::new(
-                    hset![
+                    vec![
                         ::std::any::TypeId::of::<$t>()
                     ]
                 )
@@ -66,9 +51,9 @@ macro_rules! impl_into_archetype {
     ($($t:ident),*) => {
         #[allow(unused_parens)]
         impl<$($t: Clone + Send + Sync + Sized + 'static),*> IntoArchetypeId for ($($t),*) {
-            fn archetype_id() -> ArchetypeId {
+            fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
                 ArchetypeId::new(
-                    hset![
+                    vec![
                         $(
                             ::std::any::TypeId::of::<$t>()
                         ),*
