@@ -6,7 +6,6 @@ use super::{
     window::WindowWrapper,
 };
 
-#[derive(Debug)]
 pub struct GraphicsData {
     pub window: WindowWrapper,
     pub vulkan_context: VulkanContext,

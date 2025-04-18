@@ -5,7 +5,6 @@ pub mod renderer;
 pub mod vulkan;
 pub mod window;
 
-#[derive(Debug)]
 pub struct Graphics {
     pub data: Option<GraphicsData>,
 }

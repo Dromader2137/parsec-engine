@@ -1,21 +1,14 @@
-use std::sync::Arc;
-
 use crate::graphics::window::WindowWrapper;
 
-#[derive(Debug)]
+use super::instance::{Instance, InstanceError};
+
 pub struct VulkanContext {
-    instance: Arc<ash::Instance>,
-    physical_device: Arc<ash::vk::PhysicalDevice>,
-    device: Arc<ash::vk::Device>,
+    instance: Instance,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum VulkanContextError {
-    LibraryLoadingError,
-    InstanceError(String),
-    PhysicalDeviceError(String),
-    DeviceError(String),
-    SurfaceError(String),
+    InstanceError(InstanceError),
 }
 
 impl VulkanContext {
@@ -23,16 +16,8 @@ impl VulkanContext {
         event_loop: &winit::event_loop::ActiveEventLoop,
         window: &WindowWrapper,
     ) -> Result<VulkanContext, VulkanContextError> {
-        let entry = match ash::Entry::load() {};
+        let instance = Instance::new()?;
 
-        let app_info = ash::vk::ApplicationInfo {
-            api_version: ash::vk::make_api_version(0, 1, 0, 0),
-            ..Default::default()
-        };
-        let create_info = ash::vk::InstanceCreateInfo {
-            p_application_info: &app_info,
-            ..Default::default()
-        };
-        let instance = unsafe { entry.create_instance(&create_info, None)? };
+        Ok(VulkanContext { instance })
     }
 }
