@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+
 #[derive(Debug)]
 pub struct WindowWrapper {
     window: Arc<winit::window::Window>,
@@ -40,5 +42,13 @@ impl WindowWrapper {
 
     pub fn get_physical_size(&self) -> winit::dpi::PhysicalSize<u32> {
         self.window.inner_size()
+    }
+
+    pub fn get_display_handle(&self) -> Result<winit::raw_window_handle::DisplayHandle<'_>, winit::raw_window_handle::HandleError> {
+        self.window.display_handle()
+    }
+    
+    pub fn get_window_handle(&self) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError> {
+        self.window.window_handle()
     }
 }

@@ -7,3 +7,4 @@ edition = "2024"
 ash = "0.38.0+1.3.281"
 winit = { version = "0.30.5", features = [ "rwh_05" ] }
 oxide-engine-macros = { path = "../oxide-engine-macros" }
+ash-window = "0.13.0"

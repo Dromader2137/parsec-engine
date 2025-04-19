@@ -1,3 +1,8 @@
 pub mod context;
 pub mod instance;
+pub mod physical_device;
+pub mod device;
+pub mod surface;
 pub mod renderer;
+pub mod queue;
+pub mod swapchain;

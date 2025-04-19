@@ -1,0 +1,61 @@
+use super::{context::VulkanError, instance::{Instance, InstanceError}, surface::InitialSurface};
+
+pub struct PhysicalDevice {
+    physical_device: ash::vk::PhysicalDevice,
+    queue_family_index: u32
+}
+
+#[derive(Debug)]
+pub enum PhysicalDeviceError {
+    CreationError(InstanceError),
+    SuitableDeviceNotFound,
+}
+
+impl From<PhysicalDeviceError> for VulkanError {
+    fn from(value: PhysicalDeviceError) -> Self {
+        VulkanError::PhysicalDeviceError(value)
+    }
+}
+
+impl PhysicalDevice {
+    pub fn new(instance: &Instance, surface: &InitialSurface) -> Result<PhysicalDevice, PhysicalDeviceError> {
+        let physical_devices = match instance.enumerate_physical_devices() {
+            Ok(val) => val,
+            Err(err) => return Err(PhysicalDeviceError::CreationError(err))
+        };
+
+        let (physical_device, queue_family_index) = match physical_devices
+            .iter()
+            .find_map(|p| {
+                instance
+                    .get_physical_device_queue_families_properties(*p)
+                        .iter()
+                        .enumerate()
+                        .find_map(|(index, info)| {
+                            let supports_graphic_and_surface = info.queue_flags.contains(ash::vk::QueueFlags::GRAPHICS)
+                                && surface.check_surface_support(*p, index as u32).unwrap_or(false);
+                            
+                            if supports_graphic_and_surface {
+                                Some((*p, index as u32))
+                            } else {
+                                None
+                            }
+                        })
+
+            }) {
+            Some(val) => val,
+            None => return Err(PhysicalDeviceError::SuitableDeviceNotFound)
+        };
+
+
+        Ok(PhysicalDevice { physical_device, queue_family_index })
+    }
+
+    pub fn get_physical_device_raw(&self) -> &ash::vk::PhysicalDevice {
+        &self.physical_device
+    }
+
+    pub fn get_queue_family_index(&self) -> u32 {
+        self.queue_family_index
+    }
+}
