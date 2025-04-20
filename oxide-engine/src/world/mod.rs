@@ -125,12 +125,12 @@ mod tests {
         let mut world = World::new();
         world.spawn((1.0_f32, "abc")).unwrap();
         world.spawn((1.2_f32, "bcd", 1_u8)).unwrap();
-        let ret_1 = world.query::<(f32, &'static str)>().unwrap();
+        let _ret_1 = world.query::<(f32, &'static str)>().unwrap();
         println!("{:#?}", world);
         let ret_3 = world.query::<(f32, &'static str)>().unwrap();
         println!("{:#?}", world);
         drop(ret_3);
-        let ret_2 = world.query_mut::<(f32, &'static str, u8)>().unwrap();
+        let _ret_2 = world.query_mut::<(f32, &'static str, u8)>().unwrap();
         println!("{:#?}", world);
     }
 }

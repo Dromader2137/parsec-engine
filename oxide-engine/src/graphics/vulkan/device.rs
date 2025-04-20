@@ -49,4 +49,8 @@ impl Device {
         let raw_queue = unsafe { self.device.get_device_queue(family_index, 0) };
         Queue::new(raw_queue)
     }
+
+    pub fn get_device_raw(&self) -> &ash::Device {
+        &self.device
+    }
 }

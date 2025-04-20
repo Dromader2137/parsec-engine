@@ -39,6 +39,14 @@ impl WindowWrapper {
         let physical_size = self.window.inner_size();
         (physical_size.width, physical_size.width)
     }
+    
+    pub fn get_width(&self) -> u32 {
+        self.get_size().0
+    }
+    
+    pub fn get_height(&self) -> u32 {
+        self.get_size().1
+    }
 
     pub fn get_physical_size(&self) -> winit::dpi::PhysicalSize<u32> {
         self.window.inner_size()

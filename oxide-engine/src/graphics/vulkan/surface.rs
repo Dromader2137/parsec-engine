@@ -92,20 +92,16 @@ impl InitialSurface {
             Err(err) => return Err(SurfaceError::CapabilitiesError(err))
         };
 
+        let InitialSurface { surface, surface_loader } = self; 
+
         Ok(
             Surface { 
-                surface: self.surface, 
-                surface_loader: self.surface_loader.clone(), 
+                surface, 
+                surface_loader, 
                 surface_format: surface_formats[0], 
                 surface_capabilities 
             }
         )
-    }
-}
-
-impl Drop for InitialSurface {
-    fn drop(&mut self) {
-        unsafe { self.surface_loader.destroy_surface(self.surface, None) }
     }
 }
 
@@ -118,17 +114,43 @@ impl Surface {
         &self.surface
     }
 
+    #[inline]
     pub fn min_image_count(&self) -> u32 {
         self.surface_capabilities.min_image_count
     }
     
+    #[inline]
     pub fn max_image_count(&self) -> u32 {
         self.surface_capabilities.max_image_count
     }
-}
 
-impl Drop for Surface {
-    fn drop(&mut self) {
-        unsafe { self.surface_loader.destroy_surface(self.surface, None) }
+    #[inline]
+    pub fn current_extent(&self) -> ash::vk::Extent2D {
+        self.surface_capabilities.current_extent
+    }
+
+    #[inline]
+    pub fn supported_transforms(&self) -> ash::vk::SurfaceTransformFlagsKHR {
+        self.surface_capabilities.supported_transforms
+    }
+    
+    #[inline]
+    pub fn current_transform(&self) -> ash::vk::SurfaceTransformFlagsKHR {
+        self.surface_capabilities.current_transform
+    }
+
+    #[inline]
+    pub fn get_present_modes(&self, physical_device: &PhysicalDevice) -> Result<Vec<ash::vk::PresentModeKHR>, ash::vk::Result> {
+        unsafe { self.surface_loader.get_physical_device_surface_present_modes(*physical_device.get_physical_device_raw(), self.surface) }
+    }
+    
+    #[inline]
+    pub fn format(&self) -> ash::vk::Format {
+        self.surface_format.format
+    }
+
+    #[inline]
+    pub fn color_space(&self) -> ash::vk::ColorSpaceKHR {
+        self.surface_format.color_space
     }
 }
