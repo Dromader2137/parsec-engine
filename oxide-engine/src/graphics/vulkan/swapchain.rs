@@ -15,7 +15,7 @@ pub enum SwapchainError {
 
 impl From<SwapchainError> for VulkanError {
     fn from(value: SwapchainError) -> Self {
-        VulkanError::Swapchain(value)
+        VulkanError::SwapchainError(value)
     }
 }
 

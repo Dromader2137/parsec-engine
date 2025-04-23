@@ -1,6 +1,6 @@
 use crate::graphics::window::WindowWrapper;
 
-use super::{device::{Device, DeviceError}, instance::{Instance, InstanceError}, physical_device::{PhysicalDevice, PhysicalDeviceError}, queue::{Queue, QueueError}, surface::{InitialSurface, Surface, SurfaceError}, swapchain::{Swapchain, SwapchainError}};
+use super::{device::{Device, DeviceError}, image::ImageError, instance::{Instance, InstanceError}, physical_device::{PhysicalDevice, PhysicalDeviceError}, queue::{Queue, QueueError}, surface::{InitialSurface, Surface, SurfaceError}, swapchain::{Swapchain, SwapchainError}};
 
 pub struct VulkanContext {
     instance: Instance,
@@ -18,7 +18,8 @@ pub enum VulkanError {
     SurfaceError(SurfaceError),
     DeviceError(DeviceError),
     QueueError(QueueError),
-    Swapchain(SwapchainError),
+    SwapchainError(SwapchainError),
+    ImageError(ImageError)
 }
 
 impl VulkanContext {

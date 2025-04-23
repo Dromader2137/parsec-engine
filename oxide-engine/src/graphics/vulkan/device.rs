@@ -50,6 +50,14 @@ impl Device {
         Queue::new(raw_queue)
     }
 
+    pub fn create_image_raw(&self, create_info: ash::vk::ImageCreateInfo) -> Result<ash::vk::Image, ash::vk::Result> {
+        unsafe { self.device.create_image(&create_info, None) }    
+    }
+
+    pub fn create_image_view_raw(&self, create_info: ash::vk::ImageViewCreateInfo) -> Result<ash::vk::ImageView, ash::vk::Result> {
+        unsafe { self.device.create_image_view(&create_info, None) }
+    }
+
     pub fn get_device_raw(&self) -> &ash::Device {
         &self.device
     }
