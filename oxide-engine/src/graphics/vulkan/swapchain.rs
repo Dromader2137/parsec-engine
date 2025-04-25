@@ -1,6 +1,6 @@
 use crate::graphics::window::WindowWrapper;
 
-use super::{context::VulkanError, device::Device, instance::Instance, physical_device::PhysicalDevice, surface::Surface};
+use super::{context::VulkanError, device::Device, image::{Image, ImageFormat}, instance::Instance, physical_device::PhysicalDevice, surface::Surface};
 
 pub struct Swapchain {
     swapchain: ash::vk::SwapchainKHR,
@@ -11,6 +11,7 @@ pub struct Swapchain {
 pub enum SwapchainError {
     PresentModesError(ash::vk::Result),
     CreationError(ash::vk::Result),
+    ImageAcquisitionError(ash::vk::Result),
 }
 
 impl From<SwapchainError> for VulkanError {
@@ -73,5 +74,14 @@ impl Swapchain {
         };
 
         Ok(Swapchain { swapchain, swapchain_loader })
+    }
+
+    pub fn get_images(&self) -> Result<Vec<Image>, SwapchainError> {
+        match unsafe { self.swapchain_loader.get_swapchain_images(self.swapchain) } {
+            Ok(val) => {
+                Ok(val.into_iter().map(|x| Image::from_raw_image(x)).collect())
+            },
+            Err(err) => Err(SwapchainError::ImageAcquisitionError(err))
+        }
     }
 }
