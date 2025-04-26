@@ -124,9 +124,14 @@ impl Surface {
         self.surface_capabilities.max_image_count
     }
 
-    #[inline]
-    pub fn current_extent(&self) -> ash::vk::Extent2D {
-        self.surface_capabilities.current_extent
+    pub fn current_extent(&self, window: &WindowWrapper) -> ash::vk::Extent2D {
+        match self.surface_capabilities.current_extent.width {
+            u32::MAX => ash::vk::Extent2D {
+                width: window.get_width(),
+                height: window.get_height(),
+            },
+            _ => self.surface_capabilities.current_extent,
+        }
     }
 
     #[inline]

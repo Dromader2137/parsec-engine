@@ -1,10 +1,8 @@
-use std::fmt::Debug;
-
 use crate::error::EngineError;
 
 use super::{vulkan::context::VulkanContext, window::WindowWrapper};
 
-pub trait Renderer: Debug {
+pub trait Renderer {
     fn render(
         &mut self,
         vulkan_context: &VulkanContext,

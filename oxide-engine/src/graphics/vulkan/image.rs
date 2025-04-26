@@ -605,6 +605,19 @@ impl<'a> From<ImageViewInfo<'a>> for ash::vk::ImageViewCreateInfo<'_> {
         ash::vk::ImageViewCreateInfo::default()
             .view_type(ash::vk::ImageViewType::TYPE_2D)
             .format(ash::vk::Format::from(value.format))
+            .subresource_range(ash::vk::ImageSubresourceRange {
+                aspect_mask: ash::vk::ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: 1,
+                base_array_layer: 0,
+                layer_count: 1
+            })
+            .components(ash::vk::ComponentMapping {
+                r: ash::vk::ComponentSwizzle::R,
+                g: ash::vk::ComponentSwizzle::G,
+                b: ash::vk::ComponentSwizzle::B,
+                a: ash::vk::ComponentSwizzle::A,
+            })
             .image(value.image.image)
     }
 }
@@ -626,5 +639,9 @@ impl ImageView {
             Ok(val) => Ok(ImageView { view: val }),
             Err(err) => Err(ImageError::ViewCreationError(err))
         }
+    }
+
+    pub fn get_image_view_raw(&self) -> &ash::vk::ImageView {
+        &self.view
     }
 }

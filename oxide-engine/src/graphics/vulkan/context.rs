@@ -1,16 +1,16 @@
 use crate::graphics::window::WindowWrapper;
 
-use super::{device::{Device, DeviceError}, image::{Image, ImageError, ImageView}, instance::{Instance, InstanceError}, physical_device::{PhysicalDevice, PhysicalDeviceError}, queue::{Queue, QueueError}, surface::{InitialSurface, Surface, SurfaceError}, swapchain::{Swapchain, SwapchainError}};
+use super::{command_buffer::CommandBufferError, device::{Device, DeviceError}, framebuffer::FramebufferError, image::{Image, ImageError, ImageView}, instance::{Instance, InstanceError}, physical_device::{PhysicalDevice, PhysicalDeviceError}, queue::{Queue, QueueError}, renderpass::RenderpassError, surface::{InitialSurface, Surface, SurfaceError}, swapchain::{Swapchain, SwapchainError}};
 
 pub struct VulkanContext {
-    instance: Instance,
-    surface: Surface,
-    physical_device: PhysicalDevice,
-    device: Device,
-    graphics_queue: Queue,
-    swapchain: Swapchain,
-    swapchain_images: Vec<Image>,
-    swapchain_image_views: Vec<ImageView>
+    pub instance: Instance,
+    pub surface: Surface,
+    pub physical_device: PhysicalDevice,
+    pub device: Device,
+    pub graphics_queue: Queue,
+    pub swapchain: Swapchain,
+    pub swapchain_images: Vec<Image>,
+    pub swapchain_image_views: Vec<ImageView>
 }
 
 #[derive(Debug)]
@@ -21,7 +21,10 @@ pub enum VulkanError {
     DeviceError(DeviceError),
     QueueError(QueueError),
     SwapchainError(SwapchainError),
-    ImageError(ImageError)
+    ImageError(ImageError),
+    FramebufferError(FramebufferError),
+    RenderpassError(RenderpassError),
+    CommandBufferError(CommandBufferError)
 }
 
 impl VulkanContext {

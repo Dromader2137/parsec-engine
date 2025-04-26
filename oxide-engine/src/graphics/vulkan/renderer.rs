@@ -1,13 +1,24 @@
 use crate::graphics::{renderer::Renderer, window::WindowWrapper};
 
-use super::context::VulkanContext;
+use super::{context::{VulkanContext, VulkanError}, framebuffer::Framebuffer, renderpass::Renderpass};
 
-#[derive(Debug)]
-pub struct VulkanRenderer {}
+pub struct VulkanRenderer {
+    renderpass: Renderpass,
+    framebuffers: Vec<Framebuffer>,
+}
 
 impl VulkanRenderer {
-    pub fn new(context: &VulkanContext, window: &WindowWrapper) -> Result<VulkanRenderer, ()> {
-        Ok(VulkanRenderer {})
+    pub fn new(context: &VulkanContext, window: &WindowWrapper) -> Result<VulkanRenderer, VulkanError> {
+        let renderpass = Renderpass::new(&context.surface, &context.device)?;
+        let framebuffers = {
+            let mut out = Vec::new();
+            for image_view in context.swapchain_image_views.iter() {
+                out.push(Framebuffer::new(&context.surface, &context.device, image_view, &renderpass, window)?);
+            }
+            out
+        };
+
+        Ok(VulkanRenderer { renderpass, framebuffers })
     }
 }
 

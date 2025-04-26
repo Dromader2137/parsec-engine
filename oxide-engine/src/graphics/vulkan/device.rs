@@ -58,6 +58,14 @@ impl Device {
         unsafe { self.device.create_image_view(&create_info, None) }
     }
 
+    pub fn create_render_pass(&self, create_info: ash::vk::RenderPassCreateInfo) -> Result<ash::vk::RenderPass, ash::vk::Result> {
+        unsafe { self.device.create_render_pass(&create_info, None) }
+    }
+    
+    pub fn create_framebuffer(&self, create_info: ash::vk::FramebufferCreateInfo) -> Result<ash::vk::Framebuffer, ash::vk::Result> {
+        unsafe { self.device.create_framebuffer(&create_info, None) }
+    }
+
     pub fn get_device_raw(&self) -> &ash::Device {
         &self.device
     }

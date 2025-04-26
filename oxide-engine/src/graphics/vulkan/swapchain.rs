@@ -27,13 +27,7 @@ impl Swapchain {
             desired_image_count = surface.max_image_count()
         }
 
-        let surface_resolution = match surface.current_extent().width {
-            u32::MAX => ash::vk::Extent2D {
-                width: window.get_width(),
-                height: window.get_height(),
-            },
-            _ => surface.current_extent(),
-        };
+        let surface_resolution = surface.current_extent(window);
 
         let pre_transform = if surface.supported_transforms().contains(ash::vk::SurfaceTransformFlagsKHR::IDENTITY) {
             ash::vk::SurfaceTransformFlagsKHR::IDENTITY
