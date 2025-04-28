@@ -78,4 +78,12 @@ impl Swapchain {
             Err(err) => Err(SwapchainError::ImageAcquisitionError(err))
         }
     }
+
+    pub fn get_swapchain_raw(&self) -> &ash::vk::SwapchainKHR {
+        &self.swapchain
+    }
+    
+    pub fn get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
+        &self.swapchain_loader
+    }
 }

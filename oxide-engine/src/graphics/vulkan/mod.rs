@@ -10,3 +10,5 @@ pub mod image;
 pub mod framebuffer;
 pub mod command_buffer;
 pub mod renderpass;
+pub mod fence;
+pub mod semaphore;

@@ -66,6 +66,40 @@ impl Device {
         unsafe { self.device.create_framebuffer(&create_info, None) }
     }
 
+    pub fn create_command_pool(&self, create_info: ash::vk::CommandPoolCreateInfo) -> Result<ash::vk::CommandPool, ash::vk::Result> {
+        unsafe { self.device.create_command_pool(&create_info, None) }
+    }
+
+    pub fn create_command_buffers(&self, create_info: ash::vk::CommandBufferAllocateInfo) -> Result<Vec<ash::vk::CommandBuffer>, ash::vk::Result> {
+        unsafe { self.device.allocate_command_buffers(&create_info) }
+    }
+    
+    pub fn begin_command_buffer(&self, command_buffer: ash::vk::CommandBuffer, begin_info: ash::vk::CommandBufferBeginInfo) -> Result<(), ash::vk::Result> {
+        unsafe { self.device.begin_command_buffer(command_buffer, &begin_info) }
+    }
+    
+    pub fn end_command_buffer(&self, command_buffer: ash::vk::CommandBuffer) -> Result<(), ash::vk::Result> {
+        unsafe { self.device.end_command_buffer(command_buffer) }
+    }
+    
+    pub fn cmd_begin_render_pass(&self, command_buffer: ash::vk::CommandBuffer, begin_info: ash::vk::RenderPassBeginInfo, subpass_contents: ash::vk::SubpassContents) {
+        unsafe { self.device.cmd_begin_render_pass(command_buffer, &begin_info, subpass_contents) }
+    }
+
+    pub fn cmd_end_render_pass(&self, command_buffer: ash::vk::CommandBuffer) {
+        unsafe { self.device.cmd_end_render_pass(command_buffer) }
+    }
+
+    pub fn create_fence(&self, create_info: ash::vk::FenceCreateInfo) -> Result<ash::vk::Fence, ash::vk::Result> {
+        unsafe { self.device.create_fence(&create_info, None) } 
+
+    }
+
+    pub fn create_semaphore(&self, create_info: ash::vk::SemaphoreCreateInfo) -> Result<ash::vk::Semaphore, ash::vk::Result> {
+        unsafe { self.device.create_semaphore(&create_info, None) } 
+
+    }
+
     pub fn get_device_raw(&self) -> &ash::Device {
         &self.device
     }

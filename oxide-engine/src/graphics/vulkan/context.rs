@@ -1,6 +1,6 @@
 use crate::graphics::window::WindowWrapper;
 
-use super::{command_buffer::CommandBufferError, device::{Device, DeviceError}, framebuffer::FramebufferError, image::{Image, ImageError, ImageView}, instance::{Instance, InstanceError}, physical_device::{PhysicalDevice, PhysicalDeviceError}, queue::{Queue, QueueError}, renderpass::RenderpassError, surface::{InitialSurface, Surface, SurfaceError}, swapchain::{Swapchain, SwapchainError}};
+use super::{command_buffer::{CommandBufferError, CommandPool, CommandPoolError}, device::{Device, DeviceError}, fence::FenceError, framebuffer::FramebufferError, image::{Image, ImageError, ImageView}, instance::{Instance, InstanceError}, physical_device::{PhysicalDevice, PhysicalDeviceError}, queue::{Queue, QueueError}, renderpass::RenderpassError, semaphore::SemaphoreError, surface::{InitialSurface, Surface, SurfaceError}, swapchain::{Swapchain, SwapchainError}};
 
 pub struct VulkanContext {
     pub instance: Instance,
@@ -10,7 +10,8 @@ pub struct VulkanContext {
     pub graphics_queue: Queue,
     pub swapchain: Swapchain,
     pub swapchain_images: Vec<Image>,
-    pub swapchain_image_views: Vec<ImageView>
+    pub swapchain_image_views: Vec<ImageView>,
+    pub command_pool: CommandPool
 }
 
 #[derive(Debug)]
@@ -24,7 +25,10 @@ pub enum VulkanError {
     ImageError(ImageError),
     FramebufferError(FramebufferError),
     RenderpassError(RenderpassError),
-    CommandBufferError(CommandBufferError)
+    CommandBufferError(CommandBufferError),
+    CommandPoolError(CommandPoolError),
+    FenceError(FenceError),
+    SemaphoreError(SemaphoreError)
 }
 
 impl VulkanContext {
@@ -48,7 +52,8 @@ impl VulkanContext {
             }
             out
         };
+        let command_pool = CommandPool::new(&physical_device, &device)?;
 
-        Ok(VulkanContext { instance, surface, physical_device, device, graphics_queue, swapchain, swapchain_images, swapchain_image_views })
+        Ok(VulkanContext { instance, surface, physical_device, device, graphics_queue, swapchain, swapchain_images, swapchain_image_views, command_pool })
     }
 }
