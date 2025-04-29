@@ -1,4 +1,4 @@
-use super::{context::VulkanError, instance::{Instance, InstanceError}, surface::InitialSurface};
+use super::{context::VulkanError, instance::Instance, surface::InitialSurface};
 
 pub struct PhysicalDevice {
     physical_device: ash::vk::PhysicalDevice,
@@ -7,7 +7,7 @@ pub struct PhysicalDevice {
 
 #[derive(Debug)]
 pub enum PhysicalDeviceError {
-    CreationError(InstanceError),
+    CreationError(ash::vk::Result),
     SuitableDeviceNotFound,
 }
 
@@ -19,7 +19,7 @@ impl From<PhysicalDeviceError> for VulkanError {
 
 impl PhysicalDevice {
     pub fn new(instance: &Instance, surface: &InitialSurface) -> Result<PhysicalDevice, PhysicalDeviceError> {
-        let physical_devices = match instance.enumerate_physical_devices() {
+        let physical_devices = match unsafe { instance.get_instance_raw().enumerate_physical_devices() } {
             Ok(val) => val,
             Err(err) => return Err(PhysicalDeviceError::CreationError(err))
         };
@@ -27,11 +27,13 @@ impl PhysicalDevice {
         let (physical_device, queue_family_index) = match physical_devices
             .iter()
             .find_map(|p| {
-                instance
-                    .get_physical_device_queue_families_properties(*p)
-                        .iter()
-                        .enumerate()
-                        .find_map(|(index, info)| {
+                unsafe {
+                    instance
+                        .get_instance_raw()
+                        .get_physical_device_queue_family_properties(*p)
+                }.iter()
+                    .enumerate()
+                    .find_map(|(index, info)| {
                             let supports_graphic_and_surface = info.queue_flags.contains(ash::vk::QueueFlags::GRAPHICS)
                                 && surface.check_surface_support(*p, index as u32).unwrap_or(false);
                             

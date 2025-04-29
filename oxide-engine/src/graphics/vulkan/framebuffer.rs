@@ -3,7 +3,8 @@ use crate::graphics::window::WindowWrapper;
 use super::{context::VulkanError, device::Device, image::ImageView, renderpass::Renderpass, surface::Surface};
 
 pub struct Framebuffer {
-    framebuffer: ash::vk::Framebuffer
+    framebuffer: ash::vk::Framebuffer,
+    extent: ash::vk::Extent2D
 }
 
 #[derive(Debug)]
@@ -28,11 +29,19 @@ impl Framebuffer {
             .height(extent.height)
             .layers(1);
 
-        let framebuffer = match device.create_framebuffer(frame_buffer_create_info) {
+        let framebuffer = match unsafe { device.get_device_raw().create_framebuffer(&frame_buffer_create_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(FramebufferError::CreationError(err))
         };
 
-        Ok( Framebuffer { framebuffer } )
+        Ok( Framebuffer { framebuffer, extent } )
+    }
+
+    pub fn get_framebuffer_raw(&self) -> &ash::vk::Framebuffer {
+        &self.framebuffer
+    }
+
+    pub fn get_extent_raw(&self) -> ash::vk::Extent2D {
+        self.extent
     }
 }

@@ -44,7 +44,7 @@ impl InitialSurface {
         };
 
         let surface = match unsafe { ash_window::create_surface(
-                instance.get_entry(),
+                instance.get_entry_raw(),
                 instance.get_instance_raw(),
                 display_handle.as_raw(),
                 window_handle.as_raw(),
@@ -53,7 +53,7 @@ impl InitialSurface {
             Err(err) => return Err(SurfaceError::CreationError(err))
         };
 
-        let surface_loader = ash::khr::surface::Instance::new(instance.get_entry(), instance.get_instance_raw());
+        let surface_loader = ash::khr::surface::Instance::new(instance.get_entry_raw(), instance.get_instance_raw());
 
         Ok(InitialSurface { surface, surface_loader })
     }
@@ -106,7 +106,7 @@ impl InitialSurface {
 }
 
 impl Surface {
-    pub fn get_surface_loader(&self) -> &ash::khr::surface::Instance {
+    pub fn get_surface_loader_raw(&self) -> &ash::khr::surface::Instance {
         &self.surface_loader
     }
     
@@ -144,11 +144,6 @@ impl Surface {
         self.surface_capabilities.current_transform
     }
 
-    #[inline]
-    pub fn get_present_modes(&self, physical_device: &PhysicalDevice) -> Result<Vec<ash::vk::PresentModeKHR>, ash::vk::Result> {
-        unsafe { self.surface_loader.get_physical_device_surface_present_modes(*physical_device.get_physical_device_raw(), self.surface) }
-    }
-    
     #[inline]
     pub fn format(&self) -> ash::vk::Format {
         self.surface_format.format

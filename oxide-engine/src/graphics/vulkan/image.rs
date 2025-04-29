@@ -626,6 +626,10 @@ impl Image {
     pub fn from_raw_image(raw_image: ash::vk::Image) -> Image {
         Image { image: raw_image }
     }
+
+    pub fn get_image_raw(&self) -> &ash::vk::Image {
+        &self.image
+    }
 }
 
 impl ImageView {
@@ -635,7 +639,7 @@ impl ImageView {
             format: image_format
         };
 
-        match device.create_image_view_raw(view_info.into()) {
+        match unsafe { device.get_device_raw().create_image_view(&view_info.into(), None) } {
             Ok(val) => Ok(ImageView { view: val }),
             Err(err) => Err(ImageError::ViewCreationError(err))
         }

@@ -12,3 +12,5 @@ pub mod command_buffer;
 pub mod renderpass;
 pub mod fence;
 pub mod semaphore;
+pub mod graphics_pipeline;
+pub mod shader;

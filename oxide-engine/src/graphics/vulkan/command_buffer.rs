@@ -1,4 +1,4 @@
-use super::{context::VulkanError, device::Device, physical_device::PhysicalDevice, renderpass::Renderpass};
+use super::{context::VulkanError, device::Device, framebuffer::Framebuffer, physical_device::PhysicalDevice, renderpass::Renderpass};
 
 pub struct CommandPool {
     command_pool: ash::vk::CommandPool,
@@ -15,6 +15,7 @@ pub enum CommandBufferError {
     EndError(ash::vk::Result),
     RenderpassBeginError(ash::vk::Result),
     RenderpassEndError(ash::vk::Result),
+    ResetError(ash::vk::Result)
 }
 
 impl From<CommandBufferError> for VulkanError {
@@ -40,7 +41,7 @@ impl CommandPool {
             .flags(ash::vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(physical_device.get_queue_family_index());
 
-        let command_pool = match device.create_command_pool(pool_info) {
+        let command_pool = match unsafe { device.get_device_raw().create_command_pool(&pool_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(CommandPoolError::CreationError(err))
         };
@@ -60,7 +61,7 @@ impl CommandBuffer {
             .command_pool(*pool.get_command_pool_raw())
             .level(ash::vk::CommandBufferLevel::PRIMARY);
 
-        let command_buffer = match device.create_command_buffers(create_info) {
+        let command_buffer = match unsafe { device.get_device_raw().allocate_command_buffers(&create_info) } {
             Ok(val) => val,
             Err(err) => return Err(CommandBufferError::CreationError(err))
         }[0];
@@ -72,7 +73,7 @@ impl CommandBuffer {
         let begin_info = ash::vk::CommandBufferBeginInfo::default()
             .flags(ash::vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
 
-        if let Err(err) = device.begin_command_buffer(self.command_buffer, begin_info) {
+        if let Err(err) = unsafe { device.get_device_raw().begin_command_buffer(self.command_buffer, &begin_info) } {
             return Err(CommandBufferError::BeginError(err));
         };
 
@@ -80,9 +81,39 @@ impl CommandBuffer {
     }
     
     pub fn end(&self, device: &Device) -> Result<(), CommandBufferError>{
-        if let Err(err) = device.end_command_buffer(self.command_buffer) {
+        if let Err(err) = unsafe { device.get_device_raw().end_command_buffer(self.command_buffer) } {
             return Err(CommandBufferError::EndError(err));
         };
+
+        Ok(())
+    }
+
+    pub fn begin_renderpass(&self, device: &Device, renderpass: &Renderpass, framebuffer: &Framebuffer) {
+        let clear_values = [
+            ash::vk::ClearValue {
+                color: ash::vk::ClearColorValue {
+                    float32: [0.0, 0.0, 0.0, 0.0],
+                },
+            },
+        ];
+
+        let begin_info = ash::vk::RenderPassBeginInfo::default()
+            .render_pass(*renderpass.get_renderpass_raw())
+            .framebuffer(*framebuffer.get_framebuffer_raw())
+            .render_area(framebuffer.get_extent_raw().into())
+            .clear_values(&clear_values);
+        
+        unsafe { device.get_device_raw().cmd_begin_render_pass(self.command_buffer, &begin_info, ash::vk::SubpassContents::INLINE) };
+    }
+
+    pub fn end_renderpass(&self, device: &Device) {
+        unsafe { device.get_device_raw().cmd_end_render_pass(self.command_buffer) };
+    }
+
+    pub fn reset(&self, device: &Device) -> Result<(), CommandBufferError> {
+        if let Err(err) = unsafe { device.get_device_raw().reset_command_buffer(self.command_buffer, ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES) } {
+            return Err(CommandBufferError::ResetError(err));
+        }
 
         Ok(())
     }

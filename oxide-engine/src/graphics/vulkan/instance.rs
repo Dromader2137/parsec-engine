@@ -2,13 +2,13 @@ use std::borrow::Cow;
 
 use crate::graphics::window::WindowWrapper;
 
-use super::{context::VulkanError, physical_device::PhysicalDevice};
+use super::context::VulkanError;
 
 pub struct Instance {
     entry: ash::Entry,
     instance: ash::Instance,
-    debug_utils_loader: ash::ext::debug_utils::Instance,
-    debug_call_back: ash::vk::DebugUtilsMessengerEXT,
+    _debug_utils_loader: ash::ext::debug_utils::Instance,
+    _debug_call_back: ash::vk::DebugUtilsMessengerEXT,
 }
 
 #[derive(Debug)]
@@ -113,29 +113,14 @@ impl Instance {
             Err(err) => return Err(InstanceError::DebugCreationError(err))
         };
 
-        Ok(Instance { entry, instance, debug_utils_loader, debug_call_back })
-    }
-
-    pub fn enumerate_physical_devices(&self) -> Result<Vec<ash::vk::PhysicalDevice>, InstanceError> {
-        match unsafe { self.instance.enumerate_physical_devices() } {
-            Ok(val) => Ok(val),
-            Err(err) => Err(InstanceError::PhysicalDeviceEnumerationError(err))
-        }
-    }
-    
-    pub fn get_physical_device_queue_families_properties(&self, physical_device: ash::vk::PhysicalDevice) -> Vec<ash::vk::QueueFamilyProperties> {
-        unsafe { self.instance.get_physical_device_queue_family_properties(physical_device) }
-    }
-
-    pub fn create_device(&self, physical_device: &PhysicalDevice, create_info: &ash::vk::DeviceCreateInfo) -> Result<ash::Device, ash::vk::Result> {
-        unsafe { self.instance.create_device(*physical_device.get_physical_device_raw(), create_info, None) }
+        Ok(Instance { entry, instance, _debug_utils_loader: debug_utils_loader, _debug_call_back: debug_call_back })
     }
 
     pub fn get_instance_raw(&self) -> &ash::Instance {
         &self.instance
     }
 
-    pub fn get_entry(&self) -> &ash::Entry {
+    pub fn get_entry_raw(&self) -> &ash::Entry {
         &self.entry
     }
 }

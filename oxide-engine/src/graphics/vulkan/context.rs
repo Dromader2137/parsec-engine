@@ -1,6 +1,6 @@
 use crate::graphics::window::WindowWrapper;
 
-use super::{command_buffer::{CommandBufferError, CommandPool, CommandPoolError}, device::{Device, DeviceError}, fence::FenceError, framebuffer::FramebufferError, image::{Image, ImageError, ImageView}, instance::{Instance, InstanceError}, physical_device::{PhysicalDevice, PhysicalDeviceError}, queue::{Queue, QueueError}, renderpass::RenderpassError, semaphore::SemaphoreError, surface::{InitialSurface, Surface, SurfaceError}, swapchain::{Swapchain, SwapchainError}};
+use super::{command_buffer::{CommandBufferError, CommandPool, CommandPoolError}, device::{Device, DeviceError}, fence::FenceError, framebuffer::FramebufferError, graphics_pipeline::GraphicsPipelineError, image::{Image, ImageError, ImageView}, instance::{Instance, InstanceError}, physical_device::{PhysicalDevice, PhysicalDeviceError}, queue::{Queue, QueueError}, renderpass::RenderpassError, semaphore::SemaphoreError, shader::ShaderError, surface::{InitialSurface, Surface, SurfaceError}, swapchain::{Swapchain, SwapchainError}};
 
 pub struct VulkanContext {
     pub instance: Instance,
@@ -28,7 +28,9 @@ pub enum VulkanError {
     CommandBufferError(CommandBufferError),
     CommandPoolError(CommandPoolError),
     FenceError(FenceError),
-    SemaphoreError(SemaphoreError)
+    SemaphoreError(SemaphoreError),
+    ShaderError(ShaderError),
+    GrphicsPipelineError(GraphicsPipelineError),
 }
 
 impl VulkanContext {

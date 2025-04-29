@@ -48,7 +48,7 @@ impl Renderpass {
             .subpasses(std::slice::from_ref(&subpass))
             .dependencies(&dependencies);
 
-        let renderpass = match device.create_render_pass(renderpass_create_info) {
+        let renderpass = match unsafe { device.get_device_raw().create_render_pass(&renderpass_create_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(RenderpassError::CreationError(err))
         };

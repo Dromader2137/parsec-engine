@@ -2,6 +2,7 @@ use crate::graphics::{renderer::Renderer, window::WindowWrapper};
 
 use super::{command_buffer::CommandBuffer, context::{VulkanContext, VulkanError}, fence::Fence, framebuffer::Framebuffer, renderpass::Renderpass, semaphore::Semaphore};
 
+#[allow(unused)]
 pub struct VulkanRenderer {
     renderpass: Renderpass,
     framebuffers: Vec<Framebuffer>,
@@ -32,6 +33,12 @@ impl VulkanRenderer {
     }
 }
 
+impl From<VulkanError> for crate::error::EngineError {
+    fn from(value: VulkanError) -> Self {
+        crate::error::EngineError::Graphics(format!("{:?}", value))
+    }
+}
+
 impl Renderer for VulkanRenderer {
     fn handle_resize(&mut self) -> Result<(), crate::error::EngineError> {
         Ok(())
@@ -40,78 +47,22 @@ impl Renderer for VulkanRenderer {
     fn render(
         &mut self,
         vulkan_context: &VulkanContext,
-        window: &WindowWrapper,
+        _window: &WindowWrapper,
     ) -> Result<(), crate::error::EngineError> {
-        let device = vulkan_context.device.get_device_raw();
-        let command_buffer = *self.command_buffer.get_command_buffer_raw();
-        let command_buffer_reuse_fence = *self.command_buffer_reuse_fence.get_fence_raw();
-        let submit_queue = *vulkan_context.graphics_queue.get_queue_raw();
-        let present_semaphores = &[*self.present_semaphore.get_semaphore_raw()];
-        let render_semaphores = &[*self.rendering_semaphore.get_semaphore_raw()];
-        let wait_mask = &[ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-        let swapchains = [*vulkan_context.swapchain.get_swapchain_raw()];
-
-        unsafe {
-            let (present_index, _) = vulkan_context
-                .swapchain
-                .get_swapchain_loader_raw()
-                .acquire_next_image(
-                    *vulkan_context.swapchain.get_swapchain_raw(),
-                    u64::MAX,
-                    *self.present_semaphore.get_semaphore_raw(),
-                    ash::vk::Fence::null(),
-                )
-                .unwrap();
-
-            device
-                .wait_for_fences(&[command_buffer_reuse_fence], true, u64::MAX)
-                .expect("Wait for fence failed.");
-
-            device
-                .reset_fences(&[command_buffer_reuse_fence])
-                .expect("Reset fences failed.");
-
-            device
-                .reset_command_buffer(
-                    command_buffer,
-                    ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-                )
-                .expect("Reset command buffer failed.");
-
-            let command_buffer_begin_info = ash::vk::CommandBufferBeginInfo::default()
-                .flags(ash::vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
-
-            device
-                .begin_command_buffer(command_buffer, &command_buffer_begin_info)
-                .expect("Begin commandbuffer");
-            device
-                .end_command_buffer(command_buffer)
-                .expect("End commandbuffer");
-
-            let command_buffers = vec![command_buffer];
-
-            let submit_info = ash::vk::SubmitInfo::default()
-                .wait_semaphores(present_semaphores)
-                .wait_dst_stage_mask(wait_mask)
-                .command_buffers(&command_buffers)
-                .signal_semaphores(render_semaphores);
-
-            device
-                .queue_submit(submit_queue, &[submit_info], command_buffer_reuse_fence)
-                .expect("queue submit failed.");
-                        
-            let image_indices = [present_index];
-            let present_info = ash::vk::PresentInfoKHR::default()
-                .wait_semaphores(render_semaphores)
-                .swapchains(&swapchains)
-                .image_indices(&image_indices);
-
-            vulkan_context.swapchain
-                .get_swapchain_loader_raw()
-                .queue_present(submit_queue, &present_info)
-                .unwrap();
-        }
-
+        let (present_index, _) = vulkan_context.swapchain.acquire_next_image(&self.present_semaphore, &Fence::null()).map_err(VulkanError::from)?;
+        self.command_buffer_reuse_fence.wait(&vulkan_context.device).map_err(VulkanError::from)?;
+        self.command_buffer_reuse_fence.reset(&vulkan_context.device).map_err(VulkanError::from)?;
+        self.command_buffer.reset(&vulkan_context.device).map_err(VulkanError::from)?;
+        self.command_buffer.begin(&vulkan_context.device).map_err(VulkanError::from)?;
+        let framebuffer = match self.framebuffers.get(present_index as usize) {
+            Some(val) => val,
+            None => return Err(crate::error::EngineError::Graphics("Framebuffer not found".to_string()))
+        };
+        self.command_buffer.begin_renderpass(&vulkan_context.device, &self.renderpass, framebuffer);
+        self.command_buffer.end_renderpass(&vulkan_context.device);
+        self.command_buffer.end(&vulkan_context.device).map_err(VulkanError::from)?;
+        vulkan_context.graphics_queue.submit(&vulkan_context.device, &[&self.present_semaphore], &[&self.rendering_semaphore], &[&self.command_buffer], &self.command_buffer_reuse_fence).map_err(VulkanError::from)?;
+        vulkan_context.swapchain.present(&vulkan_context.graphics_queue, &[&self.rendering_semaphore], present_index).map_err(VulkanError::from)?;
         Ok(())
     }
 }
