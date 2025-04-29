@@ -46,9 +46,10 @@ impl Renderer for VulkanRenderer {
         let command_buffer = *self.command_buffer.get_command_buffer_raw();
         let command_buffer_reuse_fence = *self.command_buffer_reuse_fence.get_fence_raw();
         let submit_queue = *vulkan_context.graphics_queue.get_queue_raw();
-        let wait_semaphores = &[*self.present_semaphore.get_semaphore_raw()];
-        let signal_semaphores = &[*self.rendering_semaphore.get_semaphore_raw()];
+        let present_semaphores = &[*self.present_semaphore.get_semaphore_raw()];
+        let render_semaphores = &[*self.rendering_semaphore.get_semaphore_raw()];
         let wait_mask = &[ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+        let swapchains = [*vulkan_context.swapchain.get_swapchain_raw()];
 
         unsafe {
             let (present_index, _) = vulkan_context
@@ -90,20 +91,18 @@ impl Renderer for VulkanRenderer {
             let command_buffers = vec![command_buffer];
 
             let submit_info = ash::vk::SubmitInfo::default()
-                .wait_semaphores(wait_semaphores)
+                .wait_semaphores(present_semaphores)
                 .wait_dst_stage_mask(wait_mask)
                 .command_buffers(&command_buffers)
-                .signal_semaphores(signal_semaphores);
+                .signal_semaphores(render_semaphores);
 
             device
                 .queue_submit(submit_queue, &[submit_info], command_buffer_reuse_fence)
                 .expect("queue submit failed.");
                         
-            let wait_semaphors = [*self.rendering_semaphore.get_semaphore_raw()];
-            let swapchains = [*vulkan_context.swapchain.get_swapchain_raw()];
             let image_indices = [present_index];
             let present_info = ash::vk::PresentInfoKHR::default()
-                .wait_semaphores(&wait_semaphors)
+                .wait_semaphores(render_semaphores)
                 .swapchains(&swapchains)
                 .image_indices(&image_indices);
 

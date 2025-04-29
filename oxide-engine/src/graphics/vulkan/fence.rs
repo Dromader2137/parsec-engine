@@ -1,4 +1,3 @@
-
 use super::{context::VulkanError, device::Device};
 
 pub struct Fence {
