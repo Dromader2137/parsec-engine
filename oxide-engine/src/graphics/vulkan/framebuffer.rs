@@ -9,7 +9,8 @@ pub struct Framebuffer {
 
 #[derive(Debug)]
 pub enum FramebufferError {
-    CreationError(ash::vk::Result)
+    CreationError(ash::vk::Result),
+    NotFound(u32)
 }
 
 impl From<FramebufferError> for VulkanError {
@@ -43,5 +44,9 @@ impl Framebuffer {
 
     pub fn get_extent_raw(&self) -> ash::vk::Extent2D {
         self.extent
+    }
+
+    pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_framebuffer(self.framebuffer, None) };
     }
 }

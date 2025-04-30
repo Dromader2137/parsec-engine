@@ -35,4 +35,8 @@ impl Semaphore {
     pub fn get_semaphore_raw(&self) -> &ash::vk::Semaphore {
         &self.semaphore
     }
+    
+    pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_semaphore(self.semaphore, None) };
+    }
 }

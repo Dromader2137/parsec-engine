@@ -1,4 +1,4 @@
-use super::{context::VulkanError, device::Device, framebuffer::Framebuffer, physical_device::PhysicalDevice, renderpass::Renderpass};
+use super::{context::VulkanError, device::Device, framebuffer::Framebuffer, graphics_pipeline::GraphicsPipeline, physical_device::PhysicalDevice, renderpass::Renderpass};
 
 pub struct CommandPool {
     command_pool: ash::vk::CommandPool,
@@ -108,6 +108,31 @@ impl CommandBuffer {
 
     pub fn end_renderpass(&self, device: &Device) {
         unsafe { device.get_device_raw().cmd_end_render_pass(self.command_buffer) };
+    }
+
+    pub fn set_viewports(&self, device: &Device, framebuffer: &Framebuffer) {
+        let viewports = [ash::vk::Viewport {
+            x: 0.0,
+            y: 0.0,
+            width: framebuffer.get_extent_raw().width as f32,
+            height: framebuffer.get_extent_raw().height as f32,
+            min_depth: 0.0,
+            max_depth: 1.0,
+        }];
+        unsafe { device.get_device_raw().cmd_set_viewport(self.command_buffer, 0, &viewports) };
+    }
+    
+    pub fn set_scissor(&self, device: &Device, framebuffer: &Framebuffer) {
+        let scissors = [framebuffer.get_extent_raw().into()];
+        unsafe { device.get_device_raw().cmd_set_scissor(self.command_buffer, 0, &scissors) };
+    }
+
+    pub fn bind_graphics_pipeline(&self, device: &Device, pipeline: &GraphicsPipeline) {
+        unsafe { device.get_device_raw().cmd_bind_pipeline(self.command_buffer, ash::vk::PipelineBindPoint::GRAPHICS, *pipeline.get_pipeline_raw()) };
+    }
+
+    pub fn draw(&self, device: &Device, vertex_count: u32, instance_count: u32, first_vertex: u32, first_instance: u32) {
+        unsafe { device.get_device_raw().cmd_draw(self.command_buffer, vertex_count, instance_count, first_vertex, first_instance) };
     }
 
     pub fn reset(&self, device: &Device) -> Result<(), CommandBufferError> {

@@ -59,4 +59,8 @@ impl Renderpass {
     pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass {
         &self.renderpass
     }
+    
+    pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_render_pass(self.renderpass, None) };
+    }
 }

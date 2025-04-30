@@ -7,6 +7,7 @@ pub struct Device {
 #[derive(Debug)]
 pub enum DeviceError {
     DeviceCreationError(ash::vk::Result),
+    WaitIdleError(ash::vk::Result),
 }
 
 impl From<DeviceError> for VulkanError {
@@ -50,6 +51,13 @@ impl Device {
         Queue::new(raw_queue)
     }
 
+    pub fn wait_idle(&self) -> Result<(), DeviceError> {
+        if let Err(err) = unsafe { self.device.device_wait_idle() } {
+            return Err(DeviceError::WaitIdleError(err));
+        }
+        Ok(())
+    }
+    
     pub fn get_device_raw(&self) -> &ash::Device {
         &self.device
     }

@@ -113,4 +113,8 @@ impl Swapchain {
     pub fn get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
         &self.swapchain_loader
     }
+    
+    pub fn cleanup(&self) {
+        unsafe { self.swapchain_loader.destroy_swapchain(self.swapchain, None) };
+    }
 }

@@ -630,6 +630,10 @@ impl Image {
     pub fn get_image_raw(&self) -> &ash::vk::Image {
         &self.image
     }
+
+    pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_image(self.image, None) };
+    }
 }
 
 impl ImageView {
@@ -647,5 +651,9 @@ impl ImageView {
 
     pub fn get_image_view_raw(&self) -> &ash::vk::ImageView {
         &self.view
+    }
+
+    pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_image_view(self.view, None) };
     }
 }

@@ -1,4 +1,6 @@
-use super::context::VulkanError;
+use std::fs::File;
+
+use super::{context::VulkanError, device::Device};
 
 pub struct ShaderModule {
     shader_module: ash::vk::ShaderModule
@@ -6,6 +8,8 @@ pub struct ShaderModule {
 
 #[derive(Debug)]
 pub enum ShaderError {
+    CreationError(ash::vk::Result),
+    ShaderFileError(std::io::Error),
 }
 
 impl From<ShaderError> for VulkanError {
@@ -14,8 +18,36 @@ impl From<ShaderError> for VulkanError {
     }
 }
 
+pub fn read_shader_code(path: &str) -> Result<Vec<u32>, ShaderError> {
+    let mut file = match File::open(path) {
+        Ok(val) => val,
+        Err(err) => return Err(ShaderError::ShaderFileError(err))
+    };
+
+    match ash::util::read_spv(&mut file) {
+        Ok(val) => Ok(val),
+        Err(err) => Err(ShaderError::ShaderFileError(err))
+    }
+}
+
 impl ShaderModule {
+    pub fn new(device: &Device, code: &[u32]) -> Result<ShaderModule, ShaderError> {
+        let create_info = ash::vk::ShaderModuleCreateInfo::default()
+            .code(code);
+
+        let shader_module = match unsafe { device.get_device_raw().create_shader_module(&create_info, None) } {
+            Ok(val) => val,
+            Err(err) => return Err(ShaderError::CreationError(err))
+        };
+
+        Ok( ShaderModule { shader_module } )
+    }
+
     pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule {
         &self.shader_module
+    }
+    
+    pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_shader_module(self.shader_module, None) };
     }
 }

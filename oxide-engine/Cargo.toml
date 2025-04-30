@@ -1,5 +1,5 @@
 [package]
-name = "oxide-engine-rewrite"
+name = "oxide-engine"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,3 +8,6 @@ ash = "0.38.0"
 winit = { version = "0.30.5", features = [ "rwh_05" ] }
 oxide-engine-macros = { path = "../oxide-engine-macros" }
 ash-window = "0.13.0"
+
+[build-dependencies]
+shaderc = "0.9.1"

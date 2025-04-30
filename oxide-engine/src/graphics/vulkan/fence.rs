@@ -9,6 +9,7 @@ pub enum FenceError {
     CreationError(ash::vk::Result),
     WaitError(ash::vk::Result),
     ResetError(ash::vk::Result),
+    StatusError(ash::vk::Result),
 }
 
 impl From<FenceError> for VulkanError {
@@ -45,6 +46,13 @@ impl Fence {
         }
         Ok(())
     }
+
+    pub fn get_state(&self, device: &Device) -> Result<bool, FenceError> {
+        match unsafe { device.get_device_raw().get_fence_status(self.fence) } {
+            Ok(val) => Ok(val),
+            Err(err) => Err(FenceError::StatusError(err))
+        }
+    }
     
     pub fn null() -> Fence {
         Fence { fence: ash::vk::Fence::null() }
@@ -52,5 +60,9 @@ impl Fence {
 
     pub fn get_fence_raw(&self) -> &ash::vk::Fence {
         &self.fence
+    }
+    
+    pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_fence(self.fence, None) };
     }
 }
