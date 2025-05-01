@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use archetype::Archetype;
+use archetype::{Archetype, ArchetypeError};
 use bundle::{FromColumns, FromColumnsMut, UsableBundle, UsableBundleMut};
 
 pub mod archetype;
@@ -9,11 +9,7 @@ pub mod entity;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum WorldError {
-    SpawnError(String),
-    ArchetypeError(String),
-    SpawnTypeMismatch,
-    DoubleTypeArchetypeNotAllowed,
-    ArchetypeNotFound,
+    ArchetypeError(ArchetypeError),
 }
 
 #[derive(Debug)]
@@ -27,7 +23,7 @@ impl World {
     }
 
     pub fn spawn<T: for<'a> UsableBundle<'a>>(&mut self, bundle: T) -> Result<(), WorldError> {
-        let archetype_id = T::archetype_id();
+        let archetype_id = T::archetype_id()?;
         let archetype_count = self.archetypes.len();
 
         let archetype_index = match self
@@ -44,10 +40,7 @@ impl World {
             self.archetypes.push(Archetype::new(archetype_id));
         }
 
-        match bundle.add_to(&mut self.archetypes[archetype_index]) {
-            Ok(()) => {}
-            Err(err) => return Err(WorldError::SpawnError(format!("{:?}", err))),
-        };
+        bundle.add_to(&mut self.archetypes[archetype_index])?;
         self.archetypes[archetype_index].bundle_count += 1;
 
         Ok(())
@@ -56,7 +49,7 @@ impl World {
     pub fn query<T: for<'a> UsableBundle<'a>>(
         &self,
     ) -> Result<impl Iterator<Item = <T as FromColumns<'_>>::Output>, WorldError> {
-        let bundle_archetype_id = T::archetype_id();
+        let bundle_archetype_id = T::archetype_id()?;
 
         let mut iterators = Vec::new();
 
@@ -65,12 +58,8 @@ impl World {
                 continue;
             }
 
-            let archetype_iter = T::iter_from_columns(archetype);
-
-            match archetype_iter {
-                Ok(val) => iterators.push(val),
-                Err(err) => return Err(WorldError::ArchetypeError(format!("{:?}", err))),
-            }
+            let archetype_iter = T::iter_from_columns(archetype)?;
+            iterators.push(archetype_iter);
         }
 
         Ok(iterators.into_iter().flatten())
@@ -79,7 +68,7 @@ impl World {
     pub fn query_mut<T: for<'a> UsableBundleMut<'a>>(
         &self,
     ) -> Result<impl Iterator<Item = <T as FromColumnsMut<'_>>::Output>, WorldError> {
-        let bundle_archetype_id = T::archetype_id();
+        let bundle_archetype_id = T::archetype_id()?;
 
         let mut iterators = Vec::new();
 
@@ -88,12 +77,8 @@ impl World {
                 continue;
             }
 
-            let archetype_iter = T::iter_from_columns(archetype);
-
-            match archetype_iter {
-                Ok(val) => iterators.push(val),
-                Err(err) => return Err(WorldError::ArchetypeError(format!("{:?}", err))),
-            }
+            let archetype_iter = T::iter_from_columns(archetype)?;
+            iterators.push(archetype_iter);
         }
 
         Ok(iterators.into_iter().flatten())
@@ -113,24 +98,12 @@ mod tests {
     #[test]
     fn test_get_1() {
         let mut world = World::new();
+        world.spawn((5.0_f32, )).unwrap();
         world.spawn((1.0_f32, "abc")).unwrap();
         world.spawn((1.2_f32, "bcd", 1_u8)).unwrap();
         let mut ret = world.query::<(f32,)>().unwrap();
+        assert_eq!(Some((&5.0,)), ret.next());
         assert_eq!(Some((&1.0,)), ret.next());
         assert_eq!(Some((&1.2,)), ret.next());
-    }
-
-    #[test]
-    fn test_mut_1() {
-        let mut world = World::new();
-        world.spawn((1.0_f32, "abc")).unwrap();
-        world.spawn((1.2_f32, "bcd", 1_u8)).unwrap();
-        let _ret_1 = world.query::<(f32, &'static str)>().unwrap();
-        println!("{:#?}", world);
-        let ret_3 = world.query::<(f32, &'static str)>().unwrap();
-        println!("{:#?}", world);
-        drop(ret_3);
-        let _ret_2 = world.query_mut::<(f32, &'static str, u8)>().unwrap();
-        println!("{:#?}", world);
     }
 }

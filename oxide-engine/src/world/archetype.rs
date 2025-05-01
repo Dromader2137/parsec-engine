@@ -1,29 +1,30 @@
-use core::any::TypeId;
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     cell::RefCell,
     collections::{HashMap, HashSet},
     fmt::Debug,
     rc::Rc,
 };
 
-pub trait Column: Any {
-    fn as_any(&self) -> &dyn Any;
-    fn as_mut_any(&mut self) -> &mut dyn Any;
+use super::WorldError;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArchetypeError {
+    ColumnAlreadyBorrowed,
+    ColumnAlreadyMutablyBorrowed,
+    InternalTypeMismatch,
+    TypeNotFound,
+    ColumnStatusRefCellAlreadyBorrowed,
+    BundleCannotContainManyValuesOfTheSameType
 }
 
-struct TypedColumn<T: 'static> {
-    data: Vec<T>,
+impl From<ArchetypeError> for WorldError {
+    fn from(value: ArchetypeError) -> Self {
+        WorldError::ArchetypeError(value)
+    }
 }
 
-impl<T: 'static> Column for TypedColumn<T> {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_mut_any(&mut self) -> &mut dyn Any {
-        self
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub struct ArchetypeId {
@@ -31,8 +32,16 @@ pub struct ArchetypeId {
 }
 
 impl ArchetypeId {
-    pub fn new(component_types: HashSet<TypeId>) -> ArchetypeId {
-        ArchetypeId { component_types }
+    pub fn new(component_types: Vec<TypeId>) -> Result<ArchetypeId, ArchetypeError> {
+        let mut set = HashSet::new();
+        
+        for id in component_types.iter() {
+            if !set.insert(*id) {
+                return Err(ArchetypeError::BundleCannotContainManyValuesOfTheSameType);
+            }
+        }
+
+        Ok(ArchetypeId { component_types: set })
     }
 
     pub fn contains(&self, other_id: &ArchetypeId) -> bool {
@@ -47,15 +56,10 @@ impl ArchetypeId {
         }
         true
     }
-}
 
-#[derive(Debug)]
-pub enum ArchetypeError {
-    ColumnAlreadyBorrowed,
-    ColumnAlreadyMutablyBorrowed,
-    InternalTypeMismatch,
-    TypeNotFound,
-    ColumnStatusRefCellAlreadyBorrowed,
+    pub fn contains_single(&self, component_type: &TypeId) -> bool {
+        self.component_types.contains(component_type)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -148,6 +152,24 @@ impl ColumnStateWrapper {
     }
 }
 
+pub trait Column: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_mut_any(&mut self) -> &mut dyn Any;
+}
+
+struct TypedColumn<T: 'static> {
+    data: Vec<T>,
+}
+
+impl<T: 'static> Column for TypedColumn<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
 struct ArchetypeColumn {
     data: RefCell<Box<dyn Column>>,
     state: ColumnStateWrapper,
@@ -225,6 +247,12 @@ impl Archetype {
 
     pub fn add<T: 'static>(&mut self, value: T) -> Result<(), ArchetypeError> {
         let type_id = TypeId::of::<T>();
+
+        if !self.id.contains_single(&type_id) {
+            println!("{:?}", type_id);
+            println!("{:?}", self.id);
+            return Err(ArchetypeError::InternalTypeMismatch)
+        }
 
         let column = self
             .columns
