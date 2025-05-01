@@ -1,6 +1,6 @@
 use crate::graphics::{renderer::Renderer, window::WindowWrapper};
 
-use super::{command_buffer::CommandBuffer, context::{VulkanContext, VulkanError}, fence::Fence, framebuffer::{Framebuffer, FramebufferError}, graphics_pipeline::GraphicsPipeline, image::{Image, ImageView}, renderpass::Renderpass, semaphore::Semaphore, shader::{read_shader_code, ShaderModule}, swapchain::{Swapchain, SwapchainError}};
+use super::{command_buffer::CommandBuffer, context::{VulkanContext, VulkanError}, fence::Fence, framebuffer::Framebuffer, graphics_pipeline::GraphicsPipeline, image::{Image, ImageView}, renderpass::Renderpass, semaphore::Semaphore, shader::{read_shader_code, ShaderModule}, swapchain::Swapchain};
 
 #[allow(unused)]
 pub struct VulkanRenderer {
@@ -11,16 +11,19 @@ pub struct VulkanRenderer {
     framebuffers: Vec<Framebuffer>,
     command_buffers: Vec<CommandBuffer>,
     command_buffer_fences: Vec<Fence>,
-    rendering_semaphore: Semaphore,
-    present_semaphore: Semaphore,
+    rendering_semaphores: Vec<Semaphore>,
+    present_semaphores: Vec<Semaphore>,
     vertex_shader: ShaderModule,
     fragment_shader: ShaderModule,
     pipeline: GraphicsPipeline,
-    resize: bool
+    resize: bool,
+    current_frame: u32,
+    frames_in_flight: u32
 }
 
 impl VulkanRenderer {
     pub fn new(context: &VulkanContext, window: &WindowWrapper) -> Result<VulkanRenderer, VulkanError> {
+        let mut frames_in_flight = 3;
         let swapchain = Swapchain::new(&context.instance, &context.surface, &context.physical_device, &context.device, window)?;
         let swapchain_images = swapchain.get_images()?; 
         let swapchain_format = context.surface.format().into();
@@ -33,6 +36,7 @@ impl VulkanRenderer {
             out
         };
         let renderpass = Renderpass::new(&context.surface, &context.device)?;
+        frames_in_flight = frames_in_flight.min(swapchain_images.len() as u32 - 1).max(1);
         let framebuffers = {
             let mut out = Vec::new();
             for image_view in swapchain_image_views.iter() {
@@ -42,25 +46,37 @@ impl VulkanRenderer {
         };
         let command_buffers = {
             let mut out = Vec::new();
-            for _ in 0..swapchain_images.len() {
+            for _ in 0..frames_in_flight {
                 out.push(CommandBuffer::new(&context.device, &context.command_pool)?);
             }
             out
         };
         let command_buffer_fences = {
             let mut out = Vec::new();
-            for _ in 0..swapchain_images.len() {
+            for _ in 0..frames_in_flight {
                 out.push(Fence::new(&context.device, true)?);
             }
             out
         };
-        let rendering_semaphore = Semaphore::new(&context.device)?;
-        let present_semaphore = Semaphore::new(&context.device)?;
+        let rendering_semaphores = {
+            let mut out = Vec::new();
+            for _ in 0..frames_in_flight {
+                out.push(Semaphore::new(&context.device)?);
+            }
+            out
+        };
+        let present_semaphores = {
+            let mut out = Vec::new();
+            for _ in 0..frames_in_flight {
+                out.push(Semaphore::new(&context.device)?);
+            }
+            out
+        };
         let vertex_shader = ShaderModule::new(&context.device, &read_shader_code("shaders/simple.spv")?)?;
         let fragment_shader = ShaderModule::new(&context.device, &read_shader_code("shaders/flat.spv")?)?;
         let pipeline = GraphicsPipeline::new(&context.device, &framebuffers[0], &renderpass, &vertex_shader, &fragment_shader)?;
 
-        Ok(VulkanRenderer { swapchain, swapchain_images, swapchain_image_views, renderpass, framebuffers, command_buffers, command_buffer_fences, rendering_semaphore, present_semaphore, vertex_shader, fragment_shader, pipeline, resize: false })
+        Ok(VulkanRenderer { swapchain, swapchain_images, swapchain_image_views, renderpass, framebuffers, command_buffers, command_buffer_fences, rendering_semaphores, present_semaphores, vertex_shader, fragment_shader, pipeline, resize: false , current_frame: 0, frames_in_flight})
     }
 
     pub fn recreate_size_dependent_components(&mut self, context: &VulkanContext, window: &WindowWrapper) -> Result<(), VulkanError> {
@@ -99,8 +115,8 @@ impl VulkanRenderer {
     pub fn cleanup(&mut self, context: &VulkanContext) -> Result<(), VulkanError> {
         context.device.wait_idle()?;
         self.renderpass.cleanup(&context.device);
-        self.present_semaphore.cleanup(&context.device);
-        self.rendering_semaphore.cleanup(&context.device);
+        self.present_semaphores.iter().for_each(|x| x.cleanup(&context.device));
+        self.rendering_semaphores.iter().for_each(|x| x.cleanup(&context.device));
         self.command_buffer_fences.iter().for_each(|x| x.cleanup(&context.device));
         self.fragment_shader.cleanup(&context.device);
         self.vertex_shader.cleanup(&context.device);
@@ -112,31 +128,23 @@ impl VulkanRenderer {
         Ok(())
     }
 
-    pub fn draw(&mut self, context: &VulkanContext, window: &WindowWrapper) -> Result<(), VulkanError> {
-        let mut present_index = 0;
-        match self.swapchain.acquire_next_image(&self.present_semaphore, &Fence::null()) {
-            Ok(val) => present_index = val.0,
-            Err(SwapchainError::NextImageError(err)) => {
-                if matches!(err, ash::vk::Result::ERROR_OUT_OF_DATE_KHR) {
-                    self.resize = true;
-                } else {
-                    return Err(VulkanError::SwapchainError(SwapchainError::NextImageError(err)))
-                }
-            }
-            Err(err) => { 
-                return Err(VulkanError::SwapchainError(err)) 
-            }
-        };
+    pub fn process_frame(&mut self, context: &VulkanContext, window: &WindowWrapper) -> Result<(), VulkanError> {
+        let current_frame = self.current_frame as usize;
+        self.command_buffer_fences[current_frame].wait(&context.device)?;
+        if window.minimized() {
+            return Ok(());
+        }
         if self.resize {
             self.recreate_size_dependent_components(context, window)?;
             self.resize = false;
-            return Ok(())
+            self.current_frame = 0;
         }
-        let command_buffer_fence = &self.command_buffer_fences[present_index as usize];
-        let command_buffer = &self.command_buffers[present_index as usize];
-        let framebuffer = &self.framebuffers[present_index as usize];
-        command_buffer_fence.wait(&context.device)?;
-        command_buffer_fence.reset(&context.device)?;
+        let (present_index, suboptimal) = self.swapchain.acquire_next_image(&self.present_semaphores[current_frame], &Fence::null())?;
+        self.resize |= suboptimal;
+        self.command_buffer_fences[current_frame].reset(&context.device)?;
+        let present_index = present_index as usize;
+        let command_buffer = &self.command_buffers[current_frame];
+        let framebuffer = &self.framebuffers[present_index];
         command_buffer.reset(&context.device)?;
         command_buffer.begin(&context.device)?;
         command_buffer.begin_renderpass(&context.device, &self.renderpass, framebuffer);
@@ -146,8 +154,9 @@ impl VulkanRenderer {
         command_buffer.draw(&context.device, 3, 1, 0, 0);
         command_buffer.end_renderpass(&context.device);
         command_buffer.end(&context.device)?;
-        context.graphics_queue.submit(&context.device, &[&self.present_semaphore], &[&self.rendering_semaphore], &[command_buffer], command_buffer_fence)?;
-        self.swapchain.present(&context.graphics_queue, &[&self.rendering_semaphore], present_index)?;
+        context.graphics_queue.submit(&context.device, &[&self.present_semaphores[current_frame]], &[&self.rendering_semaphores[current_frame]], &[command_buffer], &self.command_buffer_fences[current_frame])?;
+        self.swapchain.present(&context.graphics_queue, &[&self.rendering_semaphores[current_frame]], present_index as u32)?;
+        self.current_frame = (self.current_frame + 1) % self.frames_in_flight;
         Ok(())
     }
 }
@@ -169,7 +178,7 @@ impl Renderer for VulkanRenderer {
         vulkan_context: &VulkanContext,
         window: &WindowWrapper,
     ) -> Result<(), crate::error::EngineError> {
-        self.draw(vulkan_context, window)?;
+        self.process_frame(vulkan_context, window)?;
         Ok(())
     }
 }

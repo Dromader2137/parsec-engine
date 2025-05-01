@@ -59,4 +59,8 @@ impl WindowWrapper {
     pub fn get_window_handle(&self) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError> {
         self.window.window_handle()
     }
+
+    pub fn minimized(&self) -> bool {
+        self.get_width() <= 0 || self.get_height() <= 0
+    }
 }
