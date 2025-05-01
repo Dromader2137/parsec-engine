@@ -1,9 +1,8 @@
 use crate::{
-    graphics::{graphics_data::GraphicsData, Graphics},
+    graphics::{Graphics, graphics_data::GraphicsData},
     input::Input,
 };
 
-#[derive(Debug)]
 pub struct App {
     graphics: Graphics,
     input: Input,
@@ -71,21 +70,14 @@ impl winit::application::ApplicationHandler for App {
                         ..
                     },
                 ..
-            } => {
-                match physical_key {
-                    winit::keyboard::PhysicalKey::Code(key_code) => {
-                        match state {
-                            winit::event::ElementState::Pressed => {
-                                self.input.keys.press(key_code.into());
-                            }
-                            winit::event::ElementState::Released => {
-                                self.input.keys.lift(key_code.into());
-                            }
-                        }
-                    }
-                    _ => (),
+            } => if let winit::keyboard::PhysicalKey::Code(key_code) = physical_key { match state {
+                winit::event::ElementState::Pressed => {
+                    self.input.keys.press(key_code.into());
                 }
-            }
+                winit::event::ElementState::Released => {
+                    self.input.keys.lift(key_code.into());
+                }
+            } },
             winit::event::WindowEvent::CursorLeft { device_id } => {
                 let _ = device_id;
                 self.input.keys.clear_all();

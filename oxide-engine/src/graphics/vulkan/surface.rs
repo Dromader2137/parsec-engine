@@ -1,0 +1,156 @@
+use crate::graphics::window::WindowWrapper;
+
+use super::{context::VulkanError, instance::Instance, physical_device::PhysicalDevice};
+
+pub struct InitialSurface {
+    surface: ash::vk::SurfaceKHR,
+    surface_loader: ash::khr::surface::Instance,
+}
+
+pub struct Surface {
+    surface: ash::vk::SurfaceKHR,
+    surface_loader: ash::khr::surface::Instance,
+    surface_format: ash::vk::SurfaceFormatKHR,
+    surface_capabilities: ash::vk::SurfaceCapabilitiesKHR,
+}
+
+#[derive(Debug)]
+pub enum SurfaceError {
+    SupportError(ash::vk::Result),
+    CreationError(ash::vk::Result),
+    DisplayHandleError(winit::raw_window_handle::HandleError),
+    WindowHandleError(winit::raw_window_handle::HandleError),
+    FormatsError(ash::vk::Result),
+    CapabilitiesError(ash::vk::Result),
+    NoSurfaceFormatsAvailable,
+}
+
+impl From<SurfaceError> for VulkanError {
+    fn from(value: SurfaceError) -> Self {
+        VulkanError::SurfaceError(value)
+    }
+}
+
+impl InitialSurface {
+    pub fn new(instance: &Instance, window: &WindowWrapper) -> Result<InitialSurface, SurfaceError> {
+        let display_handle = match window.get_display_handle() {
+            Ok(val) => val,
+            Err(err) => return Err(SurfaceError::DisplayHandleError(err))
+        };
+        
+        let window_handle = match window.get_window_handle() {
+            Ok(val) => val,
+            Err(err) => return Err(SurfaceError::WindowHandleError(err))
+        };
+
+        let surface = match unsafe { ash_window::create_surface(
+                instance.get_entry_raw(),
+                instance.get_instance_raw(),
+                display_handle.as_raw(),
+                window_handle.as_raw(),
+                None) } {
+            Ok(val) => val,
+            Err(err) => return Err(SurfaceError::CreationError(err))
+        };
+
+        let surface_loader = ash::khr::surface::Instance::new(instance.get_entry_raw(), instance.get_instance_raw());
+
+        Ok(InitialSurface { surface, surface_loader })
+    }
+
+    pub fn check_surface_support(&self, physical_device: ash::vk::PhysicalDevice, queue_family_index: u32) -> Result<bool, SurfaceError> {
+        match unsafe { self.surface_loader.get_physical_device_surface_support(physical_device, queue_family_index, self.surface) } {
+                Ok(val) => Ok(val),
+                Err(err) => Err(SurfaceError::SupportError(err))
+        }   
+    }
+
+    pub fn get_surface_loader(&self) -> &ash::khr::surface::Instance {
+        &self.surface_loader
+    }
+    
+    pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR {
+        &self.surface
+    }
+
+    pub fn into_surface(self, physical_device: &PhysicalDevice) -> Result<Surface, SurfaceError> {
+        let surface_formats = match unsafe { self.surface_loader
+            .get_physical_device_surface_formats(
+                *physical_device.get_physical_device_raw(), self.surface) } {
+            Ok(val) => val,
+            Err(err) => return Err(SurfaceError::FormatsError(err))
+        };
+
+        if surface_formats.is_empty() {
+            return Err(SurfaceError::NoSurfaceFormatsAvailable)
+        }
+
+        let surface_capabilities = match unsafe { self.surface_loader
+            .get_physical_device_surface_capabilities(
+                *physical_device.get_physical_device_raw(), self.surface) } {
+            Ok(val) => val,
+            Err(err) => return Err(SurfaceError::CapabilitiesError(err))
+        };
+
+        let InitialSurface { surface, surface_loader } = self; 
+
+        Ok(
+            Surface { 
+                surface, 
+                surface_loader, 
+                surface_format: surface_formats[0], 
+                surface_capabilities 
+            }
+        )
+    }
+}
+
+impl Surface {
+    pub fn get_surface_loader_raw(&self) -> &ash::khr::surface::Instance {
+        &self.surface_loader
+    }
+    
+    pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR {
+        &self.surface
+    }
+
+    #[inline]
+    pub fn min_image_count(&self) -> u32 {
+        self.surface_capabilities.min_image_count
+    }
+    
+    #[inline]
+    pub fn max_image_count(&self) -> u32 {
+        self.surface_capabilities.max_image_count
+    }
+
+    pub fn current_extent(&self, window: &WindowWrapper) -> ash::vk::Extent2D {
+        match self.surface_capabilities.current_extent.width {
+            u32::MAX => ash::vk::Extent2D {
+                width: window.get_width(),
+                height: window.get_height(),
+            },
+            _ => self.surface_capabilities.current_extent,
+        }
+    }
+
+    #[inline]
+    pub fn supported_transforms(&self) -> ash::vk::SurfaceTransformFlagsKHR {
+        self.surface_capabilities.supported_transforms
+    }
+    
+    #[inline]
+    pub fn current_transform(&self) -> ash::vk::SurfaceTransformFlagsKHR {
+        self.surface_capabilities.current_transform
+    }
+
+    #[inline]
+    pub fn format(&self) -> ash::vk::Format {
+        self.surface_format.format
+    }
+
+    #[inline]
+    pub fn color_space(&self) -> ash::vk::ColorSpaceKHR {
+        self.surface_format.color_space
+    }
+}

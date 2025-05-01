@@ -6,7 +6,6 @@ use super::{
     window::WindowWrapper,
 };
 
-#[derive(Debug)]
 pub struct GraphicsData {
     pub window: WindowWrapper,
     pub vulkan_context: VulkanContext,
@@ -22,7 +21,7 @@ impl GraphicsData {
             Err(err) => return Err(EngineError::Graphics(format!("{:?}", err))),
         };
 
-        let vulkan_context = match VulkanContext::new(event_loop, &window) {
+        let vulkan_context = match VulkanContext::new(&window) {
             Ok(val) => val,
             Err(err) => return Err(EngineError::Graphics(format!("{:?}", err))),
         };

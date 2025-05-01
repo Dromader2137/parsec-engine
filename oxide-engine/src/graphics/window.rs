@@ -1,17 +1,21 @@
 use std::sync::Arc;
 
+use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+
 #[derive(Debug)]
 pub struct WindowWrapper {
-    window: Arc<winit::window::Window>
+    window: Arc<winit::window::Window>,
 }
 
 #[derive(Debug, Clone)]
 pub enum WindowError {
-    CreationError(String)
+    CreationError(String),
 }
 
 impl WindowWrapper {
-    pub fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Result<WindowWrapper, WindowError> {
+    pub fn new(
+        event_loop: &winit::event_loop::ActiveEventLoop,
+    ) -> Result<WindowWrapper, WindowError> {
         let mut attributes = winit::window::Window::default_attributes();
         attributes.transparent = false;
         attributes.visible = true;
@@ -21,9 +25,9 @@ impl WindowWrapper {
                 return Err(WindowError::CreationError(format!("{:?}", err)));
             }
         };
-        
+
         Ok(WindowWrapper {
-            window: Arc::new(window)
+            window: Arc::new(window),
         })
     }
 
@@ -35,12 +39,28 @@ impl WindowWrapper {
         let physical_size = self.window.inner_size();
         (physical_size.width, physical_size.width)
     }
+    
+    pub fn get_width(&self) -> u32 {
+        self.get_size().0
+    }
+    
+    pub fn get_height(&self) -> u32 {
+        self.get_size().1
+    }
 
     pub fn get_physical_size(&self) -> winit::dpi::PhysicalSize<u32> {
         self.window.inner_size()
     }
 
-    pub fn get_surface(&self, instance: Arc<vulkano::instance::Instance>) -> Result<Arc<vulkano::swapchain::Surface>, vulkano::Validated<vulkano::VulkanError>> {
-        vulkano::swapchain::Surface::from_window(instance, self.window.clone())
+    pub fn get_display_handle(&self) -> Result<winit::raw_window_handle::DisplayHandle<'_>, winit::raw_window_handle::HandleError> {
+        self.window.display_handle()
+    }
+    
+    pub fn get_window_handle(&self) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError> {
+        self.window.window_handle()
+    }
+
+    pub fn minimized(&self) -> bool {
+        self.get_width() <= 0 || self.get_height() <= 0
     }
 }

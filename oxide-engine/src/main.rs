@@ -1,3 +1,3 @@
 fn main() {
-    oxide_engine_rewrite::run();
+    oxide_engine::run();
 }
