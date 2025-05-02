@@ -1,4 +1,4 @@
-use super::{context::VulkanError, device::Device};
+use super::{VulkanError, device::Device};
 
 pub struct Fence {
     fence: ash::vk::Fence

@@ -1,6 +1,6 @@
 use crate::graphics::window::WindowWrapper;
 
-use super::{context::VulkanError, device::Device, image::ImageView, renderpass::Renderpass, surface::Surface};
+use super::{VulkanError, device::Device, image::ImageView, renderpass::Renderpass, surface::Surface};
 
 pub struct Framebuffer {
     framebuffer: ash::vk::Framebuffer,

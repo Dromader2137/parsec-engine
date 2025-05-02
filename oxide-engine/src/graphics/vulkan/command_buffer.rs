@@ -1,4 +1,4 @@
-use super::{context::VulkanError, device::Device, framebuffer::Framebuffer, graphics_pipeline::GraphicsPipeline, physical_device::PhysicalDevice, renderpass::Renderpass};
+use super::{buffer::Buffer, VulkanError, device::Device, framebuffer::Framebuffer, graphics_pipeline::{GraphicsPipeline, Vertex}, physical_device::PhysicalDevice, renderpass::Renderpass};
 
 pub struct CommandPool {
     command_pool: ash::vk::CommandPool,
@@ -133,6 +133,10 @@ impl CommandBuffer {
 
     pub fn draw(&self, device: &Device, vertex_count: u32, instance_count: u32, first_vertex: u32, first_instance: u32) {
         unsafe { device.get_device_raw().cmd_draw(self.command_buffer, vertex_count, instance_count, first_vertex, first_instance) };
+    }
+
+    pub fn bind_vertex_buffer(&self, device: &Device, buffer: &Buffer<impl Vertex>) {
+        unsafe { device.get_device_raw().cmd_bind_vertex_buffers(self.command_buffer, 0, &[*buffer.get_buffer_raw()], &[0]) };
     }
 
     pub fn reset(&self, device: &Device) -> Result<(), CommandBufferError> {

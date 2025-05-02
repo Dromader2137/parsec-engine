@@ -1,7 +1,6 @@
 use graphics_data::GraphicsData;
 
 pub mod graphics_data;
-pub mod renderer;
 pub mod vulkan;
 pub mod window;
 

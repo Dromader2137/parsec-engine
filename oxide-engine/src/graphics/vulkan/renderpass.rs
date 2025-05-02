@@ -1,4 +1,4 @@
-use super::{context::VulkanError, device::Device, surface::Surface};
+use super::{VulkanError, device::Device, surface::Surface};
 
 pub struct Renderpass {
     renderpass: ash::vk::RenderPass

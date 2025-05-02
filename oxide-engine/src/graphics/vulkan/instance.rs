@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::graphics::window::WindowWrapper;
 
-use super::context::VulkanError;
+use super::VulkanError;
 
 pub struct Instance {
     entry: ash::Entry,

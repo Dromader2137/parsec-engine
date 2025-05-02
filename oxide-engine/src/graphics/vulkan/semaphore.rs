@@ -1,4 +1,4 @@
-use super::{context::VulkanError, device::Device};
+use super::{VulkanError, device::Device};
 
 pub struct Semaphore {
     semaphore: ash::vk::Semaphore

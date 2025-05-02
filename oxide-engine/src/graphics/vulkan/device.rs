@@ -1,4 +1,4 @@
-use super::{context::VulkanError, instance::Instance, physical_device::PhysicalDevice, queue::Queue};
+use super::{VulkanError, instance::Instance, physical_device::PhysicalDevice, queue::Queue};
 
 pub struct Device {
     device: ash::Device,

@@ -1,4 +1,4 @@
-use super::{context::VulkanError, device::Device, framebuffer::Framebuffer, renderpass::Renderpass, shader::ShaderModule};
+use super::{VulkanError, device::Device, framebuffer::Framebuffer, renderpass::Renderpass, shader::ShaderModule};
 
 pub struct GraphicsPipeline {
     graphics_pipeline: ash::vk::Pipeline
@@ -16,8 +16,20 @@ impl From<GraphicsPipelineError> for VulkanError {
     }
 }
 
+pub type VertexFieldFormat = ash::vk::Format;
+
+pub struct VertexField {
+    pub format: VertexFieldFormat,
+    pub offset: u32
+}
+
+pub trait Vertex: Clone + Copy {
+    fn description() -> Vec<VertexField>;
+    fn size() -> u32;
+}
+
 impl GraphicsPipeline {
-    pub fn new(device: &Device, framebuffer: &Framebuffer, renderpass: &Renderpass, vertex: &ShaderModule, fragment: &ShaderModule) -> Result<GraphicsPipeline, GraphicsPipelineError> {
+    pub fn new<T: Vertex>(device: &Device, framebuffer: &Framebuffer, renderpass: &Renderpass, vertex_shader: &ShaderModule, fragment_shader: &ShaderModule) -> Result<GraphicsPipeline, GraphicsPipelineError> {
         let layout_create_info = ash::vk::PipelineLayoutCreateInfo::default();
 
         let pipeline_layout = match unsafe { device.get_device_raw().create_pipeline_layout(&layout_create_info, None) } {
@@ -28,13 +40,13 @@ impl GraphicsPipeline {
         let shader_entry_name = c"main";
         let shader_stage_create_infos = [
             ash::vk::PipelineShaderStageCreateInfo {
-                module: *vertex.get_shader_module_raw(),
+                module: *vertex_shader.get_shader_module_raw(),
                 p_name: shader_entry_name.as_ptr(),
                 stage: ash::vk::ShaderStageFlags::VERTEX,
                 ..Default::default()
             },
             ash::vk::PipelineShaderStageCreateInfo {
-                module: *fragment.get_shader_module_raw(),
+                module: *fragment_shader.get_shader_module_raw(),
                 p_name: shader_entry_name.as_ptr(),
                 stage: ash::vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
@@ -82,10 +94,24 @@ impl GraphicsPipeline {
         let dynamic_state = [ash::vk::DynamicState::VIEWPORT, ash::vk::DynamicState::SCISSOR];
         let dynamic_state_info =
             ash::vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&dynamic_state);
+
+        let vertex_input_binding_descriptions = [ash::vk::VertexInputBindingDescription {
+            binding: 0,
+            stride: T::size(),
+            input_rate: ash::vk::VertexInputRate::VERTEX,
+        }];
+        let vertex_input_attribute_descriptions = T::description().iter().enumerate().map(|(i, x)|
+            ash::vk::VertexInputAttributeDescription {
+                binding: 0,
+                location: i as u32,
+                format: x.format,
+                offset: x.offset,
+            }
+        ).collect::<Vec<_>>();
         
         let vertex_input_state_info = ash::vk::PipelineVertexInputStateCreateInfo::default()
-            .vertex_attribute_descriptions(&[])
-            .vertex_binding_descriptions(&[]);
+            .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
+            .vertex_binding_descriptions(&vertex_input_binding_descriptions);
 
         let vertex_input_assembly_state_info = ash::vk::PipelineInputAssemblyStateCreateInfo {
             topology: ash::vk::PrimitiveTopology::TRIANGLE_LIST,

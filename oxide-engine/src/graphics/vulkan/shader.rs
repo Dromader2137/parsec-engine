@@ -1,6 +1,6 @@
 use std::fs::File;
 
-use super::{context::VulkanError, device::Device};
+use super::{VulkanError, device::Device};
 
 pub struct ShaderModule {
     shader_module: ash::vk::ShaderModule

@@ -1,4 +1,4 @@
-use super::{command_buffer::CommandBuffer, context::VulkanError, device::Device, fence::Fence, semaphore::Semaphore};
+use super::{command_buffer::CommandBuffer, VulkanError, device::Device, fence::Fence, semaphore::Semaphore};
 
 pub struct Queue {
     queue: ash::vk::Queue

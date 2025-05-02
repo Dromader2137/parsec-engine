@@ -1,6 +1,6 @@
 use crate::graphics::window::WindowWrapper;
 
-use super::{context::VulkanError, instance::Instance, physical_device::PhysicalDevice};
+use super::{VulkanError, instance::Instance, physical_device::PhysicalDevice};
 
 pub struct InitialSurface {
     surface: ash::vk::SurfaceKHR,

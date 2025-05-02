@@ -1,6 +1,6 @@
 use crate::graphics::window::WindowWrapper;
 
-use super::{context::VulkanError, device::Device, fence::Fence, image::Image, instance::Instance, physical_device::PhysicalDevice, queue::Queue, semaphore::Semaphore, surface::Surface};
+use super::{VulkanError, device::Device, fence::Fence, image::Image, instance::Instance, physical_device::PhysicalDevice, queue::Queue, semaphore::Semaphore, surface::Surface};
 
 pub struct Swapchain {
     swapchain: ash::vk::SwapchainKHR,

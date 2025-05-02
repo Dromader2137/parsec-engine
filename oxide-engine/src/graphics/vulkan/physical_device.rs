@@ -1,4 +1,4 @@
-use super::{context::VulkanError, instance::Instance, surface::InitialSurface};
+use super::{VulkanError, instance::Instance, surface::InitialSurface};
 
 pub struct PhysicalDevice {
     physical_device: ash::vk::PhysicalDevice,

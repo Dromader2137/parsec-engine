@@ -1,6 +1,6 @@
-use crate::graphics::{renderer::Renderer, window::WindowWrapper};
+use crate::graphics::{vulkan::graphics_pipeline::VertexFieldFormat, window::WindowWrapper};
 
-use super::{command_buffer::CommandBuffer, context::{VulkanContext, VulkanError}, fence::Fence, framebuffer::Framebuffer, graphics_pipeline::GraphicsPipeline, image::{Image, ImageView}, renderpass::Renderpass, semaphore::Semaphore, shader::{read_shader_code, ShaderModule}, swapchain::Swapchain};
+use super::{VulkanError, buffer::{Buffer, BufferUsage}, command_buffer::CommandBuffer, context::VulkanContext, fence::Fence, framebuffer::Framebuffer, graphics_pipeline::{GraphicsPipeline, Vertex, VertexField}, image::{Image, ImageView}, renderpass::Renderpass, semaphore::Semaphore, shader::{read_shader_code, ShaderModule}, swapchain::Swapchain};
 
 #[allow(unused)]
 pub struct VulkanRenderer {
@@ -18,7 +18,37 @@ pub struct VulkanRenderer {
     pipeline: GraphicsPipeline,
     resize: bool,
     current_frame: u32,
-    frames_in_flight: u32
+    frames_in_flight: u32,
+    vertex_buffer: Buffer<V>
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct V {
+    pos: [f32; 2],
+    col: [f32; 3],
+}
+
+impl Vertex for V {
+    fn size() -> u32 {
+        size_of::<f32>() as u32 * 5
+    }
+
+    fn description() -> Vec<VertexField> {
+        vec![
+            VertexField { format: VertexFieldFormat::R32G32_SFLOAT, offset: 0 },
+            VertexField { format: VertexFieldFormat::R32G32B32_SFLOAT, offset: size_of::<f32>() as u32 * 2 },
+        ]
+    }
+}
+
+impl V {
+    fn new(x: f32, y: f32, r: f32, g: f32, b: f32) -> V {
+        V {
+            pos: [x, -y],
+            col: [r, g, b]
+        }
+    }
 }
 
 impl VulkanRenderer {
@@ -74,9 +104,17 @@ impl VulkanRenderer {
         };
         let vertex_shader = ShaderModule::new(&context.device, &read_shader_code("shaders/simple.spv")?)?;
         let fragment_shader = ShaderModule::new(&context.device, &read_shader_code("shaders/flat.spv")?)?;
-        let pipeline = GraphicsPipeline::new(&context.device, &framebuffers[0], &renderpass, &vertex_shader, &fragment_shader)?;
+        let pipeline = GraphicsPipeline::new::<V>(&context.device, &framebuffers[0], &renderpass, &vertex_shader, &fragment_shader)?;
 
-        Ok(VulkanRenderer { swapchain, swapchain_images, swapchain_image_views, renderpass, framebuffers, command_buffers, command_buffer_fences, rendering_semaphores, present_semaphores, vertex_shader, fragment_shader, pipeline, resize: false , current_frame: 0, frames_in_flight})
+        let vertices = vec![
+            V::new(0.0, 0.8, 1.0, 0.0, 0.0),
+            V::new(-0.8, -0.8, 0.0, 1.0, 0.0),
+            V::new(0.8, -0.8, 0.0, 0.0, 1.0),
+        ];
+
+        let vertex_buffer = Buffer::from_vec(&context.instance, &context.physical_device, &context.device, vertices, BufferUsage::VERTEX_BUFFER)?;
+
+        Ok(VulkanRenderer { swapchain, swapchain_images, swapchain_image_views, renderpass, framebuffers, command_buffers, command_buffer_fences, rendering_semaphores, present_semaphores, vertex_shader, fragment_shader, pipeline, resize: false , current_frame: 0, frames_in_flight, vertex_buffer})
     }
 
     pub fn recreate_size_dependent_components(&mut self, context: &VulkanContext, window: &WindowWrapper) -> Result<(), VulkanError> {
@@ -128,7 +166,7 @@ impl VulkanRenderer {
         Ok(())
     }
 
-    pub fn process_frame(&mut self, context: &VulkanContext, window: &WindowWrapper) -> Result<(), VulkanError> {
+    pub fn render(&mut self, context: &VulkanContext, window: &WindowWrapper) -> Result<(), VulkanError> {
         let current_frame = self.current_frame as usize;
         self.command_buffer_fences[current_frame].wait(&context.device)?;
         if window.minimized() {
@@ -151,7 +189,8 @@ impl VulkanRenderer {
         command_buffer.set_viewports(&context.device, framebuffer);
         command_buffer.set_scissor(&context.device, framebuffer);
         command_buffer.bind_graphics_pipeline(&context.device, &self.pipeline);
-        command_buffer.draw(&context.device, 3, 1, 0, 0);
+        command_buffer.bind_vertex_buffer(&context.device, &self.vertex_buffer);
+        command_buffer.draw(&context.device, 6, 1, 0, 0);
         command_buffer.end_renderpass(&context.device);
         command_buffer.end(&context.device)?;
         context.graphics_queue.submit(&context.device, &[&self.present_semaphores[current_frame]], &[&self.rendering_semaphores[current_frame]], &[command_buffer], &self.command_buffer_fences[current_frame])?;
@@ -159,26 +198,9 @@ impl VulkanRenderer {
         self.current_frame = (self.current_frame + 1) % self.frames_in_flight;
         Ok(())
     }
-}
 
-impl From<VulkanError> for crate::error::EngineError {
-    fn from(value: VulkanError) -> Self {
-        crate::error::EngineError::Graphics(format!("{:?}", value))
-    }
-}
-
-impl Renderer for VulkanRenderer {
-    fn handle_resize(&mut self) -> Result<(), crate::error::EngineError> {
+    pub fn handle_resize(&mut self) -> Result<(), VulkanError> {
         self.resize = true;
-        Ok(())
-    }
-
-    fn render(
-        &mut self,
-        vulkan_context: &VulkanContext,
-        window: &WindowWrapper,
-    ) -> Result<(), crate::error::EngineError> {
-        self.process_frame(vulkan_context, window)?;
         Ok(())
     }
 }

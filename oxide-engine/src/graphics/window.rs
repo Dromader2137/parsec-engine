@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
+use super::graphics_data::GraphicsError;
+
 #[derive(Debug)]
 pub struct WindowWrapper {
     window: Arc<winit::window::Window>,
@@ -10,6 +12,12 @@ pub struct WindowWrapper {
 #[derive(Debug, Clone)]
 pub enum WindowError {
     CreationError(String),
+}
+
+impl From<WindowError> for GraphicsError {
+    fn from(value: WindowError) -> Self {
+        GraphicsError::WindowError(value)
+    }
 }
 
 impl WindowWrapper {
