@@ -1,9 +1,11 @@
 use crate::{
-    graphics::{Graphics, graphics_data::GraphicsData},
-    input::Input,
+    graphics::{graphics_data::GraphicsData, Graphics},
+    input::Input, world::World,
 };
 
+#[allow(unused)]
 pub struct App {
+    world: World,
     graphics: Graphics,
     input: Input,
     settings: AppSettings,
@@ -12,6 +14,7 @@ pub struct App {
 impl App {
     pub fn new(settings: AppSettings) -> App {
         App {
+            world: World::new(),
             graphics: Graphics::new(),
             input: Input::new(),
             settings,
@@ -20,6 +23,7 @@ impl App {
 
     pub fn default_settings() -> App {
         App {
+            world: World::new(),
             graphics: Graphics::new(),
             input: Input::new(),
             settings: AppSettings::default(),
