@@ -114,12 +114,10 @@ impl Surface {
         &self.surface
     }
 
-    #[inline]
     pub fn min_image_count(&self) -> u32 {
         self.surface_capabilities.min_image_count
     }
     
-    #[inline]
     pub fn max_image_count(&self) -> u32 {
         self.surface_capabilities.max_image_count
     }
@@ -134,22 +132,18 @@ impl Surface {
         }
     }
 
-    #[inline]
     pub fn supported_transforms(&self) -> ash::vk::SurfaceTransformFlagsKHR {
         self.surface_capabilities.supported_transforms
     }
     
-    #[inline]
     pub fn current_transform(&self) -> ash::vk::SurfaceTransformFlagsKHR {
         self.surface_capabilities.current_transform
     }
 
-    #[inline]
     pub fn format(&self) -> ash::vk::Format {
         self.surface_format.format
     }
 
-    #[inline]
     pub fn color_space(&self) -> ash::vk::ColorSpaceKHR {
         self.surface_format.color_space
     }

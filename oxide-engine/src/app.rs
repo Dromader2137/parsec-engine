@@ -8,52 +8,32 @@ pub struct App {
     world: World,
     graphics: Graphics,
     input: Input,
-    settings: AppSettings,
 }
 
 impl App {
-    pub fn new(settings: AppSettings) -> App {
+    pub fn new() -> App {
         App {
             world: World::new(),
             graphics: Graphics::new(),
             input: Input::new(),
-            settings,
-        }
-    }
-
-    pub fn default_settings() -> App {
-        App {
-            world: World::new(),
-            graphics: Graphics::new(),
-            input: Input::new(),
-            settings: AppSettings::default(),
         }
     }
 
     pub fn run(&mut self) {
-        match self.settings.app_mode {
-            AppMode::Graphical => {
-                let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
-                event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
-                event_loop
-                    .run_app(self)
-                    .expect("Correctly working event loop");
-                if let Some(graphics) = self.graphics.data.as_mut() {
-                    if let Err(err) = graphics.renderer.cleanup(&graphics.vulkan_context) {
-                        println!("Error: {:?}", err);
-                    }
-                    if let Err(err) = graphics.vulkan_context.cleanup() {
-                        println!("Error: {:?}", err);
-                    }
-                }
+        let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
+        event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
+        event_loop
+            .run_app(self)
+            .expect("Correctly working event loop");
+        if let Some(graphics) = self.graphics.data.as_mut() {
+            if let Err(err) = graphics.renderer.cleanup(&graphics.vulkan_context) {
+                println!("Error: {:?}", err);
             }
-            AppMode::Headless => {
-                todo!("Headless not yet supported")
+            if let Err(err) = graphics.vulkan_context.cleanup() {
+                println!("Error: {:?}", err);
             }
         }
     }
-
-    pub fn wait(&mut self) {}
 }
 
 impl winit::application::ApplicationHandler for App {
@@ -122,25 +102,6 @@ impl winit::application::ApplicationHandler for App {
     fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
         if let Some(graphics) = self.graphics.data.as_ref() {
             graphics.window.request_redraw();
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum AppMode {
-    Graphical,
-    Headless,
-}
-
-#[derive(Debug, Clone)]
-pub struct AppSettings {
-    pub app_mode: AppMode,
-}
-
-impl Default for AppSettings {
-    fn default() -> Self {
-        AppSettings {
-            app_mode: AppMode::Graphical,
         }
     }
 }
