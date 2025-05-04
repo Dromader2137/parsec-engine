@@ -153,16 +153,16 @@ impl VulkanRenderer {
     pub fn cleanup(&mut self, context: &VulkanContext) -> Result<(), VulkanError> {
         context.device.wait_idle()?;
         self.renderpass.cleanup(&context.device);
-        self.present_semaphores.iter().for_each(|x| x.cleanup(&context.device));
-        self.rendering_semaphores.iter().for_each(|x| x.cleanup(&context.device));
-        self.command_buffer_fences.iter().for_each(|x| x.cleanup(&context.device));
         self.fragment_shader.cleanup(&context.device);
         self.vertex_shader.cleanup(&context.device);
         self.pipeline.cleanup(&context.device);
         self.framebuffers.iter().for_each(|x| x.cleanup(&context.device));
         self.swapchain_image_views.iter().for_each(|x| x.cleanup(&context.device));
-        self.swapchain_images.iter().for_each(|x| x.cleanup(&context.device));
         self.swapchain.cleanup();
+        self.present_semaphores.iter().for_each(|x| x.cleanup(&context.device));
+        self.rendering_semaphores.iter().for_each(|x| x.cleanup(&context.device));
+        self.command_buffer_fences.iter().for_each(|x| x.cleanup(&context.device));
+        self.vertex_buffer.cleanup(&context.device);
         Ok(())
     }
 

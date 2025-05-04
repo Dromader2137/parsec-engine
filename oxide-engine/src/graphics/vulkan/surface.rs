@@ -153,4 +153,8 @@ impl Surface {
     pub fn color_space(&self) -> ash::vk::ColorSpaceKHR {
         self.surface_format.color_space
     }
+
+    pub fn cleanup(&self) {
+        unsafe { self.surface_loader.destroy_surface(self.surface, None) };
+    }
 }

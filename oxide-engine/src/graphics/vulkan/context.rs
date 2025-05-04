@@ -26,4 +26,13 @@ impl VulkanContext {
 
         Ok(VulkanContext { instance, surface, physical_device, device, graphics_queue, command_pool })
     }
+
+    pub fn cleanup(&self) -> Result<(), VulkanError> {
+        self.device.wait_idle()?;
+        self.command_pool.cleanup(&self.device);
+        self.device.cleanup();
+        self.surface.cleanup();
+        self.instance.cleanup();
+        Ok(())
+    }
 }

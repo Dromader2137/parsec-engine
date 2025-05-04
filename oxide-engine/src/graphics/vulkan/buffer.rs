@@ -126,6 +126,11 @@ impl<T: Clone + Copy> Buffer<T> {
     pub fn memory_index(&self) -> u32 {
         self.memory_index
     }
+
+    pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_buffer(self.buffer, None) };
+        unsafe { device.get_device_raw().free_memory(self.memory, None) };
+    }
 }
 
 fn find_memorytype_index(

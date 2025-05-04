@@ -38,6 +38,14 @@ impl App {
                 event_loop
                     .run_app(self)
                     .expect("Correctly working event loop");
+                if let Some(graphics) = self.graphics.data.as_mut() {
+                    if let Err(err) = graphics.renderer.cleanup(&graphics.vulkan_context) {
+                        println!("Error: {:?}", err);
+                    }
+                    if let Err(err) = graphics.vulkan_context.cleanup() {
+                        println!("Error: {:?}", err);
+                    }
+                }
             }
             AppMode::Headless => {
                 todo!("Headless not yet supported")

@@ -61,4 +61,8 @@ impl Device {
     pub fn get_device_raw(&self) -> &ash::Device {
         &self.device
     }
+
+    pub fn cleanup(&self) {
+        unsafe { self.get_device_raw().destroy_device(None) };
+    }
 }

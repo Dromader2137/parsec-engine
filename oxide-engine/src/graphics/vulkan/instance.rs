@@ -132,4 +132,11 @@ impl Instance {
     pub fn get_entry_raw(&self) -> &ash::Entry {
         &self.entry
     }
+
+    pub fn cleanup(&self) {
+        if let Some(messanger) = self._debug_call_back {
+            unsafe { self._debug_utils_loader.destroy_debug_utils_messenger(messanger, None) };
+        }
+        unsafe { self.instance.destroy_instance(None) };
+    }
 }

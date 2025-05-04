@@ -52,6 +52,10 @@ impl CommandPool {
     pub fn get_command_pool_raw(&self) -> &ash::vk::CommandPool {
         &self.command_pool
     }
+
+    pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_command_pool(self.command_pool, None) };
+    }
 }
 
 impl CommandBuffer {

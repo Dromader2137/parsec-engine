@@ -1,7 +1,8 @@
 use super::{VulkanError, device::Device, framebuffer::Framebuffer, renderpass::Renderpass, shader::ShaderModule};
 
 pub struct GraphicsPipeline {
-    graphics_pipeline: ash::vk::Pipeline
+    graphics_pipeline: ash::vk::Pipeline,
+    graphics_pipeline_layout: ash::vk::PipelineLayout
 }
 
 #[derive(Debug)]
@@ -29,7 +30,7 @@ pub trait Vertex: Clone + Copy {
 }
 
 impl GraphicsPipeline {
-    pub fn new<T: Vertex>(device: &Device, framebuffer: &Framebuffer, renderpass: &Renderpass, vertex_shader: &ShaderModule, fragment_shader: &ShaderModule) -> Result<GraphicsPipeline, GraphicsPipelineError> {
+    pub fn new<V: Vertex>(device: &Device, framebuffer: &Framebuffer, renderpass: &Renderpass, vertex_shader: &ShaderModule, fragment_shader: &ShaderModule) -> Result<GraphicsPipeline, GraphicsPipelineError> {
         let layout_create_info = ash::vk::PipelineLayoutCreateInfo::default();
 
         let pipeline_layout = match unsafe { device.get_device_raw().create_pipeline_layout(&layout_create_info, None) } {
@@ -97,10 +98,10 @@ impl GraphicsPipeline {
 
         let vertex_input_binding_descriptions = [ash::vk::VertexInputBindingDescription {
             binding: 0,
-            stride: T::size(),
+            stride: V::size(),
             input_rate: ash::vk::VertexInputRate::VERTEX,
         }];
-        let vertex_input_attribute_descriptions = T::description().iter().enumerate().map(|(i, x)|
+        let vertex_input_attribute_descriptions = V::description().iter().enumerate().map(|(i, x)|
             ash::vk::VertexInputAttributeDescription {
                 binding: 0,
                 location: i as u32,
@@ -138,7 +139,7 @@ impl GraphicsPipeline {
             }
         }[0];
 
-        Ok( GraphicsPipeline { graphics_pipeline: pipeline } )
+        Ok( GraphicsPipeline { graphics_pipeline: pipeline, graphics_pipeline_layout: pipeline_layout } )
     }
 
     pub fn get_pipeline_raw(&self) -> &ash::vk::Pipeline {
@@ -146,6 +147,7 @@ impl GraphicsPipeline {
     }
 
     pub fn cleanup(&self, device: &Device) {
+        unsafe { device.get_device_raw().destroy_pipeline_layout(self.graphics_pipeline_layout, None) };
         unsafe { device.get_device_raw().destroy_pipeline(self.graphics_pipeline, None) };
     }
 }
