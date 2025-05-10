@@ -7,7 +7,9 @@ pub struct Buffer<T> {
     memory: ash::vk::DeviceMemory,
     memory_size: u64,
     memory_index: u32,
-    _type: PhantomData<T>
+    pub size: u64,
+    pub len: u32,
+    _type: PhantomData<T>,
 }
 
 #[derive(Debug)]
@@ -16,7 +18,8 @@ pub enum BufferError {
     UnableToFindSuitableMemory,
     AllocationError(ash::vk::Result),
     BindError(ash::vk::Result),
-    MapError(ash::vk::Result)
+    MapError(ash::vk::Result),
+    SizaMismatch,
 }
 
 impl From<BufferError> for VulkanError {
@@ -28,41 +31,13 @@ impl From<BufferError> for VulkanError {
 pub type BufferUsage = ash::vk::BufferUsageFlags;
 
 impl<T: Clone + Copy> Buffer<T> {
-    pub fn new(instance: &Instance, physical_device: &PhysicalDevice, device: &Device, size: u64, usage: BufferUsage) -> Result<Buffer<T>, BufferError> {
-        let index_buffer_info = ash::vk::BufferCreateInfo::default()
-            .size(size)
-            .usage(usage.into())
-            .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
-
-        let buffer = match unsafe { device.get_device_raw().create_buffer(&index_buffer_info, None) } {
-            Ok(val) => val,
-            Err(err) => return Err(BufferError::CreationError(err))
-        };
-
-        let memory_req = unsafe { device.get_device_raw().get_buffer_memory_requirements(buffer) };
-        let memory_index = match find_memorytype_index(&memory_req, ash::vk::MemoryPropertyFlags::HOST_VISIBLE | ash::vk::MemoryPropertyFlags::HOST_COHERENT, instance, physical_device) {
-            Some(val) => val,
-            None => return Err(BufferError::UnableToFindSuitableMemory)
-        };
-
-        let allocate_info = ash::vk::MemoryAllocateInfo {
-            allocation_size: memory_req.size,
-            memory_type_index: memory_index,
-            ..Default::default()
-        };
-        let memory = match unsafe { device.get_device_raw().allocate_memory(&allocate_info, None) } {
-            Ok(val) => val,
-            Err(err) => return Err(BufferError::AllocationError(err))
-        };
-
-        if let Err(err) = unsafe { device.get_device_raw().bind_buffer_memory(buffer, memory, 0) } {
-            return Err(BufferError::BindError(err));
-        }
-
-        Ok(Buffer::<T> { buffer, memory, memory_size: memory_req.size, memory_index, _type: PhantomData::default() })
-    }
-    
-    pub fn from_vec(instance: &Instance, physical_device: &PhysicalDevice, device: &Device, data: Vec<T>, usage: BufferUsage) -> Result<Buffer<T>, BufferError> {
+    pub fn from_vec(
+        instance: &Instance,
+        physical_device: &PhysicalDevice,
+        device: &Device,
+        data: Vec<T>,
+        usage: BufferUsage,
+    ) -> Result<Buffer<T>, BufferError> {
         let size = data.len() * size_of::<T>();
 
         let index_buffer_info = ash::vk::BufferCreateInfo::default()
@@ -70,15 +45,29 @@ impl<T: Clone + Copy> Buffer<T> {
             .usage(usage.into())
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
-        let buffer = match unsafe { device.get_device_raw().create_buffer(&index_buffer_info, None) } {
+        let buffer = match unsafe {
+            device
+                .get_device_raw()
+                .create_buffer(&index_buffer_info, None)
+        } {
             Ok(val) => val,
-            Err(err) => return Err(BufferError::CreationError(err))
+            Err(err) => return Err(BufferError::CreationError(err)),
         };
 
-        let memory_req = unsafe { device.get_device_raw().get_buffer_memory_requirements(buffer) };
-        let memory_index = match find_memorytype_index(&memory_req, ash::vk::MemoryPropertyFlags::HOST_VISIBLE | ash::vk::MemoryPropertyFlags::HOST_COHERENT, instance, physical_device) {
+        let memory_req = unsafe {
+            device
+                .get_device_raw()
+                .get_buffer_memory_requirements(buffer)
+        };
+        let memory_index = match find_memorytype_index(
+            &memory_req,
+            ash::vk::MemoryPropertyFlags::HOST_VISIBLE
+                | ash::vk::MemoryPropertyFlags::HOST_COHERENT,
+            instance,
+            physical_device,
+        ) {
             Some(val) => val,
-            None => return Err(BufferError::UnableToFindSuitableMemory)
+            None => return Err(BufferError::UnableToFindSuitableMemory),
         };
 
         let allocate_info = ash::vk::MemoryAllocateInfo {
@@ -86,29 +75,77 @@ impl<T: Clone + Copy> Buffer<T> {
             memory_type_index: memory_index,
             ..Default::default()
         };
-        let memory = match unsafe { device.get_device_raw().allocate_memory(&allocate_info, None) } {
+        let memory = match unsafe {
+            device
+                .get_device_raw()
+                .allocate_memory(&allocate_info, None)
+        } {
             Ok(val) => val,
-            Err(err) => return Err(BufferError::AllocationError(err))
+            Err(err) => return Err(BufferError::AllocationError(err)),
         };
 
-        let memory_ptr = match unsafe { device.get_device_raw().map_memory(memory, 0, memory_req.size, ash::vk::MemoryMapFlags::empty()) } {
+        let memory_ptr = match unsafe {
+            device.get_device_raw().map_memory(
+                memory,
+                0,
+                memory_req.size,
+                ash::vk::MemoryMapFlags::empty(),
+            )
+        } {
             Ok(val) => val,
-            Err(err) => return Err(BufferError::MapError(err))
+            Err(err) => return Err(BufferError::MapError(err)),
         };
 
-        let mut slice = unsafe { ash::util::Align::new(
-            memory_ptr,
-            align_of::<u32>() as u64,
-            memory_req.size,
-        ) };
+        let mut slice =
+            unsafe { ash::util::Align::new(memory_ptr, align_of::<u32>() as u64, memory_req.size) };
 
         slice.copy_from_slice(&data);
         unsafe { device.get_device_raw().unmap_memory(memory) };
-        if let Err(err) = unsafe { device.get_device_raw().bind_buffer_memory(buffer, memory, 0) } {
+        if let Err(err) = unsafe {
+            device
+                .get_device_raw()
+                .bind_buffer_memory(buffer, memory, 0)
+        } {
             return Err(BufferError::BindError(err));
         }
 
-        Ok(Buffer::<T> { buffer, memory, memory_size: memory_req.size, memory_index, _type: PhantomData::default() })
+        Ok(Buffer::<T> {
+            buffer,
+            memory,
+            memory_size: memory_req.size,
+            memory_index,
+            size: size as u64,
+            len: data.len() as u32,
+            _type: PhantomData::default(),
+        })
+    }
+
+    pub fn update(&self, device: &Device, data: Vec<T>) -> Result<(), BufferError> {
+        if data.len() as u32 != self.len {
+            return Err(BufferError::SizaMismatch);
+        }
+
+        let memory_ptr = match unsafe {
+            device.get_device_raw().map_memory(
+                self.memory,
+                0,
+                self.memory_size,
+                ash::vk::MemoryMapFlags::empty(),
+            )
+        } {
+            Ok(val) => val,
+            Err(err) => return Err(BufferError::MapError(err)),
+        };
+
+        let mut slice = unsafe {
+            ash::util::Align::<T>::new(memory_ptr, align_of::<u32>() as u64, self.memory_size)
+        };
+
+        slice.copy_from_slice(&data);
+
+        unsafe { device.get_device_raw().unmap_memory(self.memory) };
+
+        Ok(())
     }
 
     pub fn get_buffer_raw(&self) -> &ash::vk::Buffer {
@@ -117,14 +154,6 @@ impl<T: Clone + Copy> Buffer<T> {
 
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory {
         &self.memory
-    }
-
-    pub fn memory_size(&self) -> u64 {
-        self.memory_size
-    }
-
-    pub fn memory_index(&self) -> u32 {
-        self.memory_index
     }
 
     pub fn cleanup(&self, device: &Device) {
@@ -137,9 +166,13 @@ fn find_memorytype_index(
     memory_req: &ash::vk::MemoryRequirements,
     flags: ash::vk::MemoryPropertyFlags,
     instance: &Instance,
-    physical_device: &PhysicalDevice
+    physical_device: &PhysicalDevice,
 ) -> Option<u32> {
-    let memory_prop = unsafe { instance.get_instance_raw().get_physical_device_memory_properties(*physical_device.get_physical_device_raw()) };
+    let memory_prop = unsafe {
+        instance
+            .get_instance_raw()
+            .get_physical_device_memory_properties(*physical_device.get_physical_device_raw())
+    };
 
     memory_prop.memory_types[..memory_prop.memory_type_count as _]
         .iter()

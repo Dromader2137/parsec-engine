@@ -6,6 +6,7 @@ use bundle::{FromColumns, FromColumnsMut, UsableBundle, UsableBundleMut};
 pub mod archetype;
 pub mod bundle;
 pub mod entity;
+pub mod system;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum WorldError {
@@ -98,7 +99,7 @@ mod tests {
     #[test]
     fn test_get_1() {
         let mut world = World::new();
-        world.spawn((5.0_f32, )).unwrap();
+        world.spawn((5.0_f32,)).unwrap();
         world.spawn((1.0_f32, "abc")).unwrap();
         world.spawn((1.2_f32, "bcd", 1_u8)).unwrap();
         let mut ret = world.query::<(f32,)>().unwrap();

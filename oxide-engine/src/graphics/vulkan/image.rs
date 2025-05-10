@@ -5,7 +5,7 @@ pub struct Image {
 }
 
 pub struct ImageView {
-    view: ash::vk::ImageView
+    view: ash::vk::ImageView,
 }
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ impl<'a> From<ImageViewInfo<'a>> for ash::vk::ImageViewCreateInfo<'_> {
                 base_mip_level: 0,
                 level_count: 1,
                 base_array_layer: 0,
-                layer_count: 1
+                layer_count: 1,
             })
             .components(ash::vk::ComponentMapping {
                 r: ash::vk::ComponentSwizzle::R,
@@ -64,15 +64,23 @@ impl Image {
 }
 
 impl ImageView {
-    pub fn from_image(device: &Device, image: &Image, image_format: ImageFormat) -> Result<ImageView, ImageError> {
+    pub fn from_image(
+        device: &Device,
+        image: &Image,
+        image_format: ImageFormat,
+    ) -> Result<ImageView, ImageError> {
         let view_info = ImageViewInfo {
             image,
-            format: image_format
+            format: image_format,
         };
 
-        match unsafe { device.get_device_raw().create_image_view(&view_info.into(), None) } {
+        match unsafe {
+            device
+                .get_device_raw()
+                .create_image_view(&view_info.into(), None)
+        } {
             Ok(val) => Ok(ImageView { view: val }),
-            Err(err) => Err(ImageError::ViewCreationError(err))
+            Err(err) => Err(ImageError::ViewCreationError(err)),
         }
     }
 

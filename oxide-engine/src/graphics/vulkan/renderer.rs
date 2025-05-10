@@ -1,8 +1,30 @@
-use crate::graphics::{vulkan::graphics_pipeline::VertexFieldFormat, window::WindowWrapper};
+use crate::{
+    graphics::{
+        mesh_buffer::MeshBuffer, vulkan::graphics_pipeline::VertexFieldFormat,
+        window::WindowWrapper,
+    },
+    math::{mat::Matrix4f, vec::Vec3f},
+};
 
-use super::{VulkanError, buffer::{Buffer, BufferUsage}, command_buffer::CommandBuffer, context::VulkanContext, fence::Fence, framebuffer::Framebuffer, graphics_pipeline::{GraphicsPipeline, Vertex, VertexField}, image::{Image, ImageView}, renderpass::Renderpass, semaphore::Semaphore, shader::{read_shader_code, ShaderModule}, swapchain::Swapchain};
+use super::{
+    VulkanError,
+    buffer::{Buffer, BufferUsage},
+    command_buffer::CommandBuffer,
+    context::VulkanContext,
+    descriptor_set::{
+        DescriptorPool, DescriptorPoolSize, DescriptorSet, DescriptorSetBinding,
+        DescriptorSetLayout, DescriptorStage, DescriptorType,
+    },
+    fence::Fence,
+    framebuffer::Framebuffer,
+    graphics_pipeline::{GraphicsPipeline, Vertex, VertexField},
+    image::{Image, ImageView},
+    renderpass::Renderpass,
+    semaphore::Semaphore,
+    shader::{ShaderModule, read_shader_code},
+    swapchain::Swapchain,
+};
 
-#[allow(unused)]
 pub struct VulkanRenderer {
     swapchain: Swapchain,
     swapchain_images: Vec<Image>,
@@ -19,7 +41,11 @@ pub struct VulkanRenderer {
     resize: bool,
     current_frame: u32,
     frames_in_flight: u32,
-    vertex_buffer: Buffer<V>
+    mesh_buffer: MeshBuffer<V>,
+    descriptor_pool: DescriptorPool,
+    mvp_set: DescriptorSet,
+    mvp_buffer: Buffer<Matrix4f>,
+    interator: f32,
 }
 
 #[repr(C)]
@@ -36,8 +62,14 @@ impl Vertex for V {
 
     fn description() -> Vec<VertexField> {
         vec![
-            VertexField { format: VertexFieldFormat::R32G32_SFLOAT, offset: 0 },
-            VertexField { format: VertexFieldFormat::R32G32B32_SFLOAT, offset: size_of::<f32>() as u32 * 2 },
+            VertexField {
+                format: VertexFieldFormat::R32G32_SFLOAT,
+                offset: 0,
+            },
+            VertexField {
+                format: VertexFieldFormat::R32G32B32_SFLOAT,
+                offset: size_of::<f32>() as u32 * 2,
+            },
         ]
     }
 }
@@ -45,17 +77,26 @@ impl Vertex for V {
 impl V {
     fn new(x: f32, y: f32, r: f32, g: f32, b: f32) -> V {
         V {
-            pos: [x, -y],
-            col: [r, g, b]
+            pos: [x, y],
+            col: [r, g, b],
         }
     }
 }
 
 impl VulkanRenderer {
-    pub fn new(context: &VulkanContext, window: &WindowWrapper) -> Result<VulkanRenderer, VulkanError> {
+    pub fn new(
+        context: &VulkanContext,
+        window: &WindowWrapper,
+    ) -> Result<VulkanRenderer, VulkanError> {
         let mut frames_in_flight = 3;
-        let swapchain = Swapchain::new(&context.instance, &context.surface, &context.physical_device, &context.device, window)?;
-        let swapchain_images = swapchain.get_images()?; 
+        let swapchain = Swapchain::new(
+            &context.instance,
+            &context.surface,
+            &context.physical_device,
+            &context.device,
+            window,
+        )?;
+        let swapchain_images = swapchain.get_images()?;
         let swapchain_format = context.surface.format().into();
         let swapchain_image_views = {
             let mut out = Vec::new();
@@ -66,11 +107,19 @@ impl VulkanRenderer {
             out
         };
         let renderpass = Renderpass::new(&context.surface, &context.device)?;
-        frames_in_flight = frames_in_flight.min(swapchain_images.len() as u32 - 1).max(1);
+        frames_in_flight = frames_in_flight
+            .min(swapchain_images.len() as u32 - 1)
+            .max(1);
         let framebuffers = {
             let mut out = Vec::new();
             for image_view in swapchain_image_views.iter() {
-                out.push(Framebuffer::new(&context.surface, &context.device, image_view, &renderpass, window)?);
+                out.push(Framebuffer::new(
+                    &context.surface,
+                    &context.device,
+                    image_view,
+                    &renderpass,
+                    window,
+                )?);
             }
             out
         };
@@ -102,29 +151,114 @@ impl VulkanRenderer {
             }
             out
         };
-        let vertex_shader = ShaderModule::new(&context.device, &read_shader_code("shaders/simple.spv")?)?;
-        let fragment_shader = ShaderModule::new(&context.device, &read_shader_code("shaders/flat.spv")?)?;
-        let pipeline = GraphicsPipeline::new::<V>(&context.device, &framebuffers[0], &renderpass, &vertex_shader, &fragment_shader)?;
+        let vertex_shader =
+            ShaderModule::new(&context.device, &read_shader_code("shaders/simple.spv")?)?;
+        let fragment_shader =
+            ShaderModule::new(&context.device, &read_shader_code("shaders/flat.spv")?)?;
 
         let vertices = vec![
-            V::new(0.0, 0.8, 1.0, 0.0, 0.0),
+            V::new(0.0, 0.8, 1.0, 1.0, 1.0),
             V::new(-0.8, -0.8, 0.0, 1.0, 0.0),
-            V::new(0.8, -0.8, 0.0, 0.0, 1.0),
+            V::new(0.8, -0.8, 1.0, 0.0, 0.0),
         ];
 
-        let vertex_buffer = Buffer::from_vec(&context.instance, &context.physical_device, &context.device, vertices, BufferUsage::VERTEX_BUFFER)?;
+        let (width, height) = window.get_size();
+        let aspect = width as f32 / height as f32;
 
-        Ok(VulkanRenderer { swapchain, swapchain_images, swapchain_image_views, renderpass, framebuffers, command_buffers, command_buffer_fences, rendering_semaphores, present_semaphores, vertex_shader, fragment_shader, pipeline, resize: false , current_frame: 0, frames_in_flight, vertex_buffer})
+        let mesh_buffer = MeshBuffer::new(
+            &context.instance,
+            &context.physical_device,
+            &context.device,
+            vertices,
+            vec![0, 1, 2],
+        )?;
+
+        let mvp_buffer = Buffer::from_vec(
+            &context.instance,
+            &context.physical_device,
+            &context.device,
+            vec![
+                Matrix4f::perspective(40.0_f32.to_radians(), aspect, 0.1, 100.0)
+                    * Matrix4f::look_at(
+                        Vec3f::new(0.0, 0.0, 0.0),
+                        Vec3f::new(0.0, 0.0, 1.0),
+                        Vec3f::new(0.0, 1.0, 0.0),
+                    )
+                    * Matrix4f::translation(Vec3f::new(0.0, 0.0, 5.0))
+                    * Matrix4f::rotation_y(0.0_f32.sin()),
+            ],
+            BufferUsage::UNIFORM_BUFFER,
+        )?;
+
+        let descriptor_pool = DescriptorPool::new(
+            &context.device,
+            32,
+            &[DescriptorPoolSize::new(16, DescriptorType::UNIFORM_BUFFER)],
+        )?;
+        let bindings = vec![DescriptorSetBinding::new(
+            0,
+            DescriptorType::UNIFORM_BUFFER,
+            DescriptorStage::VERTEX,
+        )];
+        let mvp_set_layout = DescriptorSetLayout::new(&context.device, bindings)?;
+        let mvp_set = DescriptorSet::new(&context.device, mvp_set_layout, &descriptor_pool)?;
+        mvp_set.bind_buffer(&context.device, &mvp_buffer, 0)?;
+
+        let pipeline = GraphicsPipeline::new::<V>(
+            &context.device,
+            &framebuffers[0],
+            &renderpass,
+            &vertex_shader,
+            &fragment_shader,
+            &[mvp_set.layout.clone()],
+        )?;
+
+        Ok(VulkanRenderer {
+            swapchain,
+            swapchain_images,
+            swapchain_image_views,
+            renderpass,
+            framebuffers,
+            command_buffers,
+            command_buffer_fences,
+            rendering_semaphores,
+            present_semaphores,
+            vertex_shader,
+            fragment_shader,
+            pipeline,
+            resize: false,
+            current_frame: 0,
+            frames_in_flight,
+            mesh_buffer,
+            descriptor_pool,
+            mvp_set,
+            mvp_buffer,
+            interator: 0.0,
+        })
     }
 
-    pub fn recreate_size_dependent_components(&mut self, context: &VulkanContext, window: &WindowWrapper) -> Result<(), VulkanError> {
+    pub fn recreate_size_dependent_components(
+        &mut self,
+        context: &VulkanContext,
+        window: &WindowWrapper,
+    ) -> Result<(), VulkanError> {
         context.device.wait_idle()?;
-        self.framebuffers.iter().for_each(|x| x.cleanup(&context.device));
-        self.swapchain_image_views.iter().for_each(|x| x.cleanup(&context.device));
+        self.framebuffers
+            .iter()
+            .for_each(|x| x.cleanup(&context.device));
+        self.swapchain_image_views
+            .iter()
+            .for_each(|x| x.cleanup(&context.device));
         self.swapchain.cleanup();
 
-        let swapchain = Swapchain::new(&context.instance, &context.surface, &context.physical_device, &context.device, window)?;
-        let swapchain_images = swapchain.get_images()?; 
+        let swapchain = Swapchain::new(
+            &context.instance,
+            &context.surface,
+            &context.physical_device,
+            &context.device,
+            window,
+        )?;
+        let swapchain_images = swapchain.get_images()?;
         let swapchain_format = context.surface.format().into();
         let swapchain_image_views = {
             let mut out = Vec::new();
@@ -137,7 +271,13 @@ impl VulkanRenderer {
         let framebuffers = {
             let mut out = Vec::new();
             for image_view in swapchain_image_views.iter() {
-                out.push(Framebuffer::new(&context.surface, &context.device, image_view, &self.renderpass, window)?);
+                out.push(Framebuffer::new(
+                    &context.surface,
+                    &context.device,
+                    image_view,
+                    &self.renderpass,
+                    window,
+                )?);
             }
             out
         };
@@ -156,17 +296,35 @@ impl VulkanRenderer {
         self.fragment_shader.cleanup(&context.device);
         self.vertex_shader.cleanup(&context.device);
         self.pipeline.cleanup(&context.device);
-        self.framebuffers.iter().for_each(|x| x.cleanup(&context.device));
-        self.swapchain_image_views.iter().for_each(|x| x.cleanup(&context.device));
+        self.framebuffers
+            .iter()
+            .for_each(|x| x.cleanup(&context.device));
+        self.swapchain_image_views
+            .iter()
+            .for_each(|x| x.cleanup(&context.device));
         self.swapchain.cleanup();
-        self.present_semaphores.iter().for_each(|x| x.cleanup(&context.device));
-        self.rendering_semaphores.iter().for_each(|x| x.cleanup(&context.device));
-        self.command_buffer_fences.iter().for_each(|x| x.cleanup(&context.device));
-        self.vertex_buffer.cleanup(&context.device);
+        self.present_semaphores
+            .iter()
+            .for_each(|x| x.cleanup(&context.device));
+        self.rendering_semaphores
+            .iter()
+            .for_each(|x| x.cleanup(&context.device));
+        self.command_buffer_fences
+            .iter()
+            .for_each(|x| x.cleanup(&context.device));
+        self.mesh_buffer.cleanup(&context.device);
+        self.mvp_set
+            .cleanup(&context.device, &self.descriptor_pool)?;
+        self.descriptor_pool.cleanup(&context.device);
+        self.mvp_buffer.cleanup(&context.device);
         Ok(())
     }
 
-    pub fn render(&mut self, context: &VulkanContext, window: &WindowWrapper) -> Result<(), VulkanError> {
+    pub fn render(
+        &mut self,
+        context: &VulkanContext,
+        window: &WindowWrapper,
+    ) -> Result<(), VulkanError> {
         let current_frame = self.current_frame as usize;
         self.command_buffer_fences[current_frame].wait(&context.device)?;
         if window.minimized() {
@@ -177,24 +335,48 @@ impl VulkanRenderer {
             self.resize = false;
             self.current_frame = 0;
         }
-        let (present_index, suboptimal) = self.swapchain.acquire_next_image(&self.present_semaphores[current_frame], &Fence::null())?;
+        let (present_index, suboptimal) = self
+            .swapchain
+            .acquire_next_image(&self.present_semaphores[current_frame], &Fence::null())?;
         self.resize |= suboptimal;
         self.command_buffer_fences[current_frame].reset(&context.device)?;
         let present_index = present_index as usize;
         let command_buffer = &self.command_buffers[current_frame];
         let framebuffer = &self.framebuffers[present_index];
+        let (width, height) = window.get_size();
+        let aspect = height as f32 / width as f32;
+        self.interator += 0.0003;
+        self.mvp_buffer.update(
+            &context.device,
+            vec![
+                Matrix4f::perspective(40.0_f32.to_radians(), aspect, 5.0, 10.0)
+                    * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
+                    * Matrix4f::translation(Vec3f::FORWARD * 5.0)
+                    * Matrix4f::rotation_y(self.interator),
+            ],
+        )?;
         command_buffer.reset(&context.device)?;
         command_buffer.begin(&context.device)?;
         command_buffer.begin_renderpass(&context.device, &self.renderpass, framebuffer);
         command_buffer.set_viewports(&context.device, framebuffer);
         command_buffer.set_scissor(&context.device, framebuffer);
         command_buffer.bind_graphics_pipeline(&context.device, &self.pipeline);
-        command_buffer.bind_vertex_buffer(&context.device, &self.vertex_buffer);
-        command_buffer.draw(&context.device, 6, 1, 0, 0);
+        command_buffer.bind_descriptor_set(&context.device, &self.mvp_set, &self.pipeline, 0);
+        self.mesh_buffer.draw(&context.device, command_buffer);
         command_buffer.end_renderpass(&context.device);
         command_buffer.end(&context.device)?;
-        context.graphics_queue.submit(&context.device, &[&self.present_semaphores[current_frame]], &[&self.rendering_semaphores[current_frame]], &[command_buffer], &self.command_buffer_fences[current_frame])?;
-        self.swapchain.present(&context.graphics_queue, &[&self.rendering_semaphores[current_frame]], present_index as u32)?;
+        context.graphics_queue.submit(
+            &context.device,
+            &[&self.present_semaphores[current_frame]],
+            &[&self.rendering_semaphores[current_frame]],
+            &[command_buffer],
+            &self.command_buffer_fences[current_frame],
+        )?;
+        self.swapchain.present(
+            &context.graphics_queue,
+            &[&self.rendering_semaphores[current_frame]],
+            present_index as u32,
+        )?;
         self.current_frame = (self.current_frame + 1) % self.frames_in_flight;
         Ok(())
     }

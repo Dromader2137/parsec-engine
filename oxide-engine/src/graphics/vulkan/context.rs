@@ -1,6 +1,14 @@
 use crate::graphics::window::WindowWrapper;
 
-use super::{command_buffer::CommandPool, device::Device, instance::Instance, physical_device::PhysicalDevice, queue::Queue, surface::{InitialSurface, Surface}, VulkanError};
+use super::{
+    VulkanError,
+    command_buffer::CommandPool,
+    device::Device,
+    instance::Instance,
+    physical_device::PhysicalDevice,
+    queue::Queue,
+    surface::{InitialSurface, Surface},
+};
 
 pub struct VulkanContext {
     pub instance: Instance,
@@ -8,14 +16,11 @@ pub struct VulkanContext {
     pub physical_device: PhysicalDevice,
     pub device: Device,
     pub graphics_queue: Queue,
-    pub command_pool: CommandPool
+    pub command_pool: CommandPool,
 }
 
-
 impl VulkanContext {
-    pub fn new(
-        window: &WindowWrapper,
-    ) -> Result<VulkanContext, VulkanError> {
+    pub fn new(window: &WindowWrapper) -> Result<VulkanContext, VulkanError> {
         let instance = Instance::new(window)?;
         let initial_surface = InitialSurface::new(&instance, window)?;
         let physical_device = PhysicalDevice::new(&instance, &initial_surface)?;
@@ -24,7 +29,14 @@ impl VulkanContext {
         let graphics_queue = device.get_present_queue(physical_device.get_queue_family_index());
         let command_pool = CommandPool::new(&physical_device, &device)?;
 
-        Ok(VulkanContext { instance, surface, physical_device, device, graphics_queue, command_pool })
+        Ok(VulkanContext {
+            instance,
+            surface,
+            physical_device,
+            device,
+            graphics_queue,
+            command_pool,
+        })
     }
 
     pub fn cleanup(&self) -> Result<(), VulkanError> {

@@ -17,16 +17,17 @@ impl From<DeviceError> for VulkanError {
 }
 
 impl Device {
-    pub fn new(instance: &Instance, physical_device: &PhysicalDevice) -> Result<Device, DeviceError> {
-        let device_extension_names_raw = [
-            ash::khr::swapchain::NAME.as_ptr(),
-        ];
+    pub fn new(
+        instance: &Instance,
+        physical_device: &PhysicalDevice,
+    ) -> Result<Device, DeviceError> {
+        let device_extension_names_raw = [ash::khr::swapchain::NAME.as_ptr()];
 
         let features = ash::vk::PhysicalDeviceFeatures {
             shader_clip_distance: 1,
             ..Default::default()
         };
-        
+
         let priorities = [1.0];
 
         let queue_info = ash::vk::DeviceQueueCreateInfo::default()
@@ -38,9 +39,15 @@ impl Device {
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&features);
 
-        let device = match unsafe { instance.get_instance_raw().create_device(*physical_device.get_physical_device_raw(), &device_create_info, None) } {
+        let device = match unsafe {
+            instance.get_instance_raw().create_device(
+                *physical_device.get_physical_device_raw(),
+                &device_create_info,
+                None,
+            )
+        } {
             Ok(val) => val,
-            Err(err) => return Err(DeviceError::DeviceCreationError(err))
+            Err(err) => return Err(DeviceError::DeviceCreationError(err)),
         };
 
         Ok(Device { device })
@@ -57,7 +64,7 @@ impl Device {
         }
         Ok(())
     }
-    
+
     pub fn get_device_raw(&self) -> &ash::Device {
         &self.device
     }

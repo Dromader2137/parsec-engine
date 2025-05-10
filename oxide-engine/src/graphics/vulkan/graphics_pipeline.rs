@@ -1,8 +1,11 @@
-use super::{VulkanError, device::Device, framebuffer::Framebuffer, renderpass::Renderpass, shader::ShaderModule};
+use super::{
+    VulkanError, descriptor_set::DescriptorSetLayout, device::Device, framebuffer::Framebuffer,
+    renderpass::Renderpass, shader::ShaderModule,
+};
 
 pub struct GraphicsPipeline {
     graphics_pipeline: ash::vk::Pipeline,
-    graphics_pipeline_layout: ash::vk::PipelineLayout
+    graphics_pipeline_layout: ash::vk::PipelineLayout,
 }
 
 #[derive(Debug)]
@@ -21,7 +24,7 @@ pub type VertexFieldFormat = ash::vk::Format;
 
 pub struct VertexField {
     pub format: VertexFieldFormat,
-    pub offset: u32
+    pub offset: u32,
 }
 
 pub trait Vertex: Clone + Copy {
@@ -30,12 +33,29 @@ pub trait Vertex: Clone + Copy {
 }
 
 impl GraphicsPipeline {
-    pub fn new<V: Vertex>(device: &Device, framebuffer: &Framebuffer, renderpass: &Renderpass, vertex_shader: &ShaderModule, fragment_shader: &ShaderModule) -> Result<GraphicsPipeline, GraphicsPipelineError> {
-        let layout_create_info = ash::vk::PipelineLayoutCreateInfo::default();
+    pub fn new<V: Vertex>(
+        device: &Device,
+        framebuffer: &Framebuffer,
+        renderpass: &Renderpass,
+        vertex_shader: &ShaderModule,
+        fragment_shader: &ShaderModule,
+        descriptor_set_layouts: &[DescriptorSetLayout],
+    ) -> Result<GraphicsPipeline, GraphicsPipelineError> {
+        let set_layouts: Vec<_> = descriptor_set_layouts
+            .iter()
+            .map(|x| *x.get_layout_raw())
+            .collect();
 
-        let pipeline_layout = match unsafe { device.get_device_raw().create_pipeline_layout(&layout_create_info, None) } {
+        let layout_create_info =
+            ash::vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
+
+        let pipeline_layout = match unsafe {
+            device
+                .get_device_raw()
+                .create_pipeline_layout(&layout_create_info, None)
+        } {
             Ok(val) => val,
-            Err(err) => return Err(GraphicsPipelineError::LayoutError(err))
+            Err(err) => return Err(GraphicsPipelineError::LayoutError(err)),
         };
 
         let shader_entry_name = c"main";
@@ -92,7 +112,10 @@ impl GraphicsPipeline {
             .logic_op(ash::vk::LogicOp::CLEAR)
             .attachments(&color_blend_attachment_states);
 
-        let dynamic_state = [ash::vk::DynamicState::VIEWPORT, ash::vk::DynamicState::SCISSOR];
+        let dynamic_state = [
+            ash::vk::DynamicState::VIEWPORT,
+            ash::vk::DynamicState::SCISSOR,
+        ];
         let dynamic_state_info =
             ash::vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&dynamic_state);
 
@@ -101,15 +124,17 @@ impl GraphicsPipeline {
             stride: V::size(),
             input_rate: ash::vk::VertexInputRate::VERTEX,
         }];
-        let vertex_input_attribute_descriptions = V::description().iter().enumerate().map(|(i, x)|
-            ash::vk::VertexInputAttributeDescription {
+        let vertex_input_attribute_descriptions = V::description()
+            .iter()
+            .enumerate()
+            .map(|(i, x)| ash::vk::VertexInputAttributeDescription {
                 binding: 0,
                 location: i as u32,
                 format: x.format,
                 offset: x.offset,
-            }
-        ).collect::<Vec<_>>();
-        
+            })
+            .collect::<Vec<_>>();
+
         let vertex_input_state_info = ash::vk::PipelineVertexInputStateCreateInfo::default()
             .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
             .vertex_binding_descriptions(&vertex_input_binding_descriptions);
@@ -131,23 +156,41 @@ impl GraphicsPipeline {
             .layout(pipeline_layout)
             .render_pass(*renderpass.get_renderpass_raw());
 
-
-        let pipeline = match unsafe { device.get_device_raw().create_graphics_pipelines(ash::vk::PipelineCache::null(), &[graphic_pipeline_info], None) } {
+        let pipeline = match unsafe {
+            device.get_device_raw().create_graphics_pipelines(
+                ash::vk::PipelineCache::null(),
+                &[graphic_pipeline_info],
+                None,
+            )
+        } {
             Ok(val) => val,
-            Err(err) => { 
-                return Err(GraphicsPipelineError::CreationError(err.1))
-            }
+            Err(err) => return Err(GraphicsPipelineError::CreationError(err.1)),
         }[0];
 
-        Ok( GraphicsPipeline { graphics_pipeline: pipeline, graphics_pipeline_layout: pipeline_layout } )
+        Ok(GraphicsPipeline {
+            graphics_pipeline: pipeline,
+            graphics_pipeline_layout: pipeline_layout,
+        })
     }
 
     pub fn get_pipeline_raw(&self) -> &ash::vk::Pipeline {
         &self.graphics_pipeline
     }
 
+    pub fn get_layout_raw(&self) -> &ash::vk::PipelineLayout {
+        &self.graphics_pipeline_layout
+    }
+
     pub fn cleanup(&self, device: &Device) {
-        unsafe { device.get_device_raw().destroy_pipeline_layout(self.graphics_pipeline_layout, None) };
-        unsafe { device.get_device_raw().destroy_pipeline(self.graphics_pipeline, None) };
+        unsafe {
+            device
+                .get_device_raw()
+                .destroy_pipeline_layout(self.graphics_pipeline_layout, None)
+        };
+        unsafe {
+            device
+                .get_device_raw()
+                .destroy_pipeline(self.graphics_pipeline, None)
+        };
     }
 }

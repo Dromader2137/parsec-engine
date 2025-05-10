@@ -1,7 +1,7 @@
 use super::{VulkanError, device::Device};
 
 pub struct Fence {
-    fence: ash::vk::Fence
+    fence: ash::vk::Fence,
 }
 
 #[derive(Debug)]
@@ -27,22 +27,26 @@ impl Fence {
 
         let fence = match unsafe { device.get_device_raw().create_fence(&create_info, None) } {
             Ok(val) => val,
-            Err(err) => return Err(FenceError::CreationError(err))
+            Err(err) => return Err(FenceError::CreationError(err)),
         };
 
-        Ok( Fence { fence } )
+        Ok(Fence { fence })
     }
 
     pub fn wait(&self, device: &Device) -> Result<(), FenceError> {
-        if let Err(err) = unsafe { device.get_device_raw().wait_for_fences(&[self.fence], true, u64::MAX) } {
-            return Err(FenceError::WaitError(err))
+        if let Err(err) = unsafe {
+            device
+                .get_device_raw()
+                .wait_for_fences(&[self.fence], true, u64::MAX)
+        } {
+            return Err(FenceError::WaitError(err));
         }
         Ok(())
     }
-    
+
     pub fn reset(&self, device: &Device) -> Result<(), FenceError> {
         if let Err(err) = unsafe { device.get_device_raw().reset_fences(&[self.fence]) } {
-            return Err(FenceError::ResetError(err))
+            return Err(FenceError::ResetError(err));
         }
         Ok(())
     }
@@ -50,18 +54,20 @@ impl Fence {
     pub fn get_state(&self, device: &Device) -> Result<bool, FenceError> {
         match unsafe { device.get_device_raw().get_fence_status(self.fence) } {
             Ok(val) => Ok(val),
-            Err(err) => Err(FenceError::StatusError(err))
+            Err(err) => Err(FenceError::StatusError(err)),
         }
     }
-    
+
     pub fn null() -> Fence {
-        Fence { fence: ash::vk::Fence::null() }
+        Fence {
+            fence: ash::vk::Fence::null(),
+        }
     }
 
     pub fn get_fence_raw(&self) -> &ash::vk::Fence {
         &self.fence
     }
-    
+
     pub fn cleanup(&self, device: &Device) {
         unsafe { device.get_device_raw().destroy_fence(self.fence, None) };
     }

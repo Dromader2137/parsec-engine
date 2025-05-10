@@ -1,5 +1,6 @@
 use buffer::BufferError;
 use command_buffer::{CommandBufferError, CommandPoolError};
+use descriptor_set::DescriptorError;
 use device::DeviceError;
 use fence::FenceError;
 use framebuffer::FramebufferError;
@@ -14,25 +15,26 @@ use shader::ShaderError;
 use surface::SurfaceError;
 use swapchain::SwapchainError;
 
-use super::graphics_data::GraphicsError;
+use super::GraphicsError;
 
+pub mod buffer;
+pub mod command_buffer;
 pub mod context;
+pub mod descriptor_set;
+pub mod device;
+pub mod fence;
+pub mod framebuffer;
+pub mod graphics_pipeline;
+pub mod image;
 pub mod instance;
 pub mod physical_device;
-pub mod device;
-pub mod surface;
-pub mod renderer;
 pub mod queue;
-pub mod swapchain;
-pub mod image;
-pub mod framebuffer;
-pub mod command_buffer;
+pub mod renderer;
 pub mod renderpass;
-pub mod fence;
 pub mod semaphore;
-pub mod graphics_pipeline;
 pub mod shader;
-pub mod buffer;
+pub mod surface;
+pub mod swapchain;
 
 #[derive(Debug)]
 pub enum VulkanError {
@@ -52,6 +54,7 @@ pub enum VulkanError {
     ShaderError(ShaderError),
     GrphicsPipelineError(GraphicsPipelineError),
     BufferError(BufferError),
+    DescriptorError(DescriptorError),
 }
 
 impl From<VulkanError> for GraphicsError {

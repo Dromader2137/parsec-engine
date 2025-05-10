@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-use super::graphics_data::GraphicsError;
+use super::GraphicsError;
 
 #[derive(Debug)]
 pub struct WindowWrapper {
@@ -47,11 +47,11 @@ impl WindowWrapper {
         let physical_size = self.window.inner_size();
         (physical_size.width, physical_size.width)
     }
-    
+
     pub fn get_width(&self) -> u32 {
         self.get_size().0
     }
-    
+
     pub fn get_height(&self) -> u32 {
         self.get_size().1
     }
@@ -60,11 +60,17 @@ impl WindowWrapper {
         self.window.inner_size()
     }
 
-    pub fn get_display_handle(&self) -> Result<winit::raw_window_handle::DisplayHandle<'_>, winit::raw_window_handle::HandleError> {
+    pub fn get_display_handle(
+        &self,
+    ) -> Result<winit::raw_window_handle::DisplayHandle<'_>, winit::raw_window_handle::HandleError>
+    {
         self.window.display_handle()
     }
-    
-    pub fn get_window_handle(&self) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError> {
+
+    pub fn get_window_handle(
+        &self,
+    ) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError>
+    {
         self.window.window_handle()
     }
 

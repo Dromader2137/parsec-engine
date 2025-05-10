@@ -8,7 +8,6 @@ use std::{
 
 use super::WorldError;
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArchetypeError {
     ColumnAlreadyBorrowed,
@@ -16,7 +15,7 @@ pub enum ArchetypeError {
     InternalTypeMismatch,
     TypeNotFound,
     ColumnStatusRefCellAlreadyBorrowed,
-    BundleCannotContainManyValuesOfTheSameType
+    BundleCannotContainManyValuesOfTheSameType,
 }
 
 impl From<ArchetypeError> for WorldError {
@@ -24,7 +23,6 @@ impl From<ArchetypeError> for WorldError {
         WorldError::ArchetypeError(value)
     }
 }
-
 
 #[derive(Debug, PartialEq)]
 pub struct ArchetypeId {
@@ -34,14 +32,16 @@ pub struct ArchetypeId {
 impl ArchetypeId {
     pub fn new(component_types: Vec<TypeId>) -> Result<ArchetypeId, ArchetypeError> {
         let mut set = HashSet::new();
-        
+
         for id in component_types.iter() {
             if !set.insert(*id) {
                 return Err(ArchetypeError::BundleCannotContainManyValuesOfTheSameType);
             }
         }
 
-        Ok(ArchetypeId { component_types: set })
+        Ok(ArchetypeId {
+            component_types: set,
+        })
     }
 
     pub fn contains(&self, other_id: &ArchetypeId) -> bool {
@@ -251,7 +251,7 @@ impl Archetype {
         if !self.id.contains_single(&type_id) {
             println!("{:?}", type_id);
             println!("{:?}", self.id);
-            return Err(ArchetypeError::InternalTypeMismatch)
+            return Err(ArchetypeError::InternalTypeMismatch);
         }
 
         let column = self
