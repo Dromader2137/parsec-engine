@@ -1,11 +1,13 @@
-use crate::{assets::library::AssetLibrary, graphics::Graphics, input::Input, world::World};
+use crate::{
+    assets::library::AssetLibrary, error::error, graphics::Graphics, input::Input, world::World,
+};
 
 #[allow(unused)]
 pub struct App {
     world: World,
     input: Input,
     assets: AssetLibrary,
-    graphics: Option<Graphics>,
+    graphics: Graphics,
 }
 
 impl App {
@@ -14,7 +16,7 @@ impl App {
             world: World::new(),
             input: Input::new(),
             assets: AssetLibrary::new(),
-            graphics: None,
+            graphics: Graphics::new(),
         }
     }
 
@@ -24,25 +26,16 @@ impl App {
         event_loop
             .run_app(self)
             .expect("Correctly working event loop");
-        if let Some(graphics) = self.graphics.as_mut() {
-            if let Err(err) = graphics.renderer.cleanup(&graphics.vulkan_context) {
-                println!("Error: {:?}", err);
-            }
-            if let Err(err) = graphics.vulkan_context.cleanup() {
-                println!("Error: {:?}", err);
-            }
+        if let Err(err) = self.graphics.cleanup() {
+            error(err.into());
         }
     }
 }
 
 impl winit::application::ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        self.graphics = match Graphics::new(event_loop) {
-            Ok(val) => Some(val),
-            Err(err) => {
-                println!("Error: {:?}", err);
-                None
-            }
+        if let Err(err) = self.graphics.init(event_loop) {
+            error(err.into());
         };
     }
 
@@ -78,23 +71,16 @@ impl winit::application::ApplicationHandler for App {
                 self.input.keys.clear_all();
             }
             winit::event::WindowEvent::Resized(_) => {
-                if let Some(graphics) = self.graphics.as_mut() {
-                    if let Err(err) = graphics.renderer.handle_resize() {
-                        println!("Error: {:?}", err);
-                    }
+                if let Err(err) = self.graphics.resize() {
+                    error(err.into());
                 }
             }
             winit::event::WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
             winit::event::WindowEvent::RedrawRequested => {
-                if let Some(graphics) = self.graphics.as_mut() {
-                    if let Err(err) = graphics
-                        .renderer
-                        .render(&graphics.vulkan_context, &graphics.window)
-                    {
-                        println!("Error: {:?}", err);
-                    }
+                if let Err(err) = self.graphics.render() {
+                    error(err.into());
                 }
                 self.input.keys.clear();
             }
@@ -103,8 +89,8 @@ impl winit::application::ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-        if let Some(graphics) = self.graphics.as_ref() {
-            graphics.window.request_redraw();
+        if let Err(err) = self.graphics.request_redraw() {
+            error(err.into());
         }
     }
 }

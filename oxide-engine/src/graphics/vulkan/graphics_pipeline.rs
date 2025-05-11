@@ -144,6 +144,24 @@ impl GraphicsPipeline {
             ..Default::default()
         };
 
+        let noop_stencil_state = ash::vk::StencilOpState {
+            fail_op: ash::vk::StencilOp::KEEP,
+            pass_op: ash::vk::StencilOp::KEEP,
+            depth_fail_op: ash::vk::StencilOp::KEEP,
+            compare_op: ash::vk::CompareOp::ALWAYS,
+            ..Default::default()
+        };
+
+        let depth_state_info = ash::vk::PipelineDepthStencilStateCreateInfo {
+            depth_test_enable: 1,
+            depth_write_enable: 1,
+            depth_compare_op: ash::vk::CompareOp::LESS_OR_EQUAL,
+            front: noop_stencil_state,
+            back: noop_stencil_state,
+            max_depth_bounds: 1.0,
+            ..Default::default()
+        };
+
         let graphic_pipeline_info = ash::vk::GraphicsPipelineCreateInfo::default()
             .stages(&shader_stage_create_infos)
             .vertex_input_state(&vertex_input_state_info)
@@ -154,6 +172,7 @@ impl GraphicsPipeline {
             .color_blend_state(&color_blend_state)
             .dynamic_state(&dynamic_state_info)
             .layout(pipeline_layout)
+            .depth_stencil_state(&depth_state_info)
             .render_pass(*renderpass.get_renderpass_raw());
 
         let pipeline = match unsafe {

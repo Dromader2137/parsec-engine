@@ -6,7 +6,6 @@ pub struct Buffer<T> {
     buffer: ash::vk::Buffer,
     memory: ash::vk::DeviceMemory,
     memory_size: u64,
-    memory_index: u32,
     pub size: u64,
     pub len: u32,
     _type: PhantomData<T>,
@@ -113,7 +112,6 @@ impl<T: Clone + Copy> Buffer<T> {
             buffer,
             memory,
             memory_size: memory_req.size,
-            memory_index,
             size: size as u64,
             len: data.len() as u32,
             _type: PhantomData::default(),
@@ -162,7 +160,7 @@ impl<T: Clone + Copy> Buffer<T> {
     }
 }
 
-fn find_memorytype_index(
+pub fn find_memorytype_index(
     memory_req: &ash::vk::MemoryRequirements,
     flags: ash::vk::MemoryPropertyFlags,
     instance: &Instance,

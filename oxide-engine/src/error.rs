@@ -1,5 +1,12 @@
+use crate::{assets::AssetError, graphics::GraphicsError, world::WorldError};
+
 #[derive(Debug)]
 pub enum EngineError {
-    Init(String),
-    Graphics(String),
+    GraphicsError(GraphicsError),
+    WorldError(WorldError),
+    AssetError(AssetError),
+}
+
+pub fn error(error: EngineError) {
+    println!("Error: {:?}", error);
 }

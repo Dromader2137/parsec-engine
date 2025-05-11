@@ -3,6 +3,8 @@ use std::fmt::Debug;
 use archetype::{Archetype, ArchetypeError};
 use bundle::{FromColumns, FromColumnsMut, UsableBundle, UsableBundleMut};
 
+use crate::error::EngineError;
+
 pub mod archetype;
 pub mod bundle;
 pub mod entity;
@@ -11,6 +13,12 @@ pub mod system;
 #[derive(Debug, Clone, PartialEq)]
 pub enum WorldError {
     ArchetypeError(ArchetypeError),
+}
+
+impl From<WorldError> for EngineError {
+    fn from(value: WorldError) -> Self {
+        EngineError::WorldError(value)
+    }
 }
 
 #[derive(Debug)]

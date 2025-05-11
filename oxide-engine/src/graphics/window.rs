@@ -9,9 +9,9 @@ pub struct WindowWrapper {
     window: Arc<winit::window::Window>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum WindowError {
-    CreationError(String),
+    CreationError(winit::error::OsError),
 }
 
 impl From<WindowError> for GraphicsError {
@@ -30,7 +30,7 @@ impl WindowWrapper {
         let window = match event_loop.create_window(attributes) {
             Ok(val) => val,
             Err(err) => {
-                return Err(WindowError::CreationError(format!("{:?}", err)));
+                return Err(WindowError::CreationError(err));
             }
         };
 
@@ -45,7 +45,7 @@ impl WindowWrapper {
 
     pub fn get_size(&self) -> (u32, u32) {
         let physical_size = self.window.inner_size();
-        (physical_size.width, physical_size.width)
+        (physical_size.width, physical_size.height)
     }
 
     pub fn get_width(&self) -> u32 {

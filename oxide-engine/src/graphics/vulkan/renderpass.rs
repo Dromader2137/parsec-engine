@@ -17,18 +17,32 @@ impl From<RenderpassError> for VulkanError {
 
 impl Renderpass {
     pub fn new(surface: &Surface, device: &Device) -> Result<Renderpass, RenderpassError> {
-        let renderpass_attachments = [ash::vk::AttachmentDescription {
-            format: surface.format(),
-            samples: ash::vk::SampleCountFlags::TYPE_1,
-            load_op: ash::vk::AttachmentLoadOp::CLEAR,
-            store_op: ash::vk::AttachmentStoreOp::STORE,
-            final_layout: ash::vk::ImageLayout::PRESENT_SRC_KHR,
-            ..Default::default()
-        }];
+        let renderpass_attachments = [
+            ash::vk::AttachmentDescription {
+                format: surface.format(),
+                samples: ash::vk::SampleCountFlags::TYPE_1,
+                load_op: ash::vk::AttachmentLoadOp::CLEAR,
+                store_op: ash::vk::AttachmentStoreOp::STORE,
+                final_layout: ash::vk::ImageLayout::PRESENT_SRC_KHR,
+                ..Default::default()
+            },
+            ash::vk::AttachmentDescription {
+                format: ash::vk::Format::D16_UNORM,
+                samples: ash::vk::SampleCountFlags::TYPE_1,
+                load_op: ash::vk::AttachmentLoadOp::CLEAR,
+                store_op: ash::vk::AttachmentStoreOp::DONT_CARE,
+                final_layout: ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                ..Default::default()
+            },
+        ];
         let color_attachment_refs = [ash::vk::AttachmentReference {
             attachment: 0,
             layout: ash::vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
         }];
+        let depth_attachment_refs = ash::vk::AttachmentReference {
+            attachment: 1,
+            layout: ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        };
         let dependencies = [ash::vk::SubpassDependency {
             src_subpass: ash::vk::SUBPASS_EXTERNAL,
             src_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
@@ -40,6 +54,7 @@ impl Renderpass {
 
         let subpass = ash::vk::SubpassDescription::default()
             .color_attachments(&color_attachment_refs)
+            .depth_stencil_attachment(&depth_attachment_refs)
             .pipeline_bind_point(ash::vk::PipelineBindPoint::GRAPHICS);
 
         let renderpass_create_info = ash::vk::RenderPassCreateInfo::default()

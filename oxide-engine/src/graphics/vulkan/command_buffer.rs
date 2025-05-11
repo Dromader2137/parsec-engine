@@ -130,11 +130,19 @@ impl CommandBuffer {
         renderpass: &Renderpass,
         framebuffer: &Framebuffer,
     ) {
-        let clear_values = [ash::vk::ClearValue {
-            color: ash::vk::ClearColorValue {
-                float32: [0.0, 0.0, 0.0, 0.0],
+        let clear_values = [
+            ash::vk::ClearValue {
+                color: ash::vk::ClearColorValue {
+                    float32: [0.0, 0.0, 0.0, 0.0],
+                },
             },
-        }];
+            ash::vk::ClearValue {
+                depth_stencil: ash::vk::ClearDepthStencilValue {
+                    depth: 1.0,
+                    stencil: 0,
+                },
+            },
+        ];
 
         let begin_info = ash::vk::RenderPassBeginInfo::default()
             .render_pass(*renderpass.get_renderpass_raw())

@@ -1,13 +1,8 @@
 use app::App;
 
-#[cfg(not(feature = "headless"))]
 pub mod app;
-#[cfg(feature = "headless")]
-pub mod headless_app;
-#[cfg(feature = "headless")]
-use headless_app as app;
-
 pub mod assets;
+pub mod error;
 pub mod graphics;
 pub mod input;
 pub mod math;

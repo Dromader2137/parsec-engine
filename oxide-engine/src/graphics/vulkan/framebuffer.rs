@@ -26,11 +26,15 @@ impl Framebuffer {
         surface: &Surface,
         device: &Device,
         image_view: &ImageView,
+        depth_view: &ImageView,
         renderpass: &Renderpass,
         window: &WindowWrapper,
     ) -> Result<Framebuffer, FramebufferError> {
         let extent = surface.current_extent(window);
-        let framebuffer_attachments = [*image_view.get_image_view_raw()];
+        let framebuffer_attachments = [
+            *image_view.get_image_view_raw(),
+            *depth_view.get_image_view_raw(),
+        ];
         let frame_buffer_create_info = ash::vk::FramebufferCreateInfo::default()
             .render_pass(*renderpass.get_renderpass_raw())
             .attachments(&framebuffer_attachments)
