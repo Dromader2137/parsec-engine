@@ -4,12 +4,12 @@ layout(binding = 0) uniform MVPBuffer {
   mat4 matrix;
 } mvp;
 
-layout(location = 0) in vec2 inPosition;
-layout(location = 1) in vec3 inColor;
+layout(location = 0) in vec3 inPosition;
+layout(location = 1) in vec3 inNormal;
 
-layout(location = 0) out vec3 outColor;
+layout(location = 0) out vec3 outNormal;
 
 void main() {
-    outColor = inColor;
-    gl_Position = mvp.matrix * vec4(inPosition, 0.0, 1.0);
+  outNormal = inNormal;
+  gl_Position = mvp.matrix * vec4(inPosition, 1.0);
 }
