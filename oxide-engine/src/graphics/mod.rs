@@ -38,8 +38,9 @@ impl Graphics {
     pub fn init(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
+        window_name: &str,
     ) -> Result<(), GraphicsError> {
-        self.window = Some(WindowWrapper::new(event_loop)?);
+        self.window = Some(WindowWrapper::new(event_loop, window_name)?);
         self.vulkan_context = Some(VulkanContext::new(self.window.as_ref().unwrap())?);
         self.renderer = Some(VulkanRenderer::new(
             self.vulkan_context.as_ref().unwrap(),

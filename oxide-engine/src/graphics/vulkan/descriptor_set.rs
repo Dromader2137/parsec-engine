@@ -1,4 +1,4 @@
-use super::{VulkanError, buffer::Buffer, device::Device};
+use super::{VulkanError, buffer::Buffer, device::Device, image::ImageView};
 
 pub struct DescriptorPool {
     pool: ash::vk::DescriptorPool,
@@ -179,7 +179,7 @@ impl DescriptorSet {
         let buffer_info = [ash::vk::DescriptorBufferInfo::default()
             .buffer(*buffer.get_buffer_raw())
             .offset(0)
-            .range(size_of::<T>() as u64)];
+            .range(buffer.size)];
 
         let binding_type = match self.layout.bindings.get(dst_binding as usize) {
             Some(val) => val.binding_type,
@@ -192,6 +192,37 @@ impl DescriptorSet {
             .dst_set(self.set)
             .descriptor_count(self.layout.bindings.len() as u32)
             .buffer_info(&buffer_info)
+            .dst_array_element(0);
+
+        unsafe {
+            device
+                .get_device_raw()
+                .update_descriptor_sets(&[write_info], &[]);
+        }
+
+        Ok(())
+    }
+
+    pub fn bind_image_view(
+        &self,
+        device: &Device,
+        view: &ImageView,
+        dst_binding: u32,
+    ) -> Result<(), DescriptorError> {
+        let image_info =
+            [ash::vk::DescriptorImageInfo::default().image_view(*view.get_image_view_raw())];
+
+        let binding_type = match self.layout.bindings.get(dst_binding as usize) {
+            Some(val) => val.binding_type,
+            None => return Err(DescriptorError::BindingDoesntExist),
+        };
+
+        let write_info = ash::vk::WriteDescriptorSet::default()
+            .descriptor_type(binding_type)
+            .dst_binding(dst_binding)
+            .dst_set(self.set)
+            .descriptor_count(self.layout.bindings.len() as u32)
+            .image_info(&image_info)
             .dst_array_element(0);
 
         unsafe {

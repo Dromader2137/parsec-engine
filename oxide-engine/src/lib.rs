@@ -11,6 +11,6 @@ pub mod world;
 pub use oxide_engine_macros;
 
 pub fn run() {
-    let mut app = App::new();
+    let mut app = App::new("Oxide test".to_string());
     app.run();
 }

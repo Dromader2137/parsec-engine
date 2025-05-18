@@ -23,10 +23,12 @@ impl From<WindowError> for GraphicsError {
 impl WindowWrapper {
     pub fn new(
         event_loop: &winit::event_loop::ActiveEventLoop,
+        name: &str,
     ) -> Result<WindowWrapper, WindowError> {
-        let mut attributes = winit::window::Window::default_attributes();
-        attributes.transparent = false;
-        attributes.visible = true;
+        let attributes = winit::window::Window::default_attributes()
+            .with_transparent(false)
+            .with_visible(true)
+            .with_title(name);
         let window = match event_loop.create_window(attributes) {
             Ok(val) => val,
             Err(err) => {

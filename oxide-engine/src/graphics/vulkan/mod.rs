@@ -23,6 +23,7 @@ pub mod context;
 pub mod descriptor_set;
 pub mod device;
 pub mod fence;
+pub mod format_size;
 pub mod framebuffer;
 pub mod graphics_pipeline;
 pub mod image;

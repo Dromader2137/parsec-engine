@@ -1,6 +1,6 @@
 use super::{
-    VulkanError, buffer::find_memorytype_index, device::Device, instance::Instance,
-    physical_device::PhysicalDevice,
+    VulkanError, buffer::find_memorytype_index, device::Device, format_size::format_size,
+    instance::Instance, physical_device::PhysicalDevice,
 };
 
 pub trait GetImageRaw {
@@ -11,9 +11,11 @@ pub struct Image {
     image: ash::vk::Image,
 }
 
+#[allow(unused)]
 pub struct OwnedImage {
     image: ash::vk::Image,
     memory: ash::vk::DeviceMemory,
+    size: u64,
 }
 
 pub struct ImageView {
@@ -39,6 +41,7 @@ pub enum ImageError {
     UnableToFindSuitableMemory,
     AllocationError(ash::vk::Result),
     BindError(ash::vk::Result),
+    FormatNotSupported,
 }
 
 impl From<ImageError> for VulkanError {
@@ -121,6 +124,9 @@ impl OwnedImage {
         device: &Device,
         create_info: ImageInfo,
     ) -> Result<OwnedImage, ImageError> {
+        let size = create_info.size;
+        let format = create_info.format;
+
         let image = match unsafe {
             device
                 .get_device_raw()
@@ -161,9 +167,15 @@ impl OwnedImage {
             return Err(ImageError::BindError(err));
         };
 
+        let format_size = match format_size(format) {
+            Some(val) => val as u64,
+            None => return Err(ImageError::FormatNotSupported),
+        };
+
         Ok(OwnedImage {
             image,
             memory: image_memory,
+            size: format_size * size.0 as u64 * size.1 as u64,
         })
     }
 

@@ -4,6 +4,7 @@ use crate::{
 
 #[allow(unused)]
 pub struct App {
+    name: String,
     world: World,
     input: Input,
     assets: AssetLibrary,
@@ -11,8 +12,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> App {
+    pub fn new(name: String) -> App {
         App {
+            name,
             world: World::new(),
             input: Input::new(),
             assets: AssetLibrary::new(),
@@ -34,7 +36,7 @@ impl App {
 
 impl winit::application::ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if let Err(err) = self.graphics.init(event_loop) {
+        if let Err(err) = self.graphics.init(event_loop, &self.name) {
             error(err.into());
         };
     }
