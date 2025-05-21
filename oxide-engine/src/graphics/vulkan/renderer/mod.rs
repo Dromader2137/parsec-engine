@@ -104,7 +104,7 @@ impl VulkanRenderer {
         let renderpass = Renderpass::new(&context.surface, &context.device)?;
         let frame_data = VulkanRendererFrameData::new(context, window, &renderpass)?;
         frames_in_flight = frame_data.clamp_frames_in_flight(frames_in_flight);
-        let sync = VulkanRendererSync::new(context, frames_in_flight)?;
+        let sync = VulkanRendererSync::new(context, frames_in_flight, frame_data.swapchain_images.len() as u32)?;
         let command_buffers = {
             let mut out = Vec::new();
             for _ in 0..frames_in_flight {
@@ -232,36 +232,47 @@ impl VulkanRenderer {
         window: &WindowWrapper,
     ) -> Result<(), VulkanError> {
         let current_frame = self.current_frame as usize;
-        self.sync.wait_nth(&context.device, current_frame)?;
+        self.sync.command_buffer_fences[current_frame].wait(&context.device)?;
+
         if window.minimized() {
             return Ok(());
         }
+
         if self.resize {
             self.recreate_size_dependent_components(context, window)?;
             self.resize = false;
-            self.current_frame = 0;
         }
+
         let (present_index, suboptimal) = self
             .frame_data
             .swapchain
             .acquire_next_image(&self.sync.present_semaphores[current_frame], &Fence::null())?;
-        self.resize |= suboptimal;
-        self.sync.reset_nth(&context.device, current_frame)?;
         let present_index = present_index as usize;
+
+        if let Some(fence) = self.sync.images_in_flight_fences[present_index].as_ref() {
+            fence.wait(&context.device)?;
+        }
+
+        self.sync.images_in_flight_fences[present_index] = Some(self.sync.command_buffer_fences[current_frame].clone());
+
+
+        self.resize |= suboptimal;
+        self.sync.command_buffer_fences[current_frame].reset(&context.device)?;
+
         let command_buffer = &self.command_buffers[current_frame];
         let framebuffer = &self.frame_data.framebuffers[present_index];
+
         let (width, height) = (window.get_width(), window.get_height());
         let aspect = width as f32 / height as f32;
-        self.rotation = (self.rotation + 0.002) % f32::consts::TAU;
         self.mvp_buffer.update(
             &context.device,
             vec![
                 Matrix4f::perspective(40.0_f32.to_radians(), aspect, 5.0, 100.0)
                     * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
                     * Matrix4f::translation(Vec3f::FORWARD * 30.0)
-                    * Matrix4f::rotation_y(self.rotation),
             ],
         )?;
+
         command_buffer.reset(&context.device)?;
         command_buffer.begin(&context.device)?;
         command_buffer.begin_renderpass(&context.device, &self.renderpass, framebuffer);
@@ -269,10 +280,10 @@ impl VulkanRenderer {
         command_buffer.set_scissor(&context.device, framebuffer);
         command_buffer.bind_graphics_pipeline(&context.device, &self.pipeline);
         command_buffer.bind_descriptor_set(&context.device, &self.mvp_set, &self.pipeline, 0);
-        self.mesh_data
-            .record_commands(&context.device, command_buffer);
+        self.mesh_data.record_commands(&context.device, command_buffer);
         command_buffer.end_renderpass(&context.device);
         command_buffer.end(&context.device)?;
+
         context.graphics_queue.submit(
             &context.device,
             &[&self.sync.present_semaphores[current_frame]],
@@ -280,11 +291,13 @@ impl VulkanRenderer {
             &[command_buffer],
             &self.sync.command_buffer_fences[current_frame],
         )?;
+
         self.frame_data.swapchain.present(
             &context.graphics_queue,
             &[&self.sync.rendering_semaphores[current_frame]],
             present_index as u32,
         )?;
+
         self.current_frame = (self.current_frame + 1) % self.frames_in_flight;
         Ok(())
     }

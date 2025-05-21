@@ -182,6 +182,6 @@ impl VulkanRendererFrameData {
     }
 
     pub fn clamp_frames_in_flight(&self, fif: u32) -> u32 {
-        fif.min(self.swapchain_images.len() as u32 - 1).max(1)
+        fif.min(self.swapchain_images.len() as u32).max(1)
     }
 }
