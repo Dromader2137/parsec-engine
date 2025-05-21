@@ -181,7 +181,7 @@ impl VulkanRendererFrameData {
         self.depth_image.cleanup(device);
     }
 
-    pub fn clamp_frames_in_flight(&self, fif: u32) -> u32 {
-        fif.min(self.swapchain_images.len() as u32 - 1).max(1)
+    pub fn clamp_frames_in_flight(&self, fif: usize) -> usize {
+        fif.min(self.swapchain_images.len()).max(1)
     }
 }

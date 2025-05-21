@@ -1,5 +1,6 @@
 use super::{VulkanError, device::Device};
 
+#[derive(Clone)]
 pub struct Semaphore {
     semaphore: ash::vk::Semaphore,
 }

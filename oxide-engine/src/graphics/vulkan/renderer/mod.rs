@@ -43,9 +43,8 @@ pub struct VulkanRenderer {
     vertex_shader: ShaderModule,
     fragment_shader: ShaderModule,
     resize: bool,
-    current_frame: u32,
-    frames_in_flight: u32,
-    rotation: f32,
+    current_frame: usize,
+    frames_in_flight: usize,
 }
 
 #[repr(C)]
@@ -104,10 +103,10 @@ impl VulkanRenderer {
         let renderpass = Renderpass::new(&context.surface, &context.device)?;
         let frame_data = VulkanRendererFrameData::new(context, window, &renderpass)?;
         frames_in_flight = frame_data.clamp_frames_in_flight(frames_in_flight);
-        let sync = VulkanRendererSync::new(context, frames_in_flight)?;
+        let sync = VulkanRendererSync::new(context, frames_in_flight, frame_data.swapchain_images.len())?;
         let command_buffers = {
             let mut out = Vec::new();
-            for _ in 0..frames_in_flight {
+            for _ in 0..frame_data.swapchain_images.len() {
                 out.push(CommandBuffer::new(&context.device, &context.command_pool)?);
             }
             out
@@ -186,14 +185,13 @@ impl VulkanRenderer {
             vertex_shader,
             fragment_shader,
             pipeline,
-            resize: false,
-            current_frame: 0,
             frames_in_flight,
             descriptor_pool,
             mvp_set,
             mvp_buffer,
             mesh_data,
-            rotation: 0.0,
+            resize: false,
+            current_frame: 0,
         })
     }
 
@@ -231,37 +229,44 @@ impl VulkanRenderer {
         context: &VulkanContext,
         window: &WindowWrapper,
     ) -> Result<(), VulkanError> {
-        let current_frame = self.current_frame as usize;
-        self.sync.wait_nth(&context.device, current_frame)?;
+        let current_frame = self.current_frame;
+        let sync_bundle = self.sync.get_frame_sync_bundle(current_frame);
+        sync_bundle.command_buffer_fence.wait(&context.device)?;
+        println!("{}", self.sync.frame_to_image_mapping[current_frame]);
+
         if window.minimized() {
             return Ok(());
         }
+
         if self.resize {
             self.recreate_size_dependent_components(context, window)?;
             self.resize = false;
-            self.current_frame = 0;
         }
+
         let (present_index, suboptimal) = self
             .frame_data
             .swapchain
-            .acquire_next_image(&self.sync.present_semaphores[current_frame], &Fence::null())?;
-        self.resize |= suboptimal;
-        self.sync.reset_nth(&context.device, current_frame)?;
+            .acquire_next_image(&sync_bundle.image_available_semaphore, &Fence::null())?;
         let present_index = present_index as usize;
+        self.sync.frame_to_image_mapping[current_frame] = present_index;
+
+        self.resize |= suboptimal;
+        sync_bundle.command_buffer_fence.reset(&context.device)?;
+
         let command_buffer = &self.command_buffers[current_frame];
         let framebuffer = &self.frame_data.framebuffers[present_index];
+
         let (width, height) = (window.get_width(), window.get_height());
         let aspect = width as f32 / height as f32;
-        self.rotation = (self.rotation + 0.002) % f32::consts::TAU;
         self.mvp_buffer.update(
             &context.device,
             vec![
                 Matrix4f::perspective(40.0_f32.to_radians(), aspect, 5.0, 100.0)
                     * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
                     * Matrix4f::translation(Vec3f::FORWARD * 30.0)
-                    * Matrix4f::rotation_y(self.rotation),
             ],
         )?;
+
         command_buffer.reset(&context.device)?;
         command_buffer.begin(&context.device)?;
         command_buffer.begin_renderpass(&context.device, &self.renderpass, framebuffer);
@@ -269,22 +274,24 @@ impl VulkanRenderer {
         command_buffer.set_scissor(&context.device, framebuffer);
         command_buffer.bind_graphics_pipeline(&context.device, &self.pipeline);
         command_buffer.bind_descriptor_set(&context.device, &self.mvp_set, &self.pipeline, 0);
-        self.mesh_data
-            .record_commands(&context.device, command_buffer);
+        self.mesh_data.record_commands(&context.device, command_buffer);
         command_buffer.end_renderpass(&context.device);
         command_buffer.end(&context.device)?;
+
         context.graphics_queue.submit(
             &context.device,
-            &[&self.sync.present_semaphores[current_frame]],
-            &[&self.sync.rendering_semaphores[current_frame]],
+            &[&sync_bundle.image_available_semaphore, &sync_bundle.rendering_complete_semaphore],
+            &[&sync_bundle.rendering_complete_semaphore],
             &[command_buffer],
-            &self.sync.command_buffer_fences[current_frame],
+            &sync_bundle.command_buffer_fence
         )?;
+
         self.frame_data.swapchain.present(
             &context.graphics_queue,
-            &[&self.sync.rendering_semaphores[current_frame]],
+            &[&sync_bundle.rendering_complete_semaphore],
             present_index as u32,
         )?;
+
         self.current_frame = (self.current_frame + 1) % self.frames_in_flight;
         Ok(())
     }
