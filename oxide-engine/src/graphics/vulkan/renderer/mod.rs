@@ -229,10 +229,8 @@ impl VulkanRenderer {
         context: &VulkanContext,
         window: &WindowWrapper,
     ) -> Result<(), VulkanError> {
-        let current_frame = self.current_frame;
-        let sync_bundle = self.sync.get_frame_sync_bundle(current_frame);
-        sync_bundle.command_buffer_fence.wait(&context.device)?;
-        println!("{}", self.sync.frame_to_image_mapping[current_frame]);
+        let current_frame = self.current_frame as usize;
+        self.sync.command_buffer_fences[current_frame].wait(&context.device)?;
 
         if window.minimized() {
             return Ok(());
