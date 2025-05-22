@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use super::{VulkanError, buffer::Buffer, device::Device, image::ImageView};
 
 pub struct DescriptorPool {
+    pub device: Arc<Device>,
     pool: ash::vk::DescriptorPool,
 }
 
@@ -9,12 +12,14 @@ pub struct DescriptorPoolSize {
 }
 
 pub struct DescriptorSet {
+    pub descriptor_pool: Arc<DescriptorPool>,
+    pub descriptor_layout: Arc<DescriptorSetLayout>,
     set: ash::vk::DescriptorSet,
-    pub layout: DescriptorSetLayout,
 }
 
 #[derive(Clone)]
 pub struct DescriptorSetLayout {
+    pub device: Arc<Device>,
     layout: ash::vk::DescriptorSetLayout,
     bindings: Vec<DescriptorSetBinding>,
 }
@@ -73,10 +78,10 @@ impl DescriptorPoolSize {
 
 impl DescriptorPool {
     pub fn new(
-        device: &Device,
+        device: Arc<Device>,
         descriptor_max_count: u32,
         descriptor_sizes: &[DescriptorPoolSize],
-    ) -> Result<DescriptorPool, DescriptorError> {
+    ) -> Result<Arc<DescriptorPool>, DescriptorError> {
         let pool_sizes: Vec<_> = descriptor_sizes.iter().map(|x| x.size).collect();
 
         let create_info = ash::vk::DescriptorPoolCreateInfo::default()
@@ -93,16 +98,19 @@ impl DescriptorPool {
             Err(err) => return Err(DescriptorError::PoolCreationError(err)),
         };
 
-        Ok(DescriptorPool { pool })
+        Ok(Arc::new(DescriptorPool { device, pool }))
     }
 
     pub fn get_pool_raw(&self) -> &ash::vk::DescriptorPool {
         &self.pool
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
+impl Drop for DescriptorPool {
+    fn drop(&mut self) {
         unsafe {
-            device
+            self
+                .device
                 .get_device_raw()
                 .destroy_descriptor_pool(self.pool, None);
         }
@@ -111,9 +119,9 @@ impl DescriptorPool {
 
 impl<'a> DescriptorSetLayout {
     pub fn new(
-        device: &Device,
+        device: Arc<Device>,
         bindings: Vec<DescriptorSetBinding>,
-    ) -> Result<DescriptorSetLayout, DescriptorError> {
+    ) -> Result<Arc<DescriptorSetLayout>, DescriptorError> {
         let bindings_raw: Vec<_> = bindings.iter().map(|x| x.binding).collect();
 
         let create_info = ash::vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings_raw);
@@ -127,16 +135,19 @@ impl<'a> DescriptorSetLayout {
             Err(err) => return Err(DescriptorError::SetLayoutCreationError(err)),
         };
 
-        Ok(DescriptorSetLayout { layout, bindings })
+        Ok(Arc::new(DescriptorSetLayout { device, layout, bindings }))
     }
 
     pub fn get_layout_raw(&self) -> &ash::vk::DescriptorSetLayout {
         &self.layout
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
+impl Drop for DescriptorSetLayout {
+    fn drop(&mut self) {
         unsafe {
-            device
+            self
+                .device
                 .get_device_raw()
                 .destroy_descriptor_set_layout(self.layout, None);
         }
@@ -145,10 +156,9 @@ impl<'a> DescriptorSetLayout {
 
 impl DescriptorSet {
     pub fn new(
-        device: &Device,
-        descriptor_layout: DescriptorSetLayout,
-        descriptor_pool: &DescriptorPool,
-    ) -> Result<DescriptorSet, DescriptorError> {
+        descriptor_layout: Arc<DescriptorSetLayout>,
+        descriptor_pool: Arc<DescriptorPool>,
+    ) -> Result<Arc<DescriptorSet>, DescriptorError> {
         let layout_raw = [*descriptor_layout.get_layout_raw()];
 
         let create_info = ash::vk::DescriptorSetAllocateInfo::default()
@@ -156,7 +166,8 @@ impl DescriptorSet {
             .set_layouts(&layout_raw);
 
         let set = match unsafe {
-            device
+            descriptor_pool
+                .device
                 .get_device_raw()
                 .allocate_descriptor_sets(&create_info)
         } {
@@ -164,16 +175,16 @@ impl DescriptorSet {
             Err(err) => return Err(DescriptorError::SetCreationError(err)),
         }[0];
 
-        Ok(DescriptorSet {
+        Ok(Arc::new(DescriptorSet {
+            descriptor_pool,
+            descriptor_layout,
             set,
-            layout: descriptor_layout,
-        })
+        }))
     }
 
     pub fn bind_buffer<T: Clone + Copy>(
         &self,
-        device: &Device,
-        buffer: &Buffer<T>,
+        buffer: Arc<Buffer<T>>,
         dst_binding: u32,
     ) -> Result<(), DescriptorError> {
         let buffer_info = [ash::vk::DescriptorBufferInfo::default()
@@ -181,7 +192,7 @@ impl DescriptorSet {
             .offset(0)
             .range(buffer.size)];
 
-        let binding_type = match self.layout.bindings.get(dst_binding as usize) {
+        let binding_type = match self.descriptor_layout.bindings.get(dst_binding as usize) {
             Some(val) => val.binding_type,
             None => return Err(DescriptorError::BindingDoesntExist),
         };
@@ -190,12 +201,14 @@ impl DescriptorSet {
             .descriptor_type(binding_type)
             .dst_binding(dst_binding)
             .dst_set(self.set)
-            .descriptor_count(self.layout.bindings.len() as u32)
+            .descriptor_count(self.descriptor_layout.bindings.len() as u32)
             .buffer_info(&buffer_info)
             .dst_array_element(0);
 
         unsafe {
-            device
+            self
+                .descriptor_pool
+                .device
                 .get_device_raw()
                 .update_descriptor_sets(&[write_info], &[]);
         }
@@ -205,14 +218,13 @@ impl DescriptorSet {
 
     pub fn bind_image_view(
         &self,
-        device: &Device,
-        view: &ImageView,
+        view: Arc<ImageView>,
         dst_binding: u32,
     ) -> Result<(), DescriptorError> {
         let image_info =
             [ash::vk::DescriptorImageInfo::default().image_view(*view.get_image_view_raw())];
 
-        let binding_type = match self.layout.bindings.get(dst_binding as usize) {
+        let binding_type = match self.descriptor_layout.bindings.get(dst_binding as usize) {
             Some(val) => val.binding_type,
             None => return Err(DescriptorError::BindingDoesntExist),
         };
@@ -221,12 +233,14 @@ impl DescriptorSet {
             .descriptor_type(binding_type)
             .dst_binding(dst_binding)
             .dst_set(self.set)
-            .descriptor_count(self.layout.bindings.len() as u32)
+            .descriptor_count(self.descriptor_layout.bindings.len() as u32)
             .image_info(&image_info)
             .dst_array_element(0);
 
         unsafe {
-            device
+            self
+                .descriptor_pool
+                .device
                 .get_device_raw()
                 .update_descriptor_sets(&[write_info], &[]);
         }
@@ -237,20 +251,17 @@ impl DescriptorSet {
     pub fn get_set_raw(&self) -> &ash::vk::DescriptorSet {
         &self.set
     }
+}
 
-    pub fn cleanup(
-        &self,
-        device: &Device,
-        descriptor_pool: &DescriptorPool,
-    ) -> Result<(), DescriptorError> {
-        self.layout.cleanup(device);
-        if let Err(err) = unsafe {
-            device
+impl Drop for DescriptorSet {
+    fn drop(&mut self) {
+        unsafe {
+            self
+                .descriptor_pool
+                .device
                 .get_device_raw()
-                .free_descriptor_sets(*descriptor_pool.get_pool_raw(), &[self.set])
-        } {
-            return Err(DescriptorError::SetCleanupError(err));
+                .free_descriptor_sets(*self.descriptor_pool.get_pool_raw(), &[self.set])
+                .unwrap_or(())
         }
-        Ok(())
     }
 }

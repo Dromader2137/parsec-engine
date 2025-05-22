@@ -1,13 +1,17 @@
+use std::sync::Arc;
+
 use crate::graphics::window::WindowWrapper;
 
 use super::{VulkanError, instance::Instance, physical_device::PhysicalDevice};
 
 pub struct InitialSurface {
+    pub instance: Arc<Instance>,
     surface: ash::vk::SurfaceKHR,
     surface_loader: ash::khr::surface::Instance,
 }
 
 pub struct Surface {
+    pub instance: Arc<Instance>,
     surface: ash::vk::SurfaceKHR,
     surface_loader: ash::khr::surface::Instance,
     surface_format: ash::vk::SurfaceFormatKHR,
@@ -23,6 +27,7 @@ pub enum SurfaceError {
     FormatsError(ash::vk::Result),
     CapabilitiesError(ash::vk::Result),
     NoSurfaceFormatsAvailable,
+    InitialSurfaceBorrowedMoreThanOnce,
 }
 
 impl From<SurfaceError> for VulkanError {
@@ -33,9 +38,9 @@ impl From<SurfaceError> for VulkanError {
 
 impl InitialSurface {
     pub fn new(
-        instance: &Instance,
+        instance: Arc<Instance>,
         window: &WindowWrapper,
-    ) -> Result<InitialSurface, SurfaceError> {
+    ) -> Result<Arc<InitialSurface>, SurfaceError> {
         let display_handle = match window.get_display_handle() {
             Ok(val) => val,
             Err(err) => return Err(SurfaceError::DisplayHandleError(err)),
@@ -62,10 +67,11 @@ impl InitialSurface {
         let surface_loader =
             ash::khr::surface::Instance::new(instance.get_entry_raw(), instance.get_instance_raw());
 
-        Ok(InitialSurface {
+        Ok(Arc::new(InitialSurface {
+            instance,
             surface,
             surface_loader,
-        })
+        }))
     }
 
     pub fn check_surface_support(
@@ -92,12 +98,19 @@ impl InitialSurface {
     pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR {
         &self.surface
     }
+}
 
-    pub fn into_surface(self, physical_device: &PhysicalDevice) -> Result<Surface, SurfaceError> {
+impl Surface {
+    pub fn from_initial_surface(initial_surface_arc: Arc<InitialSurface>, physical_device: Arc<PhysicalDevice>) -> Result<Arc<Surface>, SurfaceError> {
+        let initial_surface = match Arc::into_inner(initial_surface_arc) {
+            Some(val) => val,
+            None => return Err(SurfaceError::InitialSurfaceBorrowedMoreThanOnce)
+        };
+
         let surface_formats = match unsafe {
-            self.surface_loader.get_physical_device_surface_formats(
+            initial_surface.surface_loader.get_physical_device_surface_formats(
                 *physical_device.get_physical_device_raw(),
-                self.surface,
+                initial_surface.surface,
             )
         } {
             Ok(val) => val,
@@ -109,10 +122,10 @@ impl InitialSurface {
         }
 
         let surface_capabilities = match unsafe {
-            self.surface_loader
+            initial_surface.surface_loader
                 .get_physical_device_surface_capabilities(
                     *physical_device.get_physical_device_raw(),
-                    self.surface,
+                    initial_surface.surface,
                 )
         } {
             Ok(val) => val,
@@ -120,20 +133,20 @@ impl InitialSurface {
         };
 
         let InitialSurface {
+            instance,
             surface,
             surface_loader,
-        } = self;
+        } = initial_surface;
 
-        Ok(Surface {
+        Ok(Arc::new(Surface {
+            instance,
             surface,
             surface_loader,
             surface_format: surface_formats[0],
             surface_capabilities,
-        })
+        }))
     }
-}
 
-impl Surface {
     pub fn get_surface_loader_raw(&self) -> &ash::khr::surface::Instance {
         &self.surface_loader
     }
@@ -150,7 +163,7 @@ impl Surface {
         self.surface_capabilities.max_image_count
     }
 
-    pub fn current_extent(&self, window: &WindowWrapper) -> ash::vk::Extent2D {
+    pub fn current_extent(&self, window: Arc<WindowWrapper>) -> ash::vk::Extent2D {
         match self.surface_capabilities.current_extent.width {
             u32::MAX => ash::vk::Extent2D {
                 width: window.get_width(),
@@ -175,8 +188,10 @@ impl Surface {
     pub fn color_space(&self) -> ash::vk::ColorSpaceKHR {
         self.surface_format.color_space
     }
+}
 
-    pub fn cleanup(&self) {
+impl Drop for Surface {
+    fn drop(&mut self) {
         unsafe { self.surface_loader.destroy_surface(self.surface, None) };
     }
 }

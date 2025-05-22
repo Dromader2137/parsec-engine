@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::{
     VulkanError,
     buffer::Buffer,
@@ -5,15 +7,15 @@ use super::{
     device::Device,
     framebuffer::Framebuffer,
     graphics_pipeline::{GraphicsPipeline, Vertex},
-    physical_device::PhysicalDevice,
-    renderpass::Renderpass,
 };
 
 pub struct CommandPool {
+    pub device: Arc<Device>,
     command_pool: ash::vk::CommandPool,
 }
 
 pub struct CommandBuffer {
+    pub command_pool: Arc<CommandPool>,
     command_buffer: ash::vk::CommandBuffer,
 }
 
@@ -46,12 +48,11 @@ impl From<CommandPoolError> for VulkanError {
 
 impl CommandPool {
     pub fn new(
-        physical_device: &PhysicalDevice,
-        device: &Device,
-    ) -> Result<CommandPool, CommandPoolError> {
+        device: Arc<Device>,
+    ) -> Result<Arc<CommandPool>, CommandPoolError> {
         let pool_info = ash::vk::CommandPoolCreateInfo::default()
             .flags(ash::vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(physical_device.get_queue_family_index());
+            .queue_family_index(device.physical_device.get_queue_family_index());
 
         let command_pool = match unsafe {
             device
@@ -62,16 +63,19 @@ impl CommandPool {
             Err(err) => return Err(CommandPoolError::CreationError(err)),
         };
 
-        Ok(CommandPool { command_pool })
+        Ok(Arc::new(CommandPool { device, command_pool }))
     }
 
     pub fn get_command_pool_raw(&self) -> &ash::vk::CommandPool {
         &self.command_pool
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
+impl Drop for CommandPool {
+    fn drop(&mut self) {
         unsafe {
-            device
+            self
+                .device
                 .get_device_raw()
                 .destroy_command_pool(self.command_pool, None)
         };
@@ -79,14 +83,15 @@ impl CommandPool {
 }
 
 impl CommandBuffer {
-    pub fn new(device: &Device, pool: &CommandPool) -> Result<CommandBuffer, CommandBufferError> {
+    pub fn new(command_pool: Arc<CommandPool>) -> Result<Arc<CommandBuffer>, CommandBufferError> {
         let create_info = ash::vk::CommandBufferAllocateInfo::default()
             .command_buffer_count(1)
-            .command_pool(*pool.get_command_pool_raw())
+            .command_pool(*command_pool.get_command_pool_raw())
             .level(ash::vk::CommandBufferLevel::PRIMARY);
 
         let command_buffer = match unsafe {
-            device
+            command_pool
+                .device
                 .get_device_raw()
                 .allocate_command_buffers(&create_info)
         } {
@@ -94,15 +99,17 @@ impl CommandBuffer {
             Err(err) => return Err(CommandBufferError::CreationError(err)),
         }[0];
 
-        Ok(CommandBuffer { command_buffer })
+        Ok(Arc::new(CommandBuffer { command_pool, command_buffer }))
     }
 
-    pub fn begin(&self, device: &Device) -> Result<(), CommandBufferError> {
+    pub fn begin(&self) -> Result<(), CommandBufferError> {
         let begin_info = ash::vk::CommandBufferBeginInfo::default()
             .flags(ash::vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
 
         if let Err(err) = unsafe {
-            device
+            self
+                .command_pool
+                .device
                 .get_device_raw()
                 .begin_command_buffer(self.command_buffer, &begin_info)
         } {
@@ -112,9 +119,11 @@ impl CommandBuffer {
         Ok(())
     }
 
-    pub fn end(&self, device: &Device) -> Result<(), CommandBufferError> {
+    pub fn end(&self) -> Result<(), CommandBufferError> {
         if let Err(err) = unsafe {
-            device
+            self
+                .command_pool
+                .device
                 .get_device_raw()
                 .end_command_buffer(self.command_buffer)
         } {
@@ -126,9 +135,7 @@ impl CommandBuffer {
 
     pub fn begin_renderpass(
         &self,
-        device: &Device,
-        renderpass: &Renderpass,
-        framebuffer: &Framebuffer,
+        framebuffer: Arc<Framebuffer>,
     ) {
         let clear_values = [
             ash::vk::ClearValue {
@@ -145,13 +152,13 @@ impl CommandBuffer {
         ];
 
         let begin_info = ash::vk::RenderPassBeginInfo::default()
-            .render_pass(*renderpass.get_renderpass_raw())
+            .render_pass(*framebuffer.renderpass.get_renderpass_raw())
             .framebuffer(*framebuffer.get_framebuffer_raw())
             .render_area(framebuffer.get_extent_raw().into())
             .clear_values(&clear_values);
 
         unsafe {
-            device.get_device_raw().cmd_begin_render_pass(
+            framebuffer.renderpass.device.get_device_raw().cmd_begin_render_pass(
                 self.command_buffer,
                 &begin_info,
                 ash::vk::SubpassContents::INLINE,
@@ -159,15 +166,17 @@ impl CommandBuffer {
         };
     }
 
-    pub fn end_renderpass(&self, device: &Device) {
+    pub fn end_renderpass(&self) {
         unsafe {
-            device
+            self
+                .command_pool
+                .device
                 .get_device_raw()
                 .cmd_end_render_pass(self.command_buffer)
         };
     }
 
-    pub fn set_viewports(&self, device: &Device, framebuffer: &Framebuffer) {
+    pub fn set_viewports(&self, framebuffer: Arc<Framebuffer>) {
         let viewports = [ash::vk::Viewport {
             x: 0.0,
             y: 0.0,
@@ -177,24 +186,28 @@ impl CommandBuffer {
             max_depth: 1.0,
         }];
         unsafe {
-            device
+            self
+                .command_pool
+                .device
                 .get_device_raw()
                 .cmd_set_viewport(self.command_buffer, 0, &viewports)
         };
     }
 
-    pub fn set_scissor(&self, device: &Device, framebuffer: &Framebuffer) {
+    pub fn set_scissor(&self, framebuffer: Arc<Framebuffer>) {
         let scissors = [framebuffer.get_extent_raw().into()];
         unsafe {
-            device
+            self
+                .command_pool
+                .device
                 .get_device_raw()
                 .cmd_set_scissor(self.command_buffer, 0, &scissors)
         };
     }
 
-    pub fn bind_graphics_pipeline(&self, device: &Device, pipeline: &GraphicsPipeline) {
+    pub fn bind_graphics_pipeline(&self, pipeline: Arc<GraphicsPipeline>) {
         unsafe {
-            device.get_device_raw().cmd_bind_pipeline(
+            self.command_pool.device.get_device_raw().cmd_bind_pipeline(
                 self.command_buffer,
                 ash::vk::PipelineBindPoint::GRAPHICS,
                 *pipeline.get_pipeline_raw(),
@@ -204,14 +217,13 @@ impl CommandBuffer {
 
     pub fn draw(
         &self,
-        device: &Device,
         vertex_count: u32,
         instance_count: u32,
         first_vertex: u32,
         first_instance: u32,
     ) {
         unsafe {
-            device.get_device_raw().cmd_draw(
+            self.command_pool.device.get_device_raw().cmd_draw(
                 self.command_buffer,
                 vertex_count,
                 instance_count,
@@ -223,7 +235,6 @@ impl CommandBuffer {
 
     pub fn draw_indexed(
         &self,
-        device: &Device,
         index_count: u32,
         instance_count: u32,
         first_index: u32,
@@ -231,7 +242,7 @@ impl CommandBuffer {
         first_instance: u32,
     ) {
         unsafe {
-            device.get_device_raw().cmd_draw_indexed(
+            self.command_pool.device.get_device_raw().cmd_draw_indexed(
                 self.command_buffer,
                 index_count,
                 instance_count,
@@ -242,9 +253,9 @@ impl CommandBuffer {
         };
     }
 
-    pub fn bind_vertex_buffer(&self, device: &Device, buffer: &Buffer<impl Vertex>) {
+    pub fn bind_vertex_buffer(&self, buffer: Arc<Buffer<impl Vertex>>) {
         unsafe {
-            device.get_device_raw().cmd_bind_vertex_buffers(
+            self.command_pool.device.get_device_raw().cmd_bind_vertex_buffers(
                 self.command_buffer,
                 0,
                 &[*buffer.get_buffer_raw()],
@@ -253,9 +264,9 @@ impl CommandBuffer {
         };
     }
 
-    pub fn bind_index_buffer(&self, device: &Device, buffer: &Buffer<u32>) {
+    pub fn bind_index_buffer(&self, buffer: Arc<Buffer<u32>>) {
         unsafe {
-            device.get_device_raw().cmd_bind_index_buffer(
+            self.command_pool.device.get_device_raw().cmd_bind_index_buffer(
                 self.command_buffer,
                 *buffer.get_buffer_raw(),
                 0,
@@ -266,13 +277,12 @@ impl CommandBuffer {
 
     pub fn bind_descriptor_set(
         &self,
-        device: &Device,
-        descriptor_set: &DescriptorSet,
-        pipeline: &GraphicsPipeline,
+        descriptor_set: Arc<DescriptorSet>,
+        pipeline: Arc<GraphicsPipeline>,
         set_index: u32,
     ) {
         unsafe {
-            device.get_device_raw().cmd_bind_descriptor_sets(
+            self.command_pool.device.get_device_raw().cmd_bind_descriptor_sets(
                 self.command_buffer,
                 ash::vk::PipelineBindPoint::GRAPHICS,
                 *pipeline.get_layout_raw(),
@@ -283,9 +293,9 @@ impl CommandBuffer {
         };
     }
 
-    pub fn reset(&self, device: &Device) -> Result<(), CommandBufferError> {
+    pub fn reset(&self) -> Result<(), CommandBufferError> {
         if let Err(err) = unsafe {
-            device.get_device_raw().reset_command_buffer(
+            self.command_pool.device.get_device_raw().reset_command_buffer(
                 self.command_buffer,
                 ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES,
             )

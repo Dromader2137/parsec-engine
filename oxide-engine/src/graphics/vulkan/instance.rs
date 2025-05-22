@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::graphics::window::WindowWrapper;
 
@@ -58,7 +58,7 @@ unsafe extern "system" fn vulkan_debug_callback(
 }
 
 impl Instance {
-    pub fn new(window: &WindowWrapper) -> Result<Instance, InstanceError> {
+    pub fn new(window: &WindowWrapper) -> Result<Arc<Instance>, InstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
             Ok(val) => val,
             Err(err) => return Err(InstanceError::EntryError(err)),
@@ -124,12 +124,12 @@ impl Instance {
             false => None,
         };
 
-        Ok(Instance {
+        Ok(Arc::new(Instance {
             entry,
             instance,
             _debug_utils_loader: debug_utils_loader,
             _debug_call_back: debug_call_back,
-        })
+        }))
     }
 
     pub fn get_instance_raw(&self) -> &ash::Instance {
@@ -139,8 +139,10 @@ impl Instance {
     pub fn get_entry_raw(&self) -> &ash::Entry {
         &self.entry
     }
+}
 
-    pub fn cleanup(&self) {
+impl Drop for Instance {
+    fn drop(&mut self) {
         if let Some(messanger) = self._debug_call_back {
             unsafe {
                 self._debug_utils_loader

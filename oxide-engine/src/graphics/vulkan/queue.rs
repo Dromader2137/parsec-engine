@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use super::{
     VulkanError, command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore,
 };
 
 pub struct Queue {
+    pub device: Arc<Device>,
     queue: ash::vk::Queue,
 }
 
@@ -18,17 +21,17 @@ impl From<QueueError> for VulkanError {
 }
 
 impl Queue {
-    pub fn new(raw_queue: ash::vk::Queue) -> Queue {
-        Queue { queue: raw_queue }
+    pub fn present(device: Arc<Device>, family_index: u32) -> Arc<Queue> {
+        let raw_queue = unsafe { device.get_device_raw().get_device_queue(family_index, 0) };
+        Arc::new(Queue { device, queue: raw_queue })
     }
 
     pub fn submit(
         &self,
-        device: &Device,
-        wait_semaphores: &[&Semaphore],
-        signal_semaphores: &[&Semaphore],
-        command_buffers: &[&CommandBuffer],
-        submit_fence: &Fence,
+        wait_semaphores: &[Arc<Semaphore>],
+        signal_semaphores: &[Arc<Semaphore>],
+        command_buffers: &[Arc<CommandBuffer>],
+        submit_fence: Arc<Fence>,
     ) -> Result<(), QueueError> {
         let command_buffers = command_buffers
             .iter()
@@ -50,7 +53,7 @@ impl Queue {
             .signal_semaphores(&signal_semaphores);
 
         if let Err(err) = unsafe {
-            device.get_device_raw().queue_submit(
+            self.device.get_device_raw().queue_submit(
                 self.queue,
                 &[submit_info],
                 *submit_fence.get_fence_raw(),

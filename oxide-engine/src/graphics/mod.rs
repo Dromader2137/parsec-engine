@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use vulkan::{VulkanError, context::VulkanContext, renderer::VulkanRenderer};
 use window::{WindowError, WindowWrapper};
 
@@ -8,8 +10,8 @@ pub mod vulkan;
 pub mod window;
 
 pub struct Graphics {
-    pub window: Option<WindowWrapper>,
-    pub vulkan_context: Option<VulkanContext>,
+    pub window: Option<Arc<WindowWrapper>>,
+    pub vulkan_context: Option<Arc<VulkanContext>>,
     pub renderer: Option<VulkanRenderer>,
 }
 
@@ -43,8 +45,8 @@ impl Graphics {
         self.window = Some(WindowWrapper::new(event_loop, window_name)?);
         self.vulkan_context = Some(VulkanContext::new(self.window.as_ref().unwrap())?);
         self.renderer = Some(VulkanRenderer::new(
-            self.vulkan_context.as_ref().unwrap(),
-            self.window.as_ref().unwrap(),
+            self.vulkan_context.as_ref().unwrap().clone(),
+            self.window.as_ref().unwrap().clone(),
         )?);
 
         Ok(())
@@ -52,10 +54,7 @@ impl Graphics {
 
     pub fn render(&mut self) -> Result<(), GraphicsError> {
         match self.renderer.as_mut() {
-            Some(val) => val.render(
-                self.vulkan_context.as_ref().unwrap(),
-                self.window.as_ref().unwrap(),
-            )?,
+            Some(val) => val.render(self.window.as_ref().unwrap().clone())?,
             None => return Err(GraphicsError::Uninitialized),
         };
 
@@ -76,19 +75,6 @@ impl Graphics {
             Some(val) => val.request_redraw(),
             None => return Err(GraphicsError::Uninitialized),
         };
-
-        Ok(())
-    }
-
-    pub fn cleanup(&mut self) -> Result<(), GraphicsError> {
-        match self.renderer.as_mut() {
-            Some(val) => val.cleanup(self.vulkan_context.as_ref().unwrap())?,
-            None => return Err(GraphicsError::Uninitialized),
-        };
-        match self.vulkan_context.as_mut() {
-            Some(val) => val.cleanup()?,
-            None => return Err(GraphicsError::Uninitialized),
-        }
 
         Ok(())
     }

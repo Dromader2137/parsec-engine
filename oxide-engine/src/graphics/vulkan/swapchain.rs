@@ -1,11 +1,15 @@
+use std::sync::Arc;
+
 use crate::graphics::window::WindowWrapper;
 
 use super::{
-    VulkanError, device::Device, fence::Fence, image::Image, instance::Instance,
-    physical_device::PhysicalDevice, queue::Queue, semaphore::Semaphore, surface::Surface,
+    VulkanError, device::Device, fence::Fence, image::SwapchainImage, queue::Queue, semaphore::Semaphore, surface::Surface,
 };
 
 pub struct Swapchain {
+    pub device: Arc<Device>,
+    pub surface: Arc<Surface>,
+    pub swapchain_images: Vec<Arc<SwapchainImage>>,
     swapchain: ash::vk::SwapchainKHR,
     swapchain_loader: ash::khr::swapchain::Device,
 }
@@ -27,12 +31,11 @@ impl From<SwapchainError> for VulkanError {
 
 impl Swapchain {
     pub fn new(
-        instance: &Instance,
-        surface: &Surface,
-        physical_device: &PhysicalDevice,
-        device: &Device,
-        window: &WindowWrapper,
-    ) -> Result<Swapchain, SwapchainError> {
+        surface: Arc<Surface>,
+        device: Arc<Device>,
+        window: Arc<WindowWrapper>,
+        old_swapchain: Option<Arc<Swapchain>>
+    ) -> Result<Arc<Swapchain>, SwapchainError> {
         let mut desired_image_count = surface.min_image_count() + 1;
         if surface.max_image_count() > 0 && desired_image_count > surface.max_image_count() {
             desired_image_count = surface.max_image_count()
@@ -53,7 +56,7 @@ impl Swapchain {
             surface
                 .get_surface_loader_raw()
                 .get_physical_device_surface_present_modes(
-                    *physical_device.get_physical_device_raw(),
+                    *device.physical_device.get_physical_device_raw(),
                     *surface.get_surface_raw(),
                 )
         } {
@@ -68,9 +71,9 @@ impl Swapchain {
             .unwrap_or(ash::vk::PresentModeKHR::FIFO);
 
         let swapchain_loader =
-            ash::khr::swapchain::Device::new(instance.get_instance_raw(), device.get_device_raw());
+            ash::khr::swapchain::Device::new(device.physical_device.instance.get_instance_raw(), device.get_device_raw());
 
-        let swapchain_create_info = ash::vk::SwapchainCreateInfoKHR::default()
+        let mut swapchain_create_info = ash::vk::SwapchainCreateInfoKHR::default()
             .surface(*surface.get_surface_raw())
             .min_image_count(desired_image_count)
             .image_color_space(surface.color_space())
@@ -84,34 +87,39 @@ impl Swapchain {
             .clipped(true)
             .image_array_layers(1);
 
+        if let Some(val) = old_swapchain {
+            swapchain_create_info = swapchain_create_info.old_swapchain(*val.get_swapchain_raw());
+        }
+
         let swapchain =
             match unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) } {
                 Ok(val) => val,
                 Err(err) => return Err(SwapchainError::CreationError(err)),
             };
+        
+        let swapchain_images = match unsafe { swapchain_loader.get_swapchain_images(swapchain) } {
+            Ok(val) => val.into_iter().map(|x| SwapchainImage::from_raw_image(device.clone(), x)).collect::<Vec<_>>(),
+            Err(err) => return Err(SwapchainError::ImageAcquisitionError(err)),
+        };
 
-        Ok(Swapchain {
+        Ok(Arc::new(Swapchain {
+            device,
+            surface,
+            swapchain_images,
             swapchain,
             swapchain_loader,
-        })
-    }
-
-    pub fn get_images(&self) -> Result<Vec<Image>, SwapchainError> {
-        match unsafe { self.swapchain_loader.get_swapchain_images(self.swapchain) } {
-            Ok(val) => Ok(val.into_iter().map(|x| Image::from_raw_image(x)).collect()),
-            Err(err) => Err(SwapchainError::ImageAcquisitionError(err)),
-        }
+        }))
     }
 
     pub fn acquire_next_image(
         &self,
-        semaphore: &Semaphore,
-        fence: &Fence,
+        semaphore: Arc<Semaphore>,
+        fence: Arc<Fence>,
     ) -> Result<(u32, bool), SwapchainError> {
         match unsafe {
             self.swapchain_loader.acquire_next_image(
                 self.swapchain,
-                10000000,
+                u64::MAX,
                 *semaphore.get_semaphore_raw(),
                 *fence.get_fence_raw(),
             )
@@ -123,8 +131,8 @@ impl Swapchain {
 
     pub fn present(
         &self,
-        present_queue: &Queue,
-        wait_semaphores: &[&Semaphore],
+        present_queue: Arc<Queue>,
+        wait_semaphores: &[Arc<Semaphore>],
         image_index: u32,
     ) -> Result<(), SwapchainError> {
         let wait_semaphores = wait_semaphores
@@ -156,8 +164,10 @@ impl Swapchain {
     pub fn get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
         &self.swapchain_loader
     }
+}
 
-    pub fn cleanup(&self) {
+impl Drop for Swapchain {
+    fn drop(&mut self) {
         unsafe {
             self.swapchain_loader
                 .destroy_swapchain(self.swapchain, None)

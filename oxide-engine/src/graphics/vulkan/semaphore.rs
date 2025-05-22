@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use super::{VulkanError, device::Device};
 
 #[derive(Clone)]
 pub struct Semaphore {
+    pub device: Arc<Device>,
     semaphore: ash::vk::Semaphore,
 }
 
@@ -18,7 +21,7 @@ impl From<SemaphoreError> for VulkanError {
 }
 
 impl Semaphore {
-    pub fn new(device: &Device) -> Result<Semaphore, SemaphoreError> {
+    pub fn new(device: Arc<Device>) -> Result<Arc<Semaphore>, SemaphoreError> {
         let create_info = ash::vk::SemaphoreCreateInfo::default();
 
         let semaphore =
@@ -27,11 +30,12 @@ impl Semaphore {
                 Err(err) => return Err(SemaphoreError::CreationError(err)),
             };
 
-        Ok(Semaphore { semaphore })
+        Ok(Arc::new(Semaphore { device, semaphore }))
     }
 
-    pub fn null() -> Semaphore {
+    pub fn null(device: Arc<Device>) -> Semaphore {
         Semaphore {
+            device,
             semaphore: ash::vk::Semaphore::null(),
         }
     }
@@ -39,10 +43,13 @@ impl Semaphore {
     pub fn get_semaphore_raw(&self) -> &ash::vk::Semaphore {
         &self.semaphore
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
-        unsafe {
-            device
+impl Drop for Semaphore {
+    fn drop(&mut self) {
+        unsafe { 
+            self
+                .device
                 .get_device_raw()
                 .destroy_semaphore(self.semaphore, None)
         };

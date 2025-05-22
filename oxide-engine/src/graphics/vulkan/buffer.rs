@@ -1,8 +1,10 @@
+use std::sync::Arc;
 use std::marker::PhantomData;
 
 use super::{VulkanError, device::Device, instance::Instance, physical_device::PhysicalDevice};
 
-pub struct Buffer<T> {
+pub struct Buffer<T: Clone + Copy> {
+    pub device: Arc<Device>,
     buffer: ash::vk::Buffer,
     memory: ash::vk::DeviceMemory,
     memory_size: u64,
@@ -31,12 +33,10 @@ pub type BufferUsage = ash::vk::BufferUsageFlags;
 
 impl<T: Clone + Copy> Buffer<T> {
     pub fn from_vec(
-        instance: &Instance,
-        physical_device: &PhysicalDevice,
-        device: &Device,
+        device: Arc<Device>,
         data: Vec<T>,
         usage: BufferUsage,
-    ) -> Result<Buffer<T>, BufferError> {
+    ) -> Result<Arc<Buffer<T>>, BufferError> {
         let size = data.len() * size_of::<T>();
 
         let index_buffer_info = ash::vk::BufferCreateInfo::default()
@@ -62,8 +62,8 @@ impl<T: Clone + Copy> Buffer<T> {
             &memory_req,
             ash::vk::MemoryPropertyFlags::HOST_VISIBLE
                 | ash::vk::MemoryPropertyFlags::HOST_COHERENT,
-            instance,
-            physical_device,
+            device.physical_device.instance.clone(),
+            device.physical_device.clone(),
         ) {
             Some(val) => val,
             None => return Err(BufferError::UnableToFindSuitableMemory),
@@ -108,23 +108,24 @@ impl<T: Clone + Copy> Buffer<T> {
             return Err(BufferError::BindError(err));
         }
 
-        Ok(Buffer::<T> {
+        Ok(Arc::new(Buffer::<T> {
+            device,
             buffer,
             memory,
             memory_size: memory_req.size,
             size: size as u64,
             len: data.len() as u32,
             _type: PhantomData::default(),
-        })
+        }))
     }
 
-    pub fn update(&self, device: &Device, data: Vec<T>) -> Result<(), BufferError> {
+    pub fn update(&self, data: Vec<T>) -> Result<(), BufferError> {
         if data.len() as u32 != self.len {
             return Err(BufferError::SizaMismatch);
         }
 
         let memory_ptr = match unsafe {
-            device.get_device_raw().map_memory(
+            self.device.get_device_raw().map_memory(
                 self.memory,
                 0,
                 self.memory_size,
@@ -141,7 +142,7 @@ impl<T: Clone + Copy> Buffer<T> {
 
         slice.copy_from_slice(&data);
 
-        unsafe { device.get_device_raw().unmap_memory(self.memory) };
+        unsafe { self.device.get_device_raw().unmap_memory(self.memory) };
 
         Ok(())
     }
@@ -153,18 +154,20 @@ impl<T: Clone + Copy> Buffer<T> {
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory {
         &self.memory
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
-        unsafe { device.get_device_raw().destroy_buffer(self.buffer, None) };
-        unsafe { device.get_device_raw().free_memory(self.memory, None) };
+impl<T: Clone + Copy> Drop for Buffer<T> {
+    fn drop(&mut self) {
+        unsafe { self.device.get_device_raw().destroy_buffer(self.buffer, None) };
+        unsafe { self.device.get_device_raw().free_memory(self.memory, None) };
     }
 }
 
 pub fn find_memorytype_index(
     memory_req: &ash::vk::MemoryRequirements,
     flags: ash::vk::MemoryPropertyFlags,
-    instance: &Instance,
-    physical_device: &PhysicalDevice,
+    instance: Arc<Instance>,
+    physical_device: Arc<PhysicalDevice>,
 ) -> Option<u32> {
     let memory_prop = unsafe {
         instance

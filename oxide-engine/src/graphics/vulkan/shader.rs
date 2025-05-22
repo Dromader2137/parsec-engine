@@ -1,8 +1,9 @@
-use std::fs::File;
+use std::{fs::File, sync::Arc};
 
 use super::{VulkanError, device::Device};
 
 pub struct ShaderModule {
+    pub device: Arc<Device>,
     shader_module: ash::vk::ShaderModule,
 }
 
@@ -31,7 +32,7 @@ pub fn read_shader_code(path: &str) -> Result<Vec<u32>, ShaderError> {
 }
 
 impl ShaderModule {
-    pub fn new(device: &Device, code: &[u32]) -> Result<ShaderModule, ShaderError> {
+    pub fn new(device: Arc<Device>, code: &[u32]) -> Result<Arc<ShaderModule>, ShaderError> {
         let create_info = ash::vk::ShaderModuleCreateInfo::default().code(code);
 
         let shader_module = match unsafe {
@@ -43,16 +44,19 @@ impl ShaderModule {
             Err(err) => return Err(ShaderError::CreationError(err)),
         };
 
-        Ok(ShaderModule { shader_module })
+        Ok(Arc::new(ShaderModule { device, shader_module }))
     }
 
     pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule {
         &self.shader_module
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
+impl Drop for ShaderModule {
+    fn drop(&mut self) {
         unsafe {
-            device
+            self
+                .device
                 .get_device_raw()
                 .destroy_shader_module(self.shader_module, None)
         };

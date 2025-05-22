@@ -24,7 +24,7 @@ impl WindowWrapper {
     pub fn new(
         event_loop: &winit::event_loop::ActiveEventLoop,
         name: &str,
-    ) -> Result<WindowWrapper, WindowError> {
+    ) -> Result<Arc<WindowWrapper>, WindowError> {
         let attributes = winit::window::Window::default_attributes()
             .with_transparent(false)
             .with_visible(true)
@@ -36,9 +36,9 @@ impl WindowWrapper {
             }
         };
 
-        Ok(WindowWrapper {
+        Ok(Arc::new(WindowWrapper {
             window: Arc::new(window),
-        })
+        }))
     }
 
     pub fn request_redraw(&self) {

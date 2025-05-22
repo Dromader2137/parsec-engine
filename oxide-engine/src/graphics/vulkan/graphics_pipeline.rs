@@ -1,9 +1,15 @@
+use std::sync::Arc;
+
 use super::{
-    VulkanError, descriptor_set::DescriptorSetLayout, device::Device, framebuffer::Framebuffer,
-    renderpass::Renderpass, shader::ShaderModule,
+    VulkanError, descriptor_set::DescriptorSetLayout, framebuffer::Framebuffer,
+    shader::ShaderModule,
 };
 
 pub struct GraphicsPipeline {
+    pub framebuffer: Arc<Framebuffer>,
+    pub vertex_shader: Arc<ShaderModule>,
+    pub fragment_shader: Arc<ShaderModule>,
+    pub descriptor_set_layouts: Vec<Arc<DescriptorSetLayout>>,
     graphics_pipeline: ash::vk::Pipeline,
     graphics_pipeline_layout: ash::vk::PipelineLayout,
 }
@@ -34,13 +40,11 @@ pub trait Vertex: Clone + Copy {
 
 impl GraphicsPipeline {
     pub fn new<V: Vertex>(
-        device: &Device,
-        framebuffer: &Framebuffer,
-        renderpass: &Renderpass,
-        vertex_shader: &ShaderModule,
-        fragment_shader: &ShaderModule,
-        descriptor_set_layouts: &[DescriptorSetLayout],
-    ) -> Result<GraphicsPipeline, GraphicsPipelineError> {
+        framebuffer: Arc<Framebuffer>,
+        vertex_shader: Arc<ShaderModule>,
+        fragment_shader: Arc<ShaderModule>,
+        descriptor_set_layouts: Vec<Arc<DescriptorSetLayout>>,
+    ) -> Result<Arc<GraphicsPipeline>, GraphicsPipelineError> {
         let set_layouts: Vec<_> = descriptor_set_layouts
             .iter()
             .map(|x| *x.get_layout_raw())
@@ -50,7 +54,9 @@ impl GraphicsPipeline {
             ash::vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
 
         let pipeline_layout = match unsafe {
-            device
+            framebuffer
+                .renderpass
+                .device
                 .get_device_raw()
                 .create_pipeline_layout(&layout_create_info, None)
         } {
@@ -173,10 +179,10 @@ impl GraphicsPipeline {
             .dynamic_state(&dynamic_state_info)
             .layout(pipeline_layout)
             .depth_stencil_state(&depth_state_info)
-            .render_pass(*renderpass.get_renderpass_raw());
+            .render_pass(*framebuffer.renderpass.get_renderpass_raw());
 
         let pipeline = match unsafe {
-            device.get_device_raw().create_graphics_pipelines(
+            framebuffer.renderpass.device.get_device_raw().create_graphics_pipelines(
                 ash::vk::PipelineCache::null(),
                 &[graphic_pipeline_info],
                 None,
@@ -186,10 +192,14 @@ impl GraphicsPipeline {
             Err(err) => return Err(GraphicsPipelineError::CreationError(err.1)),
         }[0];
 
-        Ok(GraphicsPipeline {
+        Ok(Arc::new(GraphicsPipeline {
+            framebuffer,
+            vertex_shader,
+            fragment_shader,
+            descriptor_set_layouts,
             graphics_pipeline: pipeline,
             graphics_pipeline_layout: pipeline_layout,
-        })
+        }))
     }
 
     pub fn get_pipeline_raw(&self) -> &ash::vk::Pipeline {
@@ -199,17 +209,23 @@ impl GraphicsPipeline {
     pub fn get_layout_raw(&self) -> &ash::vk::PipelineLayout {
         &self.graphics_pipeline_layout
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
+impl Drop for GraphicsPipeline {
+    fn drop(&mut self) {
         unsafe {
-            device
+            self
+                .framebuffer
+                .renderpass
+                .device
                 .get_device_raw()
-                .destroy_pipeline_layout(self.graphics_pipeline_layout, None)
-        };
-        unsafe {
-            device
+                .destroy_pipeline_layout(self.graphics_pipeline_layout, None);
+            self
+                .framebuffer
+                .renderpass
+                .device
                 .get_device_raw()
-                .destroy_pipeline(self.graphics_pipeline, None)
+                .destroy_pipeline(self.graphics_pipeline, None);
         };
     }
 }

@@ -1,6 +1,10 @@
+use std::sync::Arc;
+
 use super::{VulkanError, device::Device, surface::Surface};
 
 pub struct Renderpass {
+    pub device: Arc<Device>,
+    pub surface: Arc<Surface>,
     renderpass: ash::vk::RenderPass,
 }
 
@@ -16,7 +20,7 @@ impl From<RenderpassError> for VulkanError {
 }
 
 impl Renderpass {
-    pub fn new(surface: &Surface, device: &Device) -> Result<Renderpass, RenderpassError> {
+    pub fn new(surface: Arc<Surface>, device: Arc<Device>) -> Result<Arc<Renderpass>, RenderpassError> {
         let renderpass_attachments = [
             ash::vk::AttachmentDescription {
                 format: surface.format(),
@@ -71,16 +75,19 @@ impl Renderpass {
             Err(err) => return Err(RenderpassError::CreationError(err)),
         };
 
-        Ok(Renderpass { renderpass })
+        Ok(Arc::new(Renderpass { device, surface, renderpass }))
     }
 
     pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass {
         &self.renderpass
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
+impl Drop for Renderpass {
+    fn drop(&mut self) {
         unsafe {
-            device
+            self
+                .device
                 .get_device_raw()
                 .destroy_render_pass(self.renderpass, None)
         };

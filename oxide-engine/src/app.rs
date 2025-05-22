@@ -28,9 +28,6 @@ impl App {
         event_loop
             .run_app(self)
             .expect("Correctly working event loop");
-        if let Err(err) = self.graphics.cleanup() {
-            error(err.into());
-        }
     }
 }
 

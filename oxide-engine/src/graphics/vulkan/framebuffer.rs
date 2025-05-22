@@ -1,10 +1,14 @@
+use std::sync::Arc;
+
 use crate::graphics::window::WindowWrapper;
 
 use super::{
-    VulkanError, device::Device, image::ImageView, renderpass::Renderpass, surface::Surface,
+    VulkanError, image::ImageView, renderpass::Renderpass,
 };
 
 pub struct Framebuffer {
+    pub renderpass: Arc<Renderpass>,
+    pub image_views: Vec<Arc<ImageView>>,
     framebuffer: ash::vk::Framebuffer,
     extent: ash::vk::Extent2D,
 }
@@ -23,14 +27,12 @@ impl From<FramebufferError> for VulkanError {
 
 impl Framebuffer {
     pub fn new(
-        surface: &Surface,
-        device: &Device,
-        image_view: &ImageView,
-        depth_view: &ImageView,
-        renderpass: &Renderpass,
-        window: &WindowWrapper,
-    ) -> Result<Framebuffer, FramebufferError> {
-        let extent = surface.current_extent(window);
+        image_view: Arc<ImageView>,
+        depth_view: Arc<ImageView>,
+        renderpass: Arc<Renderpass>,
+        window: Arc<WindowWrapper>,
+    ) -> Result<Arc<Framebuffer>, FramebufferError> {
+        let extent = renderpass.surface.current_extent(window);
         let framebuffer_attachments = [
             *image_view.get_image_view_raw(),
             *depth_view.get_image_view_raw(),
@@ -43,7 +45,8 @@ impl Framebuffer {
             .layers(1);
 
         let framebuffer = match unsafe {
-            device
+            renderpass  
+                .device
                 .get_device_raw()
                 .create_framebuffer(&frame_buffer_create_info, None)
         } {
@@ -51,10 +54,12 @@ impl Framebuffer {
             Err(err) => return Err(FramebufferError::CreationError(err)),
         };
 
-        Ok(Framebuffer {
+        Ok(Arc::new(Framebuffer {
+            renderpass,
+            image_views: vec![image_view, depth_view],
             framebuffer,
             extent,
-        })
+        }))
     }
 
     pub fn get_framebuffer_raw(&self) -> &ash::vk::Framebuffer {
@@ -64,10 +69,14 @@ impl Framebuffer {
     pub fn get_extent_raw(&self) -> ash::vk::Extent2D {
         self.extent
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
+impl Drop for Framebuffer {
+    fn drop(&mut self) {
         unsafe {
-            device
+            self
+                .renderpass
+                .device
                 .get_device_raw()
                 .destroy_framebuffer(self.framebuffer, None)
         };

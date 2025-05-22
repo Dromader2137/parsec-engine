@@ -1,36 +1,49 @@
+use std::sync::Arc;
+
 use super::{
-    VulkanError, buffer::find_memorytype_index, device::Device, format_size::format_size,
-    instance::Instance, physical_device::PhysicalDevice,
+    buffer::find_memorytype_index, device::Device, format_size::format_size, VulkanError
 };
 
-pub trait GetImageRaw {
+pub trait Image: 'static {
     fn get_image_raw(&self) -> &ash::vk::Image;
+    fn device(&self) -> Arc<Device>;
 }
 
-pub struct Image {
+pub struct SwapchainImage {
+    pub device: Arc<Device>,
     image: ash::vk::Image,
 }
 
 #[allow(unused)]
 pub struct OwnedImage {
+    pub device: Arc<Device>,
     image: ash::vk::Image,
     memory: ash::vk::DeviceMemory,
     size: u64,
 }
 
 pub struct ImageView {
+    pub image: Arc<dyn Image>,
     view: ash::vk::ImageView,
 }
 
-impl GetImageRaw for Image {
+impl Image for SwapchainImage {
     fn get_image_raw(&self) -> &ash::vk::Image {
         &self.image
     }
+
+    fn device(&self) -> Arc<Device> {
+        self.device.clone()
+    }
 }
 
-impl GetImageRaw for OwnedImage {
+impl Image for OwnedImage {
     fn get_image_raw(&self) -> &ash::vk::Image {
         &self.image
+    }
+
+    fn device(&self) -> Arc<Device> {
+        self.device.clone()
     }
 }
 
@@ -54,8 +67,8 @@ pub type ImageFormat = ash::vk::Format;
 pub type ImageUsage = ash::vk::ImageUsageFlags;
 pub type ImageAspectFlags = ash::vk::ImageAspectFlags;
 
-pub struct ImageViewInfo<'a> {
-    image: &'a dyn GetImageRaw,
+pub struct ImageViewInfo {
+    image: Arc<dyn Image>,
     format: ImageFormat,
     aspect_flags: ImageAspectFlags,
 }
@@ -66,7 +79,7 @@ pub struct ImageInfo {
     pub usage: ImageUsage,
 }
 
-impl<'a> From<ImageViewInfo<'a>> for ash::vk::ImageViewCreateInfo<'_> {
+impl From<ImageViewInfo> for ash::vk::ImageViewCreateInfo<'_> {
     fn from(value: ImageViewInfo) -> Self {
         ash::vk::ImageViewCreateInfo::default()
             .view_type(ash::vk::ImageViewType::TYPE_2D)
@@ -107,23 +120,17 @@ impl From<ImageInfo> for ash::vk::ImageCreateInfo<'_> {
     }
 }
 
-impl Image {
-    pub fn from_raw_image(raw_image: ash::vk::Image) -> Image {
-        Image { image: raw_image }
-    }
-
-    pub fn cleanup(&self, device: &Device) {
-        unsafe { device.get_device_raw().destroy_image(self.image, None) };
+impl SwapchainImage {
+    pub fn from_raw_image(device: Arc<Device>, raw_image: ash::vk::Image) -> Arc<SwapchainImage> {
+        Arc::new(SwapchainImage { device, image: raw_image })
     }
 }
 
 impl OwnedImage {
     pub fn new(
-        instance: &Instance,
-        physical_device: &PhysicalDevice,
-        device: &Device,
+        device: Arc<Device>,
         create_info: ImageInfo,
-    ) -> Result<OwnedImage, ImageError> {
+    ) -> Result<Arc<OwnedImage>, ImageError> {
         let size = create_info.size;
         let format = create_info.format;
 
@@ -139,8 +146,8 @@ impl OwnedImage {
         let memory_index = match find_memorytype_index(
             &memory_req,
             ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            instance,
-            physical_device,
+            device.physical_device.instance.clone(),
+            device.physical_device.clone(),
         ) {
             Some(val) => val,
             None => return Err(ImageError::UnableToFindSuitableMemory),
@@ -172,11 +179,12 @@ impl OwnedImage {
             None => return Err(ImageError::FormatNotSupported),
         };
 
-        Ok(OwnedImage {
+        Ok(Arc::new(OwnedImage {
+            device,
             image,
             memory: image_memory,
             size: format_size * size.0 as u64 * size.1 as u64,
-        })
+        }))
     }
 
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory {
@@ -191,13 +199,13 @@ impl OwnedImage {
 
 impl ImageView {
     pub fn from_image(
-        device: &Device,
-        image: &impl GetImageRaw,
+        device: Arc<Device>,
+        image: Arc<impl Image>,
         image_format: ImageFormat,
         aspect_flags: ImageAspectFlags,
-    ) -> Result<ImageView, ImageError> {
+    ) -> Result<Arc<ImageView>, ImageError> {
         let view_info = ImageViewInfo {
-            image,
+            image: image.clone(),
             format: image_format,
             aspect_flags,
         };
@@ -207,7 +215,7 @@ impl ImageView {
                 .get_device_raw()
                 .create_image_view(&view_info.into(), None)
         } {
-            Ok(val) => Ok(ImageView { view: val }),
+            Ok(val) => Ok(Arc::new(ImageView { image, view: val })),
             Err(err) => Err(ImageError::ViewCreationError(err)),
         }
     }

@@ -1,6 +1,9 @@
-use super::{VulkanError, instance::Instance, physical_device::PhysicalDevice, queue::Queue};
+use std::sync::Arc;
+
+use super::{VulkanError, physical_device::PhysicalDevice};
 
 pub struct Device {
+    pub physical_device: Arc<PhysicalDevice>,
     device: ash::Device,
 }
 
@@ -18,9 +21,8 @@ impl From<DeviceError> for VulkanError {
 
 impl Device {
     pub fn new(
-        instance: &Instance,
-        physical_device: &PhysicalDevice,
-    ) -> Result<Device, DeviceError> {
+        physical_device: Arc<PhysicalDevice>,
+    ) -> Result<Arc<Device>, DeviceError> {
         let device_extension_names_raw = [ash::khr::swapchain::NAME.as_ptr()];
 
         let features = ash::vk::PhysicalDeviceFeatures {
@@ -40,7 +42,7 @@ impl Device {
             .enabled_features(&features);
 
         let device = match unsafe {
-            instance.get_instance_raw().create_device(
+            physical_device.instance.get_instance_raw().create_device(
                 *physical_device.get_physical_device_raw(),
                 &device_create_info,
                 None,
@@ -50,12 +52,7 @@ impl Device {
             Err(err) => return Err(DeviceError::DeviceCreationError(err)),
         };
 
-        Ok(Device { device })
-    }
-
-    pub fn get_present_queue(&self, family_index: u32) -> Queue {
-        let raw_queue = unsafe { self.device.get_device_queue(family_index, 0) };
-        Queue::new(raw_queue)
+        Ok(Arc::new(Device { physical_device, device }))
     }
 
     pub fn wait_idle(&self) -> Result<(), DeviceError> {
@@ -68,8 +65,10 @@ impl Device {
     pub fn get_device_raw(&self) -> &ash::Device {
         &self.device
     }
+}
 
-    pub fn cleanup(&self) {
+impl Drop for Device {
+    fn drop(&mut self) {
         unsafe { self.get_device_raw().destroy_device(None) };
     }
 }
