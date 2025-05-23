@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use crate::graphics::window::WindowWrapper;
-
 use super::{
     VulkanError, device::Device, fence::Fence, image::SwapchainImage, queue::Queue,
     semaphore::Semaphore, surface::Surface,
@@ -34,7 +32,6 @@ impl Swapchain {
     pub fn new(
         surface: Arc<Surface>,
         device: Arc<Device>,
-        window: Arc<WindowWrapper>,
         old_swapchain: Option<Arc<Swapchain>>,
     ) -> Result<Arc<Swapchain>, SwapchainError> {
         let mut desired_image_count = surface.min_image_count() + 1;
@@ -42,7 +39,7 @@ impl Swapchain {
             desired_image_count = surface.max_image_count()
         }
 
-        let surface_resolution = surface.current_extent(window);
+        let surface_resolution = surface.current_extent();
 
         let pre_transform = if surface
             .supported_transforms()

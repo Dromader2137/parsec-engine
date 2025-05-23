@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use crate::graphics::window::WindowWrapper;
-
 use super::{VulkanError, image::ImageView, renderpass::Renderpass};
 
 pub struct Framebuffer {
@@ -28,9 +26,8 @@ impl Framebuffer {
         image_view: Arc<ImageView>,
         depth_view: Arc<ImageView>,
         renderpass: Arc<Renderpass>,
-        window: Arc<WindowWrapper>,
     ) -> Result<Arc<Framebuffer>, FramebufferError> {
-        let extent = renderpass.surface.current_extent(window);
+        let extent = renderpass.surface.current_extent();
         let framebuffer_attachments = [
             *image_view.get_image_view_raw(),
             *depth_view.get_image_view_raw(),

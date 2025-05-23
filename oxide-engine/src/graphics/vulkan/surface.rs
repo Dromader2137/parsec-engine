@@ -5,12 +5,14 @@ use crate::graphics::window::WindowWrapper;
 use super::{VulkanError, instance::Instance, physical_device::PhysicalDevice};
 
 pub struct InitialSurface {
+    pub window: Arc<WindowWrapper>,
     pub instance: Arc<Instance>,
     surface: ash::vk::SurfaceKHR,
     surface_loader: ash::khr::surface::Instance,
 }
 
 pub struct Surface {
+    pub window: Arc<WindowWrapper>,
     pub instance: Arc<Instance>,
     surface: ash::vk::SurfaceKHR,
     surface_loader: ash::khr::surface::Instance,
@@ -68,6 +70,7 @@ impl InitialSurface {
             ash::khr::surface::Instance::new(instance.get_entry_raw(), instance.get_instance_raw());
 
         Ok(Arc::new(InitialSurface {
+            window,
             instance,
             surface,
             surface_loader,
@@ -139,12 +142,14 @@ impl Surface {
         };
 
         let InitialSurface {
+            window,
             instance,
             surface,
             surface_loader,
         } = initial_surface;
 
         Ok(Arc::new(Surface {
+            window,
             instance,
             surface,
             surface_loader,
@@ -169,14 +174,29 @@ impl Surface {
         self.surface_capabilities.max_image_count
     }
 
-    pub fn current_extent(&self, window: Arc<WindowWrapper>) -> ash::vk::Extent2D {
+    pub fn current_extent(&self) -> ash::vk::Extent2D {
         match self.surface_capabilities.current_extent.width {
             u32::MAX => ash::vk::Extent2D {
-                width: window.get_width(),
-                height: window.get_height(),
+                width: self.window.get_width(),
+                height: self.window.get_height(),
             },
             _ => self.surface_capabilities.current_extent,
         }
+    }
+
+    pub fn width(&self) -> u32 {
+        self.current_extent().width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.current_extent().height
+    }
+
+    pub fn aspect_ratio(&self) -> f32 {
+        if self.height() == 0 {
+            return 1.0;
+        }
+        self.width() as f32 / self.height() as f32
     }
 
     pub fn supported_transforms(&self) -> ash::vk::SurfaceTransformFlagsKHR {

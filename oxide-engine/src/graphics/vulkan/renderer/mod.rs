@@ -132,11 +132,7 @@ impl VulkanRenderer {
     pub fn new(context: Arc<VulkanContext>) -> Result<VulkanRenderer, VulkanError> {
         let mut frames_in_flight = 2;
         let renderpass = Renderpass::new(context.surface.clone(), context.device.clone())?;
-        let image_data = VulkanRendererImageData::new(
-            context.clone(),
-            renderpass.clone(),
-            context.window.clone(),
-        )?;
+        let image_data = VulkanRendererImageData::new(context.clone(), renderpass.clone())?;
         frames_in_flight = image_data.clamp_frames_in_flight(frames_in_flight);
         let frame_sync = create_frame_sync(context.clone(), frames_in_flight)?;
         let image_sync =
@@ -227,11 +223,8 @@ impl VulkanRenderer {
     pub fn recreate_size_dependent_components(&mut self) -> Result<(), VulkanError> {
         self.context.device.wait_idle()?;
 
-        self.image_data.recreate(
-            self.context.clone(),
-            self.renderpass.clone(),
-            self.context.window.clone(),
-        )?;
+        self.image_data
+            .recreate(self.context.clone(), self.renderpass.clone())?;
 
         Ok(())
     }
@@ -240,7 +233,7 @@ impl VulkanRenderer {
         let current_frame = self.current_frame as usize;
         self.frame_sync[current_frame].command_buffer_fence.wait()?;
 
-        if self.context.window.minimized() {
+        if self.context.surface.window.minimized() {
             return Ok(());
         }
 
@@ -265,14 +258,13 @@ impl VulkanRenderer {
         let command_buffer = self.command_buffers[current_frame].clone();
         let framebuffer = self.image_data.framebuffers[present_index].clone();
 
-        let (width, height) = (
-            self.context.window.get_width(),
-            self.context.window.get_height(),
-        );
-        let aspect = width as f32 / height as f32;
         self.mvp_buffer.update(vec![
-            Matrix4f::perspective(40.0_f32.to_radians(), aspect, 5.0, 100.0)
-                * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
+            Matrix4f::perspective(
+                40.0_f32.to_radians(),
+                framebuffer.renderpass.surface.aspect_ratio(),
+                5.0,
+                100.0,
+            ) * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
                 * Matrix4f::translation(Vec3f::FORWARD * 30.0),
         ])?;
 

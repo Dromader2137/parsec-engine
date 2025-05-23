@@ -188,10 +188,12 @@ impl OwnedImage {
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory {
         &self.memory
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
-        unsafe { device.get_device_raw().free_memory(self.memory, None) };
-        unsafe { device.get_device_raw().destroy_image(self.image, None) };
+impl Drop for OwnedImage {
+    fn drop(&mut self) {
+        unsafe { self.device.get_device_raw().free_memory(self.memory, None) };
+        unsafe { self.device.get_device_raw().destroy_image(self.image, None) };
     }
 }
 
@@ -221,8 +223,15 @@ impl ImageView {
     pub fn get_image_view_raw(&self) -> &ash::vk::ImageView {
         &self.view
     }
+}
 
-    pub fn cleanup(&self, device: &Device) {
-        unsafe { device.get_device_raw().destroy_image_view(self.view, None) };
+impl Drop for ImageView {
+    fn drop(&mut self) {
+        unsafe {
+            self.image
+                .device()
+                .get_device_raw()
+                .destroy_image_view(self.view, None)
+        };
     }
 }

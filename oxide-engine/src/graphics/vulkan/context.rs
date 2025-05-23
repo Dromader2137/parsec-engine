@@ -13,7 +13,6 @@ use super::{
 };
 
 pub struct VulkanContext {
-    pub window: Arc<WindowWrapper>,
     pub instance: Arc<Instance>,
     pub surface: Arc<Surface>,
     pub physical_device: Arc<PhysicalDevice>,
@@ -34,7 +33,6 @@ impl VulkanContext {
         let command_pool = CommandPool::new(device.clone())?;
 
         Ok(Arc::new(VulkanContext {
-            window,
             instance,
             surface,
             physical_device,

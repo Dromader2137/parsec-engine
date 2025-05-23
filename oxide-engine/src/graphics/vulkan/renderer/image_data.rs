@@ -1,15 +1,12 @@
 use std::sync::Arc;
 
-use crate::graphics::{
-    vulkan::{
-        VulkanError,
-        context::VulkanContext,
-        framebuffer::Framebuffer,
-        image::{ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView, OwnedImage},
-        renderpass::Renderpass,
-        swapchain::Swapchain,
-    },
-    window::WindowWrapper,
+use crate::graphics::vulkan::{
+    VulkanError,
+    context::VulkanContext,
+    framebuffer::Framebuffer,
+    image::{ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView, OwnedImage},
+    renderpass::Renderpass,
+    swapchain::Swapchain,
 };
 
 pub struct VulkanRendererImageData {
@@ -24,14 +21,8 @@ impl VulkanRendererImageData {
     pub fn new(
         context: Arc<VulkanContext>,
         renderpass: Arc<Renderpass>,
-        window: Arc<WindowWrapper>,
     ) -> Result<VulkanRendererImageData, VulkanError> {
-        let swapchain = Swapchain::new(
-            context.surface.clone(),
-            context.device.clone(),
-            window.clone(),
-            None,
-        )?;
+        let swapchain = Swapchain::new(context.surface.clone(), context.device.clone(), None)?;
 
         let swapchain_images = &swapchain.swapchain_images;
         let swapchain_format = context.surface.format().into();
@@ -53,7 +44,10 @@ impl VulkanRendererImageData {
             context.device.clone(),
             ImageInfo {
                 format: ImageFormat::D16_UNORM,
-                size: (window.get_width(), window.get_height()),
+                size: (
+                    renderpass.surface.window.get_width(),
+                    renderpass.surface.window.get_height(),
+                ),
                 usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
             },
         )?;
@@ -71,7 +65,6 @@ impl VulkanRendererImageData {
                     image_view.clone(),
                     depth_view.clone(),
                     renderpass.clone(),
-                    window.clone(),
                 )?);
             }
             out
@@ -90,12 +83,10 @@ impl VulkanRendererImageData {
         &mut self,
         context: Arc<VulkanContext>,
         renderpass: Arc<Renderpass>,
-        window: Arc<WindowWrapper>,
     ) -> Result<(), VulkanError> {
         let swapchain = Swapchain::new(
             context.surface.clone(),
             context.device.clone(),
-            window.clone(),
             Some(self.swapchain.clone()),
         )?;
 
@@ -119,7 +110,10 @@ impl VulkanRendererImageData {
             context.device.clone(),
             ImageInfo {
                 format: ImageFormat::D16_UNORM,
-                size: (window.get_width(), window.get_height()),
+                size: (
+                    renderpass.surface.window.get_width(),
+                    renderpass.surface.window.get_height(),
+                ),
                 usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
             },
         )?;
@@ -137,7 +131,6 @@ impl VulkanRendererImageData {
                     image_view.clone(),
                     depth_view.clone(),
                     renderpass.clone(),
-                    window.clone(),
                 )?);
             }
             out
