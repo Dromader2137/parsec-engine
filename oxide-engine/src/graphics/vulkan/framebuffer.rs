@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use crate::graphics::window::WindowWrapper;
 
-use super::{
-    VulkanError, image::ImageView, renderpass::Renderpass,
-};
+use super::{VulkanError, image::ImageView, renderpass::Renderpass};
 
 pub struct Framebuffer {
     pub renderpass: Arc<Renderpass>,
@@ -45,7 +43,7 @@ impl Framebuffer {
             .layers(1);
 
         let framebuffer = match unsafe {
-            renderpass  
+            renderpass
                 .device
                 .get_device_raw()
                 .create_framebuffer(&frame_buffer_create_info, None)
@@ -74,8 +72,7 @@ impl Framebuffer {
 impl Drop for Framebuffer {
     fn drop(&mut self) {
         unsafe {
-            self
-                .renderpass
+            self.renderpass
                 .device
                 .get_device_raw()
                 .destroy_framebuffer(self.framebuffer, None)

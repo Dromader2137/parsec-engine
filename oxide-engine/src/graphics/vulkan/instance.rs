@@ -58,7 +58,7 @@ unsafe extern "system" fn vulkan_debug_callback(
 }
 
 impl Instance {
-    pub fn new(window: &WindowWrapper) -> Result<Arc<Instance>, InstanceError> {
+    pub fn new(window: Arc<WindowWrapper>) -> Result<Arc<Instance>, InstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
             Ok(val) => val,
             Err(err) => return Err(InstanceError::EntryError(err)),

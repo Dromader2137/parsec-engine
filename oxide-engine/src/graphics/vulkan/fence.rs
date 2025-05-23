@@ -39,8 +39,7 @@ impl Fence {
 
     pub fn wait(&self) -> Result<(), FenceError> {
         if let Err(err) = unsafe {
-            self
-                .device
+            self.device
                 .get_device_raw()
                 .wait_for_fences(&[self.fence], true, u64::MAX)
         } {

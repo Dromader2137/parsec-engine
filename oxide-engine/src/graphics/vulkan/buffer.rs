@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use super::{VulkanError, device::Device, instance::Instance, physical_device::PhysicalDevice};
 
@@ -158,7 +158,11 @@ impl<T: Clone + Copy> Buffer<T> {
 
 impl<T: Clone + Copy> Drop for Buffer<T> {
     fn drop(&mut self) {
-        unsafe { self.device.get_device_raw().destroy_buffer(self.buffer, None) };
+        unsafe {
+            self.device
+                .get_device_raw()
+                .destroy_buffer(self.buffer, None)
+        };
         unsafe { self.device.get_device_raw().free_memory(self.memory, None) };
     }
 }

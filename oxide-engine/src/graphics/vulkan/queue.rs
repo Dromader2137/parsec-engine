@@ -23,7 +23,10 @@ impl From<QueueError> for VulkanError {
 impl Queue {
     pub fn present(device: Arc<Device>, family_index: u32) -> Arc<Queue> {
         let raw_queue = unsafe { device.get_device_raw().get_device_queue(family_index, 0) };
-        Arc::new(Queue { device, queue: raw_queue })
+        Arc::new(Queue {
+            device,
+            queue: raw_queue,
+        })
     }
 
     pub fn submit(

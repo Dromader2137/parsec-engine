@@ -20,9 +20,7 @@ impl From<DeviceError> for VulkanError {
 }
 
 impl Device {
-    pub fn new(
-        physical_device: Arc<PhysicalDevice>,
-    ) -> Result<Arc<Device>, DeviceError> {
+    pub fn new(physical_device: Arc<PhysicalDevice>) -> Result<Arc<Device>, DeviceError> {
         let device_extension_names_raw = [ash::khr::swapchain::NAME.as_ptr()];
 
         let features = ash::vk::PhysicalDeviceFeatures {
@@ -52,7 +50,10 @@ impl Device {
             Err(err) => return Err(DeviceError::DeviceCreationError(err)),
         };
 
-        Ok(Arc::new(Device { physical_device, device }))
+        Ok(Arc::new(Device {
+            physical_device,
+            device,
+        }))
     }
 
     pub fn wait_idle(&self) -> Result<(), DeviceError> {

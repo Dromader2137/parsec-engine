@@ -44,7 +44,10 @@ impl ShaderModule {
             Err(err) => return Err(ShaderError::CreationError(err)),
         };
 
-        Ok(Arc::new(ShaderModule { device, shader_module }))
+        Ok(Arc::new(ShaderModule {
+            device,
+            shader_module,
+        }))
     }
 
     pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule {
@@ -55,8 +58,7 @@ impl ShaderModule {
 impl Drop for ShaderModule {
     fn drop(&mut self) {
         unsafe {
-            self
-                .device
+            self.device
                 .get_device_raw()
                 .destroy_shader_module(self.shader_module, None)
         };

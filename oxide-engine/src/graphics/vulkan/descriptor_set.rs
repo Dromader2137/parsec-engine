@@ -109,8 +109,7 @@ impl DescriptorPool {
 impl Drop for DescriptorPool {
     fn drop(&mut self) {
         unsafe {
-            self
-                .device
+            self.device
                 .get_device_raw()
                 .destroy_descriptor_pool(self.pool, None);
         }
@@ -135,7 +134,11 @@ impl<'a> DescriptorSetLayout {
             Err(err) => return Err(DescriptorError::SetLayoutCreationError(err)),
         };
 
-        Ok(Arc::new(DescriptorSetLayout { device, layout, bindings }))
+        Ok(Arc::new(DescriptorSetLayout {
+            device,
+            layout,
+            bindings,
+        }))
     }
 
     pub fn get_layout_raw(&self) -> &ash::vk::DescriptorSetLayout {
@@ -146,8 +149,7 @@ impl<'a> DescriptorSetLayout {
 impl Drop for DescriptorSetLayout {
     fn drop(&mut self) {
         unsafe {
-            self
-                .device
+            self.device
                 .get_device_raw()
                 .destroy_descriptor_set_layout(self.layout, None);
         }
@@ -206,8 +208,7 @@ impl DescriptorSet {
             .dst_array_element(0);
 
         unsafe {
-            self
-                .descriptor_pool
+            self.descriptor_pool
                 .device
                 .get_device_raw()
                 .update_descriptor_sets(&[write_info], &[]);
@@ -238,8 +239,7 @@ impl DescriptorSet {
             .dst_array_element(0);
 
         unsafe {
-            self
-                .descriptor_pool
+            self.descriptor_pool
                 .device
                 .get_device_raw()
                 .update_descriptor_sets(&[write_info], &[]);
@@ -256,8 +256,7 @@ impl DescriptorSet {
 impl Drop for DescriptorSet {
     fn drop(&mut self) {
         unsafe {
-            self
-                .descriptor_pool
+            self.descriptor_pool
                 .device
                 .get_device_raw()
                 .free_descriptor_sets(*self.descriptor_pool.get_pool_raw(), &[self.set])

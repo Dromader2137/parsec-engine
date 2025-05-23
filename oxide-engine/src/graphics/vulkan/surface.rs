@@ -39,7 +39,7 @@ impl From<SurfaceError> for VulkanError {
 impl InitialSurface {
     pub fn new(
         instance: Arc<Instance>,
-        window: &WindowWrapper,
+        window: Arc<WindowWrapper>,
     ) -> Result<Arc<InitialSurface>, SurfaceError> {
         let display_handle = match window.get_display_handle() {
             Ok(val) => val,
@@ -101,17 +101,22 @@ impl InitialSurface {
 }
 
 impl Surface {
-    pub fn from_initial_surface(initial_surface_arc: Arc<InitialSurface>, physical_device: Arc<PhysicalDevice>) -> Result<Arc<Surface>, SurfaceError> {
+    pub fn from_initial_surface(
+        initial_surface_arc: Arc<InitialSurface>,
+        physical_device: Arc<PhysicalDevice>,
+    ) -> Result<Arc<Surface>, SurfaceError> {
         let initial_surface = match Arc::into_inner(initial_surface_arc) {
             Some(val) => val,
-            None => return Err(SurfaceError::InitialSurfaceBorrowedMoreThanOnce)
+            None => return Err(SurfaceError::InitialSurfaceBorrowedMoreThanOnce),
         };
 
         let surface_formats = match unsafe {
-            initial_surface.surface_loader.get_physical_device_surface_formats(
-                *physical_device.get_physical_device_raw(),
-                initial_surface.surface,
-            )
+            initial_surface
+                .surface_loader
+                .get_physical_device_surface_formats(
+                    *physical_device.get_physical_device_raw(),
+                    initial_surface.surface,
+                )
         } {
             Ok(val) => val,
             Err(err) => return Err(SurfaceError::FormatsError(err)),
@@ -122,7 +127,8 @@ impl Surface {
         }
 
         let surface_capabilities = match unsafe {
-            initial_surface.surface_loader
+            initial_surface
+                .surface_loader
                 .get_physical_device_surface_capabilities(
                     *physical_device.get_physical_device_raw(),
                     initial_surface.surface,

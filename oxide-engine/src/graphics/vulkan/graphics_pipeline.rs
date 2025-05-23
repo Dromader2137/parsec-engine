@@ -182,11 +182,15 @@ impl GraphicsPipeline {
             .render_pass(*framebuffer.renderpass.get_renderpass_raw());
 
         let pipeline = match unsafe {
-            framebuffer.renderpass.device.get_device_raw().create_graphics_pipelines(
-                ash::vk::PipelineCache::null(),
-                &[graphic_pipeline_info],
-                None,
-            )
+            framebuffer
+                .renderpass
+                .device
+                .get_device_raw()
+                .create_graphics_pipelines(
+                    ash::vk::PipelineCache::null(),
+                    &[graphic_pipeline_info],
+                    None,
+                )
         } {
             Ok(val) => val,
             Err(err) => return Err(GraphicsPipelineError::CreationError(err.1)),
@@ -214,14 +218,12 @@ impl GraphicsPipeline {
 impl Drop for GraphicsPipeline {
     fn drop(&mut self) {
         unsafe {
-            self
-                .framebuffer
+            self.framebuffer
                 .renderpass
                 .device
                 .get_device_raw()
                 .destroy_pipeline_layout(self.graphics_pipeline_layout, None);
-            self
-                .framebuffer
+            self.framebuffer
                 .renderpass
                 .device
                 .get_device_raw()

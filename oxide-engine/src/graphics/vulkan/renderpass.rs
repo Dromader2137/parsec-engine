@@ -20,7 +20,10 @@ impl From<RenderpassError> for VulkanError {
 }
 
 impl Renderpass {
-    pub fn new(surface: Arc<Surface>, device: Arc<Device>) -> Result<Arc<Renderpass>, RenderpassError> {
+    pub fn new(
+        surface: Arc<Surface>,
+        device: Arc<Device>,
+    ) -> Result<Arc<Renderpass>, RenderpassError> {
         let renderpass_attachments = [
             ash::vk::AttachmentDescription {
                 format: surface.format(),
@@ -75,7 +78,11 @@ impl Renderpass {
             Err(err) => return Err(RenderpassError::CreationError(err)),
         };
 
-        Ok(Arc::new(Renderpass { device, surface, renderpass }))
+        Ok(Arc::new(Renderpass {
+            device,
+            surface,
+            renderpass,
+        }))
     }
 
     pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass {
@@ -86,8 +93,7 @@ impl Renderpass {
 impl Drop for Renderpass {
     fn drop(&mut self) {
         unsafe {
-            self
-                .device
+            self.device
                 .get_device_raw()
                 .destroy_render_pass(self.renderpass, None)
         };

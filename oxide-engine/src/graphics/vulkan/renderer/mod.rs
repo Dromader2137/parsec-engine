@@ -9,9 +9,7 @@ use image_data::VulkanRendererImageData;
 use sync::{VulkanRendererFrameSync, VulkanRendererImageSync};
 
 use crate::{
-    graphics::{
-        mesh::MeshData, vulkan::graphics_pipeline::VertexFieldFormat, window::WindowWrapper,
-    },
+    graphics::{mesh::MeshData, vulkan::graphics_pipeline::VertexFieldFormat},
     math::{mat::Matrix4f, vec::Vec3f},
 };
 
@@ -97,7 +95,10 @@ impl DefaultVertex {
     }
 }
 
-fn create_frame_sync(context: Arc<VulkanContext>, frames_in_flight: usize) -> Result<Vec<VulkanRendererFrameSync>, VulkanError> {
+fn create_frame_sync(
+    context: Arc<VulkanContext>,
+    frames_in_flight: usize,
+) -> Result<Vec<VulkanRendererFrameSync>, VulkanError> {
     let mut ret = Vec::new();
     for _ in 0..frames_in_flight {
         ret.push(VulkanRendererFrameSync::new(context.device.clone())?);
@@ -105,7 +106,10 @@ fn create_frame_sync(context: Arc<VulkanContext>, frames_in_flight: usize) -> Re
     Ok(ret)
 }
 
-fn create_image_sync(context: Arc<VulkanContext>, image_count: usize) -> Result<Vec<VulkanRendererImageSync>, VulkanError> {
+fn create_image_sync(
+    context: Arc<VulkanContext>,
+    image_count: usize,
+) -> Result<Vec<VulkanRendererImageSync>, VulkanError> {
     let mut ret = Vec::new();
     for _ in 0..image_count {
         ret.push(VulkanRendererImageSync::new(context.device.clone())?);
@@ -113,7 +117,10 @@ fn create_image_sync(context: Arc<VulkanContext>, image_count: usize) -> Result<
     Ok(ret)
 }
 
-fn create_commad_buffers(context: Arc<VulkanContext>, frames_in_flight: usize) -> Result<Vec<Arc<CommandBuffer>>, VulkanError> {
+fn create_commad_buffers(
+    context: Arc<VulkanContext>,
+    frames_in_flight: usize,
+) -> Result<Vec<Arc<CommandBuffer>>, VulkanError> {
     let mut ret = Vec::new();
     for _ in 0..frames_in_flight {
         ret.push(CommandBuffer::new(context.command_pool.clone())?);
@@ -122,19 +129,27 @@ fn create_commad_buffers(context: Arc<VulkanContext>, frames_in_flight: usize) -
 }
 
 impl VulkanRenderer {
-    pub fn new(
-        context: Arc<VulkanContext>,
-        window: Arc<WindowWrapper>,
-    ) -> Result<VulkanRenderer, VulkanError> {
+    pub fn new(context: Arc<VulkanContext>) -> Result<VulkanRenderer, VulkanError> {
         let mut frames_in_flight = 2;
         let renderpass = Renderpass::new(context.surface.clone(), context.device.clone())?;
-        let image_data = VulkanRendererImageData::new(context.clone(), renderpass.clone(), window)?;
+        let image_data = VulkanRendererImageData::new(
+            context.clone(),
+            renderpass.clone(),
+            context.window.clone(),
+        )?;
         frames_in_flight = image_data.clamp_frames_in_flight(frames_in_flight);
         let frame_sync = create_frame_sync(context.clone(), frames_in_flight)?;
-        let image_sync = create_image_sync(context.clone(), image_data.swapchain.swapchain_images.len())?;
+        let image_sync =
+            create_image_sync(context.clone(), image_data.swapchain.swapchain_images.len())?;
         let command_buffers = create_commad_buffers(context.clone(), frames_in_flight)?;
-        let vertex_shader = ShaderModule::new(context.device.clone(), &read_shader_code("shaders/simple.spv")?)?;
-        let fragment_shader = ShaderModule::new(context.device.clone(), &read_shader_code("shaders/flat.spv")?)?;
+        let vertex_shader = ShaderModule::new(
+            context.device.clone(),
+            &read_shader_code("shaders/simple.spv")?,
+        )?;
+        let fragment_shader = ShaderModule::new(
+            context.device.clone(),
+            &read_shader_code("shaders/flat.spv")?,
+        )?;
 
         let pos = vec![
             Vec3f::new(0.0, 0.0, 0.0),
@@ -158,11 +173,7 @@ impl VulkanRenderer {
             .map(|x| DefaultVertex::new(*x.0, *x.1))
             .collect();
 
-        let mesh_data = MeshData::new(
-            context.device.clone(),
-            vertices,
-            indices,
-        )?;
+        let mesh_data = MeshData::new(context.device.clone(), vertices, indices)?;
 
         let mvp_buffer = Buffer::from_vec(
             context.device.clone(),
@@ -213,54 +224,57 @@ impl VulkanRenderer {
         })
     }
 
-    pub fn recreate_size_dependent_components(
-        &mut self,
-        window: Arc<WindowWrapper>,
-    ) -> Result<(), VulkanError> {
+    pub fn recreate_size_dependent_components(&mut self) -> Result<(), VulkanError> {
         self.context.device.wait_idle()?;
 
-        self.image_data.recreate(self.context.clone(), self.renderpass.clone(), window)?;
+        self.image_data.recreate(
+            self.context.clone(),
+            self.renderpass.clone(),
+            self.context.window.clone(),
+        )?;
 
         Ok(())
     }
 
-    pub fn render(
-        &mut self,
-        window: Arc<WindowWrapper>,
-    ) -> Result<(), VulkanError> {
+    pub fn render(&mut self) -> Result<(), VulkanError> {
         let current_frame = self.current_frame as usize;
         self.frame_sync[current_frame].command_buffer_fence.wait()?;
 
-        if window.minimized() {
+        if self.context.window.minimized() {
             return Ok(());
         }
 
         if self.resize {
-            self.recreate_size_dependent_components(window.clone())?;
+            self.recreate_size_dependent_components()?;
             self.resize = false;
         }
 
-        let (present_index, suboptimal) = self
-            .image_data
-            .swapchain
-            .acquire_next_image(self.frame_sync[current_frame].image_available_semaphore.clone(), Fence::null(self.context.device.clone()))?;
+        let (present_index, suboptimal) = self.image_data.swapchain.acquire_next_image(
+            self.frame_sync[current_frame]
+                .image_available_semaphore
+                .clone(),
+            Fence::null(self.context.device.clone()),
+        )?;
         let present_index = present_index as usize;
 
         self.resize |= suboptimal;
-        self.frame_sync[current_frame].command_buffer_fence.reset()?;
+        self.frame_sync[current_frame]
+            .command_buffer_fence
+            .reset()?;
 
         let command_buffer = self.command_buffers[current_frame].clone();
         let framebuffer = self.image_data.framebuffers[present_index].clone();
 
-        let (width, height) = (window.get_width(), window.get_height());
+        let (width, height) = (
+            self.context.window.get_width(),
+            self.context.window.get_height(),
+        );
         let aspect = width as f32 / height as f32;
-        self.mvp_buffer.update(
-            vec![
-                Matrix4f::perspective(40.0_f32.to_radians(), aspect, 5.0, 100.0)
-                    * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
-                    * Matrix4f::translation(Vec3f::FORWARD * 30.0)
-            ],
-        )?;
+        self.mvp_buffer.update(vec![
+            Matrix4f::perspective(40.0_f32.to_radians(), aspect, 5.0, 100.0)
+                * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
+                * Matrix4f::translation(Vec3f::FORWARD * 30.0),
+        ])?;
 
         command_buffer.reset()?;
         command_buffer.begin()?;
@@ -274,15 +288,21 @@ impl VulkanRenderer {
         command_buffer.end()?;
 
         self.context.graphics_queue.submit(
-            &[self.frame_sync[current_frame].image_available_semaphore.clone()],
-            &[self.image_sync[present_index].rendering_complete_semaphore.clone()],
+            &[self.frame_sync[current_frame]
+                .image_available_semaphore
+                .clone()],
+            &[self.image_sync[present_index]
+                .rendering_complete_semaphore
+                .clone()],
             &[command_buffer],
-            self.frame_sync[current_frame].command_buffer_fence.clone()
+            self.frame_sync[current_frame].command_buffer_fence.clone(),
         )?;
 
         self.image_data.swapchain.present(
             self.context.graphics_queue.clone(),
-            &[self.image_sync[present_index].rendering_complete_semaphore.clone()],
+            &[self.image_sync[present_index]
+                .rendering_complete_semaphore
+                .clone()],
             present_index as u32,
         )?;
 
@@ -298,6 +318,6 @@ impl VulkanRenderer {
 
 impl Drop for VulkanRenderer {
     fn drop(&mut self) {
-        self.context.device.wait_idle().unwrap_or(());  
+        self.context.device.wait_idle().unwrap_or(());
     }
 }

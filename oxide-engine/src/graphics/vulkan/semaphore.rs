@@ -47,9 +47,8 @@ impl Semaphore {
 
 impl Drop for Semaphore {
     fn drop(&mut self) {
-        unsafe { 
-            self
-                .device
+        unsafe {
+            self.device
                 .get_device_raw()
                 .destroy_semaphore(self.semaphore, None)
         };

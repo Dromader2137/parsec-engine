@@ -19,16 +19,8 @@ impl<V: Vertex> MeshBuffer<V> {
         indices: Vec<u32>,
     ) -> Result<MeshBuffer<V>, VulkanError> {
         Ok(MeshBuffer {
-            vertex_buffer: Buffer::from_vec(
-                device.clone(),
-                vertices,
-                BufferUsage::VERTEX_BUFFER,
-            )?,
-            index_buffer: Buffer::from_vec(
-                device,
-                indices,
-                BufferUsage::INDEX_BUFFER,
-            )?,
+            vertex_buffer: Buffer::from_vec(device.clone(), vertices, BufferUsage::VERTEX_BUFFER)?,
+            index_buffer: Buffer::from_vec(device, indices, BufferUsage::INDEX_BUFFER)?,
         })
     }
 

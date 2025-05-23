@@ -43,10 +43,9 @@ impl Graphics {
         window_name: &str,
     ) -> Result<(), GraphicsError> {
         self.window = Some(WindowWrapper::new(event_loop, window_name)?);
-        self.vulkan_context = Some(VulkanContext::new(self.window.as_ref().unwrap())?);
+        self.vulkan_context = Some(VulkanContext::new(self.window.as_ref().unwrap().clone())?);
         self.renderer = Some(VulkanRenderer::new(
             self.vulkan_context.as_ref().unwrap().clone(),
-            self.window.as_ref().unwrap().clone(),
         )?);
 
         Ok(())
@@ -54,7 +53,7 @@ impl Graphics {
 
     pub fn render(&mut self) -> Result<(), GraphicsError> {
         match self.renderer.as_mut() {
-            Some(val) => val.render(self.window.as_ref().unwrap().clone())?,
+            Some(val) => val.render()?,
             None => return Err(GraphicsError::Uninitialized),
         };
 

@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use super::{
-    buffer::find_memorytype_index, device::Device, format_size::format_size, VulkanError
-};
+use super::{VulkanError, buffer::find_memorytype_index, device::Device, format_size::format_size};
 
 pub trait Image: 'static {
     fn get_image_raw(&self) -> &ash::vk::Image;
@@ -122,15 +120,15 @@ impl From<ImageInfo> for ash::vk::ImageCreateInfo<'_> {
 
 impl SwapchainImage {
     pub fn from_raw_image(device: Arc<Device>, raw_image: ash::vk::Image) -> Arc<SwapchainImage> {
-        Arc::new(SwapchainImage { device, image: raw_image })
+        Arc::new(SwapchainImage {
+            device,
+            image: raw_image,
+        })
     }
 }
 
 impl OwnedImage {
-    pub fn new(
-        device: Arc<Device>,
-        create_info: ImageInfo,
-    ) -> Result<Arc<OwnedImage>, ImageError> {
+    pub fn new(device: Arc<Device>, create_info: ImageInfo) -> Result<Arc<OwnedImage>, ImageError> {
         let size = create_info.size;
         let format = create_info.format;
 

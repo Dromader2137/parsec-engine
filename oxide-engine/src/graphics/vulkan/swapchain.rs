@@ -3,7 +3,8 @@ use std::sync::Arc;
 use crate::graphics::window::WindowWrapper;
 
 use super::{
-    VulkanError, device::Device, fence::Fence, image::SwapchainImage, queue::Queue, semaphore::Semaphore, surface::Surface,
+    VulkanError, device::Device, fence::Fence, image::SwapchainImage, queue::Queue,
+    semaphore::Semaphore, surface::Surface,
 };
 
 pub struct Swapchain {
@@ -34,7 +35,7 @@ impl Swapchain {
         surface: Arc<Surface>,
         device: Arc<Device>,
         window: Arc<WindowWrapper>,
-        old_swapchain: Option<Arc<Swapchain>>
+        old_swapchain: Option<Arc<Swapchain>>,
     ) -> Result<Arc<Swapchain>, SwapchainError> {
         let mut desired_image_count = surface.min_image_count() + 1;
         if surface.max_image_count() > 0 && desired_image_count > surface.max_image_count() {
@@ -70,8 +71,10 @@ impl Swapchain {
             .find(|&mode| mode == ash::vk::PresentModeKHR::MAILBOX)
             .unwrap_or(ash::vk::PresentModeKHR::FIFO);
 
-        let swapchain_loader =
-            ash::khr::swapchain::Device::new(device.physical_device.instance.get_instance_raw(), device.get_device_raw());
+        let swapchain_loader = ash::khr::swapchain::Device::new(
+            device.physical_device.instance.get_instance_raw(),
+            device.get_device_raw(),
+        );
 
         let mut swapchain_create_info = ash::vk::SwapchainCreateInfoKHR::default()
             .surface(*surface.get_surface_raw())
@@ -96,9 +99,12 @@ impl Swapchain {
                 Ok(val) => val,
                 Err(err) => return Err(SwapchainError::CreationError(err)),
             };
-        
+
         let swapchain_images = match unsafe { swapchain_loader.get_swapchain_images(swapchain) } {
-            Ok(val) => val.into_iter().map(|x| SwapchainImage::from_raw_image(device.clone(), x)).collect::<Vec<_>>(),
+            Ok(val) => val
+                .into_iter()
+                .map(|x| SwapchainImage::from_raw_image(device.clone(), x))
+                .collect::<Vec<_>>(),
             Err(err) => return Err(SwapchainError::ImageAcquisitionError(err)),
         };
 

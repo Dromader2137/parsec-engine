@@ -5,9 +5,7 @@ use crate::graphics::{
         VulkanError,
         context::VulkanContext,
         framebuffer::Framebuffer,
-        image::{
-            ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView, OwnedImage,
-        },
+        image::{ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView, OwnedImage},
         renderpass::Renderpass,
         swapchain::Swapchain,
     },
@@ -32,7 +30,7 @@ impl VulkanRendererImageData {
             context.surface.clone(),
             context.device.clone(),
             window.clone(),
-            None
+            None,
         )?;
 
         let swapchain_images = &swapchain.swapchain_images;
@@ -98,7 +96,7 @@ impl VulkanRendererImageData {
             context.surface.clone(),
             context.device.clone(),
             window.clone(),
-            Some(self.swapchain.clone())
+            Some(self.swapchain.clone()),
         )?;
 
         let swapchain_images = &swapchain.swapchain_images;
