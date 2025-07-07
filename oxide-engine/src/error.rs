@@ -1,4 +1,4 @@
-use crate::{assets::AssetError, graphics::GraphicsError, world::WorldError};
+use crate::{assets::AssetError, graphics::GraphicsError, ecs::world::WorldError};
 
 #[derive(Debug)]
 pub enum EngineError {

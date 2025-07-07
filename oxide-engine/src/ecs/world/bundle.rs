@@ -1,7 +1,5 @@
-use crate::world::archetype::ColumnStateWrapper;
 use oxide_engine_macros::multiple_tuples;
-
-use super::archetype::{Archetype, ArchetypeError, ArchetypeId};
+use super::archetype::{Archetype, ArchetypeError, ArchetypeId, ColumnStateWrapper};
 use crate::oxide_engine_macros::{impl_bundle, impl_from_columns, impl_from_columns_mut};
 use std::any::TypeId;
 

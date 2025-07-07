@@ -1,5 +1,5 @@
 use crate::{
-    assets::library::AssetLibrary, error::error, graphics::Graphics, input::Input, world::World,
+    assets::library::AssetLibrary, error::error, graphics::Graphics, input::Input, ecs::world::World,
 };
 
 #[allow(unused)]

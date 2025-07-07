@@ -6,7 +6,7 @@ pub mod error;
 pub mod graphics;
 pub mod input;
 pub mod math;
-pub mod world;
+pub mod ecs;
 
 pub use oxide_engine_macros;
 
