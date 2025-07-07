@@ -7,8 +7,6 @@ use crate::error::EngineError;
 
 pub mod archetype;
 pub mod bundle;
-pub mod entity;
-pub mod system;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum WorldError {
