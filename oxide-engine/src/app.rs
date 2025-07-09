@@ -1,12 +1,12 @@
 use crate::{
-    assets::library::AssetLibrary, error::error, graphics::Graphics, input::Input, ecs::world::World,
+    assets::library::AssetLibrary, ecs::{system::{SystemInput, SystemType, Systems}, world::World}, error::error, graphics::Graphics, input::Input
 };
 
 #[allow(unused)]
 pub struct App {
     name: String,
     world: World,
-    systems: ,
+    pub systems: Systems,
     input: Input,
     assets: AssetLibrary,
     graphics: Graphics,
@@ -17,6 +17,7 @@ impl App {
         App {
             name,
             world: World::new(),
+            systems: Systems::new(),
             input: Input::new(),
             assets: AssetLibrary::new(),
             graphics: Graphics::new(),
@@ -24,6 +25,8 @@ impl App {
     }
 
     pub fn run(&mut self) {
+        self.systems.execute_type(SystemType::Start, SystemInput { world: &mut self.world, assets: &mut self.assets, graphics: &mut self.graphics } );
+
         let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
         event_loop
@@ -76,6 +79,7 @@ impl winit::application::ApplicationHandler for App {
                 }
             }
             winit::event::WindowEvent::CloseRequested => {
+                self.systems.execute_type(SystemType::Close, SystemInput { world: &mut self.world, assets: &mut self.assets, graphics: &mut self.graphics } );
                 event_loop.exit();
             }
             winit::event::WindowEvent::RedrawRequested => {
@@ -92,5 +96,6 @@ impl winit::application::ApplicationHandler for App {
         if let Err(err) = self.graphics.request_redraw() {
             error(err.into());
         }
+        self.systems.execute_type(SystemType::Update, SystemInput { world: &mut self.world, assets: &mut self.assets, graphics: &mut self.graphics } );
     }
 }

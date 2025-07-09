@@ -1,5 +1,3 @@
-use app::App;
-
 pub mod app;
 pub mod assets;
 pub mod error;
@@ -9,8 +7,3 @@ pub mod math;
 pub mod ecs;
 
 pub use oxide_engine_macros;
-
-pub fn run() {
-    let mut app = App::new("Oxide test".to_string());
-    app.run();
-}
