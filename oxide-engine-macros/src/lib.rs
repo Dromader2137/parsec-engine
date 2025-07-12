@@ -22,7 +22,7 @@ pub fn impl_bundle(input: TokenStream) -> TokenStream {
     if types.len() == 1 {
         let t = types.get(0).unwrap();
         let output = quote! {
-            impl<#t: Clone + Sized + Send + Sync + 'static> Bundle for (#t, ) {
+            impl<#t: Component> Bundle for (#t, ) {
                 fn type_id(&self) -> TypeId {
                     TypeId::of::<Self>()
                 }
@@ -40,7 +40,7 @@ pub fn impl_bundle(input: TokenStream) -> TokenStream {
     let mut for_types = Vec::new();
     let mut adds = Vec::new();
     for (i, t) in types.iter().enumerate() {
-        impl_types.push(quote! { #t: Clone + Sized + Send + Sync + 'static });
+        impl_types.push(quote! { #t: Component });
         for_types.push(quote! { #t });
         let i = syn::Index::from(i);
         adds.push(quote! { arch.add(self.#i.clone())?; });
@@ -80,75 +80,75 @@ pub fn impl_from_columns(input: TokenStream) -> TokenStream {
     let len = types.len();
     let mut impl_types = Vec::new();
     let mut bundle_types = Vec::new();
-    let mut query_types = Vec::new();
-    let mut gets = Vec::new();
-    let mut query_ref = Vec::new();
+    let mut raw_get = Vec::new();
+    let mut query_output_types = Vec::new();
     let mut query_fields = Vec::new();
     let mut query_field_names = Vec::new();
     let mut query_init = Vec::new();
     let mut query_get = Vec::new();
-    let mut query_drop = Vec::new();
-    let mut query_borrow = Vec::new();
     for (i, t) in types.iter().enumerate() {
-        impl_types.push(quote! { #t: Sized + Clone + Send + Sync + 'static });
+        impl_types.push(quote! { #t: Component });
         bundle_types.push(quote! { #t });
-        query_types.push(quote! { #t });
-        gets.push(quote! { arch.get::<#t>()? });
-        query_ref.push(quote! { &'a #t });
+        raw_get.push(quote! { arch.get::<#t>()? });
+        query_output_types.push(quote! { RefGuard<'a, #t> });
         let field = format_ident!("i_{}", i);
         query_fields.push(quote! { #field: (std::slice::Iter<'a, #t>, &'a ColumnStateWrapper) });
         query_field_names.push(quote! { #field });
-        query_get.push(quote! { self.#field.0.next()? });
+        query_get.push(quote! { RefGuard::new(self.#field.0.next()?, &self.#field.1).unwrap() });
         let index = syn::Index::from(i);
         query_init.push(quote! { ((*sov.#index.0).iter(), sov.#index.1) });
-        query_drop.push(quote! { self.#field.1.free().unwrap(); });
-        query_borrow.push(quote! { #field.1.borrow()?; });
     }
 
     if types.len() == 1 {
         bundle_types.push(quote! {});
-        query_ref.push(quote! {});
-        gets.push(quote! {});
+        query_output_types.push(quote! {});
+        raw_get.push(quote! {});
     }
 
     let query_name = format_ident!("Query{}", len);
 
-    let output = quote! {
+    let query_type_declaration = quote! {
         struct #query_name<'a, #(#bundle_types),*> {
             #(#query_fields),*
         }
+    };
 
-        impl<'a, #(#query_types),*> #query_name<'a, #(#bundle_types),*> {
+    let query_impl = quote! {
+        impl<'a, #(#impl_types),*> #query_name<'a, #(#bundle_types),*> {
             fn new(#(#query_fields),*) -> Result<#query_name<'a, #(#bundle_types),*>, ArchetypeError> {
-                #(#query_borrow)*
                 Ok(#query_name {#(#query_field_names),*})
             }
         }
+    };
 
-        impl<'a, #(#query_types),*> Drop for #query_name<'a, #(#query_types),*> {
-            fn drop(&mut self) {
-                #(#query_drop)*
-            }
-        }
-
-        impl<'a, #(#query_types),*> Iterator for #query_name<'a, #(#query_types),*> {
-            type Item = (#(#query_ref),*);
+    let query_iterator_impl = quote! {
+        impl<'a, #(#impl_types),*> Iterator for #query_name<'a, #(#bundle_types),*> {
+            type Item = (#(#query_output_types),*);
             fn next(&mut self) -> Option<Self::Item> {
                 Some((
                     #(#query_get),*,
                 ))
             }
         }
+    };
 
+    let from_columns_impl = quote! {
         impl<'a, #(#impl_types),*> FromColumns<'a> for (#(#bundle_types),*) {
-            type Output = (#(#query_ref),*);
+            type Output = (#(#query_output_types),*);
             fn iter_from_columns<'b>(arch: &'b Archetype) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError> where 'b: 'a  {
-                let sov = (#(#gets),*);
+                let sov = (#(#raw_get),*);
                 unsafe {
-                #query_name::new(#(#query_init),*)
+                    #query_name::new(#(#query_init),*)
                 }
             }
         }
+    };
+
+    let output = quote! {
+        #query_type_declaration
+        #query_impl
+        #query_iterator_impl
+        #from_columns_impl
     };
 
     TokenStream::from(output)
@@ -161,75 +161,75 @@ pub fn impl_from_columns_mut(input: TokenStream) -> TokenStream {
     let len = types.len();
     let mut impl_types = Vec::new();
     let mut bundle_types = Vec::new();
-    let mut query_types = Vec::new();
-    let mut gets = Vec::new();
-    let mut query_ref = Vec::new();
+    let mut raw_get = Vec::new();
+    let mut query_output_types = Vec::new();
     let mut query_fields = Vec::new();
     let mut query_field_names = Vec::new();
     let mut query_init = Vec::new();
     let mut query_get = Vec::new();
-    let mut query_drop = Vec::new();
-    let mut query_borrow = Vec::new();
     for (i, t) in types.iter().enumerate() {
-        impl_types.push(quote! { #t: Sized + Clone + Send + Sync + 'static });
+        impl_types.push(quote! { #t: Component });
         bundle_types.push(quote! { #t });
-        query_types.push(quote! { #t });
-        query_ref.push(quote! { &'a mut #t });
-        gets.push(quote! { arch.get_mut::<#t>()? });
+        raw_get.push(quote! { arch.get_mut::<#t>()? });
+        query_output_types.push(quote! { RefGuardMut<'a, #t> });
         let field = format_ident!("i_{}", i);
         query_fields.push(quote! { #field: (std::slice::IterMut<'a, #t>, &'a ColumnStateWrapper) });
         query_field_names.push(quote! { #field });
-        query_get.push(quote! { self.#field.0.next()? });
+        query_get.push(quote! { RefGuardMut::new(self.#field.0.next()?, &self.#field.1).unwrap() });
         let index = syn::Index::from(i);
         query_init.push(quote! { ((*sov.#index.0).iter_mut(), sov.#index.1) });
-        query_drop.push(quote! { self.#field.1.free().unwrap(); });
-        query_borrow.push(quote! { #field.1.borrow_mut()?; });
     }
 
     if types.len() == 1 {
         bundle_types.push(quote! {});
-        query_ref.push(quote! {});
-        gets.push(quote! {});
+        query_output_types.push(quote! {});
+        raw_get.push(quote! {});
     }
 
     let query_name = format_ident!("QueryMut{}", len);
 
-    let output = quote! {
+    let query_type_declaration = quote! {
         struct #query_name<'a, #(#bundle_types),*> {
             #(#query_fields),*
         }
+    };
 
-        impl<'a, #(#query_types),*> #query_name<'a, #(#bundle_types),*> {
+    let query_impl = quote! {
+        impl<'a, #(#impl_types),*> #query_name<'a, #(#bundle_types),*> {
             fn new(#(#query_fields),*) -> Result<#query_name<'a, #(#bundle_types),*>, ArchetypeError> {
-                #(#query_borrow)*
                 Ok(#query_name {#(#query_field_names),*})
             }
         }
+    };
 
-        impl<'a, #(#query_types),*> Drop for #query_name<'a, #(#query_types),*> {
-            fn drop(&mut self) {
-                #(#query_drop)*
-            }
-        }
-
-        impl<'a, #(#bundle_types),*> Iterator for #query_name<'a, #(#bundle_types),*> {
-            type Item = (#(#query_ref),*);
+    let query_iterator_impl = quote! {
+        impl<'a, #(#impl_types),*> Iterator for #query_name<'a, #(#bundle_types),*> {
+            type Item = (#(#query_output_types),*);
             fn next(&mut self) -> Option<Self::Item> {
                 Some((
                     #(#query_get),*,
                 ))
             }
         }
+    };
 
+    let from_columns_impl = quote! {
         impl<'a, #(#impl_types),*> FromColumnsMut<'a> for (#(#bundle_types),*) {
-            type Output = (#(#query_ref),*);
+            type Output = (#(#query_output_types),*);
             fn iter_from_columns<'b>(arch: &'b Archetype) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError> where 'b: 'a  {
-                let sov = (#(#gets),*);
+                let sov = (#(#raw_get),*);
                 unsafe {
                     #query_name::new(#(#query_init),*)
                 }
             }
         }
+    };
+
+    let output = quote! {
+        #query_type_declaration
+        #query_impl
+        #query_iterator_impl
+        #from_columns_impl
     };
 
     TokenStream::from(output)

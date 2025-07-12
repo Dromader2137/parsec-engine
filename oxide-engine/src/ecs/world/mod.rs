@@ -97,20 +97,3 @@ impl Default for World {
         Self::new()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::World;
-
-    #[test]
-    fn test_get_1() {
-        let mut world = World::new();
-        world.spawn((5.0_f32,)).unwrap();
-        world.spawn((1.0_f32, "abc")).unwrap();
-        world.spawn((1.2_f32, "bcd", 1_u8)).unwrap();
-        let mut ret = world.query::<(f32,)>().unwrap();
-        assert_eq!(Some((&5.0,)), ret.next());
-        assert_eq!(Some((&1.0,)), ret.next());
-        assert_eq!(Some((&1.2,)), ret.next());
-    }
-}

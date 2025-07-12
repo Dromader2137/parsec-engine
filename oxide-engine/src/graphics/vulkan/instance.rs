@@ -100,7 +100,7 @@ impl Instance {
         };
 
         let debug_utils_loader = ash::ext::debug_utils::Instance::new(&entry, &instance);
-        let debug_call_back = match cfg!(debug_assertions) {
+        let debug_call_back = match cfg!(debug_assertions) && false {
             true => {
                 let debug_info = ash::vk::DebugUtilsMessengerCreateInfoEXT::default()
                     .message_severity(

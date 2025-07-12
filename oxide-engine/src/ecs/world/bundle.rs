@@ -1,14 +1,70 @@
 use oxide_engine_macros::multiple_tuples;
 use super::archetype::{Archetype, ArchetypeError, ArchetypeId, ColumnStateWrapper};
 use crate::oxide_engine_macros::{impl_bundle, impl_from_columns, impl_from_columns_mut};
-use std::any::TypeId;
+use std::{any::TypeId, fmt::Debug};
 
-pub trait Bundle: Clone + Send + Sync + Sized + 'static {
+pub trait Component: Clone + Send + Sync + Sized + 'static {}
+
+impl<T: Clone + Send + Sync + Sized + 'static> Component for T {}
+
+pub trait Bundle: Component {
     fn type_id(&self) -> TypeId;
     fn add_to(&self, arch: &mut Archetype) -> Result<(), ArchetypeError>;
 }
 
-pub trait FromColumns<'a>: Clone + Send + Sync + Sized + 'static {
+pub struct RefGuard<'a, T> {
+    pub value: &'a T,
+    column_state: &'a ColumnStateWrapper
+}
+
+impl<'a, T> RefGuard<'a, T> {
+    pub fn new(value: &'a T, column_state: &'a ColumnStateWrapper) -> Result<RefGuard<'a, T>, ArchetypeError> {
+        column_state.borrow()?;
+        Ok(RefGuard { value, column_state })
+    }
+}
+
+impl<'a, T> Drop for RefGuard<'a, T> {
+    fn drop(&mut self) {
+        self.column_state.free().unwrap();
+    }
+}
+
+impl<'a, T: Debug> Debug for RefGuard<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RefGuard")
+            .field("value", self.value)
+            .finish()
+    }
+}
+
+pub struct RefGuardMut<'a, T> {
+    pub value: &'a mut T,
+    column_state: &'a ColumnStateWrapper
+}
+
+impl<'a, T> RefGuardMut<'a, T> {
+    pub fn new(value: &'a mut T, column_state: &'a ColumnStateWrapper) -> Result<RefGuardMut<'a, T>, ArchetypeError> {
+        column_state.borrow_mut()?;
+        Ok(RefGuardMut { value, column_state })
+    }
+}
+
+impl<'a, T> Drop for RefGuardMut<'a, T> {
+    fn drop(&mut self) {
+        self.column_state.free().unwrap();
+    }
+}
+
+impl<'a, T: Debug> Debug for RefGuardMut<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RefGuardMut")
+            .field("value", self.value)
+            .finish()
+    }
+}
+
+pub trait FromColumns<'a>: Component {
     type Output;
     fn iter_from_columns<'b>(
         arch: &'b Archetype,
@@ -17,7 +73,7 @@ pub trait FromColumns<'a>: Clone + Send + Sync + Sized + 'static {
         'b: 'a;
 }
 
-pub trait FromColumnsMut<'a>: Clone + Send + Sync + Sized + 'static {
+pub trait FromColumnsMut<'a>: Component {
     type Output;
     fn iter_from_columns<'b>(
         arch: &'b Archetype,
@@ -36,7 +92,7 @@ pub trait UsableBundleMut<'a>: Bundle + FromColumnsMut<'a> + IntoArchetypeId {}
 macro_rules! impl_into_archetype {
     ($t:ident) => {
         #[allow(unused_parens)]
-        impl<$t: Clone + Send + Sync + Sized + 'static> IntoArchetypeId for ($t, ) {
+        impl<$t: Component> IntoArchetypeId for ($t, ) {
             fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
                 ArchetypeId::new(
                     vec![
@@ -48,7 +104,7 @@ macro_rules! impl_into_archetype {
     };
     ($($t:ident),*) => {
         #[allow(unused_parens)]
-        impl<$($t: Clone + Send + Sync + Sized + 'static),*> IntoArchetypeId for ($($t),*) {
+        impl<$($t: Component),*> IntoArchetypeId for ($($t),*) {
             fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
                 ArchetypeId::new(
                     vec![
@@ -65,28 +121,28 @@ macro_rules! impl_into_archetype {
 macro_rules! impl_usable_bundle {
     ($t:ident) => {
         #[allow(unused_parens)]
-        impl<'a, $t: Clone + Send + Sync + Sized + 'static> UsableBundle<'a> for ($t, ) {}
+        impl<'a, $t: Component> UsableBundle<'a> for ($t, ) {}
     };
     ($($t:ident),*) => {
         #[allow(unused_parens)]
-        impl<'a, $($t: Clone + Send + Sync + Sized + 'static),*> UsableBundle<'a> for ($($t),*) {}
+        impl<'a, $($t: Component),*> UsableBundle<'a> for ($($t),*) {}
     };
 }
 
 macro_rules! impl_usable_bundle_mut {
     ($t:ident) => {
         #[allow(unused_parens)]
-        impl<'a, $t: Clone + Send + Sync + Sized + 'static> UsableBundleMut<'a> for ($t, ) {}
+        impl<'a, $t: Component> UsableBundleMut<'a> for ($t, ) {}
     };
     ($($t:ident),*) => {
         #[allow(unused_parens)]
-        impl<'a, $($t: Clone + Send + Sync + Sized + 'static),*> UsableBundleMut<'a> for ($($t),*) {}
+        impl<'a, $($t: Component),*> UsableBundleMut<'a> for ($($t),*) {}
     };
 }
 
-multiple_tuples!(impl_into_archetype, 4);
-multiple_tuples!(impl_bundle, 4);
-multiple_tuples!(impl_from_columns, 4);
-multiple_tuples!(impl_from_columns_mut, 4);
-multiple_tuples!(impl_usable_bundle, 4);
-multiple_tuples!(impl_usable_bundle_mut, 4);
+multiple_tuples!(impl_into_archetype, 16);
+multiple_tuples!(impl_bundle, 16);
+multiple_tuples!(impl_from_columns, 16);
+multiple_tuples!(impl_from_columns_mut, 16);
+multiple_tuples!(impl_usable_bundle, 16);
+multiple_tuples!(impl_usable_bundle_mut, 16);

@@ -1,13 +1,13 @@
-use std::sync::Arc;
-
-use crate::graphics::vulkan::{graphics_pipeline::GraphicsPipeline, shader::ShaderModule};
-
-pub struct MaterialData {
-    name: &'static str,
-    vertex_shader: Arc<ShaderModule>,
-    fragment_shader: Arc<ShaderModule>,
-    pipeline: Arc<GraphicsPipeline>,
-}
+// use std::sync::Arc;
+//
+// use crate::graphics::vulkan::{graphics_pipeline::GraphicsPipeline, shader::ShaderModule};
+//
+// pub struct MaterialData {
+//     name: &'static str,
+//     vertex_shader: Arc<ShaderModule>,
+//     fragment_shader: Arc<ShaderModule>,
+//     pipeline: Arc<GraphicsPipeline>,
+// }
 
 // impl MaterialData {
 //     pub fn new(name: &str) -> Result<MaterialData, VulkanError> {
