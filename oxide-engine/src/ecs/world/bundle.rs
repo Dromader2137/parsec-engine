@@ -1,7 +1,7 @@
 use oxide_engine_macros::multiple_tuples;
 use super::archetype::{Archetype, ArchetypeError, ArchetypeId, ColumnStateWrapper};
 use crate::oxide_engine_macros::{impl_bundle, impl_from_columns, impl_from_columns_mut};
-use std::{any::TypeId, fmt::Debug};
+use std::{any::TypeId, fmt::{Debug, Display}, ops::{Deref, DerefMut}};
 
 pub trait Component: Clone + Send + Sync + Sized + 'static {}
 
@@ -24,6 +24,13 @@ impl<'a, T> RefGuard<'a, T> {
     }
 }
 
+impl<'a, T> Deref for RefGuard<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.value
+    }
+}
+
 impl<'a, T> Drop for RefGuard<'a, T> {
     fn drop(&mut self) {
         self.column_state.free().unwrap();
@@ -35,6 +42,12 @@ impl<'a, T: Debug> Debug for RefGuard<'a, T> {
         f.debug_struct("RefGuard")
             .field("value", self.value)
             .finish()
+    }
+}
+
+impl<'a, T: Display> Display for RefGuard<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 
@@ -50,6 +63,19 @@ impl<'a, T> RefGuardMut<'a, T> {
     }
 }
 
+impl<'a, T> Deref for RefGuardMut<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.value        
+    }
+}
+
+impl<'a, T> DerefMut for RefGuardMut<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.value
+    }
+}
+
 impl<'a, T> Drop for RefGuardMut<'a, T> {
     fn drop(&mut self) {
         self.column_state.free().unwrap();
@@ -61,6 +87,12 @@ impl<'a, T: Debug> Debug for RefGuardMut<'a, T> {
         f.debug_struct("RefGuardMut")
             .field("value", self.value)
             .finish()
+    }
+}
+
+impl<'a, T: Display> Display for RefGuardMut<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 

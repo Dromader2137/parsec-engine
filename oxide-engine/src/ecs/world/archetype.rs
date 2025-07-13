@@ -6,7 +6,7 @@ use std::{
     rc::Rc,
 };
 
-use super::WorldError;
+use super::{bundle::Component, WorldError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArchetypeError {
@@ -157,11 +157,11 @@ pub trait Column: Any {
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-struct TypedColumn<T: 'static> {
+struct TypedColumn<T: Component> {
     data: Vec<T>,
 }
 
-impl<T: 'static> Column for TypedColumn<T> {
+impl<T: Component> Column for TypedColumn<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -184,14 +184,14 @@ impl Debug for ArchetypeColumn {
 }
 
 impl ArchetypeColumn {
-    fn new<T: 'static>() -> ArchetypeColumn {
+    fn new<T: Component>() -> ArchetypeColumn {
         ArchetypeColumn {
             data: RefCell::new(Box::new(TypedColumn::<T> { data: Vec::new() })),
             state: ColumnStateWrapper::new(),
         }
     }
 
-    fn push<T: 'static>(&mut self, value: T) -> Result<(), ArchetypeError> {
+    fn push<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
         self.state.check_borrowed_mut()?;
 
         let mut mut_borrow = self.data.borrow_mut();
@@ -204,7 +204,7 @@ impl ArchetypeColumn {
         }
     }
 
-    fn get_slice<T: 'static>(&self) -> Result<*const [T], ArchetypeError> {
+    fn get_slice<T: Component>(&self) -> Result<*const [T], ArchetypeError> {
         self.state.check_borrowed()?;
 
         let borrow = self.data.borrow();
@@ -216,7 +216,7 @@ impl ArchetypeColumn {
         }
     }
 
-    fn get_mut_slice<T: 'static>(&self) -> Result<*mut [T], ArchetypeError> {
+    fn get_mut_slice<T: Component>(&self) -> Result<*mut [T], ArchetypeError> {
         self.state.check_borrowed()?;
 
         let mut mut_borrow = self.data.borrow_mut();
@@ -245,7 +245,7 @@ impl Archetype {
         }
     }
 
-    pub fn add<T: 'static>(&mut self, value: T) -> Result<(), ArchetypeError> {
+    pub fn add<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
         let type_id = TypeId::of::<T>();
 
         if !self.id.contains_single(&type_id) {
@@ -262,20 +262,20 @@ impl Archetype {
         column.push(value)
     }
 
-    fn get_column<T: 'static>(&self) -> Result<&ArchetypeColumn, ArchetypeError> {
+    fn get_column<T: Component>(&self) -> Result<&ArchetypeColumn, ArchetypeError> {
         match self.columns.get(&TypeId::of::<T>()) {
             Some(val) => Ok(val),
             None => Err(ArchetypeError::TypeNotFound),
         }
     }
 
-    pub fn get<T: 'static>(&self) -> Result<(*const [T], &ColumnStateWrapper), ArchetypeError> {
+    pub fn get<T: Component>(&self) -> Result<(*const [T], &ColumnStateWrapper), ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_slice::<T>()?;
         Ok((slice, &column.state))
     }
 
-    pub fn get_mut<T: 'static>(&self) -> Result<(*mut [T], &ColumnStateWrapper), ArchetypeError> {
+    pub fn get_mut<T: Component>(&self) -> Result<(*mut [T], &ColumnStateWrapper), ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_mut_slice::<T>()?;
         Ok((slice, &column.state))

@@ -1,5 +1,12 @@
 use crate::{
-    assets::library::AssetLibrary, ecs::{system::{SystemInput, SystemType, Systems}, world::World}, error::error, graphics::Graphics, input::Input
+    assets::library::AssetLibrary,
+    ecs::{
+        system::{SystemInput, SystemType, Systems},
+        world::World,
+    },
+    error::error,
+    graphics::Graphics,
+    input::Input,
 };
 
 #[allow(unused)]
@@ -25,7 +32,15 @@ impl App {
     }
 
     pub fn run(&mut self) {
-        self.systems.execute_type(SystemType::Start, SystemInput { world: &mut self.world, assets: &mut self.assets, graphics: &mut self.graphics } );
+        self.systems.execute_type(
+            SystemType::Start,
+            SystemInput {
+                world: &mut self.world,
+                assets: &mut self.assets,
+                graphics: &mut self.graphics,
+                input: &self.input,
+            },
+        );
 
         let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
@@ -79,7 +94,15 @@ impl winit::application::ApplicationHandler for App {
                 }
             }
             winit::event::WindowEvent::CloseRequested => {
-                self.systems.execute_type(SystemType::Close, SystemInput { world: &mut self.world, assets: &mut self.assets, graphics: &mut self.graphics } );
+                self.systems.execute_type(
+                    SystemType::Close,
+                    SystemInput {
+                        world: &mut self.world,
+                        assets: &mut self.assets,
+                        graphics: &mut self.graphics,
+                        input: &self.input,
+                    },
+                );
                 event_loop.exit();
             }
             winit::event::WindowEvent::RedrawRequested => {
@@ -96,6 +119,14 @@ impl winit::application::ApplicationHandler for App {
         if let Err(err) = self.graphics.request_redraw() {
             error(err.into());
         }
-        self.systems.execute_type(SystemType::Update, SystemInput { world: &mut self.world, assets: &mut self.assets, graphics: &mut self.graphics } );
+        self.systems.execute_type(
+            SystemType::Update,
+            SystemInput {
+                world: &mut self.world,
+                assets: &mut self.assets,
+                graphics: &mut self.graphics,
+                input: &self.input,
+            },
+        );
     }
 }

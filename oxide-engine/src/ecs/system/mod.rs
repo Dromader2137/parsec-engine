@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{assets::library::AssetLibrary, graphics::Graphics};
+use crate::{assets::library::AssetLibrary, graphics::Graphics, input::Input};
 
 use super::world::World;
 
@@ -42,6 +42,7 @@ pub struct SystemInput<'a> {
     pub world: &'a mut World,
     pub assets: &'a mut AssetLibrary,
     pub graphics: &'a mut Graphics,
+    pub input: &'a Input
 }
 
 pub struct System {

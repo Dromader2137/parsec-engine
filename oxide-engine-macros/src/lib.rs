@@ -19,35 +19,22 @@ impl Parse for ImplBundleInput {
 pub fn impl_bundle(input: TokenStream) -> TokenStream {
     let ImplBundleInput { types } = parse_macro_input!(input as ImplBundleInput);
 
-    if types.len() == 1 {
-        let t = types.get(0).unwrap();
-        let output = quote! {
-            impl<#t: Component> Bundle for (#t, ) {
-                fn type_id(&self) -> TypeId {
-                    TypeId::of::<Self>()
-                }
-
-                fn add_to(&self, arch: &mut Archetype) -> Result<(), ArchetypeError> {
-                    arch.add(self.0.clone())?;
-                    Ok(())
-                }
-            }
-        };
-        return TokenStream::from(output);
-    }
-
     let mut impl_types = Vec::new();
-    let mut for_types = Vec::new();
+    let mut bundle_types = Vec::new();
     let mut adds = Vec::new();
     for (i, t) in types.iter().enumerate() {
         impl_types.push(quote! { #t: Component });
-        for_types.push(quote! { #t });
+        bundle_types.push(quote! { #t });
         let i = syn::Index::from(i);
         adds.push(quote! { arch.add(self.#i.clone())?; });
     }
 
+    if types.len() == 1 {
+        bundle_types.push(quote! {});
+    }
+
     let output = quote! {
-        impl<#(#impl_types),*> Bundle for (#(#for_types),*) {
+        impl<#(#impl_types),*> Bundle for (#(#bundle_types),*) {
             fn type_id(&self) -> TypeId {
                 TypeId::of::<Self>()
             }
