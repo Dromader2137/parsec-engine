@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use super::{
-    VulkanError, device::Device, fence::Fence, image::SwapchainImage, queue::Queue,
-    semaphore::Semaphore, surface::Surface,
+    VulkanError, device::Device, fence::Fence, image::SwapchainImage, queue::Queue, semaphore::Semaphore,
+    surface::Surface,
 };
 
 pub struct Swapchain {
@@ -91,11 +91,10 @@ impl Swapchain {
             swapchain_create_info = swapchain_create_info.old_swapchain(*val.get_swapchain_raw());
         }
 
-        let swapchain =
-            match unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) } {
-                Ok(val) => val,
-                Err(err) => return Err(SwapchainError::CreationError(err)),
-            };
+        let swapchain = match unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) } {
+            Ok(val) => val,
+            Err(err) => return Err(SwapchainError::CreationError(err)),
+        };
 
         let swapchain_images = match unsafe { swapchain_loader.get_swapchain_images(swapchain) } {
             Ok(val) => val
@@ -171,9 +170,6 @@ impl Swapchain {
 
 impl Drop for Swapchain {
     fn drop(&mut self) {
-        unsafe {
-            self.swapchain_loader
-                .destroy_swapchain(self.swapchain, None)
-        };
+        unsafe { self.swapchain_loader.destroy_swapchain(self.swapchain, None) };
     }
 }

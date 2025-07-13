@@ -19,8 +19,8 @@ use super::{
     command_buffer::CommandBuffer,
     context::VulkanContext,
     descriptor_set::{
-        DescriptorPool, DescriptorPoolSize, DescriptorSet, DescriptorSetBinding,
-        DescriptorSetLayout, DescriptorStage, DescriptorType,
+        DescriptorPool, DescriptorPoolSize, DescriptorSet, DescriptorSetBinding, DescriptorSetLayout, DescriptorStage,
+        DescriptorType,
     },
     fence::Fence,
     graphics_pipeline::{GraphicsPipeline, Vertex, VertexField},
@@ -135,17 +135,10 @@ impl VulkanRenderer {
         let image_data = VulkanRendererImageData::new(context.clone(), renderpass.clone())?;
         frames_in_flight = image_data.clamp_frames_in_flight(frames_in_flight);
         let frame_sync = create_frame_sync(context.clone(), frames_in_flight)?;
-        let image_sync =
-            create_image_sync(context.clone(), image_data.swapchain.swapchain_images.len())?;
+        let image_sync = create_image_sync(context.clone(), image_data.swapchain.swapchain_images.len())?;
         let command_buffers = create_commad_buffers(context.clone(), frames_in_flight)?;
-        let vertex_shader = ShaderModule::new(
-            context.device.clone(),
-            &read_shader_code("shaders/simple.spv")?,
-        )?;
-        let fragment_shader = ShaderModule::new(
-            context.device.clone(),
-            &read_shader_code("shaders/flat.spv")?,
-        )?;
+        let vertex_shader = ShaderModule::new(context.device.clone(), &read_shader_code("shaders/simple.spv")?)?;
+        let fragment_shader = ShaderModule::new(context.device.clone(), &read_shader_code("shaders/flat.spv")?)?;
 
         let pos = vec![
             Vec3f::new(0.0, 0.0, 0.0),
@@ -243,17 +236,13 @@ impl VulkanRenderer {
         }
 
         let (present_index, suboptimal) = self.image_data.swapchain.acquire_next_image(
-            self.frame_sync[current_frame]
-                .image_available_semaphore
-                .clone(),
+            self.frame_sync[current_frame].image_available_semaphore.clone(),
             Fence::null(self.context.device.clone()),
         )?;
         let present_index = present_index as usize;
 
         self.resize |= suboptimal;
-        self.frame_sync[current_frame]
-            .command_buffer_fence
-            .reset()?;
+        self.frame_sync[current_frame].command_buffer_fence.reset()?;
 
         let command_buffer = self.command_buffers[current_frame].clone();
         let framebuffer = self.image_data.framebuffers[present_index].clone();
@@ -280,21 +269,15 @@ impl VulkanRenderer {
         command_buffer.end()?;
 
         self.context.graphics_queue.submit(
-            &[self.frame_sync[current_frame]
-                .image_available_semaphore
-                .clone()],
-            &[self.image_sync[present_index]
-                .rendering_complete_semaphore
-                .clone()],
+            &[self.frame_sync[current_frame].image_available_semaphore.clone()],
+            &[self.image_sync[present_index].rendering_complete_semaphore.clone()],
             &[command_buffer],
             self.frame_sync[current_frame].command_buffer_fence.clone(),
         )?;
 
         self.image_data.swapchain.present(
             self.context.graphics_queue.clone(),
-            &[self.image_sync[present_index]
-                .rendering_complete_semaphore
-                .clone()],
+            &[self.image_sync[present_index].rendering_complete_semaphore.clone()],
             present_index as u32,
         )?;
 

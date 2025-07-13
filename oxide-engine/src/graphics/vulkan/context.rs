@@ -28,8 +28,7 @@ impl VulkanContext {
         let physical_device = PhysicalDevice::new(instance.clone(), initial_surface.clone())?;
         let surface = Surface::from_initial_surface(initial_surface, physical_device.clone())?;
         let device = Device::new(physical_device.clone())?;
-        let graphics_queue =
-            Queue::present(device.clone(), physical_device.get_queue_family_index());
+        let graphics_queue = Queue::present(device.clone(), physical_device.get_queue_family_index());
         let command_pool = CommandPool::new(device.clone())?;
 
         Ok(Arc::new(VulkanContext {

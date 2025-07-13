@@ -44,9 +44,7 @@ impl App {
 
         let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
-        event_loop
-            .run_app(self)
-            .expect("Correctly working event loop");
+        event_loop.run_app(self).expect("Correctly working event loop");
     }
 }
 
@@ -65,22 +63,15 @@ impl winit::application::ApplicationHandler for App {
     ) {
         match event {
             winit::event::WindowEvent::KeyboardInput {
-                event:
-                    winit::event::KeyEvent {
-                        physical_key,
-                        state,
-                        ..
-                    },
+                event: winit::event::KeyEvent {
+                    physical_key, state, ..
+                },
                 ..
             } => {
                 if let winit::keyboard::PhysicalKey::Code(key_code) = physical_key {
                     match state {
-                        winit::event::ElementState::Pressed => {
-                            self.input.keys.press(key_code.into())
-                        }
-                        winit::event::ElementState::Released => {
-                            self.input.keys.lift(key_code.into())
-                        }
+                        winit::event::ElementState::Pressed => self.input.keys.press(key_code.into()),
+                        winit::event::ElementState::Released => self.input.keys.lift(key_code.into()),
                     }
                 }
             }

@@ -24,11 +24,10 @@ impl Semaphore {
     pub fn new(device: Arc<Device>) -> Result<Arc<Semaphore>, SemaphoreError> {
         let create_info = ash::vk::SemaphoreCreateInfo::default();
 
-        let semaphore =
-            match unsafe { device.get_device_raw().create_semaphore(&create_info, None) } {
-                Ok(val) => val,
-                Err(err) => return Err(SemaphoreError::CreationError(err)),
-            };
+        let semaphore = match unsafe { device.get_device_raw().create_semaphore(&create_info, None) } {
+            Ok(val) => val,
+            Err(err) => return Err(SemaphoreError::CreationError(err)),
+        };
 
         Ok(Arc::new(Semaphore { device, semaphore }))
     }
@@ -47,10 +46,6 @@ impl Semaphore {
 
 impl Drop for Semaphore {
     fn drop(&mut self) {
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_semaphore(self.semaphore, None)
-        };
+        unsafe { self.device.get_device_raw().destroy_semaphore(self.semaphore, None) };
     }
 }

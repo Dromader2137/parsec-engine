@@ -132,11 +132,7 @@ impl OwnedImage {
         let size = create_info.size;
         let format = create_info.format;
 
-        let image = match unsafe {
-            device
-                .get_device_raw()
-                .create_image(&create_info.into(), None)
-        } {
+        let image = match unsafe { device.get_device_raw().create_image(&create_info.into(), None) } {
             Ok(val) => val,
             Err(err) => return Err(ImageError::CreationError(err)),
         };
@@ -155,20 +151,12 @@ impl OwnedImage {
             .allocation_size(memory_req.size)
             .memory_type_index(memory_index);
 
-        let image_memory = match unsafe {
-            device
-                .get_device_raw()
-                .allocate_memory(&image_allocate_info, None)
-        } {
+        let image_memory = match unsafe { device.get_device_raw().allocate_memory(&image_allocate_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(ImageError::AllocationError(err)),
         };
 
-        if let Err(err) = unsafe {
-            device
-                .get_device_raw()
-                .bind_image_memory(image, image_memory, 0)
-        } {
+        if let Err(err) = unsafe { device.get_device_raw().bind_image_memory(image, image_memory, 0) } {
             return Err(ImageError::BindError(err));
         };
 
@@ -210,11 +198,7 @@ impl ImageView {
             aspect_flags,
         };
 
-        match unsafe {
-            device
-                .get_device_raw()
-                .create_image_view(&view_info.into(), None)
-        } {
+        match unsafe { device.get_device_raw().create_image_view(&view_info.into(), None) } {
             Ok(val) => Ok(Arc::new(ImageView { image, view: val })),
             Err(err) => Err(ImageError::ViewCreationError(err)),
         }
@@ -227,11 +211,6 @@ impl ImageView {
 
 impl Drop for ImageView {
     fn drop(&mut self) {
-        unsafe {
-            self.image
-                .device()
-                .get_device_raw()
-                .destroy_image_view(self.view, None)
-        };
+        unsafe { self.image.device().get_device_raw().destroy_image_view(self.view, None) };
     }
 }

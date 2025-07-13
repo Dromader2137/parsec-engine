@@ -34,18 +34,13 @@ impl<A: 'static> AssetVec for Vec<A> {
 
 impl AssetLibrary {
     pub fn new() -> AssetLibrary {
-        AssetLibrary {
-            assets: HashMap::new(),
-        }
+        AssetLibrary { assets: HashMap::new() }
     }
 
     pub fn add<A: 'static>(&mut self, value: A) -> Result<u32, AssetLibraryError> {
         let type_id = TypeId::of::<A>();
 
-        let vec = self
-            .assets
-            .entry(type_id)
-            .or_insert(Box::new(Vec::<A>::new()));
+        let vec = self.assets.entry(type_id).or_insert(Box::new(Vec::<A>::new()));
 
         vec.add_boxed(Box::new(value))
     }
@@ -54,11 +49,7 @@ impl AssetLibrary {
         let type_id = TypeId::of::<A>();
 
         if let Some(vec) = self.assets.get(&type_id) {
-            return vec
-                .get_all()
-                .iter()
-                .map(|x| x.downcast_ref::<A>().unwrap())
-                .collect();
+            return vec.get_all().iter().map(|x| x.downcast_ref::<A>().unwrap()).collect();
         }
 
         vec![]
@@ -68,11 +59,7 @@ impl AssetLibrary {
         let type_id = TypeId::of::<A>();
 
         if let Some(vec) = self.assets.get(&type_id) {
-            return vec
-                .get_all()
-                .iter()
-                .map(|x| x.downcast_ref::<A>().unwrap())
-                .nth(id);
+            return vec.get_all().iter().map(|x| x.downcast_ref::<A>().unwrap()).nth(id);
         }
 
         None

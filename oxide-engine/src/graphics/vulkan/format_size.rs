@@ -55,22 +55,18 @@ pub fn format_size(format: ash::vk::Format) -> Option<u32> {
         | ash::vk::Format::R16G16B16A16_UINT
         | ash::vk::Format::R16G16B16A16_SINT
         | ash::vk::Format::R16G16B16A16_SFLOAT => Some(8),
-        ash::vk::Format::R32_UINT | ash::vk::Format::R32_SINT | ash::vk::Format::R32_SFLOAT => {
-            Some(4)
+        ash::vk::Format::R32_UINT | ash::vk::Format::R32_SINT | ash::vk::Format::R32_SFLOAT => Some(4),
+        ash::vk::Format::R32G32_UINT | ash::vk::Format::R32G32_SINT | ash::vk::Format::R32G32_SFLOAT => Some(8),
+        ash::vk::Format::R32G32B32_UINT | ash::vk::Format::R32G32B32_SINT | ash::vk::Format::R32G32B32_SFLOAT => {
+            Some(12)
         }
-        ash::vk::Format::R32G32_UINT
-        | ash::vk::Format::R32G32_SINT
-        | ash::vk::Format::R32G32_SFLOAT => Some(8),
-        ash::vk::Format::R32G32B32_UINT
-        | ash::vk::Format::R32G32B32_SINT
-        | ash::vk::Format::R32G32B32_SFLOAT => Some(12),
         ash::vk::Format::R32G32B32A32_UINT
         | ash::vk::Format::R32G32B32A32_SINT
         | ash::vk::Format::R32G32B32A32_SFLOAT => Some(16),
         ash::vk::Format::D16_UNORM => Some(2),
-        ash::vk::Format::X8_D24_UNORM_PACK32
-        | ash::vk::Format::D24_UNORM_S8_UINT
-        | ash::vk::Format::D32_SFLOAT => Some(4),
+        ash::vk::Format::X8_D24_UNORM_PACK32 | ash::vk::Format::D24_UNORM_S8_UINT | ash::vk::Format::D32_SFLOAT => {
+            Some(4)
+        }
         ash::vk::Format::S8_UINT => Some(1),
         ash::vk::Format::D32_SFLOAT_S8_UINT => Some(5),
         _ => None,

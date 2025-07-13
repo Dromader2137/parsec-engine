@@ -1,7 +1,11 @@
-use oxide_engine_macros::multiple_tuples;
 use super::archetype::{Archetype, ArchetypeError, ArchetypeId, ColumnStateWrapper};
 use crate::oxide_engine_macros::{impl_bundle, impl_from_columns, impl_from_columns_mut};
-use std::{any::TypeId, fmt::{Debug, Display}, ops::{Deref, DerefMut}};
+use oxide_engine_macros::multiple_tuples;
+use std::{
+    any::TypeId,
+    fmt::{Debug, Display},
+    ops::{Deref, DerefMut},
+};
 
 pub trait Component: Clone + Send + Sync + Sized + 'static {}
 
@@ -14,7 +18,7 @@ pub trait Bundle: Component {
 
 pub struct RefGuard<'a, T> {
     pub value: &'a T,
-    column_state: &'a ColumnStateWrapper
+    column_state: &'a ColumnStateWrapper,
 }
 
 impl<'a, T> RefGuard<'a, T> {
@@ -39,9 +43,7 @@ impl<'a, T> Drop for RefGuard<'a, T> {
 
 impl<'a, T: Debug> Debug for RefGuard<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RefGuard")
-            .field("value", self.value)
-            .finish()
+        f.debug_struct("RefGuard").field("value", self.value).finish()
     }
 }
 
@@ -53,7 +55,7 @@ impl<'a, T: Display> Display for RefGuard<'a, T> {
 
 pub struct RefGuardMut<'a, T> {
     pub value: &'a mut T,
-    column_state: &'a ColumnStateWrapper
+    column_state: &'a ColumnStateWrapper,
 }
 
 impl<'a, T> RefGuardMut<'a, T> {
@@ -66,7 +68,7 @@ impl<'a, T> RefGuardMut<'a, T> {
 impl<'a, T> Deref for RefGuardMut<'a, T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        self.value        
+        self.value
     }
 }
 
@@ -84,9 +86,7 @@ impl<'a, T> Drop for RefGuardMut<'a, T> {
 
 impl<'a, T: Debug> Debug for RefGuardMut<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RefGuardMut")
-            .field("value", self.value)
-            .finish()
+        f.debug_struct("RefGuardMut").field("value", self.value).finish()
     }
 }
 
@@ -98,18 +98,14 @@ impl<'a, T: Display> Display for RefGuardMut<'a, T> {
 
 pub trait FromColumns<'a>: Component {
     type Output;
-    fn iter_from_columns<'b>(
-        arch: &'b Archetype,
-    ) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError>
+    fn iter_from_columns<'b>(arch: &'b Archetype) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError>
     where
         'b: 'a;
 }
 
 pub trait FromColumnsMut<'a>: Component {
     type Output;
-    fn iter_from_columns<'b>(
-        arch: &'b Archetype,
-    ) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError>
+    fn iter_from_columns<'b>(arch: &'b Archetype) -> Result<impl Iterator<Item = Self::Output>, ArchetypeError>
     where
         'b: 'a;
 }

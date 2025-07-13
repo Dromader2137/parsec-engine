@@ -39,10 +39,7 @@ impl From<SurfaceError> for VulkanError {
 }
 
 impl InitialSurface {
-    pub fn new(
-        instance: Arc<Instance>,
-        window: Arc<WindowWrapper>,
-    ) -> Result<Arc<InitialSurface>, SurfaceError> {
+    pub fn new(instance: Arc<Instance>, window: Arc<WindowWrapper>) -> Result<Arc<InitialSurface>, SurfaceError> {
         let display_handle = match window.get_display_handle() {
             Ok(val) => val,
             Err(err) => return Err(SurfaceError::DisplayHandleError(err)),
@@ -66,8 +63,7 @@ impl InitialSurface {
             Err(err) => return Err(SurfaceError::CreationError(err)),
         };
 
-        let surface_loader =
-            ash::khr::surface::Instance::new(instance.get_entry_raw(), instance.get_instance_raw());
+        let surface_loader = ash::khr::surface::Instance::new(instance.get_entry_raw(), instance.get_instance_raw());
 
         Ok(Arc::new(InitialSurface {
             window,
@@ -83,11 +79,8 @@ impl InitialSurface {
         queue_family_index: u32,
     ) -> Result<bool, SurfaceError> {
         match unsafe {
-            self.surface_loader.get_physical_device_surface_support(
-                physical_device,
-                queue_family_index,
-                self.surface,
-            )
+            self.surface_loader
+                .get_physical_device_surface_support(physical_device, queue_family_index, self.surface)
         } {
             Ok(val) => Ok(val),
             Err(err) => Err(SurfaceError::SupportError(err)),
@@ -114,12 +107,10 @@ impl Surface {
         };
 
         let surface_formats = match unsafe {
-            initial_surface
-                .surface_loader
-                .get_physical_device_surface_formats(
-                    *physical_device.get_physical_device_raw(),
-                    initial_surface.surface,
-                )
+            initial_surface.surface_loader.get_physical_device_surface_formats(
+                *physical_device.get_physical_device_raw(),
+                initial_surface.surface,
+            )
         } {
             Ok(val) => val,
             Err(err) => return Err(SurfaceError::FormatsError(err)),
@@ -130,12 +121,10 @@ impl Surface {
         }
 
         let surface_capabilities = match unsafe {
-            initial_surface
-                .surface_loader
-                .get_physical_device_surface_capabilities(
-                    *physical_device.get_physical_device_raw(),
-                    initial_surface.surface,
-                )
+            initial_surface.surface_loader.get_physical_device_surface_capabilities(
+                *physical_device.get_physical_device_raw(),
+                initial_surface.surface,
+            )
         } {
             Ok(val) => val,
             Err(err) => return Err(SurfaceError::CapabilitiesError(err)),

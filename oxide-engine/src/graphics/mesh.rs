@@ -3,8 +3,7 @@ use std::sync::Arc;
 use crate::graphics::vulkan::buffer::BufferUsage;
 
 use super::vulkan::{
-    VulkanError, buffer::Buffer, command_buffer::CommandBuffer, device::Device,
-    graphics_pipeline::Vertex,
+    VulkanError, buffer::Buffer, command_buffer::CommandBuffer, device::Device, graphics_pipeline::Vertex,
 };
 
 pub struct MeshBuffer<V: Vertex> {
@@ -13,11 +12,7 @@ pub struct MeshBuffer<V: Vertex> {
 }
 
 impl<V: Vertex> MeshBuffer<V> {
-    pub fn new(
-        device: Arc<Device>,
-        vertices: Vec<V>,
-        indices: Vec<u32>,
-    ) -> Result<MeshBuffer<V>, VulkanError> {
+    pub fn new(device: Arc<Device>, vertices: Vec<V>, indices: Vec<u32>) -> Result<MeshBuffer<V>, VulkanError> {
         Ok(MeshBuffer {
             vertex_buffer: Buffer::from_vec(device.clone(), vertices, BufferUsage::VERTEX_BUFFER)?,
             index_buffer: Buffer::from_vec(device, indices, BufferUsage::INDEX_BUFFER)?,
@@ -36,11 +31,7 @@ pub struct MeshData<V: Vertex> {
 }
 
 impl<V: Vertex> MeshData<V> {
-    pub fn new(
-        device: Arc<Device>,
-        vertices: Vec<V>,
-        indices: Vec<u32>,
-    ) -> Result<MeshData<V>, VulkanError> {
+    pub fn new(device: Arc<Device>, vertices: Vec<V>, indices: Vec<u32>) -> Result<MeshData<V>, VulkanError> {
         let buffer = MeshBuffer::new(device, vertices, indices)?;
         Ok(MeshData { buffer })
     }

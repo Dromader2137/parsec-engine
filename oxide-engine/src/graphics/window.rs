@@ -21,10 +21,7 @@ impl From<WindowError> for GraphicsError {
 }
 
 impl WindowWrapper {
-    pub fn new(
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        name: &str,
-    ) -> Result<Arc<WindowWrapper>, WindowError> {
+    pub fn new(event_loop: &winit::event_loop::ActiveEventLoop, name: &str) -> Result<Arc<WindowWrapper>, WindowError> {
         let attributes = winit::window::Window::default_attributes()
             .with_transparent(false)
             .with_visible(true)
@@ -64,15 +61,13 @@ impl WindowWrapper {
 
     pub fn get_display_handle(
         &self,
-    ) -> Result<winit::raw_window_handle::DisplayHandle<'_>, winit::raw_window_handle::HandleError>
-    {
+    ) -> Result<winit::raw_window_handle::DisplayHandle<'_>, winit::raw_window_handle::HandleError> {
         self.window.display_handle()
     }
 
     pub fn get_window_handle(
         &self,
-    ) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError>
-    {
+    ) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError> {
         self.window.window_handle()
     }
 

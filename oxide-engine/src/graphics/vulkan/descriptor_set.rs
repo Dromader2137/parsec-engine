@@ -89,11 +89,7 @@ impl DescriptorPool {
             .max_sets(descriptor_max_count)
             .pool_sizes(&pool_sizes);
 
-        let pool = match unsafe {
-            device
-                .get_device_raw()
-                .create_descriptor_pool(&create_info, None)
-        } {
+        let pool = match unsafe { device.get_device_raw().create_descriptor_pool(&create_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(DescriptorError::PoolCreationError(err)),
         };
@@ -109,9 +105,7 @@ impl DescriptorPool {
 impl Drop for DescriptorPool {
     fn drop(&mut self) {
         unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_descriptor_pool(self.pool, None);
+            self.device.get_device_raw().destroy_descriptor_pool(self.pool, None);
         }
     }
 }
@@ -125,11 +119,7 @@ impl<'a> DescriptorSetLayout {
 
         let create_info = ash::vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings_raw);
 
-        let layout = match unsafe {
-            device
-                .get_device_raw()
-                .create_descriptor_set_layout(&create_info, None)
-        } {
+        let layout = match unsafe { device.get_device_raw().create_descriptor_set_layout(&create_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(DescriptorError::SetLayoutCreationError(err)),
         };
@@ -217,13 +207,8 @@ impl DescriptorSet {
         Ok(())
     }
 
-    pub fn bind_image_view(
-        &self,
-        view: Arc<ImageView>,
-        dst_binding: u32,
-    ) -> Result<(), DescriptorError> {
-        let image_info =
-            [ash::vk::DescriptorImageInfo::default().image_view(*view.get_image_view_raw())];
+    pub fn bind_image_view(&self, view: Arc<ImageView>, dst_binding: u32) -> Result<(), DescriptorError> {
+        let image_info = [ash::vk::DescriptorImageInfo::default().image_view(*view.get_image_view_raw())];
 
         let binding_type = match self.descriptor_layout.bindings.get(dst_binding as usize) {
             Some(val) => val.binding_type,

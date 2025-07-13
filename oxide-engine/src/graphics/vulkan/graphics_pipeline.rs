@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use super::{
-    VulkanError, descriptor_set::DescriptorSetLayout, framebuffer::Framebuffer,
-    shader::ShaderModule,
-};
+use super::{VulkanError, descriptor_set::DescriptorSetLayout, framebuffer::Framebuffer, shader::ShaderModule};
 
 pub struct GraphicsPipeline {
     pub framebuffer: Arc<Framebuffer>,
@@ -45,13 +42,9 @@ impl GraphicsPipeline {
         fragment_shader: Arc<ShaderModule>,
         descriptor_set_layouts: Vec<Arc<DescriptorSetLayout>>,
     ) -> Result<Arc<GraphicsPipeline>, GraphicsPipelineError> {
-        let set_layouts: Vec<_> = descriptor_set_layouts
-            .iter()
-            .map(|x| *x.get_layout_raw())
-            .collect();
+        let set_layouts: Vec<_> = descriptor_set_layouts.iter().map(|x| *x.get_layout_raw()).collect();
 
-        let layout_create_info =
-            ash::vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
+        let layout_create_info = ash::vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
 
         let pipeline_layout = match unsafe {
             framebuffer
@@ -118,12 +111,8 @@ impl GraphicsPipeline {
             .logic_op(ash::vk::LogicOp::CLEAR)
             .attachments(&color_blend_attachment_states);
 
-        let dynamic_state = [
-            ash::vk::DynamicState::VIEWPORT,
-            ash::vk::DynamicState::SCISSOR,
-        ];
-        let dynamic_state_info =
-            ash::vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&dynamic_state);
+        let dynamic_state = [ash::vk::DynamicState::VIEWPORT, ash::vk::DynamicState::SCISSOR];
+        let dynamic_state_info = ash::vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&dynamic_state);
 
         let vertex_input_binding_descriptions = [ash::vk::VertexInputBindingDescription {
             binding: 0,
@@ -186,11 +175,7 @@ impl GraphicsPipeline {
                 .renderpass
                 .device
                 .get_device_raw()
-                .create_graphics_pipelines(
-                    ash::vk::PipelineCache::null(),
-                    &[graphic_pipeline_info],
-                    None,
-                )
+                .create_graphics_pipelines(ash::vk::PipelineCache::null(), &[graphic_pipeline_info], None)
         } {
             Ok(val) => val,
             Err(err) => return Err(GraphicsPipelineError::CreationError(err.1)),

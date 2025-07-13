@@ -35,19 +35,12 @@ impl ShaderModule {
     pub fn new(device: Arc<Device>, code: &[u32]) -> Result<Arc<ShaderModule>, ShaderError> {
         let create_info = ash::vk::ShaderModuleCreateInfo::default().code(code);
 
-        let shader_module = match unsafe {
-            device
-                .get_device_raw()
-                .create_shader_module(&create_info, None)
-        } {
+        let shader_module = match unsafe { device.get_device_raw().create_shader_module(&create_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(ShaderError::CreationError(err)),
         };
 
-        Ok(Arc::new(ShaderModule {
-            device,
-            shader_module,
-        }))
+        Ok(Arc::new(ShaderModule { device, shader_module }))
     }
 
     pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule {

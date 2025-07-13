@@ -44,9 +44,7 @@ impl Graphics {
     ) -> Result<(), GraphicsError> {
         self.window = Some(WindowWrapper::new(event_loop, window_name)?);
         self.vulkan_context = Some(VulkanContext::new(self.window.as_ref().unwrap().clone())?);
-        self.renderer = Some(VulkanRenderer::new(
-            self.vulkan_context.as_ref().unwrap().clone(),
-        )?);
+        self.renderer = Some(VulkanRenderer::new(self.vulkan_context.as_ref().unwrap().clone())?);
 
         Ok(())
     }

@@ -33,12 +33,7 @@ impl World {
         let archetype_id = T::archetype_id()?;
         let archetype_count = self.archetypes.len();
 
-        let archetype_index = match self
-            .archetypes
-            .iter()
-            .enumerate()
-            .find(|(_, x)| archetype_id == x.id)
-        {
+        let archetype_index = match self.archetypes.iter().enumerate().find(|(_, x)| archetype_id == x.id) {
             Some(val) => val.0,
             None => archetype_count,
         };

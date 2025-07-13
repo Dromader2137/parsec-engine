@@ -52,19 +52,12 @@ impl CommandPool {
             .flags(ash::vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(device.physical_device.get_queue_family_index());
 
-        let command_pool = match unsafe {
-            device
-                .get_device_raw()
-                .create_command_pool(&pool_info, None)
-        } {
+        let command_pool = match unsafe { device.get_device_raw().create_command_pool(&pool_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(CommandPoolError::CreationError(err)),
         };
 
-        Ok(Arc::new(CommandPool {
-            device,
-            command_pool,
-        }))
+        Ok(Arc::new(CommandPool { device, command_pool }))
     }
 
     pub fn get_command_pool_raw(&self) -> &ash::vk::CommandPool {
@@ -106,8 +99,8 @@ impl CommandBuffer {
     }
 
     pub fn begin(&self) -> Result<(), CommandBufferError> {
-        let begin_info = ash::vk::CommandBufferBeginInfo::default()
-            .flags(ash::vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
+        let begin_info =
+            ash::vk::CommandBufferBeginInfo::default().flags(ash::vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
 
         if let Err(err) = unsafe {
             self.command_pool
@@ -142,10 +135,7 @@ impl CommandBuffer {
                 },
             },
             ash::vk::ClearValue {
-                depth_stencil: ash::vk::ClearDepthStencilValue {
-                    depth: 1.0,
-                    stencil: 0,
-                },
+                depth_stencil: ash::vk::ClearDepthStencilValue { depth: 1.0, stencil: 0 },
             },
         ];
 
@@ -156,15 +146,11 @@ impl CommandBuffer {
             .clear_values(&clear_values);
 
         unsafe {
-            framebuffer
-                .renderpass
-                .device
-                .get_device_raw()
-                .cmd_begin_render_pass(
-                    self.command_buffer,
-                    &begin_info,
-                    ash::vk::SubpassContents::INLINE,
-                )
+            framebuffer.renderpass.device.get_device_raw().cmd_begin_render_pass(
+                self.command_buffer,
+                &begin_info,
+                ash::vk::SubpassContents::INLINE,
+            )
         };
     }
 
@@ -187,22 +173,20 @@ impl CommandBuffer {
             max_depth: 1.0,
         }];
         unsafe {
-            self.command_pool.device.get_device_raw().cmd_set_viewport(
-                self.command_buffer,
-                0,
-                &viewports,
-            )
+            self.command_pool
+                .device
+                .get_device_raw()
+                .cmd_set_viewport(self.command_buffer, 0, &viewports)
         };
     }
 
     pub fn set_scissor(&self, framebuffer: Arc<Framebuffer>) {
         let scissors = [framebuffer.get_extent_raw().into()];
         unsafe {
-            self.command_pool.device.get_device_raw().cmd_set_scissor(
-                self.command_buffer,
-                0,
-                &scissors,
-            )
+            self.command_pool
+                .device
+                .get_device_raw()
+                .cmd_set_scissor(self.command_buffer, 0, &scissors)
         };
     }
 
@@ -216,13 +200,7 @@ impl CommandBuffer {
         };
     }
 
-    pub fn draw(
-        &self,
-        vertex_count: u32,
-        instance_count: u32,
-        first_vertex: u32,
-        first_instance: u32,
-    ) {
+    pub fn draw(&self, vertex_count: u32, instance_count: u32, first_vertex: u32, first_instance: u32) {
         unsafe {
             self.command_pool.device.get_device_raw().cmd_draw(
                 self.command_buffer,
@@ -256,24 +234,23 @@ impl CommandBuffer {
 
     pub fn bind_vertex_buffer(&self, buffer: Arc<Buffer<impl Vertex>>) {
         unsafe {
-            self.command_pool
-                .device
-                .get_device_raw()
-                .cmd_bind_vertex_buffers(self.command_buffer, 0, &[*buffer.get_buffer_raw()], &[0])
+            self.command_pool.device.get_device_raw().cmd_bind_vertex_buffers(
+                self.command_buffer,
+                0,
+                &[*buffer.get_buffer_raw()],
+                &[0],
+            )
         };
     }
 
     pub fn bind_index_buffer(&self, buffer: Arc<Buffer<u32>>) {
         unsafe {
-            self.command_pool
-                .device
-                .get_device_raw()
-                .cmd_bind_index_buffer(
-                    self.command_buffer,
-                    *buffer.get_buffer_raw(),
-                    0,
-                    ash::vk::IndexType::UINT32,
-                )
+            self.command_pool.device.get_device_raw().cmd_bind_index_buffer(
+                self.command_buffer,
+                *buffer.get_buffer_raw(),
+                0,
+                ash::vk::IndexType::UINT32,
+            )
         };
     }
 
@@ -284,17 +261,14 @@ impl CommandBuffer {
         set_index: u32,
     ) {
         unsafe {
-            self.command_pool
-                .device
-                .get_device_raw()
-                .cmd_bind_descriptor_sets(
-                    self.command_buffer,
-                    ash::vk::PipelineBindPoint::GRAPHICS,
-                    *pipeline.get_layout_raw(),
-                    set_index,
-                    &[*descriptor_set.get_set_raw()],
-                    &[],
-                );
+            self.command_pool.device.get_device_raw().cmd_bind_descriptor_sets(
+                self.command_buffer,
+                ash::vk::PipelineBindPoint::GRAPHICS,
+                *pipeline.get_layout_raw(),
+                set_index,
+                &[*descriptor_set.get_set_raw()],
+                &[],
+            );
         };
     }
 
@@ -303,10 +277,7 @@ impl CommandBuffer {
             self.command_pool
                 .device
                 .get_device_raw()
-                .reset_command_buffer(
-                    self.command_buffer,
-                    ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-                )
+                .reset_command_buffer(self.command_buffer, ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES)
         } {
             return Err(CommandBufferError::ResetError(err));
         }

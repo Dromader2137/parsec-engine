@@ -8,16 +8,18 @@ use super::world::World;
 pub enum SystemType {
     Start,
     Update,
-    Close
+    Close,
 }
 
 pub struct Systems {
-    systems: HashMap<SystemType, Vec<System>>
+    systems: HashMap<SystemType, Vec<System>>,
 }
 
 impl Systems {
     pub fn new() -> Systems {
-        Systems { systems: HashMap::new() }
+        Systems {
+            systems: HashMap::new(),
+        }
     }
 
     pub fn add_system(&mut self, system: System) {
@@ -42,7 +44,7 @@ pub struct SystemInput<'a> {
     pub world: &'a mut World,
     pub assets: &'a mut AssetLibrary,
     pub graphics: &'a mut Graphics,
-    pub input: &'a Input
+    pub input: &'a Input,
 }
 
 pub struct System {
@@ -54,7 +56,7 @@ impl System {
     pub fn new(system_type: SystemType, function: impl Fn(&mut SystemInput) + 'static) -> System {
         System {
             system_type,
-            function: Box::new(function)
+            function: Box::new(function),
         }
     }
 

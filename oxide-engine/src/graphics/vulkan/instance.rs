@@ -49,9 +49,7 @@ unsafe extern "system" fn vulkan_debug_callback(
             std::ffi::CStr::from_ptr(callback_data.p_message).to_string_lossy()
         };
 
-        println!(
-            "{message_severity:?}:\n{message_type:?} [{message_id_name} ({message_id_number})] : {message}\n",
-        );
+        println!("{message_severity:?}:\n{message_type:?} [{message_id_name} ({message_id_number})] : {message}\n",);
 
         ash::vk::FALSE
     }
@@ -64,30 +62,26 @@ impl Instance {
             Err(err) => return Err(InstanceError::EntryError(err)),
         };
 
-        let app_info =
-            ash::vk::ApplicationInfo::default().api_version(ash::vk::make_api_version(0, 1, 0, 0));
+        let app_info = ash::vk::ApplicationInfo::default().api_version(ash::vk::make_api_version(0, 1, 0, 0));
 
         let display_handle = match window.get_display_handle() {
             Ok(val) => val,
             Err(err) => return Err(InstanceError::DisplayHandleError(err)),
         };
 
-        let mut extension_names =
-            match ash_window::enumerate_required_extensions(display_handle.as_raw()) {
-                Ok(val) => val,
-                Err(err) => return Err(InstanceError::ExtensionEnumerationError(err)),
-            }
-            .to_vec();
+        let mut extension_names = match ash_window::enumerate_required_extensions(display_handle.as_raw()) {
+            Ok(val) => val,
+            Err(err) => return Err(InstanceError::ExtensionEnumerationError(err)),
+        }
+        .to_vec();
         extension_names.push(ash::ext::debug_utils::NAME.as_ptr());
 
         let layer_names = match cfg!(debug_assertions) {
             true => vec![c"VK_LAYER_KHRONOS_validation"],
             false => vec![],
         };
-        let layers_names_raw: Vec<*const std::ffi::c_char> = layer_names
-            .iter()
-            .map(|raw_name| raw_name.as_ptr())
-            .collect();
+        let layers_names_raw: Vec<*const std::ffi::c_char> =
+            layer_names.iter().map(|raw_name| raw_name.as_ptr()).collect();
 
         let create_info = ash::vk::InstanceCreateInfo::default()
             .application_info(&app_info)
@@ -115,8 +109,7 @@ impl Instance {
                     )
                     .pfn_user_callback(Some(vulkan_debug_callback));
 
-                match unsafe { debug_utils_loader.create_debug_utils_messenger(&debug_info, None) }
-                {
+                match unsafe { debug_utils_loader.create_debug_utils_messenger(&debug_info, None) } {
                     Ok(val) => Some(val),
                     Err(err) => return Err(InstanceError::DebugCreationError(err)),
                 }
@@ -144,10 +137,7 @@ impl Instance {
 impl Drop for Instance {
     fn drop(&mut self) {
         if let Some(messanger) = self._debug_call_back {
-            unsafe {
-                self._debug_utils_loader
-                    .destroy_debug_utils_messenger(messanger, None)
-            };
+            unsafe { self._debug_utils_loader.destroy_debug_utils_messenger(messanger, None) };
         }
         unsafe { self.instance.destroy_instance(None) };
     }

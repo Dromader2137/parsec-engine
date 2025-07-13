@@ -20,10 +20,7 @@ impl From<RenderpassError> for VulkanError {
 }
 
 impl Renderpass {
-    pub fn new(
-        surface: Arc<Surface>,
-        device: Arc<Device>,
-    ) -> Result<Arc<Renderpass>, RenderpassError> {
+    pub fn new(surface: Arc<Surface>, device: Arc<Device>) -> Result<Arc<Renderpass>, RenderpassError> {
         let renderpass_attachments = [
             ash::vk::AttachmentDescription {
                 format: surface.format(),
@@ -53,8 +50,7 @@ impl Renderpass {
         let dependencies = [ash::vk::SubpassDependency {
             src_subpass: ash::vk::SUBPASS_EXTERNAL,
             src_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            dst_access_mask: ash::vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: ash::vk::AccessFlags::COLOR_ATTACHMENT_READ | ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dst_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             ..Default::default()
         }];
@@ -92,10 +88,6 @@ impl Renderpass {
 
 impl Drop for Renderpass {
     fn drop(&mut self) {
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_render_pass(self.renderpass, None)
-        };
+        unsafe { self.device.get_device_raw().destroy_render_pass(self.renderpass, None) };
     }
 }

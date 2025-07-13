@@ -79,11 +79,7 @@ impl VulkanRendererImageData {
         })
     }
 
-    pub fn recreate(
-        &mut self,
-        context: Arc<VulkanContext>,
-        renderpass: Arc<Renderpass>,
-    ) -> Result<(), VulkanError> {
+    pub fn recreate(&mut self, context: Arc<VulkanContext>, renderpass: Arc<Renderpass>) -> Result<(), VulkanError> {
         let swapchain = Swapchain::new(
             context.surface.clone(),
             context.device.clone(),

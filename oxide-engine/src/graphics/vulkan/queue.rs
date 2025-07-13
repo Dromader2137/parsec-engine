@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use super::{
-    VulkanError, command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore,
-};
+use super::{VulkanError, command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore};
 
 pub struct Queue {
     pub device: Arc<Device>,
@@ -56,11 +54,9 @@ impl Queue {
             .signal_semaphores(&signal_semaphores);
 
         if let Err(err) = unsafe {
-            self.device.get_device_raw().queue_submit(
-                self.queue,
-                &[submit_info],
-                *submit_fence.get_fence_raw(),
-            )
+            self.device
+                .get_device_raw()
+                .queue_submit(self.queue, &[submit_info], *submit_fence.get_fence_raw())
         } {
             return Err(QueueError::SubmitError(err));
         }

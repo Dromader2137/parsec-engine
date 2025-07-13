@@ -414,16 +414,8 @@ impl Vec2f {
 }
 
 impl Vec3f {
-    pub const ZERO: Vec3f = Vec3f {
-        x: 0.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const UP: Vec3f = Vec3f {
-        x: 0.0,
-        y: 1.0,
-        z: 0.0,
-    };
+    pub const ZERO: Vec3f = Vec3f { x: 0.0, y: 0.0, z: 0.0 };
+    pub const UP: Vec3f = Vec3f { x: 0.0, y: 1.0, z: 0.0 };
     pub const DOWN: Vec3f = Vec3f {
         x: 0.0,
         y: -1.0,
@@ -434,16 +426,8 @@ impl Vec3f {
         y: 0.0,
         z: 0.0,
     };
-    pub const RIGHT: Vec3f = Vec3f {
-        x: 1.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const FORWARD: Vec3f = Vec3f {
-        x: 0.0,
-        y: 0.0,
-        z: 1.0,
-    };
+    pub const RIGHT: Vec3f = Vec3f { x: 1.0, y: 0.0, z: 0.0 };
+    pub const FORWARD: Vec3f = Vec3f { x: 0.0, y: 0.0, z: 1.0 };
     pub const BACK: Vec3f = Vec3f {
         x: 0.0,
         y: 0.0,
@@ -535,16 +519,8 @@ impl Vec2d {
 }
 
 impl Vec3d {
-    pub const ZERO: Vec3d = Vec3d {
-        x: 0.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const UP: Vec3d = Vec3d {
-        x: 0.0,
-        y: 1.0,
-        z: 0.0,
-    };
+    pub const ZERO: Vec3d = Vec3d { x: 0.0, y: 0.0, z: 0.0 };
+    pub const UP: Vec3d = Vec3d { x: 0.0, y: 1.0, z: 0.0 };
     pub const DOWN: Vec3d = Vec3d {
         x: 0.0,
         y: -1.0,
@@ -555,16 +531,8 @@ impl Vec3d {
         y: 0.0,
         z: 0.0,
     };
-    pub const RIGHT: Vec3d = Vec3d {
-        x: 1.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const FORWARD: Vec3d = Vec3d {
-        x: 0.0,
-        y: 0.0,
-        z: 1.0,
-    };
+    pub const RIGHT: Vec3d = Vec3d { x: 1.0, y: 0.0, z: 0.0 };
+    pub const FORWARD: Vec3d = Vec3d { x: 0.0, y: 0.0, z: 1.0 };
     pub const BACK: Vec3d = Vec3d {
         x: 0.0,
         y: 0.0,

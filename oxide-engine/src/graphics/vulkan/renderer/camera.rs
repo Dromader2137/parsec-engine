@@ -1,3 +1,1 @@
-pub struct CameraData {
-
-}
+pub struct CameraData {}

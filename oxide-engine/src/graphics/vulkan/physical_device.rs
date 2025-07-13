@@ -25,11 +25,10 @@ impl PhysicalDevice {
         instance: Arc<Instance>,
         initial_surface: Arc<InitialSurface>,
     ) -> Result<Arc<PhysicalDevice>, PhysicalDeviceError> {
-        let physical_devices =
-            match unsafe { instance.get_instance_raw().enumerate_physical_devices() } {
-                Ok(val) => val,
-                Err(err) => return Err(PhysicalDeviceError::CreationError(err)),
-            };
+        let physical_devices = match unsafe { instance.get_instance_raw().enumerate_physical_devices() } {
+            Ok(val) => val,
+            Err(err) => return Err(PhysicalDeviceError::CreationError(err)),
+        };
 
         let (physical_device, queue_family_index) = match physical_devices.iter().find_map(|p| {
             unsafe {
@@ -40,11 +39,8 @@ impl PhysicalDevice {
             .iter()
             .enumerate()
             .find_map(|(index, info)| {
-                let supports_graphic_and_surface =
-                    info.queue_flags.contains(ash::vk::QueueFlags::GRAPHICS)
-                        && initial_surface
-                            .check_surface_support(*p, index as u32)
-                            .unwrap_or(false);
+                let supports_graphic_and_surface = info.queue_flags.contains(ash::vk::QueueFlags::GRAPHICS)
+                    && initial_surface.check_surface_support(*p, index as u32).unwrap_or(false);
 
                 if supports_graphic_and_surface {
                     Some((*p, index as u32))
