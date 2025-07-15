@@ -22,7 +22,7 @@ impl Systems {
         }
     }
 
-    pub fn add_system(&mut self, system: System) {
+    pub fn push(&mut self, system: System) {
         match self.systems.get_mut(&system.system_type) {
             Some(systems) => systems.push(system),
             None => {

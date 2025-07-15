@@ -124,7 +124,7 @@ macro_rules! impl_into_archetype {
             fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
                 ArchetypeId::new(
                     vec![
-                        ::std::any::TypeId::of::<$t>()
+                        TypeId::of::<$t>()
                     ]
                 )
             }
@@ -137,7 +137,7 @@ macro_rules! impl_into_archetype {
                 ArchetypeId::new(
                     vec![
                         $(
-                            ::std::any::TypeId::of::<$t>()
+                            TypeId::of::<$t>()
                         ),*
                     ]
                 )

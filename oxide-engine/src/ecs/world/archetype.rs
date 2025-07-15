@@ -16,6 +16,7 @@ pub enum ArchetypeError {
     TypeNotFound,
     ColumnStatusRefCellAlreadyBorrowed,
     BundleCannotContainManyValuesOfTheSameType,
+    CannotAddANewBundleToAnAlreadyBorrowedArchetype
 }
 
 impl From<ArchetypeError> for WorldError {
@@ -97,6 +98,13 @@ impl ColumnStateWrapper {
                 ColumnState::Borrowed(_) => Err(ArchetypeError::ColumnAlreadyBorrowed),
                 ColumnState::MutBorrowed => Err(ArchetypeError::ColumnAlreadyMutablyBorrowed),
             },
+            Err(_) => Err(ArchetypeError::ColumnStatusRefCellAlreadyBorrowed),
+        }
+    }
+
+    fn is_free(&self) -> Result<bool, ArchetypeError> {
+        match self.state.try_borrow() {
+            Ok(val) => Ok(matches!(val.clone(), ColumnState::Free)),
             Err(_) => Err(ArchetypeError::ColumnStatusRefCellAlreadyBorrowed),
         }
     }
@@ -245,8 +253,6 @@ impl Archetype {
         let type_id = TypeId::of::<T>();
 
         if !self.id.contains_single(&type_id) {
-            println!("{:?}", type_id);
-            println!("{:?}", self.id);
             return Err(ArchetypeError::InternalTypeMismatch);
         }
 
@@ -256,6 +262,14 @@ impl Archetype {
             .or_insert_with(|| ArchetypeColumn::new::<T>());
 
         column.push(value)
+    }
+
+    pub fn is_free(&self) -> Result<bool, ArchetypeError> {
+        for (_, x) in self.columns.iter() {
+            let x_state = x.state.is_free()?;
+            if !x_state { return Ok(false) }
+        }
+        Ok(true)
     }
 
     fn get_column<T: Component>(&self) -> Result<&ArchetypeColumn, ArchetypeError> {

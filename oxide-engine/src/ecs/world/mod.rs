@@ -31,19 +31,16 @@ impl World {
 
     pub fn spawn<T: for<'a> UsableBundle<'a>>(&mut self, bundle: T) -> Result<(), WorldError> {
         let archetype_id = T::archetype_id()?;
-        let archetype_count = self.archetypes.len();
 
-        let archetype_index = match self.archetypes.iter().enumerate().find(|(_, x)| archetype_id == x.id) {
-            Some(val) => val.0,
-            None => archetype_count,
-        };
-
-        if archetype_index == archetype_count {
-            self.archetypes.push(Archetype::new(archetype_id));
+        let archetype = self.archetypes.iter_mut().find(|x| archetype_id == x.id);
+        match archetype {
+            Some(val) => bundle.add_to(val)?,
+            None => {
+                let mut arch = Archetype::new(archetype_id);
+                bundle.add_to(&mut arch)?;
+                self.archetypes.push(arch);
+            }
         }
-
-        bundle.add_to(&mut self.archetypes[archetype_index])?;
-        self.archetypes[archetype_index].bundle_count += 1;
 
         Ok(())
     }
@@ -52,14 +49,9 @@ impl World {
         &self,
     ) -> Result<impl Iterator<Item = <T as FromColumns<'_>>::Output>, WorldError> {
         let bundle_archetype_id = T::archetype_id()?;
-
         let mut iterators = Vec::new();
 
-        for archetype in self.archetypes.iter() {
-            if !archetype.id.contains(&bundle_archetype_id) {
-                continue;
-            }
-
+        for archetype in self.archetypes.iter().filter(|x| x.id.contains(&bundle_archetype_id)) {
             let archetype_iter = T::iter_from_columns(archetype)?;
             iterators.push(archetype_iter);
         }
@@ -71,14 +63,9 @@ impl World {
         &self,
     ) -> Result<impl Iterator<Item = <T as FromColumnsMut<'_>>::Output>, WorldError> {
         let bundle_archetype_id = T::archetype_id()?;
-
         let mut iterators = Vec::new();
 
-        for archetype in self.archetypes.iter() {
-            if !archetype.id.contains(&bundle_archetype_id) {
-                continue;
-            }
-
+        for archetype in self.archetypes.iter().filter(|x| x.id.contains(&bundle_archetype_id)) {
             let archetype_iter = T::iter_from_columns(archetype)?;
             iterators.push(archetype_iter);
         }
