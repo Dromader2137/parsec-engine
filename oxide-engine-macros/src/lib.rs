@@ -40,7 +40,10 @@ pub fn impl_bundle(input: TokenStream) -> TokenStream {
             }
 
             fn add_to(&self, arch: &mut Archetype) -> Result<(), ArchetypeError> {
+                let free = arch.is_free()?;
+                if !free { return Err(ArchetypeError::CannotAddANewBundleToAnAlreadyBorrowedArchetype) }
                 #(#adds)*
+                arch.bundle_count += 1;
                 Ok(())
             }
         }
