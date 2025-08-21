@@ -43,6 +43,7 @@ pub fn impl_spawn(input: TokenStream) -> TokenStream {
 
             fn spawn(self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
                 #(#archetype_adds)*
+                archetype.bundle_count += 1;
                 Ok(())
             }
         }
@@ -70,15 +71,19 @@ pub fn impl_fetch(input: TokenStream) -> TokenStream {
     let mut bundle_types = Vec::new();
     let mut item_types = Vec::new();
     let mut borrow = Vec::new();
+    let mut release = Vec::new();
     let mut get = Vec::new();
+    let mut id = Vec::new();
     let mut archetype_adds = Vec::new();
     let mut archetype_ids = Vec::new();
     for (i, t) in types.iter().enumerate() {
         impl_types.push(quote! { #t: Fetch<'a> });
         bundle_types.push(quote! { #t });
-        item_types.push(quote! { #t::Item });
-        borrow.push(quote! { #t::borrow(archetype) });
+        item_types.push(quote! { #t::Item<'b> });
+        borrow.push(quote! { #t::borrow(archetype)? });
+        release.push(quote! { #t::release(archetype)? });
         archetype_ids.push(quote! { std::any::TypeId::of::<#t>() });
+        id.push(quote! { std::any::TypeId::of::<#t>() });
         let i = syn::Index::from(i);
         archetype_adds.push(quote! { archetype.add(self.#i.clone())?; });
         get.push(quote! { self.#i.get(row) });
@@ -88,18 +93,28 @@ pub fn impl_fetch(input: TokenStream) -> TokenStream {
         bundle_types.push(quote! {});
         item_types.push(quote! {});
         borrow.push(quote! {});
+        release.push(quote! {});
         get.push(quote! {});
     }
 
     let output = quote! {
         impl<'a, #(#impl_types),*> Fetch<'a> for (#(#bundle_types),*) {
-            type Item = (#(#item_types),*);
+            type Item<'b> = (#(#item_types),*) where 'a: 'b, Self: 'b;
 
-            fn borrow(archetype: &'a Archetype) -> Self {
-                (#(#borrow),*)
+            fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
+                ArchetypeId::new(vec![#(#id),*])
             }
 
-            fn get(&mut self, row: usize) -> Self::Item {
+            fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> {
+                Ok((#(#borrow),*))
+            }
+
+            fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError> {
+                (#(#release),*);
+                Ok(())
+            }
+
+            fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b> {
                 (#(#get),*)
             }
 

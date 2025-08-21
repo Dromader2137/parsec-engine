@@ -1,22 +1,34 @@
+use std::any::TypeId;
+
 use oxide_engine_macros::{multiple_tuples, impl_fetch};
 
-use super::{archetype::Archetype, component::Component};
+use super::{archetype::{Archetype, ArchetypeError, ArchetypeId}, component::Component};
 
-pub trait Fetch<'a> {
-    type Item;
-    fn borrow(archetype: &'a Archetype) -> Self;
-    fn get(&mut self, row: usize) -> Self::Item;
+pub trait Fetch<'a>: Sized {
+    type Item<'b> where 'a: 'b, Self: 'b;
+    fn archetype_id() -> Result<ArchetypeId, ArchetypeError>;
+    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError>;
+    fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError>;
+    fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b>;
     fn count(&self) -> usize;
 }
 
 impl<'a, T: Component> Fetch<'a> for &'a [T] {
-    type Item = &'a T;
+    type Item<'b> = &'b T where 'a: 'b, Self: 'b;
 
-    fn borrow(archetype: &'a Archetype) -> Self {
-        archetype.get::<T>().unwrap()
+    fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
+        ArchetypeId::new(vec![TypeId::of::<T>()])
     }
 
-    fn get(&mut self, row: usize) -> Self::Item {
+    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> {
+        archetype.get::<T>()
+    }
+    
+    fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError> {
+        archetype.release_lock::<T>()
+    }
+
+    fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b> {
         &self[row]
     }
 
@@ -26,13 +38,21 @@ impl<'a, T: Component> Fetch<'a> for &'a [T] {
 }
 
 impl<'a, T: Component> Fetch<'a> for &'a mut [T] {
-    type Item = &'a mut T;
-
-    fn borrow(archetype: &'a Archetype) -> Self {
-        archetype.get_mut::<T>().unwrap()
+    type Item<'b> = &'b mut T where 'a: 'b, Self: 'b;
+    
+    fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
+        ArchetypeId::new(vec![TypeId::of::<T>()])
     }
 
-    fn get(&mut self, row: usize) -> Self::Item {
+    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> {
+        archetype.get_mut::<T>()
+    }
+
+    fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError> {
+        archetype.release_lock::<T>()
+    }
+
+    fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b> {
         let ptr = self.as_mut_ptr();
         unsafe { &mut *ptr.add(row) }
     }

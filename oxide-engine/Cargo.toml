@@ -11,6 +11,3 @@ ash-window = "0.13.0"
 
 [build-dependencies]
 shaderc = "0.9.1"
-
-[dev-dependencies]
-proptest = "1.7.0"

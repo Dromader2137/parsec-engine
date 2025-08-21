@@ -1,14 +1,18 @@
 use std::{
     any::TypeId,
+    cell::RefCell,
     collections::{HashMap, HashSet},
-    fmt::Debug,
+    fmt::Debug, hash::{DefaultHasher, Hash, Hasher},
 };
 
-use super::{WorldError, component::Component};
+use oxide_engine_macros::{impl_spawn, multiple_tuples};
+
+use super::{WorldError, component::Component, spawn::Spawn};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArchetypeError {
-    InternalTypeMismatch,
+    ArchetypeColumnNotWritable,
+    ArchetypeColumnNotReadable,
     TypeNotFound,
     BundleCannotContainManyValuesOfTheSameType,
 }
@@ -19,22 +23,33 @@ impl From<ArchetypeError> for WorldError {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ArchetypeId {
     component_types: HashSet<TypeId>,
+    hash: u64,
+}
+
+impl Hash for ArchetypeId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u64(self.hash);        
+    }
 }
 
 impl ArchetypeId {
     pub fn new(component_types: Vec<TypeId>) -> Result<ArchetypeId, ArchetypeError> {
         let mut set = HashSet::new();
+        let mut hash = 0_u64;
 
         for id in component_types.iter() {
+            let mut s = DefaultHasher::new();
+            id.hash(&mut s);
+            hash ^= s.finish();
             if !set.insert(*id) {
                 return Err(ArchetypeError::BundleCannotContainManyValuesOfTheSameType);
             }
         }
 
-        Ok(ArchetypeId { component_types: set })
+        Ok(ArchetypeId { component_types: set, hash })
     }
 
     pub fn contains(&self, other_id: &ArchetypeId) -> bool {
@@ -53,47 +68,86 @@ impl ArchetypeId {
     pub fn contains_single(&self, component_type: &TypeId) -> bool {
         self.component_types.contains(component_type)
     }
+
+    pub fn component_count(&self) -> usize {
+        self.component_types.len()
+    }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ArchetypeColumnAccess {
+    ReadWrite,
+    Read,
+    None,
+}
+
+#[derive(Debug)]
 struct ArchetypeColumn {
     data: Vec<u8>,
-}
-
-impl Debug for ArchetypeColumn {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ArchetypeColumn").finish()
-    }
+    access: RefCell<ArchetypeColumnAccess>,
+    borrow_count: RefCell<usize>,
+    rows: usize,
+    component_size: usize
 }
 
 impl ArchetypeColumn {
     fn new<T: Component>() -> ArchetypeColumn {
         ArchetypeColumn {
-            data: Vec::new()
+            data: Vec::new(),
+            access: RefCell::new(ArchetypeColumnAccess::ReadWrite),
+            borrow_count: RefCell::new(0),
+            rows: 0,
+            component_size: std::mem::size_of::<T>()
         }
     }
 
     fn push<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(
-                &value as *const T as *const u8,
-                std::mem::size_of::<T>(),
-            )
-        };
+        let access = self.access.borrow();
+
+        if *access != ArchetypeColumnAccess::ReadWrite {
+            return Err(ArchetypeError::ArchetypeColumnNotWritable);
+        }
+
+        let bytes = unsafe { std::slice::from_raw_parts(&value as *const T as *const u8, std::mem::size_of::<T>()) };
 
         self.data.extend_from_slice(bytes);
+        self.rows += 1;
 
         Ok(())
     }
 
+    fn pop(&mut self) {
+        if self.rows == 0 {
+            return;
+        }
+
+        let _ = self.data.split_off(self.data.len() - self.component_size);
+    }
+
     fn get_slice<T: Component>(&self) -> Result<&[T], ArchetypeError> {
+        let access = self.access.borrow();
+
+        if *access == ArchetypeColumnAccess::None {
+            return Err(ArchetypeError::ArchetypeColumnNotReadable);
+        }
+
         let t_slice = unsafe {
-            std::slice::from_raw_parts(self.data.as_ptr() as *const T, self.data.len() / std::mem::size_of::<T>())
+            std::slice::from_raw_parts(
+                self.data.as_ptr() as *const T,
+                self.data.len() / std::mem::size_of::<T>(),
+            )
         };
 
         Ok(t_slice)
     }
 
     fn get_mut_slice<T: Component>(&self) -> Result<&mut [T], ArchetypeError> {
+        let access = self.access.borrow();
+
+        if *access != ArchetypeColumnAccess::ReadWrite {
+            return Err(ArchetypeError::ArchetypeColumnNotWritable);
+        }
+
         let t_slice = unsafe {
             std::slice::from_raw_parts_mut(self.data.as_ptr() as *mut T, self.data.len() / std::mem::size_of::<T>())
         };
@@ -104,26 +158,22 @@ impl ArchetypeColumn {
 
 #[derive(Debug)]
 pub struct Archetype {
-    pub id: ArchetypeId,
     columns: HashMap<TypeId, ArchetypeColumn>,
     pub bundle_count: usize,
+    component_count: usize,
 }
 
 impl Archetype {
-    pub fn new(id: ArchetypeId) -> Archetype {
+    pub fn new(component_count: usize) -> Archetype {
         Archetype {
-            id,
             columns: HashMap::new(),
             bundle_count: 0,
+            component_count,
         }
     }
 
-    pub fn add<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
+    fn add<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
         let type_id = TypeId::of::<T>();
-
-        if !self.id.contains_single(&type_id) {
-            return Err(ArchetypeError::TypeNotFound);
-        }
 
         let column = self
             .columns
@@ -131,6 +181,19 @@ impl Archetype {
             .or_insert_with(|| ArchetypeColumn::new::<T>());
 
         column.push(value)
+    }
+
+    pub fn trim_columns(&mut self) {
+        let mut desired_len = self.columns.iter().map(|x| x.1.rows).min().unwrap_or(0);
+        if self.columns.len() < self.component_count {
+            desired_len = 0;
+        }
+
+        for (_, column) in self.columns.iter_mut() {
+            if column.rows < desired_len {
+                column.pop();
+            }
+        };
     }
 
     fn get_column<T: Component>(&self) -> Result<&ArchetypeColumn, ArchetypeError> {
@@ -143,16 +206,41 @@ impl Archetype {
     pub fn get<T: Component>(&self) -> Result<&[T], ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_slice::<T>()?;
+        *column.borrow_count.borrow_mut() += 1;
+        *column.access.borrow_mut() = ArchetypeColumnAccess::Read;
         Ok(slice)
     }
 
     pub fn get_mut<T: Component>(&self) -> Result<&mut [T], ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_mut_slice::<T>()?;
+        *column.access.borrow_mut() = ArchetypeColumnAccess::None;
         Ok(slice)
+    }
+
+    pub fn release_lock<T: Component>(&self) -> Result<(), ArchetypeError> {
+        let column = self.get_column::<T>()?;
+        let column_access = *column.access.borrow();
+        match column_access {
+            ArchetypeColumnAccess::None => {
+                *column.access.borrow_mut() = ArchetypeColumnAccess::ReadWrite;
+            },
+            ArchetypeColumnAccess::Read => {
+                let mut borrow_count = column.borrow_count.borrow_mut();
+                *borrow_count -= 1;
+                if *borrow_count == 0 {
+                    *column.access.borrow_mut() = ArchetypeColumnAccess::ReadWrite;
+                }
+            },
+            _ => ()
+        };
+
+        Ok(())
     }
 
     pub fn len(&self) -> usize {
         self.bundle_count
     }
 }
+
+multiple_tuples!(impl_spawn, 16);
