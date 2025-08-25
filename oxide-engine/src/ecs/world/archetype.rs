@@ -7,6 +7,8 @@ use std::{
 
 use oxide_engine_macros::{impl_spawn, multiple_tuples};
 
+use crate::ecs::entity::Entity;
+
 use super::{WorldError, component::Component, spawn::Spawn};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,6 +17,7 @@ pub enum ArchetypeError {
     ArchetypeColumnNotReadable,
     TypeNotFound,
     BundleCannotContainManyValuesOfTheSameType,
+    BundleCannotContainManyValuesOfTheSameTypeMerge,
 }
 
 impl From<ArchetypeError> for WorldError {
@@ -46,6 +49,22 @@ impl ArchetypeId {
             hash ^= s.finish();
             if !set.insert(*id) {
                 return Err(ArchetypeError::BundleCannotContainManyValuesOfTheSameType);
+            }
+        }
+
+        Ok(ArchetypeId { component_types: set, hash })
+    }
+
+    pub fn merge_with(self, other: ArchetypeId) -> Result<ArchetypeId, ArchetypeError> {
+        let mut set = self.component_types;
+        let mut hash = self.hash;
+        
+        for id in other.component_types.iter() {
+            let mut s = DefaultHasher::new();
+            id.hash(&mut s);
+            hash ^= s.finish();
+            if !set.insert(*id) {
+                return Err(ArchetypeError::BundleCannotContainManyValuesOfTheSameTypeMerge);
             }
         }
 
@@ -108,7 +127,7 @@ impl ArchetypeColumn {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
         }
 
-        let bytes = unsafe { std::slice::from_raw_parts(&value as *const T as *const u8, std::mem::size_of::<T>()) };
+        let bytes = unsafe { std::slice::from_raw_parts(&value as *const T as *const u8, self.component_size) };
 
         self.data.extend_from_slice(bytes);
         self.rows += 1;
@@ -134,7 +153,7 @@ impl ArchetypeColumn {
         let t_slice = unsafe {
             std::slice::from_raw_parts(
                 self.data.as_ptr() as *const T,
-                self.data.len() / std::mem::size_of::<T>(),
+                self.data.len() / self.component_size,
             )
         };
 
@@ -149,7 +168,7 @@ impl ArchetypeColumn {
         }
 
         let t_slice = unsafe {
-            std::slice::from_raw_parts_mut(self.data.as_ptr() as *mut T, self.data.len() / std::mem::size_of::<T>())
+            std::slice::from_raw_parts_mut(self.data.as_ptr() as *mut T, self.data.len() / self.component_size)
         };
 
         Ok(t_slice)
@@ -161,6 +180,7 @@ pub struct Archetype {
     columns: HashMap<TypeId, ArchetypeColumn>,
     pub bundle_count: usize,
     component_count: usize,
+    pub entities: Vec<Entity>,
 }
 
 impl Archetype {
@@ -169,10 +189,11 @@ impl Archetype {
             columns: HashMap::new(),
             bundle_count: 0,
             component_count,
+            entities: Vec::new(),
         }
     }
 
-    fn add<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
+    pub fn add<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
         let type_id = TypeId::of::<T>();
 
         let column = self
@@ -183,6 +204,10 @@ impl Archetype {
         column.push(value)
     }
 
+    pub fn new_entity(&mut self, id: u32) {
+        self.entities.push(Entity::new(id));
+    }
+
     pub fn trim_columns(&mut self) {
         let mut desired_len = self.columns.iter().map(|x| x.1.rows).min().unwrap_or(0);
         if self.columns.len() < self.component_count {
@@ -190,10 +215,14 @@ impl Archetype {
         }
 
         for (_, column) in self.columns.iter_mut() {
-            if column.rows < desired_len {
+            while column.rows < desired_len {
                 column.pop();
             }
-        };
+        }
+
+        while self.entities.len() > desired_len {
+            self.entities.pop();
+        }
     }
 
     fn get_column<T: Component>(&self) -> Result<&ArchetypeColumn, ArchetypeError> {

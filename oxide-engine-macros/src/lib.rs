@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::{Ident, LitInt, Token, parse_macro_input};
+use syn::{parse_macro_input, DeriveInput, Ident, LitInt, Token};
 
 struct ImplSpawnInput {
     types: Punctuated<Ident, Token![,]>,
@@ -18,32 +18,40 @@ impl Parse for ImplSpawnInput {
 #[proc_macro]
 pub fn impl_spawn(input: TokenStream) -> TokenStream {
     let ImplSpawnInput { types } = parse_macro_input!(input as ImplSpawnInput);
+    
+    if types.len() == 1 {
+        return TokenStream::new();
+    }
 
     let mut impl_types = Vec::new();
     let mut bundle_types = Vec::new();
     let mut archetype_adds = Vec::new();
     let mut archetype_ids = Vec::new();
+    let mut bundle_deconstruction = Vec::new();
+    let mut id = Vec::new();
     for (i, t) in types.iter().enumerate() {
-        impl_types.push(quote! { #t: Component });
+        impl_types.push(quote! { #t: Spawn });
         bundle_types.push(quote! { #t });
         archetype_ids.push(quote! { std::any::TypeId::of::<#t>() });
+        id.push(quote! { ret = ret.merge_with(#t::archetype_id()?)?; });
         let i = syn::Index::from(i);
-        archetype_adds.push(quote! { archetype.add(self.#i.clone())?; });
+        let dec_name = format_ident!("value_{}", i);
+        bundle_deconstruction.push(quote! { #dec_name });
+        archetype_adds.push(quote! { self.#i.spawn(archetype)?; });
     }
 
-    if types.len() == 1 {
-        bundle_types.push(quote! {});
-    }
 
     let output = quote! {
         impl<#(#impl_types),*> Spawn for (#(#bundle_types),*) {
             fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
-                ArchetypeId::new(vec![#(#archetype_ids),*])
+                let mut ret = ArchetypeId::new(Vec::new())?;
+                #(#id)*
+                Ok(ret)
             }
 
             fn spawn(self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
+                // let (#(#bundle_deconstruction),*) = self;
                 #(#archetype_adds)*
-                archetype.bundle_count += 1;
                 Ok(())
             }
         }
@@ -66,6 +74,10 @@ impl Parse for ImplFetchInput {
 #[proc_macro]
 pub fn impl_fetch(input: TokenStream) -> TokenStream {
     let ImplFetchInput { types } = parse_macro_input!(input as ImplFetchInput);
+    
+    if types.len() == 1 {
+        return TokenStream::new();
+    }
 
     let mut impl_types = Vec::new();
     let mut bundle_types = Vec::new();
@@ -83,18 +95,10 @@ pub fn impl_fetch(input: TokenStream) -> TokenStream {
         borrow.push(quote! { #t::borrow(archetype)? });
         release.push(quote! { #t::release(archetype)? });
         archetype_ids.push(quote! { std::any::TypeId::of::<#t>() });
-        id.push(quote! { std::any::TypeId::of::<#t>() });
+        id.push(quote! { ret = ret.merge_with(#t::archetype_id()?)?; });
         let i = syn::Index::from(i);
         archetype_adds.push(quote! { archetype.add(self.#i.clone())?; });
         get.push(quote! { self.#i.get(row) });
-    }
-
-    if types.len() == 1 {
-        bundle_types.push(quote! {});
-        item_types.push(quote! {});
-        borrow.push(quote! {});
-        release.push(quote! {});
-        get.push(quote! {});
     }
 
     let output = quote! {
@@ -102,7 +106,9 @@ pub fn impl_fetch(input: TokenStream) -> TokenStream {
             type Item<'b> = (#(#item_types),*) where 'a: 'b, Self: 'b;
 
             fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
-                ArchetypeId::new(vec![#(#id),*])
+                let mut ret = ArchetypeId::new(Vec::new())?;
+                #(#id)*
+                Ok(ret)
             }
 
             fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> {
@@ -155,4 +161,16 @@ pub fn multiple_tuples(input: TokenStream) -> TokenStream {
     }
 
     TokenStream::from(quote! { #(#output)* })
+}
+
+#[proc_macro_derive(Component)]
+pub fn derive_component(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let ident = input.ident;
+
+    let expanded = quote! {
+        impl Component for #ident {}
+    };
+
+    TokenStream::from(expanded)
 }
