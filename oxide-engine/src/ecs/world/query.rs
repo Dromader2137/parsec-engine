@@ -58,7 +58,9 @@ impl<'a, T: Fetch<'a>> Query<'a, T> {
 
 impl<'a, T: Fetch<'a>> Drop for Query<'a, T> {
     fn drop(&mut self) {
-        self.release_lock().unwrap();
+        if !self.released {
+            self.release_lock().expect("Clean lock release");
+        }
     }
 }
 
@@ -70,7 +72,7 @@ pub trait QueryIter {
 }
 
 impl<'a, T: Fetch<'a>> QueryIter for Query<'a, T> {
-    type Item<'b> = (&'b Entity, T::Item<'b>)
+    type Item<'b> = (Entity, T::Item<'b>)
     where
         Self: 'b;
 
@@ -92,6 +94,6 @@ impl<'a, T: Fetch<'a>> QueryIter for Query<'a, T> {
         let row = self.inside_idx;
         self.inside_idx += 1;
 
-        Some((&self.archetypes[self.outside_idx].entities[row], self.fetch[self.outside_idx].get(row)))
+        Some((self.archetypes[self.outside_idx].entities[row], self.fetch[self.outside_idx].get(row)))
     }
 }

@@ -16,6 +16,7 @@ pub enum ArchetypeError {
     ArchetypeColumnNotWritable,
     ArchetypeColumnNotReadable,
     TypeNotFound,
+    EntityNotFound,
     BundleCannotContainManyValuesOfTheSameType,
     BundleCannotContainManyValuesOfTheSameTypeMerge,
 }
@@ -143,6 +144,23 @@ impl ArchetypeColumn {
         let _ = self.data.split_off(self.data.len() - self.component_size);
     }
 
+    fn copy(&mut self, from: usize, to: usize) -> Result<(), ArchetypeError> {
+        if from == to {
+            return Ok(());
+        }
+
+        if from >= self.rows || to >= self.rows {
+            return Err(ArchetypeError::EntityNotFound);
+        }
+
+        let copy_from = from*self.component_size..(from+1)*self.component_size;
+        let copy_to = to*self.component_size;
+
+        self.data.copy_within(copy_from, copy_to);
+
+        Ok(())
+    }
+
     fn get_slice<T: Component>(&self) -> Result<&[T], ArchetypeError> {
         let access = self.access.borrow();
 
@@ -206,6 +224,23 @@ impl Archetype {
 
     pub fn new_entity(&mut self, id: u32) {
         self.entities.push(Entity::new(id));
+    }
+
+    pub fn delete_entity(&mut self, entity: Entity) -> Result<(), ArchetypeError> {
+        let last_pos = self.entities.len() - 1;
+        let entity_pos = match self.entities.iter().enumerate().find(|(_, x)| **x == entity) {
+            Some((pos, _)) => {
+                pos
+            },
+            None => return Err(ArchetypeError::EntityNotFound)
+        };
+
+        for (_, column) in self.columns.iter_mut() {
+            column.copy(last_pos, entity_pos).expect(&format!("Both entity ids within the bounds 0..{}", self.entities.len()));
+            column.pop();
+        };
+
+        Ok(())
     }
 
     pub fn trim_columns(&mut self) {

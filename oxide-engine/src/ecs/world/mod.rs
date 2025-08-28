@@ -7,6 +7,8 @@ use spawn::Spawn;
 
 use crate::error::EngineError;
 
+use super::entity::Entity;
+
 pub mod archetype;
 pub mod component;
 pub mod fetch;
@@ -52,6 +54,21 @@ impl World {
     pub fn query<'a, T: Fetch<'a>>(&'a self) -> Result<Query<'a, T>, WorldError> {
         Ok(Query::new(&self.archetypes)?)
     }
+
+    pub fn delete(&mut self, entity: Entity) -> Result<(), WorldError> {
+        for (_, archetype) in self.archetypes.iter_mut() {
+            match archetype.delete_entity(entity) {
+                Ok(()) => {
+                    archetype.bundle_count -= 1;
+                    return Ok(());
+                }
+                Err(ArchetypeError::EntityNotFound) => (),
+                Err(err) => return Err(err.into())
+            };
+        }
+
+        Err(ArchetypeError::EntityNotFound.into())
+    }
 }
 
 impl Default for World {
@@ -74,6 +91,16 @@ mod tests {
     struct Velocity(i32, i32);
 
     #[test]
+    fn spawn_archetype_reuse_same_bundle_composition() {
+        let mut world = World::new();
+        world.spawn((Position(0, 0), Velocity(0, 0))).unwrap();
+        let before = world.archetypes.len();
+
+        world.spawn((Position(1, 1), Velocity(1, 1))).unwrap();
+        assert_eq!(world.archetypes.len(), before);
+    }
+
+    #[test]
     fn spawn_query_single_component_bundle() {
         let mut world = World::new();
         world.spawn(Position(1, 2)).unwrap();
@@ -85,6 +112,82 @@ mod tests {
         let (_, pos) = query.next().unwrap();
         assert_eq!(pos, &Position(1, 2));
     }
+    
+    #[test]
+    fn spawn_query_delete_single_component_bundle() {
+        let mut world = World::new();
+        world.spawn(Position(1, 2)).unwrap();
+
+        assert_eq!(world.archetypes.len(), 1);
+        assert_eq!(world.archetypes.iter().next().unwrap().1.len(), 1);
+
+        let mut query = world.query::<&[Position]>().unwrap();
+        let (entity, _) = query.next().unwrap();
+        drop(query);
+        world.delete(entity).unwrap();
+        
+        assert_eq!(world.archetypes.len(), 1);
+        assert_eq!(world.archetypes.iter().next().unwrap().1.len(), 0);
+
+        let mut query = world.query::<&[Position]>().unwrap();
+
+        assert_eq!(query.next(), None);
+    }
+    
+    #[test]
+    fn spawn_query_multi_component_bundle() {
+        let mut world = World::new();
+        world.spawn((Position(5, 6), Velocity(1, 1))).unwrap();
+
+        let mut query = world.query::<(&[Position], &[Velocity])>().unwrap();
+        let (_, (pos, vel)) = query.next().unwrap();
+        assert_eq!(pos, &Position(5, 6));
+        assert_eq!(vel, &Velocity(1, 1));
+    }
+
+    
+    #[test]
+    fn spawn_query_delete_multi_component_bundle() {
+        let mut world = World::new();
+        world.spawn((Position(5, 6), Velocity(1, 1))).unwrap();
+
+        let mut query = world.query::<(&[Position], &[Velocity])>().unwrap();
+        let (entity, _) = query.next().unwrap();
+        drop(query);
+        world.delete(entity).unwrap();
+        
+        assert_eq!(world.archetypes.len(), 1);
+        assert_eq!(world.archetypes.iter().next().unwrap().1.len(), 0);
+
+        let mut query = world.query::<(&[Position], &[Velocity])>().unwrap();
+
+        assert_eq!(query.next(), None);
+    }
+    
+    #[test]
+    fn spawn_query_multi_component_multi_bundle() {
+        let mut world = World::new();
+        world.spawn((Position(15, 6), Velocity(1, 1))).unwrap();
+        world.spawn((Position(15, 6), Velocity(2, 1), 0_u32)).unwrap();
+        world.spawn((Position(25, 6), Velocity(3, 1), "asdfsaf", 1_f32)).unwrap();
+        world.spawn(Position(35, 6)).unwrap();
+
+        let mut expected = HashSet::from([
+            (Position(15, 6), Velocity(1, 1)),
+            (Position(15, 6), Velocity(2, 1)),
+            (Position(25, 6), Velocity(3, 1))
+        ]);
+
+        let mut query = world.query::<(&[Position], &[Velocity])>().unwrap();
+
+        while let Some((_, val)) = query.next() {
+            let find = expected.get(&(*val.0, *val.1));
+            assert!(matches!(find, Some(_)));
+            let find_un = *find.unwrap();
+            expected.remove(&find_un);
+        }
+    }
+
 
     #[test]
     fn spawn_query_nested_multi_component_bundle() {
@@ -121,51 +224,6 @@ mod tests {
             let find_un = *find.unwrap();
             expected.remove(&find_un);
         }
-    }
-
-    #[test]
-    fn spawn_query_multi_component_bundle() {
-        let mut world = World::new();
-        world.spawn((Position(5, 6), Velocity(1, 1))).unwrap();
-
-        let mut query = world.query::<(&[Position], &[Velocity])>().unwrap();
-        let (_, (pos, vel)) = query.next().unwrap();
-        assert_eq!(pos, &Position(5, 6));
-        assert_eq!(vel, &Velocity(1, 1));
-    }
-
-    #[test]
-    fn spawn_query_multi_component_multi_bundle() {
-        let mut world = World::new();
-        world.spawn((Position(15, 6), Velocity(1, 1))).unwrap();
-        world.spawn((Position(15, 6), Velocity(2, 1), 0_u32)).unwrap();
-        world.spawn((Position(25, 6), Velocity(3, 1), "asdfsaf", 1_f32)).unwrap();
-        world.spawn(Position(35, 6)).unwrap();
-
-        let mut expected = HashSet::from([
-            (Position(15, 6), Velocity(1, 1)),
-            (Position(15, 6), Velocity(2, 1)),
-            (Position(25, 6), Velocity(3, 1))
-        ]);
-
-        let mut query = world.query::<(&[Position], &[Velocity])>().unwrap();
-
-        while let Some((_, val)) = query.next() {
-            let find = expected.get(&(*val.0, *val.1));
-            assert!(matches!(find, Some(_)));
-            let find_un = *find.unwrap();
-            expected.remove(&find_un);
-        }
-    }
-
-    #[test]
-    fn spawn_archetype_reuse_same_bundle_composition() {
-        let mut world = World::new();
-        world.spawn((Position(0, 0), Velocity(0, 0))).unwrap();
-        let before = world.archetypes.len();
-
-        world.spawn((Position(1, 1), Velocity(1, 1))).unwrap();
-        assert_eq!(world.archetypes.len(), before);
     }
 
     #[test] 
