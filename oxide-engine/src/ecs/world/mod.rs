@@ -26,6 +26,7 @@ impl From<WorldError> for EngineError {
     }
 }
 
+/// World holds all data about components and entities
 #[derive(Debug)]
 pub struct World {
     archetypes: HashMap<ArchetypeId, Archetype>,
@@ -36,7 +37,8 @@ impl World {
     pub fn new() -> World {
         World { archetypes: HashMap::new(), current_id: 1 }
     }
-
+    
+    /// Spawn a new entity
     pub fn spawn<T: Spawn>(&mut self, bundle: T) -> Result<(), WorldError> {
         let archetype_id = T::archetype_id()?;
         let component_count = archetype_id.component_count();
@@ -51,10 +53,12 @@ impl World {
         Ok(())
     }
 
+    /// Query all entities containing component specified inside T
     pub fn query<'a, T: Fetch<'a>>(&'a self) -> Result<Query<'a, T>, WorldError> {
         Ok(Query::new(&self.archetypes)?)
     }
 
+    /// Delete an entity
     pub fn delete(&mut self, entity: Entity) -> Result<(), WorldError> {
         for (_, archetype) in self.archetypes.iter_mut() {
             match archetype.delete_entity(entity) {
