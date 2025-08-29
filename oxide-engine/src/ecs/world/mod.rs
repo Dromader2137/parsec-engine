@@ -70,9 +70,10 @@ impl World {
                 Err(err) => return Err(err.into())
             };
         }
-
         Err(ArchetypeError::EntityNotFound.into())
     }
+
+    pub fn add_components(&mut self
 }
 
 impl Default for World {
