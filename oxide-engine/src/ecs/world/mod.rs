@@ -5,7 +5,7 @@ use fetch::Fetch;
 use query::Query;
 use spawn::Spawn;
 
-use crate::error::EngineError;
+use crate::{ecs::world::{add_component::AddComponent, remove_component::RemoveComponent}, error::EngineError};
 
 use super::entity::Entity;
 
@@ -14,6 +14,8 @@ pub mod component;
 pub mod fetch;
 pub mod query;
 pub mod spawn;
+pub mod add_component;
+pub mod remove_component;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum WorldError {
@@ -37,14 +39,23 @@ impl World {
     pub fn new() -> World {
         World { archetypes: HashMap::new(), current_id: 1 }
     }
+
+    fn get_archetype_mut(&mut self, archetype_id: &ArchetypeId) -> Result<&mut Archetype, WorldError> {
+        if !self.archetypes.contains_key(archetype_id) {
+            let mut archetype = Archetype::new();
+            archetype.create_empty(archetype_id);
+            self.archetypes.insert(archetype_id.clone(), archetype);
+        }
+
+        Ok(self.archetypes.get_mut(archetype_id).unwrap())
+    }
     
     /// Spawn a new entity
     pub fn spawn<T: Spawn>(&mut self, bundle: T) -> Result<(), WorldError> {
         let archetype_id = T::archetype_id()?;
-        let component_count = archetype_id.component_count();
-
-        let archetype = self.archetypes.entry(archetype_id).or_insert(Archetype::new(component_count));
-        archetype.new_entity(self.current_id);
+        let entity_id = self.current_id;
+        let archetype = self.get_archetype_mut(&archetype_id)?;
+        archetype.new_entity(entity_id);
         let result = bundle.spawn(archetype);
         archetype.trim_columns();
         result?;
@@ -73,7 +84,55 @@ impl World {
         Err(ArchetypeError::EntityNotFound.into())
     }
 
-    pub fn add_components(&mut self
+    /// Add components to an already existing entity
+    pub fn add_components<T: AddComponent>(&mut self, entity: Entity, bundle_extension: T) -> Result<(), WorldError> {
+        let (archetype_id, old_archetype) = match self.archetypes.iter_mut().find(|(_, x)| x.check_entity(entity)) {
+            Some(val) => val,
+            None => return Err(ArchetypeError::EntityNotFound.into())
+        };
+        let new_archetype_id = archetype_id.merge_with(T::archetype_id()?)?;
+
+        let (old_entity, map) = old_archetype.cut_entity(entity).expect("Correct entity cut");
+        old_archetype.bundle_count -= 1;
+
+        let new_archetype = self.get_archetype_mut(&new_archetype_id)?;
+
+        for (type_id, data) in map.iter() {
+            new_archetype.add_raw(*type_id, data.clone()).expect("Correct add raw");
+        }
+        let result = bundle_extension.add_to(new_archetype);
+        new_archetype.trim_columns();
+        result?;
+        new_archetype.bundle_count += 1;
+        new_archetype.moved_entity(old_entity);
+
+        Ok(())
+    }
+
+    /// Remove components from an entity
+    pub fn remove_components<T: RemoveComponent>(&mut self, entity: Entity) -> Result<(), WorldError> {
+        let (archetype_id, old_archetype) = match self.archetypes.iter_mut().find(|(_, x)| x.check_entity(entity)) {
+            Some(val) => val,
+            None => return Err(ArchetypeError::EntityNotFound.into())
+        };
+        let new_archetype_id = archetype_id.remove_from(T::archetype_id()?)?;
+
+        let (old_entity, map) = old_archetype.cut_entity(entity).expect("Correct entity cut");
+        old_archetype.bundle_count -= 1;
+
+        let new_archetype = self.get_archetype_mut(&new_archetype_id)?;
+
+        for (type_id, data) in map.iter() {
+            if new_archetype_id.contains_single(type_id) {
+                new_archetype.add_raw(*type_id, data.clone()).expect("Correct add raw");
+            }
+        }
+        new_archetype.trim_columns();
+        new_archetype.bundle_count += 1;
+        new_archetype.moved_entity(old_entity);
+
+        Ok(())
+    }
 }
 
 impl Default for World {
@@ -229,6 +288,72 @@ mod tests {
             let find_un = *find.unwrap();
             expected.remove(&find_un);
         }
+    }
+    
+    #[test]
+    fn spawn_add_query_multi_component_bundle() {
+        let mut world = World::new();
+        world.spawn(Position(1, 2)).unwrap();
+
+        let entity = {
+            let mut query = world.query::<&[Position]>().unwrap();
+            let (entity, pos) = query.next().unwrap();
+            assert_eq!(pos, &Position(1, 2));
+            entity
+        };
+
+        world.add_components(entity, Velocity(1, 3)).unwrap();
+
+        let mut query = world.query::<(&[Position], &[Velocity])>().unwrap();
+        let (_, components) = query.next().unwrap();
+        assert_eq!(components, (&Position(1, 2), &Velocity(1, 3)));
+    }
+    
+    #[test]
+    fn spawn_remove_query_multi_component_bundle() {
+        let mut world = World::new();
+        world.spawn((Position(1, 2), Velocity(1, 3))).unwrap();
+
+        let entity = {
+            let mut query = world.query::<&[Position]>().unwrap();
+            let (entity, pos) = query.next().unwrap();
+            assert_eq!(pos, &Position(1, 2));
+            entity
+        };
+
+        world.remove_components::<Position>(entity).unwrap();
+
+        let mut query = world.query::<&[Velocity]>().unwrap();
+        let (_, vel) = query.next().unwrap();
+        assert_eq!(vel, &Velocity(1, 3));
+    }
+    
+    #[test]
+    fn spawn_add_remove_query_multi_component_bundle() {
+        let mut world = World::new();
+        world.spawn(Position(1, 2)).unwrap();
+
+        let entity = {
+            let mut query = world.query::<&[Position]>().unwrap();
+            let (entity, pos) = query.next().unwrap();
+            assert_eq!(pos, &Position(1, 2));
+            entity
+        };
+
+        world.add_components(entity, Velocity(1, 3)).unwrap();
+
+        let entity = {
+            let mut query = world.query::<(&[Position], &[Velocity])>().unwrap();
+            let (entity, components) = query.next().unwrap();
+            assert_eq!(components, (&Position(1, 2), &Velocity(1, 3)));
+            entity
+        };
+
+        world.remove_components::<Position>(entity).unwrap();
+
+        let mut query = world.query::<&[Velocity]>().unwrap();
+        let (_, vel) = query.next().unwrap();
+        assert_eq!(vel, &Velocity(1, 3));
     }
 
     #[test] 

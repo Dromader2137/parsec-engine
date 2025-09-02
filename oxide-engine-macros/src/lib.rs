@@ -48,7 +48,6 @@ pub fn impl_spawn(input: TokenStream) -> TokenStream {
                 #(#id)*
                 Ok(ret)
             }
-
             fn spawn(self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
                 // let (#(#bundle_deconstruction),*) = self;
                 #(#archetype_adds)*

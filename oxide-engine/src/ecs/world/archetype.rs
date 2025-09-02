@@ -19,6 +19,7 @@ pub enum ArchetypeError {
     EntityNotFound,
     BundleCannotContainManyValuesOfTheSameType,
     BundleCannotContainManyValuesOfTheSameTypeMerge,
+    ArchetypeIdDoesntContainThisType,
 }
 
 impl From<ArchetypeError> for WorldError {
@@ -27,7 +28,7 @@ impl From<ArchetypeError> for WorldError {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArchetypeId {
     component_types: HashSet<TypeId>,
     hash: u64,
@@ -56,8 +57,8 @@ impl ArchetypeId {
         Ok(ArchetypeId { component_types: set, hash })
     }
 
-    pub fn merge_with(self, other: ArchetypeId) -> Result<ArchetypeId, ArchetypeError> {
-        let mut set = self.component_types;
+    pub fn merge_with(&self, other: ArchetypeId) -> Result<ArchetypeId, ArchetypeError> {
+        let mut set = self.component_types.clone();
         let mut hash = self.hash;
         
         for id in other.component_types.iter() {
@@ -66,6 +67,22 @@ impl ArchetypeId {
             hash ^= s.finish();
             if !set.insert(*id) {
                 return Err(ArchetypeError::BundleCannotContainManyValuesOfTheSameTypeMerge);
+            }
+        }
+
+        Ok(ArchetypeId { component_types: set, hash })
+    }
+
+    pub fn remove_from(&self, other: ArchetypeId) -> Result<ArchetypeId, ArchetypeError> {
+        let mut set = self.component_types.clone();
+        let mut hash = self.hash;
+        
+        for id in other.component_types.iter() {
+            let mut s = DefaultHasher::new();
+            id.hash(&mut s);
+            hash ^= s.finish();
+            if !set.remove(id) {
+                return Err(ArchetypeError::ArchetypeIdDoesntContainThisType);
             }
         }
 
@@ -92,7 +109,7 @@ impl ArchetypeId {
     pub fn component_count(&self) -> usize {
         self.component_types.len()
     }
-}
+} 
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ArchetypeColumnAccess {
@@ -111,17 +128,23 @@ struct ArchetypeColumn {
 }
 
 impl ArchetypeColumn {
-    fn new<T: Component>() -> ArchetypeColumn {
+    fn new() -> ArchetypeColumn {
         ArchetypeColumn {
             data: Vec::new(),
             access: RefCell::new(ArchetypeColumnAccess::ReadWrite),
             borrow_count: RefCell::new(0),
             rows: 0,
-            component_size: std::mem::size_of::<T>()
+            component_size: 1
         }
     }
 
+    fn set_component_size<T: Component>(&mut self) {
+        self.component_size = size_of::<T>();
+    }
+
     fn push<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
+        self.set_component_size::<T>();
+
         let access = self.access.borrow();
 
         if *access != ArchetypeColumnAccess::ReadWrite {
@@ -131,6 +154,19 @@ impl ArchetypeColumn {
         let bytes = unsafe { std::slice::from_raw_parts(&value as *const T as *const u8, self.component_size) };
 
         self.data.extend_from_slice(bytes);
+        self.rows += 1;
+
+        Ok(())
+    }
+
+    fn push_raw(&mut self, data: Vec<u8>) -> Result<(), ArchetypeError> {
+        let access = self.access.borrow();
+
+        if *access != ArchetypeColumnAccess::ReadWrite {
+            return Err(ArchetypeError::ArchetypeColumnNotWritable);
+        }
+        
+        self.data.extend_from_slice(&data);
         self.rows += 1;
 
         Ok(())
@@ -159,6 +195,14 @@ impl ArchetypeColumn {
         self.data.copy_within(copy_from, copy_to);
 
         Ok(())
+    }
+
+    fn get_raw(&self, idx: usize) -> Result<&[u8], ArchetypeError> {
+        if idx >= self.rows {
+            return Err(ArchetypeError::EntityNotFound);
+        }
+
+        Ok(&self.data[self.component_size*idx..self.component_size*(idx+1)])
     }
 
     fn get_slice<T: Component>(&self) -> Result<&[T], ArchetypeError> {
@@ -197,33 +241,57 @@ impl ArchetypeColumn {
 pub struct Archetype {
     columns: HashMap<TypeId, ArchetypeColumn>,
     pub bundle_count: usize,
-    component_count: usize,
     pub entities: Vec<Entity>,
 }
 
 impl Archetype {
-    pub fn new(component_count: usize) -> Archetype {
+    pub fn new() -> Archetype {
         Archetype {
             columns: HashMap::new(),
             bundle_count: 0,
-            component_count,
             entities: Vec::new(),
+        }
+    }
+
+    pub fn create_empty(&mut self, archetype_id: &ArchetypeId) {
+        for type_id in archetype_id.component_types.iter() {
+            self.columns.insert(*type_id, ArchetypeColumn::new());
         }
     }
 
     pub fn add<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
         let type_id = TypeId::of::<T>();
 
-        let column = self
-            .columns
-            .entry(type_id)
-            .or_insert_with(|| ArchetypeColumn::new::<T>());
+        let column = match self.columns.get_mut(&type_id) {
+            Some(val) => val,
+            None => return Err(ArchetypeError::TypeNotFound)
+        };
 
         column.push(value)
     }
 
+    pub fn add_raw(&mut self, type_id: TypeId, data: Vec<u8>) -> Result<(), ArchetypeError> {
+        let column = match self.columns.get_mut(&type_id) {
+            Some(val) => val,
+            None => return Err(ArchetypeError::TypeNotFound)
+        };
+
+        column.push_raw(data)
+    }
+
     pub fn new_entity(&mut self, id: u32) {
         self.entities.push(Entity::new(id));
+    }
+    
+    pub fn moved_entity(&mut self, entity: Entity) {
+        self.entities.push(entity);
+    }
+
+    pub fn check_entity(&self, entity: Entity) -> bool {
+        match self.entities.iter().find(|x| **x == entity) {
+            Some(_) => true,
+            None => false
+        }
     }
 
     pub fn delete_entity(&mut self, entity: Entity) -> Result<(), ArchetypeError> {
@@ -239,15 +307,37 @@ impl Archetype {
             column.copy(last_pos, entity_pos).expect(&format!("Both entity ids within the bounds 0..{}", self.entities.len()));
             column.pop();
         };
+        self.entities[entity_pos] = self.entities[last_pos];
+        self.entities.pop();
 
         Ok(())
     }
+    
+    pub fn cut_entity(&mut self, entity: Entity) -> Result<(Entity, HashMap<TypeId, Vec<u8>>), ArchetypeError> {
+        let last_pos = self.entities.len() - 1;
+        let entity_pos = match self.entities.iter().enumerate().find(|(_, x)| **x == entity) {
+            Some((pos, _)) => {
+                pos
+            },
+            None => return Err(ArchetypeError::EntityNotFound)
+        };
+
+        let mut ret = HashMap::new();
+        for (type_id, column) in self.columns.iter_mut() {
+            let bytes = column.get_raw(entity_pos).expect(&format!("Entity id within the bounds 0..{}", self.entities.len())).to_vec();
+            column.copy(last_pos, entity_pos).expect(&format!("Both entity ids within the bounds 0..{}", self.entities.len()));
+            column.pop();
+            ret.insert(*type_id, bytes);
+        };
+        let ret_entity = self.entities[entity_pos];
+        self.entities[entity_pos] = self.entities[last_pos];
+        self.entities.pop();
+
+        Ok((ret_entity, ret))
+    }
 
     pub fn trim_columns(&mut self) {
-        let mut desired_len = self.columns.iter().map(|x| x.1.rows).min().unwrap_or(0);
-        if self.columns.len() < self.component_count {
-            desired_len = 0;
-        }
+        let desired_len = self.columns.iter().map(|x| x.1.rows).min().unwrap_or(0);
 
         for (_, column) in self.columns.iter_mut() {
             while column.rows < desired_len {
