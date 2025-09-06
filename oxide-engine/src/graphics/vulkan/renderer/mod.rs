@@ -1,8 +1,6 @@
 use std::{f32, sync::Arc};
 
-pub mod camera;
 pub mod image_data;
-pub mod material;
 pub mod sync;
 
 use image_data::VulkanRendererImageData;

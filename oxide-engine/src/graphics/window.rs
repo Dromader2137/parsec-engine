@@ -26,6 +26,7 @@ impl WindowWrapper {
             .with_transparent(false)
             .with_visible(true)
             .with_title(name);
+
         let window = match event_loop.create_window(attributes) {
             Ok(val) => val,
             Err(err) => {

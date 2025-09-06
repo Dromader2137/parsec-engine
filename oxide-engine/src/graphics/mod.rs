@@ -8,6 +8,8 @@ use crate::error::EngineError;
 pub mod mesh;
 pub mod vulkan;
 pub mod window;
+pub mod camera;
+pub mod material;
 
 pub struct Graphics {
     pub window: Option<Arc<WindowWrapper>>,
