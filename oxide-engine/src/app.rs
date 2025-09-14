@@ -55,6 +55,12 @@ impl App {
             
                 let event_loop_raw = event_loop.get_event_loop();
                 graphics.init(event_loop_raw, "Oxide Engine test").unwrap();
+            }
+            ));
+
+        self.systems
+            .push(System::new(SystemType::LateStart, |SystemInput { resources, .. }| {
+                let mut graphics = resources.get_mut::<Graphics>().unwrap();
 
                 graphics
                     .add_shader(
