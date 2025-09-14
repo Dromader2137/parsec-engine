@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 use crate::graphics::vulkan::buffer::BufferUsage;
 
@@ -7,8 +7,9 @@ use super::vulkan::{
 };
 
 pub struct MeshBuffer<V: Vertex> {
-    vertex_buffer: Arc<Buffer<V>>,
-    index_buffer: Arc<Buffer<u32>>,
+    vertex_buffer: Arc<Buffer>,
+    index_buffer: Arc<Buffer>,
+    _marker: PhantomData<V>
 }
 
 impl<V: Vertex> MeshBuffer<V> {
@@ -16,6 +17,7 @@ impl<V: Vertex> MeshBuffer<V> {
         Ok(MeshBuffer {
             vertex_buffer: Buffer::from_vec(device.clone(), vertices, BufferUsage::VERTEX_BUFFER)?,
             index_buffer: Buffer::from_vec(device, indices, BufferUsage::INDEX_BUFFER)?,
+            _marker: PhantomData::default()
         })
     }
 

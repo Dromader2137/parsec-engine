@@ -2,7 +2,7 @@ use crate::error::EngineError;
 
 pub mod library;
 
-pub trait Asset {
+pub trait Asset: 'static {
     fn on_load() -> Result<(), AssetError> {
         Ok(())
     }

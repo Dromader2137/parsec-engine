@@ -40,12 +40,12 @@ impl From<SurfaceError> for VulkanError {
 
 impl InitialSurface {
     pub fn new(instance: Arc<Instance>, window: Arc<WindowWrapper>) -> Result<Arc<InitialSurface>, SurfaceError> {
-        let display_handle = match window.get_display_handle() {
+        let display_handle = match window.raw_display_handle() {
             Ok(val) => val,
             Err(err) => return Err(SurfaceError::DisplayHandleError(err)),
         };
 
-        let window_handle = match window.get_window_handle() {
+        let window_handle = match window.raw_window_handle() {
             Ok(val) => val,
             Err(err) => return Err(SurfaceError::WindowHandleError(err)),
         };
@@ -166,8 +166,8 @@ impl Surface {
     pub fn current_extent(&self) -> ash::vk::Extent2D {
         match self.surface_capabilities.current_extent.width {
             u32::MAX => ash::vk::Extent2D {
-                width: self.window.get_width(),
-                height: self.window.get_height(),
+                width: self.window.width(),
+                height: self.window.height(),
             },
             _ => self.surface_capabilities.current_extent,
         }

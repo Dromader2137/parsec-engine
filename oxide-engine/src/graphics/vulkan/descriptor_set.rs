@@ -174,9 +174,9 @@ impl DescriptorSet {
         }))
     }
 
-    pub fn bind_buffer<T: Clone + Copy>(
+    pub fn bind_buffer(
         &self,
-        buffer: Arc<Buffer<T>>,
+        buffer: Arc<Buffer>,
         dst_binding: u32,
     ) -> Result<(), DescriptorError> {
         let buffer_info = [ash::vk::DescriptorBufferInfo::default()

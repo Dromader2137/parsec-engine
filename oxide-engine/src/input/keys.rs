@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::key::KeyCode;
+use crate::input::{key::{KeyCode, KeyState}, InputEvent};
 
 #[derive(Debug)]
 pub struct Keys {
@@ -18,14 +18,21 @@ impl Keys {
         }
     }
 
-    pub fn press(&mut self, key: KeyCode) {
+    pub fn process_input_event(&mut self, event: InputEvent) {
+        match event.state {
+            KeyState::Pressed => self.press(event.key),
+            KeyState::Released => self.lift(event.key),
+        }
+    }
+
+    fn press(&mut self, key: KeyCode) {
         if !self.down.contains(&key) {
             self.pressed.insert(key);
         }
         self.down.insert(key);
     }
 
-    pub fn lift(&mut self, key: KeyCode) {
+    fn lift(&mut self, key: KeyCode) {
         self.down.remove(&key);
         self.up.insert(key);
     }

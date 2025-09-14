@@ -43,36 +43,36 @@ impl WindowWrapper {
         self.window.request_redraw();
     }
 
-    pub fn get_size(&self) -> (u32, u32) {
+    pub fn size(&self) -> (u32, u32) {
         let physical_size = self.window.inner_size();
         (physical_size.width, physical_size.height)
     }
 
-    pub fn get_width(&self) -> u32 {
-        self.get_size().0
+    pub fn width(&self) -> u32 {
+        self.size().0
     }
 
-    pub fn get_height(&self) -> u32 {
-        self.get_size().1
+    pub fn height(&self) -> u32 {
+        self.size().1
     }
 
-    pub fn get_physical_size(&self) -> winit::dpi::PhysicalSize<u32> {
+    pub fn physical_size(&self) -> winit::dpi::PhysicalSize<u32> {
         self.window.inner_size()
     }
 
-    pub fn get_display_handle(
+    pub fn raw_display_handle(
         &self,
     ) -> Result<winit::raw_window_handle::DisplayHandle<'_>, winit::raw_window_handle::HandleError> {
         self.window.display_handle()
     }
 
-    pub fn get_window_handle(
+    pub fn raw_window_handle(
         &self,
     ) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError> {
         self.window.window_handle()
     }
 
     pub fn minimized(&self) -> bool {
-        self.get_width() <= 0 || self.get_height() <= 0
+        self.width() <= 0 || self.height() <= 0
     }
 }

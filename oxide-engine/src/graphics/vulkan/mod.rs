@@ -15,6 +15,8 @@ use shader::ShaderError;
 use surface::SurfaceError;
 use swapchain::SwapchainError;
 
+use crate::graphics::renderer::RendererError;
+
 use super::GraphicsError;
 
 pub mod buffer;
@@ -30,7 +32,6 @@ pub mod image;
 pub mod instance;
 pub mod physical_device;
 pub mod queue;
-pub mod renderer;
 pub mod renderpass;
 pub mod semaphore;
 pub mod shader;
@@ -56,6 +57,7 @@ pub enum VulkanError {
     GrphicsPipelineError(GraphicsPipelineError),
     BufferError(BufferError),
     DescriptorError(DescriptorError),
+    RendererError(RendererError),
 }
 
 impl From<VulkanError> for GraphicsError {

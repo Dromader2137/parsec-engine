@@ -45,8 +45,8 @@ impl VulkanRendererImageData {
             ImageInfo {
                 format: ImageFormat::D16_UNORM,
                 size: (
-                    renderpass.surface.window.get_width(),
-                    renderpass.surface.window.get_height(),
+                    renderpass.surface.window.width(),
+                    renderpass.surface.window.height(),
                 ),
                 usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
             },
@@ -107,8 +107,8 @@ impl VulkanRendererImageData {
             ImageInfo {
                 format: ImageFormat::D16_UNORM,
                 size: (
-                    renderpass.surface.window.get_width(),
-                    renderpass.surface.window.get_height(),
+                    renderpass.surface.window.width(),
+                    renderpass.surface.window.height(),
                 ),
                 usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
             },

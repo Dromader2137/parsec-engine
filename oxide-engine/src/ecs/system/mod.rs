@@ -1,14 +1,19 @@
 use std::collections::HashMap;
 
-use crate::{assets::library::AssetLibrary, graphics::Graphics, input::Input};
+use crate::{assets::library::AssetLibrary, resources::ResourceCollection};
 
 use super::world::World;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum SystemType {
+    Render,
     Start,
+    LateStart,
     Update,
-    Close,
+    End,
+    WindowResized,
+    WindowCursorLeft,
+    KeyboardInput,
 }
 
 pub struct Systems {
@@ -43,8 +48,7 @@ impl Systems {
 pub struct SystemInput<'a> {
     pub world: &'a mut World,
     pub assets: &'a mut AssetLibrary,
-    pub graphics: &'a mut Graphics,
-    pub input: &'a Input,
+    pub resources: &'a mut ResourceCollection,
 }
 
 pub struct System {

@@ -6,7 +6,7 @@ use super::{
     descriptor_set::DescriptorSet,
     device::Device,
     framebuffer::Framebuffer,
-    graphics_pipeline::{GraphicsPipeline, Vertex},
+    graphics_pipeline::GraphicsPipeline,
 };
 
 pub struct CommandPool {
@@ -232,7 +232,7 @@ impl CommandBuffer {
         };
     }
 
-    pub fn bind_vertex_buffer(&self, buffer: Arc<Buffer<impl Vertex>>) {
+    pub fn bind_vertex_buffer(&self, buffer: Arc<Buffer>) {
         unsafe {
             self.command_pool.device.get_device_raw().cmd_bind_vertex_buffers(
                 self.command_buffer,
@@ -243,7 +243,7 @@ impl CommandBuffer {
         };
     }
 
-    pub fn bind_index_buffer(&self, buffer: Arc<Buffer<u32>>) {
+    pub fn bind_index_buffer(&self, buffer: Arc<Buffer>) {
         unsafe {
             self.command_pool.device.get_device_raw().cmd_bind_index_buffer(
                 self.command_buffer,

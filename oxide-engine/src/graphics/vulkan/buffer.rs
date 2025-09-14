@@ -1,16 +1,14 @@
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use super::{VulkanError, device::Device, instance::Instance, physical_device::PhysicalDevice};
 
-pub struct Buffer<T: Clone + Copy> {
+pub struct Buffer {
     pub device: Arc<Device>,
     buffer: ash::vk::Buffer,
     memory: ash::vk::DeviceMemory,
     memory_size: u64,
     pub size: u64,
     pub len: u32,
-    _type: PhantomData<T>,
 }
 
 #[derive(Debug)]
@@ -31,8 +29,8 @@ impl From<BufferError> for VulkanError {
 
 pub type BufferUsage = ash::vk::BufferUsageFlags;
 
-impl<T: Clone + Copy> Buffer<T> {
-    pub fn from_vec(device: Arc<Device>, data: Vec<T>, usage: BufferUsage) -> Result<Arc<Buffer<T>>, BufferError> {
+impl Buffer {
+    pub fn from_vec<T: Clone + Copy>(device: Arc<Device>, data: Vec<T>, usage: BufferUsage) -> Result<Arc<Buffer>, BufferError> {
         let size = data.len() * size_of::<T>();
 
         let index_buffer_info = ash::vk::BufferCreateInfo::default()
@@ -83,18 +81,17 @@ impl<T: Clone + Copy> Buffer<T> {
             return Err(BufferError::BindError(err));
         }
 
-        Ok(Arc::new(Buffer::<T> {
+        Ok(Arc::new(Buffer {
             device,
             buffer,
             memory,
             memory_size: memory_req.size,
             size: size as u64,
             len: data.len() as u32,
-            _type: PhantomData::default(),
         }))
     }
 
-    pub fn update(&self, data: Vec<T>) -> Result<(), BufferError> {
+    pub fn update<T: Clone + Copy>(&self, data: Vec<T>) -> Result<(), BufferError> {
         if data.len() as u32 != self.len {
             return Err(BufferError::SizaMismatch);
         }
@@ -126,7 +123,7 @@ impl<T: Clone + Copy> Buffer<T> {
     }
 }
 
-impl<T: Clone + Copy> Drop for Buffer<T> {
+impl Drop for Buffer {
     fn drop(&mut self) {
         unsafe { self.device.get_device_raw().destroy_buffer(self.buffer, None) };
         unsafe { self.device.get_device_raw().free_memory(self.memory, None) };

@@ -4,7 +4,14 @@ use super::{VulkanError, device::Device};
 
 pub struct ShaderModule {
     pub device: Arc<Device>,
+    pub shader_type: ShaderType,
     shader_module: ash::vk::ShaderModule,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShaderType {
+    Fragment,
+    Vertex
 }
 
 #[derive(Debug)]
@@ -32,7 +39,7 @@ pub fn read_shader_code(path: &str) -> Result<Vec<u32>, ShaderError> {
 }
 
 impl ShaderModule {
-    pub fn new(device: Arc<Device>, code: &[u32]) -> Result<Arc<ShaderModule>, ShaderError> {
+    pub fn new(device: Arc<Device>, code: &[u32], shader_type: ShaderType) -> Result<Arc<ShaderModule>, ShaderError> {
         let create_info = ash::vk::ShaderModuleCreateInfo::default().code(code);
 
         let shader_module = match unsafe { device.get_device_raw().create_shader_module(&create_info, None) } {
@@ -40,7 +47,7 @@ impl ShaderModule {
             Err(err) => return Err(ShaderError::CreationError(err)),
         };
 
-        Ok(Arc::new(ShaderModule { device, shader_module }))
+        Ok(Arc::new(ShaderModule { device, shader_module, shader_type }))
     }
 
     pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule {
