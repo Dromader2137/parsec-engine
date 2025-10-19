@@ -5,7 +5,7 @@ use crate::{assets::library::AssetLibrary, resources::ResourceCollection};
 use super::world::World;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum SystemType {
+pub enum SystemTrigger {
     Render,
     Start,
     LateStart,
@@ -17,7 +17,7 @@ pub enum SystemType {
 }
 
 pub struct Systems {
-    systems: HashMap<SystemType, Vec<System>>,
+    systems: HashMap<SystemTrigger, Vec<System>>,
 }
 
 impl Systems {
@@ -27,16 +27,23 @@ impl Systems {
         }
     }
 
-    pub fn push(&mut self, system: System) {
-        match self.systems.get_mut(&system.system_type) {
-            Some(systems) => systems.push(system),
-            None => {
-                let _ = self.systems.insert(system.system_type, vec![system]);
-            }
-        };
+    fn get_systems_by_trigger(&mut self, system_trigger: SystemTrigger) -> &mut Vec<System> {
+        self.systems.entry(system_trigger).or_insert(Vec::new())
     }
 
-    pub fn execute_type(&self, system_type: SystemType, mut system_input: SystemInput) {
+    pub fn add(&mut self, system: System) {
+        let system_vec = self.get_systems_by_trigger(system.system_trigger);
+        system_vec.push(system);
+    }
+
+    pub fn add_bundle(&mut self, bundle: impl SystemBundle) {
+        for system in bundle.systems() {
+            let system_vec = self.get_systems_by_trigger(system.system_trigger);
+            system_vec.push(system);
+        }
+    }
+
+    pub fn execute_type(&self, system_type: SystemTrigger, mut system_input: SystemInput) {
         if let Some(systems) = self.systems.get(&system_type) {
             for system in systems.iter() {
                 system.execute(&mut system_input);
@@ -52,14 +59,14 @@ pub struct SystemInput<'a> {
 }
 
 pub struct System {
-    system_type: SystemType,
+    system_trigger: SystemTrigger,
     function: Box<dyn Fn(&mut SystemInput)>,
 }
 
 impl System {
-    pub fn new(system_type: SystemType, function: impl Fn(&mut SystemInput) + 'static) -> System {
+    pub fn new(system_trigger: SystemTrigger, function: impl Fn(&mut SystemInput) + 'static) -> System {
         System {
-            system_type,
+            system_trigger,
             function: Box::new(function),
         }
     }
@@ -67,4 +74,8 @@ impl System {
     pub fn execute(&self, system_input: &mut SystemInput) {
         (self.function)(system_input);
     }
+}
+
+pub trait SystemBundle {
+    fn systems(self) -> Vec<System>;
 }

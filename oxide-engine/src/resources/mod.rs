@@ -46,9 +46,12 @@ impl ResourceCollection {
         ResourceCollection { resources: HashMap::new() }
     }
 
-    pub fn add<R: Resource>(&mut self, value: R) -> Result<(), ResourceError> {
+    pub fn add<R: Resource>(&mut self, resource: R) -> Result<(), ResourceError> {
         let type_id = TypeId::of::<R>();
-        self.resources.entry(type_id).or_insert(RefCell::new(Box::new(value)));
+        if self.resources.contains_key(&type_id) {
+            return Err(ResourceError::ResourceAlreadyExists)
+        } 
+        self.resources.insert(type_id, RefCell::new(Box::new(resource)));
         Ok(())
     }
 
@@ -87,6 +90,7 @@ pub enum ResourceError {
     UnableToBorrow,
     UnableToBorrowMutably,
     ResourceNotFound,
+    ResourceAlreadyExists,
 }
 
 impl From<ResourceError> for EngineError {

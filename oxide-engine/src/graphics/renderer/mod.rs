@@ -1,5 +1,6 @@
-use std::{collections::HashMap, f32, sync::Arc};
+use std::sync::Arc;
 
+pub mod draw_queue;
 pub mod image_data;
 pub mod sync;
 
@@ -8,23 +9,14 @@ use sync::{VulkanRendererFrameSync, VulkanRendererImageSync};
 
 use crate::{
     graphics::{
-        mesh::MeshData,
-        vulkan::{
-            VulkanError,
-            buffer::{Buffer, BufferUsage},
-            command_buffer::CommandBuffer,
-            context::VulkanContext,
-            descriptor_set::{
+        camera::CameraData, mesh::MeshData, renderer::draw_queue::{Draw, MeshAndMaterial}, vulkan::{
+            buffer::{Buffer, BufferUsage}, command_buffer::CommandBuffer, context::VulkanContext, descriptor_set::{
                 DescriptorPool, DescriptorPoolSize, DescriptorSet, DescriptorSetBinding, DescriptorSetLayout,
                 DescriptorType,
-            },
-            fence::Fence,
-            graphics_pipeline::{GraphicsPipeline, Vertex, VertexField, VertexFieldFormat},
-            renderpass::Renderpass,
-            shader::{ShaderModule, ShaderType},
-        },
+            }, fence::Fence, graphics_pipeline::{GraphicsPipeline, Vertex, VertexField, VertexFieldFormat}, renderpass::Renderpass, shader::{ShaderModule, ShaderType}, VulkanError
+        }
     },
-    math::vec::Vec3f,
+    math::vec::Vec3f, utils::id_vec::IdVec,
 };
 
 struct MaterialBase {
@@ -55,7 +47,6 @@ impl MaterialData {
     }
 }
 
-#[allow(unused)]
 pub struct VulkanRenderer {
     //Vulkan stuff
     context: Arc<VulkanContext>,
@@ -66,17 +57,21 @@ pub struct VulkanRenderer {
 
     //Resources
     command_buffers: Vec<Arc<CommandBuffer>>,
-    material_bases: HashMap<String, Arc<MaterialBase>>,
-    meshes: HashMap<String, MeshData<DefaultVertex>>,
-    shaders: HashMap<String, Arc<ShaderModule>>,
-    materials: HashMap<String, MaterialData>,
-    buffers: HashMap<String, Arc<Buffer>>,
+    material_bases: IdVec<Arc<MaterialBase>>,
+    meshes: IdVec<MeshData<DefaultVertex>>,
+    shaders: IdVec<Arc<ShaderModule>>,
+    materials: IdVec<MaterialData>,
+    buffers: IdVec<Arc<Buffer>>,
+    cameras: IdVec<CameraData>,
+    transforms: IdVec<>
     descriptor_pool: Arc<DescriptorPool>,
 
     //State
     resize: bool,
     current_frame: usize,
     frames_in_flight: usize,
+
+    draw_queue: Vec<Draw>,
 }
 
 #[repr(C)]
@@ -182,15 +177,16 @@ impl VulkanRenderer {
             frame_sync,
             image_sync,
             command_buffers,
-            material_bases: HashMap::new(),
-            shaders: HashMap::new(),
-            meshes: HashMap::new(),
-            materials: HashMap::new(),
-            buffers: HashMap::new(),
+            material_bases: IdVec::new(),
+            shaders: IdVec::new(),
+            meshes: IdVec::new(),
+            materials: IdVec::new(),
+            buffers: IdVec::new(),
             descriptor_pool,
             frames_in_flight,
             resize: false,
             current_frame: 0,
+            draw_queue: Vec::new(),
         })
     }
 
@@ -228,16 +224,23 @@ impl VulkanRenderer {
         let command_buffer = self.command_buffers[current_frame].clone();
         let framebuffer = self.image_data.framebuffers[present_index].clone();
 
-        let material = self.materials.get("simple").unwrap();
-
         command_buffer.reset()?;
         command_buffer.begin()?;
         command_buffer.begin_renderpass(framebuffer.clone());
         command_buffer.set_viewports(framebuffer.clone());
         command_buffer.set_scissor(framebuffer);
-        material.bind(command_buffer.clone());
-        for mesh in self.meshes.values() {
-            mesh.record_commands(command_buffer.clone());
+        for draw in self.draw_queue.iter() {
+            match draw {
+                Draw::MeshAndMaterial(MeshAndMaterial {
+                    mesh_id,
+                    material_id,
+                }) => {
+                    let material = self.materials.get(*material_id).unwrap();
+                    material.bind(command_buffer.clone());
+                    let mesh = self.meshes.get(*mesh_id).unwrap();
+                    mesh.record_commands(command_buffer.clone());
+                }
+            }
         }
         command_buffer.end_renderpass();
         command_buffer.end()?;
@@ -264,28 +267,25 @@ impl VulkanRenderer {
         Ok(())
     }
 
-    pub fn create_shader(&mut self, name: &str, code: &[u32], shader_type: ShaderType) -> Result<(), VulkanError> {
-        self.shaders.insert(
-            name.to_string(),
-            ShaderModule::new(self.context.device.clone(), code, shader_type)?,
-        );
-        Ok(())
+    pub fn create_shader(&mut self, code: &[u32], shader_type: ShaderType) -> Result<u32, VulkanError> {
+        Ok(self.shaders.push(
+            ShaderModule::new(self.context.device.clone(), code, shader_type)?
+        ))
     }
 
-    fn get_shader(&self, shader_name: &str) -> Result<Arc<ShaderModule>, RendererError> {
+    fn get_shader(&self, shader_id: u32) -> Result<Arc<ShaderModule>, RendererError> {
         self.shaders
-            .get(shader_name)
-            .ok_or(RendererError::ShaderNotFound(shader_name.to_string()))
+            .get(shader_id)
+            .ok_or(RendererError::ShaderNotFound(shader_id))
             .cloned()
     }
 
     pub fn create_material_base(
         &mut self,
-        name: &str,
-        vertex_name: &str,
-        fragment_name: &str,
+        vertex_id: u32,
+        fragment_id: u32,
         layout: Vec<Vec<DescriptorSetBinding>>,
-    ) -> Result<(), VulkanError> {
+    ) -> Result<u32, VulkanError> {
         let mut descriptors = Vec::new();
 
         for bindings in layout {
@@ -294,8 +294,8 @@ impl VulkanRenderer {
 
         let pipeline = GraphicsPipeline::new::<DefaultVertex>(
             self.image_data.framebuffers[0].clone(),
-            self.get_shader(vertex_name)?,
-            self.get_shader(fragment_name)?,
+            self.get_shader(vertex_id)?,
+            self.get_shader(fragment_id)?,
             descriptors,
         )?;
 
@@ -312,42 +312,37 @@ impl VulkanRenderer {
             descriptor_sets,
         });
 
-        self.material_bases.insert(name.into(), base);
-
-        Ok(())
+        Ok(self.material_bases.push(base))
     }
 
-    fn get_material_base(&self, material_base_name: &str) -> Result<Arc<MaterialBase>, RendererError> {
+    fn get_material_base(&self, material_base_id: u32) -> Result<Arc<MaterialBase>, RendererError> {
         self.material_bases
-            .get(material_base_name)
-            .ok_or(RendererError::MaterialBaseNotFound(material_base_name.to_string()))
+            .get(material_base_id)
+            .ok_or(RendererError::MaterialBaseNotFound(material_base_id))
             .cloned()
     }
 
-    pub fn create_buffer<T: Copy + Clone>(&mut self, name: &str, data: Vec<T>) -> Result<(), VulkanError> {
-        self.buffers.insert(
-            name.into(),
-            Buffer::from_vec(self.context.device.clone(), data, BufferUsage::UNIFORM_BUFFER)?,
-        );
-        Ok(())
+    pub fn create_buffer<T: Copy + Clone>(&mut self, data: Vec<T>) -> Result<u32, VulkanError> {
+        Ok(self.buffers.push(
+            Buffer::from_vec(self.context.device.clone(), data, BufferUsage::UNIFORM_BUFFER)?
+        ))
     }
 
-    fn get_buffer(&self, buffer_name: &str) -> Result<Arc<Buffer>, RendererError> {
+    fn get_buffer(&self, buffer_id: u32) -> Result<Arc<Buffer>, RendererError> {
         self.buffers
-            .get(buffer_name)
-            .ok_or(RendererError::BufferNotFound(buffer_name.to_string()))
+            .get(buffer_id)
+            .ok_or(RendererError::BufferNotFound(buffer_id))
             .cloned()
     }
 
     pub fn create_material(
         &mut self,
-        name: &str,
-        material_base_name: &str,
-        buffer_names: Vec<Vec<&str>>,
-    ) -> Result<(), VulkanError> {
-        let base = self.get_material_base(material_base_name)?;
+        material_base_id: u32,
+        buffer_ids: Vec<Vec<u32>>,
+    ) -> Result<u32, VulkanError> {
+        let base = self.get_material_base(material_base_id)?;
         let mut buffer_sets = Vec::new();
-        for buffer_set in buffer_names {
+        for buffer_set in buffer_ids {
             buffer_sets.push(Vec::new());
             for buffer in buffer_set {
                 buffer_sets.last_mut().unwrap().push(self.get_buffer(buffer)?);
@@ -356,40 +351,40 @@ impl VulkanRenderer {
 
         let material_data = MaterialData {
             base,
-            uniform_buffers: buffer_sets
+            uniform_buffers: buffer_sets,
         };
 
         material_data.bind_buffers()?;
 
-        self.materials.insert(
-            name.into(),
-            material_data
-        );
-
-        Ok(())
+        Ok(self.materials.push(material_data))
     }
 
     pub fn create_mesh(
         &mut self,
-        mesh_name: &str,
         vertices: Vec<DefaultVertex>,
         indices: Vec<u32>,
-    ) -> Result<(), VulkanError> {
-        self.meshes.insert(
-            mesh_name.to_string(),
+    ) -> Result<u32, VulkanError> {
+        Ok(self.meshes.push(
             MeshData::new(self.context.device.clone(), vertices, indices)?,
-        );
-        Ok(())
+        ))
     }
 
-    pub fn update_buffer<T: Copy + Clone>(&self, name: &str, data: Vec<T>) -> Result<(), VulkanError> {
-        let buffer = self.get_buffer(name)?;
+    pub fn update_buffer<T: Copy + Clone>(&self, buffer_id: u32, data: Vec<T>) -> Result<(), VulkanError> {
+        let buffer = self.get_buffer(buffer_id)?;
         buffer.update(data)?;
         Ok(())
     }
 
     pub fn get_aspect_ratio(&self) -> f32 {
         self.image_data.framebuffers[0].renderpass.surface.aspect_ratio()
+    }
+
+    pub fn queue_draw(&mut self, draw: Draw) {
+        self.draw_queue.push(draw);
+    }
+
+    pub fn queue_clear(&mut self) {
+        self.draw_queue.clear();
     }
 }
 
@@ -401,9 +396,9 @@ impl Drop for VulkanRenderer {
 
 #[derive(Debug)]
 pub enum RendererError {
-    ShaderNotFound(String),
-    BufferNotFound(String),
-    MaterialBaseNotFound(String),
+    ShaderNotFound(u32),
+    BufferNotFound(u32),
+    MaterialBaseNotFound(u32),
 }
 
 impl From<RendererError> for VulkanError {
