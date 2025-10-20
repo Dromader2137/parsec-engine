@@ -1,15 +1,17 @@
 use crate::{graphics::{renderer::VulkanRenderer, vulkan::VulkanError}, math::mat::Matrix4f};
 
-pub struct Camera {
-    pub projection: Matrix4f,
+pub struct CameraData {
+    pub projection_matrix: Matrix4f,
+    pub view_matrix: Matrix4f,
     buffer_id: u32,
 }
 
-impl Camera {
-    pub fn new(renderer: &mut VulkanRenderer, fov: f32, near: f32, far: f32) -> Result<Camera, VulkanError> {
+impl CameraData {
+    pub fn new(renderer: &mut VulkanRenderer) -> Result<CameraData, VulkanError> {
         let projection = Matrix4f::perspective(fov, renderer.get_aspect_ratio(), near, far);
-        Ok(Camera {
-            projection,
+        Ok(CameraData {
+            projection_matrix: projection,
+            view_matrix: Matrix4f::indentity(),
             buffer_id: renderer.create_buffer(vec![projection])?,
         })
     }

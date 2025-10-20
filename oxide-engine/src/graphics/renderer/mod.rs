@@ -63,7 +63,7 @@ pub struct VulkanRenderer {
     materials: IdVec<MaterialData>,
     buffers: IdVec<Arc<Buffer>>,
     cameras: IdVec<CameraData>,
-    transforms: IdVec<>
+    transforms: IdVec<Trans>,
     descriptor_pool: Arc<DescriptorPool>,
 
     //State

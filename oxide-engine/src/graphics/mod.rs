@@ -12,6 +12,7 @@ pub mod mesh;
 pub mod renderer;
 pub mod vulkan;
 pub mod window;
+pub mod transform;
 
 #[derive(Debug)]
 pub enum GraphicsError {

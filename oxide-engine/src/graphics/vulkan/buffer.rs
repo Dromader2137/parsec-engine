@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use super::{VulkanError, device::Device, instance::Instance, physical_device::PhysicalDevice};
 
@@ -11,6 +11,16 @@ pub struct Buffer {
     pub len: u32,
 }
 
+impl Debug for Buffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Buffer")
+            .field("memory_size", &self.memory_size)
+            .field("size", &self.size)
+            .field("len", &self.len)
+            .finish()
+    }
+}
+
 #[derive(Debug)]
 pub enum BufferError {
     CreationError(ash::vk::Result),
@@ -19,6 +29,7 @@ pub enum BufferError {
     BindError(ash::vk::Result),
     MapError(ash::vk::Result),
     SizaMismatch,
+    LenMismatch
 }
 
 impl From<BufferError> for VulkanError {
@@ -92,7 +103,13 @@ impl Buffer {
     }
 
     pub fn update<T: Clone + Copy>(&self, data: Vec<T>) -> Result<(), BufferError> {
+        let size = (data.len() * size_of::<T>()) as u64;
+
         if data.len() as u32 != self.len {
+            return Err(BufferError::LenMismatch);
+        }
+
+        if size != self.size {
             return Err(BufferError::SizaMismatch);
         }
 
@@ -149,4 +166,32 @@ pub fn find_memorytype_index(
             (1 << index) & memory_req.memory_type_bits != 0 && memory_type.property_flags & flags == flags
         })
         .map(|(index, _memory_type)| index as _)
+}
+
+#[derive(Debug)]
+pub struct AutoSyncingBuffer<T: Clone + Copy + PartialEq> {
+    pub data: Vec<T>,
+    old_data: Vec<T>,
+    buffer: Arc<Buffer>
+}
+
+impl<T: Clone + Copy + PartialEq> AutoSyncingBuffer<T> {
+    pub fn new(device: Arc<Device>, data: Vec<T>, usage: BufferUsage) -> Result<AutoSyncingBuffer<T>, BufferError> {
+        let buffer = Buffer::from_vec(device, data.clone(), usage)?;
+        Ok(AutoSyncingBuffer {
+            data: data.clone(),
+            old_data: data,
+            buffer
+        })
+    }
+
+    pub fn update(&mut self) -> Result<(), BufferError> {
+        if self.data == self.old_data {
+            return Ok(());
+        }
+
+        self.buffer.update(self.data.clone())?;
+
+        Ok(())
+    }
 }
