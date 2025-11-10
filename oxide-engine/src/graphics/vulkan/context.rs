@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::graphics::window::WindowWrapper;
+use crate::{
+    graphics::window::WindowWrapper,
+    resources::ResourceCollection,
+};
 
 use super::{
     VulkanError,
@@ -12,38 +15,19 @@ use super::{
     surface::{InitialSurface, Surface},
 };
 
-pub struct VulkanContext {
-    pub instance: Arc<Instance>,
-    pub surface: Arc<Surface>,
-    pub physical_device: Arc<PhysicalDevice>,
-    pub device: Arc<Device>,
-    pub graphics_queue: Arc<Queue>,
-    pub command_pool: Arc<CommandPool>,
-}
-
-impl VulkanContext {
-    pub fn new(window: Arc<WindowWrapper>) -> Result<Arc<VulkanContext>, VulkanError> {
-        let instance = Instance::new(window.clone())?;
-        let initial_surface = InitialSurface::new(instance.clone(), window.clone())?;
-        let physical_device = PhysicalDevice::new(instance.clone(), initial_surface.clone())?;
-        let surface = Surface::from_initial_surface(initial_surface, physical_device.clone())?;
-        let device = Device::new(physical_device.clone())?;
-        let graphics_queue = Queue::present(device.clone(), physical_device.get_queue_family_index());
-        let command_pool = CommandPool::new(device.clone())?;
-
-        Ok(Arc::new(VulkanContext {
-            instance,
-            surface,
-            physical_device,
-            device,
-            graphics_queue,
-            command_pool,
-        }))
-    }
-}
-
-impl Drop for VulkanContext {
-    fn drop(&mut self) {
-        self.device.wait_idle().unwrap_or(());
-    }
+pub fn init_vulkan(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
+    let window = resources.get::<Arc<WindowWrapper>>().unwrap();
+    let instance = Instance::new(window.clone())?;
+    let initial_surface = InitialSurface::new(instance.clone(), window.clone())?;
+    drop(window);
+    let physical_device = PhysicalDevice::new(instance.clone(), initial_surface.clone())?;
+    let surface = Surface::from_initial_surface(initial_surface, physical_device.clone())?;
+    let device = Device::new(physical_device.clone())?;
+    let command_pool = CommandPool::new(device.clone())?;
+    resources.add(instance).unwrap();
+    resources.add(physical_device).unwrap();
+    resources.add(surface).unwrap();
+    resources.add(device).unwrap();
+    resources.add(command_pool).unwrap();
+    Ok(())
 }

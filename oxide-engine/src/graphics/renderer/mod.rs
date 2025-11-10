@@ -13,10 +13,9 @@ use crate::{
             buffer::{Buffer, BufferUsage}, command_buffer::CommandBuffer, context::VulkanContext, descriptor_set::{
                 DescriptorPool, DescriptorPoolSize, DescriptorSet, DescriptorSetBinding, DescriptorSetLayout,
                 DescriptorType,
-            }, fence::Fence, graphics_pipeline::{GraphicsPipeline, Vertex, VertexField, VertexFieldFormat}, renderpass::Renderpass, shader::{ShaderModule, ShaderType}, VulkanError
+            }, device::Device, fence::Fence, graphics_pipeline::{GraphicsPipeline, Vertex, VertexField, VertexFieldFormat}, renderpass::Renderpass, shader::{ShaderModule, ShaderType}, surface::Surface, VulkanError
         }
-    },
-    math::vec::Vec3f, utils::id_vec::IdVec,
+    }, math::vec::Vec3f, resources::ResourceCollection, utils::id_vec::IdVec
 };
 
 struct MaterialBase {
@@ -122,29 +121,29 @@ impl DefaultVertex {
 }
 
 fn create_frame_sync(
-    context: Arc<VulkanContext>,
+    device: Arc<Device>,
     frames_in_flight: usize,
 ) -> Result<Vec<VulkanRendererFrameSync>, VulkanError> {
     let mut ret = Vec::new();
     for _ in 0..frames_in_flight {
-        ret.push(VulkanRendererFrameSync::new(context.device.clone())?);
+        ret.push(VulkanRendererFrameSync::new(device.clone())?);
     }
     Ok(ret)
 }
 
 fn create_image_sync(
-    context: Arc<VulkanContext>,
+    device: Arc<Device>,
     image_count: usize,
 ) -> Result<Vec<VulkanRendererImageSync>, VulkanError> {
     let mut ret = Vec::new();
     for _ in 0..image_count {
-        ret.push(VulkanRendererImageSync::new(context.device.clone())?);
+        ret.push(VulkanRendererImageSync::new(device.clone())?);
     }
     Ok(ret)
 }
 
 fn create_commad_buffers(
-    context: Arc<VulkanContext>,
+    command_pool: Arc<VulkanContext>,
     frames_in_flight: usize,
 ) -> Result<Vec<Arc<CommandBuffer>>, VulkanError> {
     let mut ret = Vec::new();
@@ -154,14 +153,15 @@ fn create_commad_buffers(
     Ok(ret)
 }
 
-impl VulkanRenderer {
-    pub fn new(context: Arc<VulkanContext>) -> Result<VulkanRenderer, VulkanError> {
+    pub fn init_renderer(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
+        let surface = resources.get::<Arc<Surface>>().unwrap();
+        let device = resources.get::<Arc<Device>>().unwrap();
         let mut frames_in_flight = 2;
-        let renderpass = Renderpass::new(context.surface.clone(), context.device.clone())?;
-        let image_data = VulkanRendererImageData::new(context.clone(), renderpass.clone())?;
+        let renderpass = Renderpass::new(surface.clone(), device.clone())?;
+        let image_data = VulkanRendererImageData::new(device.clone(), surface.clone(), renderpass.clone())?;
         frames_in_flight = image_data.clamp_frames_in_flight(frames_in_flight);
-        let frame_sync = create_frame_sync(context.clone(), frames_in_flight)?;
-        let image_sync = create_image_sync(context.clone(), image_data.swapchain.swapchain_images.len())?;
+        let frame_sync = create_frame_sync(device.clone(), frames_in_flight)?;
+        let image_sync = create_image_sync(device.clone(), image_data.swapchain.swapchain_images.len())?;
         let command_buffers = create_commad_buffers(context.clone(), frames_in_flight)?;
 
         let descriptor_pool = DescriptorPool::new(
@@ -170,24 +170,7 @@ impl VulkanRenderer {
             &[DescriptorPoolSize::new(16, DescriptorType::UNIFORM_BUFFER)],
         )?;
 
-        Ok(VulkanRenderer {
-            context,
-            renderpass,
-            image_data,
-            frame_sync,
-            image_sync,
-            command_buffers,
-            material_bases: IdVec::new(),
-            shaders: IdVec::new(),
-            meshes: IdVec::new(),
-            materials: IdVec::new(),
-            buffers: IdVec::new(),
-            descriptor_pool,
-            frames_in_flight,
-            resize: false,
-            current_frame: 0,
-            draw_queue: Vec::new(),
-        })
+        Ok(())
     }
 
     pub fn recreate_size_dependent_components(&mut self) -> Result<(), VulkanError> {
@@ -386,7 +369,6 @@ impl VulkanRenderer {
     pub fn queue_clear(&mut self) {
         self.draw_queue.clear();
     }
-}
 
 impl Drop for VulkanRenderer {
     fn drop(&mut self) {

@@ -1,12 +1,7 @@
 use std::sync::Arc;
 
 use crate::graphics::vulkan::{
-    VulkanError,
-    context::VulkanContext,
-    framebuffer::Framebuffer,
-    image::{ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView, OwnedImage},
-    renderpass::Renderpass,
-    swapchain::Swapchain,
+    context::VulkanContext, device::Device, framebuffer::Framebuffer, image::{ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView, OwnedImage}, renderpass::Renderpass, surface::Surface, swapchain::Swapchain, VulkanError
 };
 
 pub struct VulkanRendererImageData {
@@ -19,18 +14,19 @@ pub struct VulkanRendererImageData {
 
 impl VulkanRendererImageData {
     pub fn new(
-        context: Arc<VulkanContext>,
+        device: Arc<Device>,
+        surface: Arc<Surface>,
         renderpass: Arc<Renderpass>,
     ) -> Result<VulkanRendererImageData, VulkanError> {
-        let swapchain = Swapchain::new(context.surface.clone(), context.device.clone(), None)?;
+        let swapchain = Swapchain::new(surface.clone(), device.clone(), None)?;
 
         let swapchain_images = &swapchain.swapchain_images;
-        let swapchain_format = context.surface.format().into();
+        let swapchain_format = surface.format().into();
         let swapchain_views = {
             let mut out = Vec::new();
             for image in swapchain_images.iter() {
                 let view = ImageView::from_image(
-                    context.device.clone(),
+                    device.clone(),
                     image.clone(),
                     swapchain_format,
                     ImageAspectFlags::COLOR,
@@ -41,7 +37,7 @@ impl VulkanRendererImageData {
         };
 
         let depth_image = OwnedImage::new(
-            context.device.clone(),
+            device.clone(),
             ImageInfo {
                 format: ImageFormat::D16_UNORM,
                 size: (
@@ -52,7 +48,7 @@ impl VulkanRendererImageData {
             },
         )?;
         let depth_view = ImageView::from_image(
-            context.device.clone(),
+            device.clone(),
             depth_image.clone(),
             ImageFormat::D16_UNORM,
             ImageAspectFlags::DEPTH,
