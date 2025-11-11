@@ -11,7 +11,6 @@ use super::{
     device::Device,
     instance::Instance,
     physical_device::PhysicalDevice,
-    queue::Queue,
     surface::{InitialSurface, Surface},
 };
 

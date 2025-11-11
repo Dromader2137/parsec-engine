@@ -55,6 +55,12 @@ impl ResourceCollection {
         Ok(())
     }
 
+    pub fn add_or_change<R: Resource>(&mut self, resource: R) -> Result<(), ResourceError> {
+        let type_id = TypeId::of::<R>();
+        self.resources.insert(type_id, RefCell::new(Box::new(resource)));
+        Ok(())
+    }
+
     pub fn get<'a, 'b, R: Resource>(&'a self) -> Result<Rsc<'b, R>, ResourceError> where 'a: 'b {
         let type_id = TypeId::of::<R>();
         if let Some(resource_cell) = self.resources.get(&type_id) {

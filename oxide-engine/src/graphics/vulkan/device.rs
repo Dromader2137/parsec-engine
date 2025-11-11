@@ -70,6 +70,7 @@ impl Device {
 
 impl Drop for Device {
     fn drop(&mut self) {
+        self.wait_idle().unwrap();
         unsafe { self.get_device_raw().destroy_device(None) };
     }
 }

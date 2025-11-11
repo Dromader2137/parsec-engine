@@ -1,4 +1,20 @@
-use oxide_engine::{app::App, ecs::system::{System, SystemInput, SystemTrigger}, graphics::{renderer::{draw_queue::{Draw, MeshAndMaterial}, DefaultVertex, VulkanRenderer}, vulkan::{descriptor_set::{DescriptorSetBinding, DescriptorStage, DescriptorType}, shader::{read_shader_code, ShaderType}}, GraphicsBundle}, math::{mat::Matrix4f, vec::Vec3f}};
+use oxide_engine::{
+    app::App,
+    ecs::system::{System, SystemInput, SystemTrigger},
+    graphics::{
+        GraphicsBundle,
+        renderer::{
+            DefaultVertex, create_buffer, create_material, create_material_base, create_mesh, create_shader,
+            draw_queue::{Draw, MeshAndMaterial},
+            get_aspect_ratio, queue_draw, update_buffer,
+        },
+        vulkan::{
+            descriptor_set::{DescriptorSetBinding, DescriptorStage, DescriptorType},
+            shader::{ShaderType, read_shader_code},
+        },
+    },
+    math::{mat::Matrix4f, vec::Vec3f},
+};
 
 fn main() {
     let mut app = App::new();
@@ -6,49 +22,45 @@ fn main() {
     app.systems.add(System::new(
         SystemTrigger::LateStart,
         |SystemInput { resources, .. }| {
-            let mut renderer = resources.get_mut::<VulkanRenderer>().unwrap();
+            let vertex = create_shader(
+                resources,
+                &read_shader_code("shaders/simple.spv").unwrap(),
+                ShaderType::Vertex,
+            )
+            .unwrap();
 
-            let vertex = renderer
-                .create_shader(
-                    &read_shader_code("shaders/simple.spv").unwrap(),
-                    ShaderType::Vertex,
-                )
-                .unwrap();
+            let fragment = create_shader(
+                resources,
+                &read_shader_code("shaders/flat.spv").unwrap(),
+                ShaderType::Fragment,
+            )
+            .unwrap();
 
-            let fragment = renderer
-                .create_shader(
-                    &read_shader_code("shaders/flat.spv").unwrap(),
-                    ShaderType::Fragment,
-                )
-                .unwrap();
+            let material_base = create_material_base(
+                resources,
+                vertex,
+                fragment,
+                vec![vec![DescriptorSetBinding::new(
+                    0,
+                    DescriptorType::UNIFORM_BUFFER,
+                    DescriptorStage::VERTEX,
+                )]],
+            )
+            .unwrap();
 
-            let material_base = renderer
-                .create_material_base(
-                    vertex,
-                    fragment,
-                    vec![vec![DescriptorSetBinding::new(
-                        0,
-                        DescriptorType::UNIFORM_BUFFER,
-                        DescriptorStage::VERTEX,
-                    )]],
-                )
-                .unwrap();
+            let aspect_ratio = get_aspect_ratio(resources);
 
-            let aspect_ratio = renderer.get_aspect_ratio();
+            let mvp_buffer = create_buffer(
+                resources,
+                vec![
+                    Matrix4f::perspective(40.0_f32.to_radians(), aspect_ratio, 5.0, 100.0)
+                        * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
+                        * Matrix4f::translation(Vec3f::FORWARD * 30.0),
+                ],
+            )
+            .unwrap();
 
-            let mvp_buffer = renderer
-                .create_buffer(
-                    vec![
-                        Matrix4f::perspective(40.0_f32.to_radians(), aspect_ratio, 5.0, 100.0)
-                            * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
-                            * Matrix4f::translation(Vec3f::FORWARD * 30.0),
-                    ],
-                )
-                .unwrap();
-
-            let _material = renderer
-                .create_material(material_base, vec![vec![mvp_buffer]])
-                .unwrap();
+            let _material = create_material(resources, material_base, vec![vec![mvp_buffer]]).unwrap();
 
             let pos = vec![
                 Vec3f::new(0.0, 0.0, 0.0),
@@ -72,30 +84,32 @@ fn main() {
                 .map(|x| DefaultVertex::new(*x.0, *x.1))
                 .collect();
 
-            let _mesh = renderer.create_mesh(vertices, indices).unwrap();
+            let _mesh = create_mesh(resources, vertices, indices).unwrap();
         },
     ));
     app.systems.add(System::new(
         SystemTrigger::Update,
         |SystemInput { resources, .. }| {
-            let mut renderer = resources.get_mut::<VulkanRenderer>().unwrap();
+            queue_draw(
+                resources,
+                Draw::MeshAndMaterial(MeshAndMaterial {
+                    mesh_id: 0,
+                    material_id: 0,
+                }),
+            );
+            
+            let aspect_ratio = get_aspect_ratio(resources);
 
-            renderer.queue_draw(Draw::MeshAndMaterial(MeshAndMaterial {mesh_id: 0, material_id: 0}));
-
-            renderer
-                .update_buffer(
-                    0,
-                    vec![
-                        Matrix4f::perspective(
-                            40.0_f32.to_radians(),
-                            renderer.get_aspect_ratio(),
-                            5.0,
-                            100.0,
-                        ) * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
-                            * Matrix4f::translation(Vec3f::FORWARD * 30.0),
-                    ],
-                )
-                .unwrap();
+            update_buffer(
+                resources,
+                0,
+                vec![
+                    Matrix4f::perspective(40.0_f32.to_radians(), aspect_ratio, 5.0, 100.0)
+                        * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
+                        * Matrix4f::translation(Vec3f::FORWARD * 30.0),
+                ],
+            )
+            .unwrap();
         },
     ));
     app.run();

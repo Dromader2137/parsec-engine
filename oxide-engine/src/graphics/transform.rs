@@ -1,4 +1,4 @@
-use crate::{graphics::{renderer::VulkanRenderer, vulkan::VulkanError}, math::mat::Matrix4f};
+use crate::{graphics::{renderer::create_buffer, vulkan::VulkanError}, math::mat::Matrix4f, resources::ResourceCollection, utils::id_vec::IdVec};
 
 #[derive(Debug)]
 pub struct TransformData {
@@ -7,10 +7,14 @@ pub struct TransformData {
 }
 
 impl TransformData {
-    pub fn new(renderer: &mut VulkanRenderer) -> Result<TransformData, VulkanError> {
-        Ok(TransformData { 
-            transform_matrix: Matrix4f::indentity(), 
-            buffer_id: renderer.create_buffer(vec![Matrix4f::indentity()])?
-        })
-    }
+}
+
+pub fn create_transform_data(resources: &mut ResourceCollection) -> Result<u32, VulkanError> {
+    let buffer_id = create_buffer(resources, vec![Matrix4f::indentity()])?;
+    let mut transforms = resources.get_mut::<IdVec<TransformData>>().unwrap();
+    let transform_data = TransformData {
+        transform_matrix: Matrix4f::indentity(),
+        buffer_id
+    };
+    Ok(transforms.push(transform_data))
 }
