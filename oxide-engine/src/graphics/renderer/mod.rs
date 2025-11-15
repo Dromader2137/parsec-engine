@@ -59,9 +59,7 @@ pub struct DefaultVertex {
 }
 
 impl Vertex for DefaultVertex {
-    fn size() -> u32 {
-        size_of::<f32>() as u32 * 11
-    }
+    fn size() -> u32 { size_of::<f32>() as u32 * 11 }
 
     fn description() -> Vec<VertexField> {
         vec![
@@ -283,7 +281,7 @@ pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
                     let mesh = meshes.get(*mesh_id).unwrap();
                     material.bind(resources, command_buffer.clone(), *camera_id, *transform_id);
                     mesh.record_commands(command_buffer.clone());
-                }
+                },
             }
         }
         command_buffer.end_renderpass();
@@ -394,7 +392,5 @@ pub enum RendererError {
 }
 
 impl From<RendererError> for VulkanError {
-    fn from(value: RendererError) -> Self {
-        VulkanError::RendererError(value)
-    }
+    fn from(value: RendererError) -> Self { VulkanError::RendererError(value) }
 }

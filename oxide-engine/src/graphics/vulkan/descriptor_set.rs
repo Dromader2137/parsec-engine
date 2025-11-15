@@ -40,9 +40,7 @@ pub enum DescriptorError {
 }
 
 impl From<DescriptorError> for VulkanError {
-    fn from(value: DescriptorError) -> Self {
-        VulkanError::DescriptorError(value)
-    }
+    fn from(value: DescriptorError) -> Self { VulkanError::DescriptorError(value) }
 }
 
 pub type DescriptorType = ash::vk::DescriptorType;
@@ -101,9 +99,7 @@ impl DescriptorPool {
         Ok(Arc::new(DescriptorPool { device, pool }))
     }
 
-    pub fn get_pool_raw(&self) -> &ash::vk::DescriptorPool {
-        &self.pool
-    }
+    pub fn get_pool_raw(&self) -> &ash::vk::DescriptorPool { &self.pool }
 }
 
 impl Drop for DescriptorPool {
@@ -141,9 +137,7 @@ impl<'a> DescriptorSetLayout {
         }))
     }
 
-    pub fn get_layout_raw(&self) -> &ash::vk::DescriptorSetLayout {
-        &self.layout
-    }
+    pub fn get_layout_raw(&self) -> &ash::vk::DescriptorSetLayout { &self.layout }
 }
 
 impl Drop for DescriptorSetLayout {
@@ -248,9 +242,7 @@ impl DescriptorSet {
         Ok(())
     }
 
-    pub fn get_set_raw(&self) -> &ash::vk::DescriptorSet {
-        &self.set
-    }
+    pub fn get_set_raw(&self) -> &ash::vk::DescriptorSet { &self.set }
 }
 
 impl Drop for DescriptorSet {

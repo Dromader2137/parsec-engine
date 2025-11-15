@@ -14,9 +14,7 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn new() -> Input {
-        Input { keys: Keys::new() }
-    }
+    pub fn new() -> Input { Input { keys: Keys::new() } }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,9 +24,7 @@ pub struct InputEvent {
 }
 
 impl InputEvent {
-    pub fn new(key: KeyCode, state: KeyState) -> InputEvent {
-        InputEvent { key, state }
-    }
+    pub fn new(key: KeyCode, state: KeyState) -> InputEvent { InputEvent { key, state } }
 }
 
 #[derive(Default)]

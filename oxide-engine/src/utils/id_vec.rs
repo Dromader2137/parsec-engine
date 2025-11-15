@@ -5,9 +5,7 @@ pub struct IdVec<T> {
 }
 
 impl<T> IdVec<T> {
-    pub fn new() -> IdVec<T> {
-        IdVec { vec: Vec::new() }
-    }
+    pub fn new() -> IdVec<T> { IdVec { vec: Vec::new() } }
 
     pub fn push(&mut self, value: T) -> u32 {
         self.vec.push(value);
@@ -28,15 +26,9 @@ impl<T> IdVec<T> {
         self.vec.get_mut(id as usize)
     }
 
-    pub fn iter(&self) -> Iter<'_, T> {
-        self.vec.iter()
-    }
+    pub fn iter(&self) -> Iter<'_, T> { self.vec.iter() }
 
-    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        self.vec.iter_mut()
-    }
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> { self.vec.iter_mut() }
 
-    pub fn len(&self) -> u32 {
-        self.vec.len() as u32
-    }
+    pub fn len(&self) -> u32 { self.vec.len() as u32 }
 }

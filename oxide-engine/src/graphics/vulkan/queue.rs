@@ -15,9 +15,7 @@ pub enum QueueError {
 }
 
 impl From<QueueError> for VulkanError {
-    fn from(value: QueueError) -> Self {
-        VulkanError::QueueError(value)
-    }
+    fn from(value: QueueError) -> Self { VulkanError::QueueError(value) }
 }
 
 impl Queue {
@@ -68,7 +66,5 @@ impl Queue {
         Ok(())
     }
 
-    pub fn get_queue_raw(&self) -> &ash::vk::Queue {
-        &self.queue
-    }
+    pub fn get_queue_raw(&self) -> &ash::vk::Queue { &self.queue }
 }

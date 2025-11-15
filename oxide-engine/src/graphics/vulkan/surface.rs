@@ -34,9 +34,7 @@ pub enum SurfaceError {
 }
 
 impl From<SurfaceError> for VulkanError {
-    fn from(value: SurfaceError) -> Self {
-        VulkanError::SurfaceError(value)
-    }
+    fn from(value: SurfaceError) -> Self { VulkanError::SurfaceError(value) }
 }
 
 impl InitialSurface {
@@ -95,13 +93,9 @@ impl InitialSurface {
         }
     }
 
-    pub fn get_surface_loader(&self) -> &ash::khr::surface::Instance {
-        &self.surface_loader
-    }
+    pub fn get_surface_loader(&self) -> &ash::khr::surface::Instance { &self.surface_loader }
 
-    pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR {
-        &self.surface
-    }
+    pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 }
 
 impl Surface {
@@ -159,21 +153,13 @@ impl Surface {
         }))
     }
 
-    pub fn get_surface_loader_raw(&self) -> &ash::khr::surface::Instance {
-        &self.surface_loader
-    }
+    pub fn get_surface_loader_raw(&self) -> &ash::khr::surface::Instance { &self.surface_loader }
 
-    pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR {
-        &self.surface
-    }
+    pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 
-    pub fn min_image_count(&self) -> u32 {
-        self.surface_capabilities.min_image_count
-    }
+    pub fn min_image_count(&self) -> u32 { self.surface_capabilities.min_image_count }
 
-    pub fn max_image_count(&self) -> u32 {
-        self.surface_capabilities.max_image_count
-    }
+    pub fn max_image_count(&self) -> u32 { self.surface_capabilities.max_image_count }
 
     pub fn current_extent(&self) -> ash::vk::Extent2D {
         match self.surface_capabilities.current_extent.width {
@@ -185,13 +171,9 @@ impl Surface {
         }
     }
 
-    pub fn width(&self) -> u32 {
-        self.current_extent().width
-    }
+    pub fn width(&self) -> u32 { self.current_extent().width }
 
-    pub fn height(&self) -> u32 {
-        self.current_extent().height
-    }
+    pub fn height(&self) -> u32 { self.current_extent().height }
 
     pub fn aspect_ratio(&self) -> f32 {
         if self.height() == 0 {
@@ -208,17 +190,11 @@ impl Surface {
         self.surface_capabilities.current_transform
     }
 
-    pub fn format(&self) -> ash::vk::Format {
-        self.surface_format.format
-    }
+    pub fn format(&self) -> ash::vk::Format { self.surface_format.format }
 
-    pub fn color_space(&self) -> ash::vk::ColorSpaceKHR {
-        self.surface_format.color_space
-    }
+    pub fn color_space(&self) -> ash::vk::ColorSpaceKHR { self.surface_format.color_space }
 }
 
 impl Drop for Surface {
-    fn drop(&mut self) {
-        unsafe { self.surface_loader.destroy_surface(self.surface, None) };
-    }
+    fn drop(&mut self) { unsafe { self.surface_loader.destroy_surface(self.surface, None) }; }
 }

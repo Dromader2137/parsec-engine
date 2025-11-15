@@ -15,9 +15,7 @@ pub enum WindowError {
 }
 
 impl From<WindowError> for GraphicsError {
-    fn from(value: WindowError) -> Self {
-        GraphicsError::WindowError(value)
-    }
+    fn from(value: WindowError) -> Self { GraphicsError::WindowError(value) }
 }
 
 impl WindowWrapper {
@@ -34,7 +32,7 @@ impl WindowWrapper {
             Ok(val) => val,
             Err(err) => {
                 return Err(WindowError::CreationError(err));
-            }
+            },
         };
 
         Ok(Arc::new(WindowWrapper {
@@ -42,26 +40,18 @@ impl WindowWrapper {
         }))
     }
 
-    pub fn request_redraw(&self) {
-        self.window.request_redraw();
-    }
+    pub fn request_redraw(&self) { self.window.request_redraw(); }
 
     pub fn size(&self) -> (u32, u32) {
         let physical_size = self.window.inner_size();
         (physical_size.width, physical_size.height)
     }
 
-    pub fn width(&self) -> u32 {
-        self.size().0
-    }
+    pub fn width(&self) -> u32 { self.size().0 }
 
-    pub fn height(&self) -> u32 {
-        self.size().1
-    }
+    pub fn height(&self) -> u32 { self.size().1 }
 
-    pub fn physical_size(&self) -> winit::dpi::PhysicalSize<u32> {
-        self.window.inner_size()
-    }
+    pub fn physical_size(&self) -> winit::dpi::PhysicalSize<u32> { self.window.inner_size() }
 
     pub fn raw_display_handle(
         &self,
@@ -77,7 +67,5 @@ impl WindowWrapper {
         self.window.window_handle()
     }
 
-    pub fn minimized(&self) -> bool {
-        self.width() <= 0 || self.height() <= 0
-    }
+    pub fn minimized(&self) -> bool { self.width() <= 0 || self.height() <= 0 }
 }

@@ -8,7 +8,5 @@ pub trait RemoveComponent {
 }
 
 impl<T: Spawn> RemoveComponent for T {
-    fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
-        T::archetype_id()
-    }
+    fn archetype_id() -> Result<ArchetypeId, ArchetypeError> { T::archetype_id() }
 }

@@ -51,15 +51,9 @@ impl Keys {
         self.up.clear();
     }
 
-    pub fn is_pressed(&self, key: KeyCode) -> bool {
-        self.pressed.contains(&key)
-    }
+    pub fn is_pressed(&self, key: KeyCode) -> bool { self.pressed.contains(&key) }
 
-    pub fn is_down(&self, key: KeyCode) -> bool {
-        self.down.contains(&key)
-    }
+    pub fn is_down(&self, key: KeyCode) -> bool { self.down.contains(&key) }
 
-    pub fn is_up(&self, key: KeyCode) -> bool {
-        self.up.contains(&key)
-    }
+    pub fn is_up(&self, key: KeyCode) -> bool { self.up.contains(&key) }
 }

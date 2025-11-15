@@ -30,21 +30,15 @@ impl<'a, T: Component> Fetch<'a> for &'a [T] {
         ArchetypeId::new(vec![TypeId::of::<T>()])
     }
 
-    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> {
-        archetype.get::<T>()
-    }
+    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> { archetype.get::<T>() }
 
     fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError> {
         archetype.release_lock::<T>()
     }
 
-    fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b> {
-        &self[row]
-    }
+    fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b> { &self[row] }
 
-    fn count(&self) -> usize {
-        self.len()
-    }
+    fn count(&self) -> usize { self.len() }
 }
 
 impl<'a, T: Component> Fetch<'a> for &'a mut [T] {
@@ -58,9 +52,7 @@ impl<'a, T: Component> Fetch<'a> for &'a mut [T] {
         ArchetypeId::new(vec![TypeId::of::<T>()])
     }
 
-    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> {
-        archetype.get_mut::<T>()
-    }
+    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> { archetype.get_mut::<T>() }
 
     fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError> {
         archetype.release_lock::<T>()
@@ -71,9 +63,7 @@ impl<'a, T: Component> Fetch<'a> for &'a mut [T] {
         unsafe { &mut *ptr.add(row) }
     }
 
-    fn count(&self) -> usize {
-        self.len()
-    }
+    fn count(&self) -> usize { self.len() }
 }
 
 multiple_tuples!(impl_fetch, 16);

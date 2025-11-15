@@ -20,9 +20,7 @@ pub enum InstanceError {
 }
 
 impl From<InstanceError> for VulkanError {
-    fn from(value: InstanceError) -> Self {
-        VulkanError::InstanceError(value)
-    }
+    fn from(value: InstanceError) -> Self { VulkanError::InstanceError(value) }
 }
 
 unsafe extern "system" fn vulkan_debug_callback(
@@ -48,7 +46,8 @@ unsafe extern "system" fn vulkan_debug_callback(
         };
 
         println!(
-            "{message_severity:?}:\n{message_type:?} [{message_id_name} ({message_id_number})] : {message}\n",
+            "{message_severity:?}:\n{message_type:?} [{message_id_name} ({message_id_number})] : \
+             {message}\n",
         );
 
         ash::vk::FALSE
@@ -118,7 +117,7 @@ impl Instance {
                     Ok(val) => Some(val),
                     Err(err) => return Err(InstanceError::DebugCreationError(err)),
                 }
-            }
+            },
             false => None,
         };
 
@@ -130,13 +129,9 @@ impl Instance {
         }))
     }
 
-    pub fn get_instance_raw(&self) -> &ash::Instance {
-        &self.instance
-    }
+    pub fn get_instance_raw(&self) -> &ash::Instance { &self.instance }
 
-    pub fn get_entry_raw(&self) -> &ash::Entry {
-        &self.entry
-    }
+    pub fn get_entry_raw(&self) -> &ash::Entry { &self.entry }
 }
 
 impl Drop for Instance {

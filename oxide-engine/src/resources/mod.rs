@@ -128,7 +128,5 @@ pub enum ResourceError {
 }
 
 impl From<ResourceError> for EngineError {
-    fn from(value: ResourceError) -> Self {
-        EngineError::ResourceError(value)
-    }
+    fn from(value: ResourceError) -> Self { EngineError::ResourceError(value) }
 }

@@ -21,9 +21,7 @@ pub enum GraphicsPipelineError {
 }
 
 impl From<GraphicsPipelineError> for VulkanError {
-    fn from(value: GraphicsPipelineError) -> Self {
-        VulkanError::GrphicsPipelineError(value)
-    }
+    fn from(value: GraphicsPipelineError) -> Self { VulkanError::GrphicsPipelineError(value) }
 }
 
 pub type VertexFieldFormat = ash::vk::Format;
@@ -206,13 +204,9 @@ impl GraphicsPipeline {
         }))
     }
 
-    pub fn get_pipeline_raw(&self) -> &ash::vk::Pipeline {
-        &self.graphics_pipeline
-    }
+    pub fn get_pipeline_raw(&self) -> &ash::vk::Pipeline { &self.graphics_pipeline }
 
-    pub fn get_layout_raw(&self) -> &ash::vk::PipelineLayout {
-        &self.graphics_pipeline_layout
-    }
+    pub fn get_layout_raw(&self) -> &ash::vk::PipelineLayout { &self.graphics_pipeline_layout }
 }
 
 impl Drop for GraphicsPipeline {

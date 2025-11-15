@@ -15,9 +15,7 @@ pub enum PhysicalDeviceError {
 }
 
 impl From<PhysicalDeviceError> for VulkanError {
-    fn from(value: PhysicalDeviceError) -> Self {
-        VulkanError::PhysicalDeviceError(value)
-    }
+    fn from(value: PhysicalDeviceError) -> Self { VulkanError::PhysicalDeviceError(value) }
 }
 
 impl PhysicalDevice {
@@ -64,11 +62,7 @@ impl PhysicalDevice {
         }))
     }
 
-    pub fn get_physical_device_raw(&self) -> &ash::vk::PhysicalDevice {
-        &self.physical_device
-    }
+    pub fn get_physical_device_raw(&self) -> &ash::vk::PhysicalDevice { &self.physical_device }
 
-    pub fn get_queue_family_index(&self) -> u32 {
-        self.queue_family_index
-    }
+    pub fn get_queue_family_index(&self) -> u32 { self.queue_family_index }
 }

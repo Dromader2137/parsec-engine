@@ -25,9 +25,7 @@ pub enum ArchetypeError {
 }
 
 impl From<ArchetypeError> for WorldError {
-    fn from(value: ArchetypeError) -> Self {
-        WorldError::ArchetypeError(value)
-    }
+    fn from(value: ArchetypeError) -> Self { WorldError::ArchetypeError(value) }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -37,9 +35,7 @@ pub struct ArchetypeId {
 }
 
 impl Hash for ArchetypeId {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write_u64(self.hash);
-    }
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) { state.write_u64(self.hash); }
 }
 
 impl ArchetypeId {
@@ -117,9 +113,7 @@ impl ArchetypeId {
         self.component_types.contains(component_type)
     }
 
-    pub fn component_count(&self) -> usize {
-        self.component_types.len()
-    }
+    pub fn component_count(&self) -> usize { self.component_types.len() }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -149,9 +143,7 @@ impl ArchetypeColumn {
         }
     }
 
-    fn set_component_size<T: Component>(&mut self) {
-        self.component_size = size_of::<T>();
-    }
+    fn set_component_size<T: Component>(&mut self) { self.component_size = size_of::<T>(); }
 
     fn push<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
         self.set_component_size::<T>();
@@ -295,13 +287,9 @@ impl Archetype {
         column.push_raw(data)
     }
 
-    pub fn new_entity(&mut self, id: u32) {
-        self.entities.push(Entity::new(id));
-    }
+    pub fn new_entity(&mut self, id: u32) { self.entities.push(Entity::new(id)); }
 
-    pub fn moved_entity(&mut self, entity: Entity) {
-        self.entities.push(entity);
-    }
+    pub fn moved_entity(&mut self, entity: Entity) { self.entities.push(entity); }
 
     pub fn check_entity(&self, entity: Entity) -> bool {
         match self.entities.iter().find(|x| **x == entity) {
@@ -415,23 +403,21 @@ impl Archetype {
         match column_access {
             ArchetypeColumnAccess::None => {
                 *column.access.borrow_mut() = ArchetypeColumnAccess::ReadWrite;
-            }
+            },
             ArchetypeColumnAccess::Read => {
                 let mut borrow_count = column.borrow_count.borrow_mut();
                 *borrow_count -= 1;
                 if *borrow_count == 0 {
                     *column.access.borrow_mut() = ArchetypeColumnAccess::ReadWrite;
                 }
-            }
+            },
             _ => (),
         };
 
         Ok(())
     }
 
-    pub fn len(&self) -> usize {
-        self.bundle_count
-    }
+    pub fn len(&self) -> usize { self.bundle_count }
 }
 
 multiple_tuples!(impl_spawn, 16);

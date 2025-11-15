@@ -26,9 +26,7 @@ pub enum CommandBufferError {
 }
 
 impl From<CommandBufferError> for VulkanError {
-    fn from(value: CommandBufferError) -> Self {
-        VulkanError::CommandBufferError(value)
-    }
+    fn from(value: CommandBufferError) -> Self { VulkanError::CommandBufferError(value) }
 }
 
 #[derive(Debug)]
@@ -37,9 +35,7 @@ pub enum CommandPoolError {
 }
 
 impl From<CommandPoolError> for VulkanError {
-    fn from(value: CommandPoolError) -> Self {
-        VulkanError::CommandPoolError(value)
-    }
+    fn from(value: CommandPoolError) -> Self { VulkanError::CommandPoolError(value) }
 }
 
 impl CommandPool {
@@ -63,9 +59,7 @@ impl CommandPool {
         }))
     }
 
-    pub fn get_command_pool_raw(&self) -> &ash::vk::CommandPool {
-        &self.command_pool
-    }
+    pub fn get_command_pool_raw(&self) -> &ash::vk::CommandPool { &self.command_pool }
 }
 
 impl Drop for CommandPool {
@@ -310,7 +304,5 @@ impl CommandBuffer {
         Ok(())
     }
 
-    pub fn get_command_buffer_raw(&self) -> &ash::vk::CommandBuffer {
-        &self.command_buffer
-    }
+    pub fn get_command_buffer_raw(&self) -> &ash::vk::CommandBuffer { &self.command_buffer }
 }

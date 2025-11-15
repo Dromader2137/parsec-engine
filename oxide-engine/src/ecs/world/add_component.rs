@@ -9,9 +9,7 @@ pub trait AddComponent {
 }
 
 impl<T: Spawn> AddComponent for T {
-    fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
-        T::archetype_id()
-    }
+    fn archetype_id() -> Result<ArchetypeId, ArchetypeError> { T::archetype_id() }
     fn add_to(self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
         Spawn::spawn(self, archetype)
     }

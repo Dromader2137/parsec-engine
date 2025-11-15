@@ -15,9 +15,7 @@ pub enum SemaphoreError {
 }
 
 impl From<SemaphoreError> for VulkanError {
-    fn from(value: SemaphoreError) -> Self {
-        VulkanError::SemaphoreError(value)
-    }
+    fn from(value: SemaphoreError) -> Self { VulkanError::SemaphoreError(value) }
 }
 
 impl Semaphore {
@@ -40,9 +38,7 @@ impl Semaphore {
         }
     }
 
-    pub fn get_semaphore_raw(&self) -> &ash::vk::Semaphore {
-        &self.semaphore
-    }
+    pub fn get_semaphore_raw(&self) -> &ash::vk::Semaphore { &self.semaphore }
 }
 
 impl Drop for Semaphore {

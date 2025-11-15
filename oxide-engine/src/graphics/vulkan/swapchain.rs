@@ -23,9 +23,7 @@ pub enum SwapchainError {
 }
 
 impl From<SwapchainError> for VulkanError {
-    fn from(value: SwapchainError) -> Self {
-        VulkanError::SwapchainError(value)
-    }
+    fn from(value: SwapchainError) -> Self { VulkanError::SwapchainError(value) }
 }
 
 impl Swapchain {
@@ -160,9 +158,7 @@ impl Swapchain {
         Ok(())
     }
 
-    pub fn get_swapchain_raw(&self) -> &ash::vk::SwapchainKHR {
-        &self.swapchain
-    }
+    pub fn get_swapchain_raw(&self) -> &ash::vk::SwapchainKHR { &self.swapchain }
 
     pub fn get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
         &self.swapchain_loader

@@ -28,23 +28,15 @@ pub struct ImageView {
 }
 
 impl Image for SwapchainImage {
-    fn get_image_raw(&self) -> &ash::vk::Image {
-        &self.image
-    }
+    fn get_image_raw(&self) -> &ash::vk::Image { &self.image }
 
-    fn device(&self) -> Arc<Device> {
-        self.device.clone()
-    }
+    fn device(&self) -> Arc<Device> { self.device.clone() }
 }
 
 impl Image for OwnedImage {
-    fn get_image_raw(&self) -> &ash::vk::Image {
-        &self.image
-    }
+    fn get_image_raw(&self) -> &ash::vk::Image { &self.image }
 
-    fn device(&self) -> Arc<Device> {
-        self.device.clone()
-    }
+    fn device(&self) -> Arc<Device> { self.device.clone() }
 }
 
 #[derive(Debug)]
@@ -58,9 +50,7 @@ pub enum ImageError {
 }
 
 impl From<ImageError> for VulkanError {
-    fn from(value: ImageError) -> Self {
-        VulkanError::ImageError(value)
-    }
+    fn from(value: ImageError) -> Self { VulkanError::ImageError(value) }
 }
 
 pub type ImageFormat = ash::vk::Format;
@@ -187,9 +177,7 @@ impl OwnedImage {
         }))
     }
 
-    pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory {
-        &self.memory
-    }
+    pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory { &self.memory }
 }
 
 impl Drop for OwnedImage {
@@ -222,9 +210,7 @@ impl ImageView {
         }
     }
 
-    pub fn get_image_view_raw(&self) -> &ash::vk::ImageView {
-        &self.view
-    }
+    pub fn get_image_view_raw(&self) -> &ash::vk::ImageView { &self.view }
 }
 
 impl Drop for ImageView {

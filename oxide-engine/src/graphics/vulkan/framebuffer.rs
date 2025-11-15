@@ -16,9 +16,7 @@ pub enum FramebufferError {
 }
 
 impl From<FramebufferError> for VulkanError {
-    fn from(value: FramebufferError) -> Self {
-        VulkanError::FramebufferError(value)
-    }
+    fn from(value: FramebufferError) -> Self { VulkanError::FramebufferError(value) }
 }
 
 impl Framebuffer {
@@ -57,13 +55,9 @@ impl Framebuffer {
         }))
     }
 
-    pub fn get_framebuffer_raw(&self) -> &ash::vk::Framebuffer {
-        &self.framebuffer
-    }
+    pub fn get_framebuffer_raw(&self) -> &ash::vk::Framebuffer { &self.framebuffer }
 
-    pub fn get_extent_raw(&self) -> ash::vk::Extent2D {
-        self.extent
-    }
+    pub fn get_extent_raw(&self) -> ash::vk::Extent2D { self.extent }
 }
 
 impl Drop for Framebuffer {

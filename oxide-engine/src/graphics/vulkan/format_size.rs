@@ -57,7 +57,7 @@ pub fn format_size(format: ash::vk::Format) -> Option<u32> {
         | ash::vk::Format::R16G16B16A16_SFLOAT => Some(8),
         ash::vk::Format::R32_UINT | ash::vk::Format::R32_SINT | ash::vk::Format::R32_SFLOAT => {
             Some(4)
-        }
+        },
         ash::vk::Format::R32G32_UINT
         | ash::vk::Format::R32G32_SINT
         | ash::vk::Format::R32G32_SFLOAT => Some(8),

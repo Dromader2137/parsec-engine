@@ -27,9 +27,7 @@ pub enum WorldError {
 }
 
 impl From<WorldError> for EngineError {
-    fn from(value: WorldError) -> Self {
-        EngineError::WorldError(value)
-    }
+    fn from(value: WorldError) -> Self { EngineError::WorldError(value) }
 }
 
 /// World holds all data about components and entities
@@ -86,7 +84,7 @@ impl World {
                 Ok(()) => {
                     archetype.bundle_count -= 1;
                     return Ok(());
-                }
+                },
                 Err(ArchetypeError::EntityNotFound) => (),
                 Err(err) => return Err(err.into()),
             };
@@ -169,9 +167,7 @@ impl World {
 }
 
 impl Default for World {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 #[cfg(test)]

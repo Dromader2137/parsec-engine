@@ -106,7 +106,7 @@ impl winit::application::ApplicationHandler for App {
                     });
 
                 let _ = self.resources.remove::<InputEvent>();
-            }
+            },
             winit::event::WindowEvent::CursorLeft { device_id: _ } => {
                 self.systems
                     .execute_type(SystemTrigger::WindowCursorLeft, SystemInput {
@@ -114,7 +114,7 @@ impl winit::application::ApplicationHandler for App {
                         assets: &mut self.assets,
                         resources: &mut self.resources,
                     });
-            }
+            },
             winit::event::WindowEvent::Resized(_) => {
                 self.systems
                     .execute_type(SystemTrigger::WindowResized, SystemInput {
@@ -122,7 +122,7 @@ impl winit::application::ApplicationHandler for App {
                         assets: &mut self.assets,
                         resources: &mut self.resources,
                     });
-            }
+            },
             winit::event::WindowEvent::CloseRequested => {
                 self.systems.execute_type(SystemTrigger::End, SystemInput {
                     world: &mut self.world,
@@ -130,7 +130,7 @@ impl winit::application::ApplicationHandler for App {
                     resources: &mut self.resources,
                 });
                 event_loop.exit();
-            }
+            },
             winit::event::WindowEvent::RedrawRequested => {
                 self.systems
                     .execute_type(SystemTrigger::Render, SystemInput {
@@ -138,7 +138,7 @@ impl winit::application::ApplicationHandler for App {
                         assets: &mut self.assets,
                         resources: &mut self.resources,
                     });
-            }
+            },
             _ => (),
         }
     }

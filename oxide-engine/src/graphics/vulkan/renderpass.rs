@@ -14,9 +14,7 @@ pub enum RenderpassError {
 }
 
 impl From<RenderpassError> for VulkanError {
-    fn from(value: RenderpassError) -> Self {
-        VulkanError::RenderpassError(value)
-    }
+    fn from(value: RenderpassError) -> Self { VulkanError::RenderpassError(value) }
 }
 
 impl Renderpass {
@@ -85,9 +83,7 @@ impl Renderpass {
         }))
     }
 
-    pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass {
-        &self.renderpass
-    }
+    pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass { &self.renderpass }
 }
 
 impl Drop for Renderpass {

@@ -72,9 +72,7 @@ impl System {
         }
     }
 
-    pub fn execute(&self, system_input: &mut SystemInput) {
-        (self.function)(system_input);
-    }
+    pub fn execute(&self, system_input: &mut SystemInput) { (self.function)(system_input); }
 }
 
 pub trait SystemBundle {

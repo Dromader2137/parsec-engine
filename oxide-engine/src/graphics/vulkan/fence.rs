@@ -17,9 +17,7 @@ pub enum FenceError {
 }
 
 impl From<FenceError> for VulkanError {
-    fn from(value: FenceError) -> Self {
-        VulkanError::FenceError(value)
-    }
+    fn from(value: FenceError) -> Self { VulkanError::FenceError(value) }
 }
 
 impl Fence {
@@ -69,13 +67,9 @@ impl Fence {
         })
     }
 
-    pub fn get_fence_raw(&self) -> &ash::vk::Fence {
-        &self.fence
-    }
+    pub fn get_fence_raw(&self) -> &ash::vk::Fence { &self.fence }
 }
 
 impl Drop for Fence {
-    fn drop(&mut self) {
-        unsafe { self.device.get_device_raw().destroy_fence(self.fence, None) };
-    }
+    fn drop(&mut self) { unsafe { self.device.get_device_raw().destroy_fence(self.fence, None) }; }
 }

@@ -35,9 +35,7 @@ pub enum BufferError {
 }
 
 impl From<BufferError> for VulkanError {
-    fn from(value: BufferError) -> Self {
-        VulkanError::BufferError(value)
-    }
+    fn from(value: BufferError) -> Self { VulkanError::BufferError(value) }
 }
 
 pub type BufferUsage = ash::vk::BufferUsageFlags;
@@ -163,13 +161,9 @@ impl Buffer {
         Ok(())
     }
 
-    pub fn get_buffer_raw(&self) -> &ash::vk::Buffer {
-        &self.buffer
-    }
+    pub fn get_buffer_raw(&self) -> &ash::vk::Buffer { &self.buffer }
 
-    pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory {
-        &self.memory
-    }
+    pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory { &self.memory }
 }
 
 impl Drop for Buffer {

@@ -59,7 +59,5 @@ pub enum VulkanError {
 }
 
 impl From<VulkanError> for GraphicsError {
-    fn from(value: VulkanError) -> Self {
-        GraphicsError::VulkanError(value)
-    }
+    fn from(value: VulkanError) -> Self { GraphicsError::VulkanError(value) }
 }

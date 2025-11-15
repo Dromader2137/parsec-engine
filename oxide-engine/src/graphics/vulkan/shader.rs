@@ -21,9 +21,7 @@ pub enum ShaderError {
 }
 
 impl From<ShaderError> for VulkanError {
-    fn from(value: ShaderError) -> Self {
-        VulkanError::ShaderError(value)
-    }
+    fn from(value: ShaderError) -> Self { VulkanError::ShaderError(value) }
 }
 
 pub fn read_shader_code(path: &str) -> Result<Vec<u32>, ShaderError> {
@@ -62,9 +60,7 @@ impl ShaderModule {
         }))
     }
 
-    pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule {
-        &self.shader_module
-    }
+    pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule { &self.shader_module }
 }
 
 impl Drop for ShaderModule {

@@ -4,7 +4,5 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn new(id: u32) -> Entity {
-        Entity { id }
-    }
+    pub fn new(id: u32) -> Entity { Entity { id } }
 }

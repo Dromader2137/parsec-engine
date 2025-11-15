@@ -29,9 +29,7 @@ impl<A: Asset> AssetVec for Vec<A> {
         }
     }
 
-    fn get_all(&self) -> Vec<&dyn Any> {
-        self.iter().map(|a| a as &dyn Any).collect()
-    }
+    fn get_all(&self) -> Vec<&dyn Any> { self.iter().map(|a| a as &dyn Any).collect() }
 }
 
 impl AssetLibrary {

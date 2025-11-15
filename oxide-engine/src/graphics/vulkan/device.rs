@@ -14,9 +14,7 @@ pub enum DeviceError {
 }
 
 impl From<DeviceError> for VulkanError {
-    fn from(value: DeviceError) -> Self {
-        VulkanError::DeviceError(value)
-    }
+    fn from(value: DeviceError) -> Self { VulkanError::DeviceError(value) }
 }
 
 impl Device {
@@ -63,9 +61,7 @@ impl Device {
         Ok(())
     }
 
-    pub fn get_device_raw(&self) -> &ash::Device {
-        &self.device
-    }
+    pub fn get_device_raw(&self) -> &ash::Device { &self.device }
 }
 
 impl Drop for Device {

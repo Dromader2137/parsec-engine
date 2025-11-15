@@ -25,9 +25,7 @@ pub enum GraphicsError {
 }
 
 impl From<GraphicsError> for EngineError {
-    fn from(value: GraphicsError) -> Self {
-        EngineError::GraphicsError(value)
-    }
+    fn from(value: GraphicsError) -> Self { EngineError::GraphicsError(value) }
 }
 
 #[derive(Default)]

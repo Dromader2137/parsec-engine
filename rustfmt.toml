@@ -9,7 +9,6 @@ overflow_delimited_expr =	true
 tab_spaces = 4
 newline_style = "Unix"
 match_block_trailing_comma = true
-float_literal_trailing_zero = "Always"
 hex_literal_case = "Upper"
 format_strings = true
 fn_single_line = true

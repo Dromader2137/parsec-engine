@@ -52,15 +52,15 @@ impl MaterialData {
                 MaterialDescriptorSets::ViewMatrixSet => {
                     let camera = cameras.get(camera_id).unwrap();
                     camera.view_set_id
-                }
+                },
                 MaterialDescriptorSets::ProjectionMatrixSet => {
                     let camera = cameras.get(camera_id).unwrap();
                     camera.projection_set_id
-                }
+                },
                 MaterialDescriptorSets::ModelMatrixSet => {
                     let transform = transforms.get(transform_id).unwrap();
                     transform.model_set_id
-                }
+                },
                 MaterialDescriptorSets::UniformSet(set_id) => *set_id,
             };
             let descriptor_set = descriptor_sets.get(descriptor_set_id).unwrap();
