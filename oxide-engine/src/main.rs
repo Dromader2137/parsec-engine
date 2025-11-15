@@ -3,11 +3,14 @@ use oxide_engine::{
     ecs::system::{System, SystemInput, SystemTrigger},
     graphics::{
         GraphicsBundle,
+        camera::create_camera_data,
+        material::{MaterialDescriptorSets, create_material, create_material_base},
         renderer::{
-            DefaultVertex, create_buffer, create_material, create_material_base, create_mesh, create_shader,
+            DefaultVertex, create_buffer, create_mesh, create_shader,
             draw_queue::{Draw, MeshAndMaterial},
             get_aspect_ratio, queue_draw, update_buffer,
         },
+        transform::create_transform_data,
         vulkan::{
             descriptor_set::{DescriptorSetBinding, DescriptorStage, DescriptorType},
             shader::{ShaderType, read_shader_code},
@@ -40,43 +43,55 @@ fn main() {
                 resources,
                 vertex,
                 fragment,
-                vec![vec![DescriptorSetBinding::new(
-                    0,
-                    DescriptorType::UNIFORM_BUFFER,
-                    DescriptorStage::VERTEX,
-                )]],
-            )
-            .unwrap();
-
-            let aspect_ratio = get_aspect_ratio(resources);
-
-            let mvp_buffer = create_buffer(
-                resources,
                 vec![
-                    Matrix4f::perspective(40.0_f32.to_radians(), aspect_ratio, 5.0, 100.0)
-                        * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
-                        * Matrix4f::translation(Vec3f::FORWARD * 30.0),
+                    vec![DescriptorSetBinding::new(
+                        0,
+                        DescriptorType::UNIFORM_BUFFER,
+                        DescriptorStage::VERTEX,
+                    )],
+                    vec![DescriptorSetBinding::new(
+                        0,
+                        DescriptorType::UNIFORM_BUFFER,
+                        DescriptorStage::VERTEX,
+                    )],
+                    vec![DescriptorSetBinding::new(
+                        0,
+                        DescriptorType::UNIFORM_BUFFER,
+                        DescriptorStage::VERTEX,
+                    )],
                 ],
             )
             .unwrap();
 
-            let _material = create_material(resources, material_base, vec![vec![mvp_buffer]]).unwrap();
+            let _camera = create_camera_data(resources, 40.0, 1.0, 100.0).unwrap();
+            let _transform = create_transform_data(resources, Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * 22.0);
+
+            let _material = create_material(
+                resources,
+                material_base,
+                vec![
+                    MaterialDescriptorSets::ModelMatrixSet,
+                    MaterialDescriptorSets::ViewMatrixSet,
+                    MaterialDescriptorSets::ProjectionMatrixSet,
+                ],
+            )
+            .unwrap();
 
             let pos = vec![
-                Vec3f::new(0.0, 0.0, 0.0),
-                Vec3f::new(1.0, 1.0, 1.0),
-                Vec3f::new(0.0, 1.0, 1.0),
-                Vec3f::new(0.0, 0.0, 0.0),
+                Vec3f::new(0.0, 0.0, 0.0) * 22.0,
+                Vec3f::new(1.0, 1.0, 0.0) * 22.0,
+                Vec3f::new(0.0, 1.0, 0.0) * 22.0,
+                Vec3f::new(1.0, 0.0, 0.0) * 22.0,
             ];
 
             let nor = vec![
                 Vec3f::new(0.0, 0.0, 0.0),
-                Vec3f::new(-0.966742, -0.255752, 0.0),
-                Vec3f::new(-0.966824, 0.255443, 0.0),
-                Vec3f::new(-0.092052, 0.995754, 0.0),
+                Vec3f::new(1.0, 1.0, 0.0),
+                Vec3f::new(0.0, 1.0, 0.0),
+                Vec3f::new(1.0, 0.0, 0.0),
             ];
 
-            let indices = vec![1, 2, 3, 0, 2, 3];
+            let indices = vec![0, 2, 1, 0, 1, 3];
 
             let vertices = pos
                 .iter()
@@ -95,21 +110,10 @@ fn main() {
                 Draw::MeshAndMaterial(MeshAndMaterial {
                     mesh_id: 0,
                     material_id: 0,
+                    transform_id: 0,
+                    camera_id: 0,
                 }),
             );
-            
-            let aspect_ratio = get_aspect_ratio(resources);
-
-            update_buffer(
-                resources,
-                0,
-                vec![
-                    Matrix4f::perspective(40.0_f32.to_radians(), aspect_ratio, 5.0, 100.0)
-                        * Matrix4f::look_at(Vec3f::ZERO, Vec3f::FORWARD, Vec3f::UP)
-                        * Matrix4f::translation(Vec3f::FORWARD * 30.0),
-                ],
-            )
-            .unwrap();
         },
     ));
     app.run();

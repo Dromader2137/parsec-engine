@@ -8,50 +8,21 @@ use sync::{VulkanRendererFrameSync, VulkanRendererImageSync};
 
 use crate::{
     graphics::{
-        mesh::MeshData,
-        renderer::{
+        camera::CameraData, material::{MaterialBase, MaterialData}, mesh::MeshData, renderer::{
             draw_queue::{Draw, MeshAndMaterial},
             image_data::{init_renderer_images, recreate_renderer_images},
-        },
-        vulkan::{
-            buffer::{Buffer, BufferUsage}, command_buffer::{CommandBuffer, CommandPool}, descriptor_set::{
+        }, transform::TransformData, vulkan::{
+            VulkanError, buffer::{Buffer, BufferUsage}, command_buffer::{CommandBuffer, CommandPool}, descriptor_set::{
                 DescriptorPool, DescriptorPoolSize, DescriptorSet, DescriptorSetBinding, DescriptorSetLayout,
                 DescriptorType,
-            }, device::Device, fence::Fence, framebuffer::Framebuffer, graphics_pipeline::{GraphicsPipeline, Vertex, VertexField, VertexFieldFormat}, physical_device::{self, PhysicalDevice}, queue::Queue, renderpass::Renderpass, shader::{ShaderModule, ShaderType}, surface::Surface, swapchain::Swapchain, VulkanError
-        },
+            }, device::Device, fence::Fence, framebuffer::Framebuffer, graphics_pipeline::{GraphicsPipeline, Vertex, VertexField, VertexFieldFormat}, physical_device::{self, PhysicalDevice}, queue::Queue, renderpass::Renderpass, shader::{ShaderModule, ShaderType}, surface::Surface, swapchain::Swapchain
+        }
     },
     math::vec::Vec3f,
     resources::ResourceCollection,
     utils::id_vec::IdVec,
 };
 
-struct MaterialBase {
-    pipeline: Arc<GraphicsPipeline>,
-    descriptor_sets: Vec<Arc<DescriptorSet>>,
-}
-
-struct MaterialData {
-    base: Arc<MaterialBase>,
-    uniform_buffers: Vec<Vec<Arc<Buffer>>>,
-}
-
-impl MaterialData {
-    fn bind(&self, command_buffer: Arc<CommandBuffer>) {
-        command_buffer.bind_graphics_pipeline(self.base.pipeline.clone());
-        for (idx, set) in self.base.descriptor_sets.iter().enumerate() {
-            command_buffer.bind_descriptor_set(set.clone(), self.base.pipeline.clone(), idx as u32);
-        }
-    }
-
-    fn bind_buffers(&self) -> Result<(), VulkanError> {
-        for (idx, set) in self.base.descriptor_sets.iter().enumerate() {
-            for (buffer_idx, buffer) in self.uniform_buffers[idx].iter().enumerate() {
-                set.bind_buffer(buffer.clone(), buffer_idx as u32)?;
-            }
-        }
-        Ok(())
-    }
-}
 
 pub struct RendererResizeFlag(bool);
 pub struct RendererCurrentFrame(usize);
@@ -187,8 +158,20 @@ pub fn init_renderer(resources: &mut ResourceCollection) -> Result<(), VulkanErr
     resources.add(IdVec::<Arc<Buffer>>::new()).unwrap();
     resources.add(IdVec::<MeshData<DefaultVertex>>::new()).unwrap();
     resources.add(IdVec::<MaterialData>::new()).unwrap();
+    resources.add(IdVec::<TransformData>::new()).unwrap();
+    resources.add(IdVec::<CameraData>::new()).unwrap();
+    resources.add(IdVec::<Arc<DescriptorSet>>::new()).unwrap();
 
     Ok(())
+}
+
+pub fn create_descriptor_set(resources: &mut ResourceCollection, descriptor_set_bindings: Vec<DescriptorSetBinding>) -> Result<u32, VulkanError> {
+    let descriptor_pool = resources.get::<Arc<DescriptorPool>>().unwrap();
+    let device = resources.get::<Arc<Device>>().unwrap();
+    let descriptor_layout = DescriptorSetLayout::new(device.clone(), descriptor_set_bindings)?;
+    let descriptor_set = DescriptorSet::new(descriptor_layout, descriptor_pool.clone())?;
+    let mut descriptor_sets = resources.get_mut::<IdVec<Arc<DescriptorSet>>>().unwrap();
+    Ok(descriptor_sets.push(descriptor_set))
 }
 
 fn recreate_size_dependent_components(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
@@ -260,10 +243,10 @@ pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
 
         for draw in draw_queue.iter() {
             match draw {
-                Draw::MeshAndMaterial(MeshAndMaterial { mesh_id, material_id }) => {
+                Draw::MeshAndMaterial(MeshAndMaterial { mesh_id, material_id, camera_id, transform_id }) => {
                     let material = materials.get(*material_id).unwrap();
-                    material.bind(command_buffer.clone());
                     let mesh = meshes.get(*mesh_id).unwrap();
+                    material.bind(resources, command_buffer.clone(), *camera_id, *transform_id);
                     mesh.record_commands(command_buffer.clone());
                 }
             }
@@ -313,48 +296,6 @@ pub fn create_shader(
     Ok(shader_modules.push(shader))
 }
 
-pub fn create_material_base(
-    resources: &mut ResourceCollection,
-    vertex_id: u32,
-    fragment_id: u32,
-    layout: Vec<Vec<DescriptorSetBinding>>,
-) -> Result<u32, VulkanError> {
-    let material_base = {
-        let device = resources.get::<Arc<Device>>().unwrap();
-        let framebuffers = resources.get::<Vec<Arc<Framebuffer>>>().unwrap();
-        let shader_modules = resources.get::<IdVec<Arc<ShaderModule>>>().unwrap();
-        let descriptor_pool = resources.get::<Arc<DescriptorPool>>().unwrap();
-        let mut descriptors = Vec::new();
-
-        for bindings in layout {
-            descriptors.push(DescriptorSetLayout::new(device.clone(), bindings)?);
-        }
-
-        let pipeline = GraphicsPipeline::new::<DefaultVertex>(
-            framebuffers[0].clone(),
-            shader_modules.get(vertex_id).unwrap().clone(),
-            shader_modules.get(fragment_id).unwrap().clone(),
-            descriptors,
-        )?;
-
-        let descriptor_sets = {
-            let mut sets = Vec::new();
-            for set_layout in pipeline.descriptor_set_layouts.iter() {
-                sets.push(DescriptorSet::new(set_layout.clone(), descriptor_pool.clone())?);
-            }
-            sets
-        };
-
-        Arc::new(MaterialBase {
-            pipeline,
-            descriptor_sets,
-        })
-    };
-    
-    let mut material_bases = resources.get_mut::<IdVec<Arc<MaterialBase>>>().unwrap();
-    Ok(material_bases.push(material_base))
-}
-
 pub fn create_buffer<T: Copy + Clone>(resources: &mut ResourceCollection, data: Vec<T>) -> Result<u32, VulkanError> {
     let device = resources.get::<Arc<Device>>().unwrap();
     let mut buffers = resources.get_mut::<IdVec<Arc<Buffer>>>().unwrap();
@@ -363,30 +304,6 @@ pub fn create_buffer<T: Copy + Clone>(resources: &mut ResourceCollection, data: 
         data,
         BufferUsage::UNIFORM_BUFFER,
     )?))
-}
-
-pub fn create_material(resources: &mut ResourceCollection, material_base_id: u32, buffer_ids: Vec<Vec<u32>>) -> Result<u32, VulkanError> {
-    let material_bases = resources.get::<IdVec<Arc<MaterialBase>>>().unwrap();
-    let mut materials = resources.get_mut::<IdVec<MaterialData>>().unwrap();
-    let buffers = resources.get::<IdVec<Arc<Buffer>>>().unwrap();
-
-    let base = material_bases.get(material_base_id).unwrap().clone();
-    let mut buffer_sets = Vec::new();
-    for buffer_set in buffer_ids {
-        buffer_sets.push(Vec::new());
-        for buffer in buffer_set {
-            buffer_sets.last_mut().unwrap().push(buffers.get(buffer).unwrap().clone());
-        }
-    }
-
-    let material_data = MaterialData {
-        base,
-        uniform_buffers: buffer_sets,
-    };
-
-    material_data.bind_buffers()?;
-
-    Ok(materials.push(material_data))
 }
 
 pub fn create_mesh(resources: &mut ResourceCollection, vertices: Vec<DefaultVertex>, indices: Vec<u32>) -> Result<u32, VulkanError> {

@@ -4,7 +4,7 @@ use vulkan::VulkanError;
 use window::{WindowError, WindowWrapper};
 
 use crate::{
-    app::ActiveEventLoopStore, ecs::system::{System, SystemBundle, SystemInput, SystemTrigger}, error::EngineError, graphics::{renderer::{init_renderer, render}, vulkan::context::init_vulkan}
+    app::ActiveEventLoopStore, ecs::system::{System, SystemBundle, SystemInput, SystemTrigger}, error::EngineError, graphics::{camera::update_camera_data, renderer::{init_renderer, queue_clear, render}, vulkan::context::init_vulkan}
 };
 
 pub mod camera;
@@ -13,6 +13,7 @@ pub mod renderer;
 pub mod vulkan;
 pub mod window;
 pub mod transform;
+pub mod material;
 
 #[derive(Debug)]
 pub enum GraphicsError {
@@ -44,7 +45,9 @@ impl SystemBundle for GraphicsBundle {
                 init_renderer(resources).unwrap();
             }),
             System::new(SystemTrigger::Render, |SystemInput { resources, .. }| {
+                update_camera_data(resources, 40.0, 1.0, 100.0).unwrap();
                 render(resources).unwrap();
+                queue_clear(resources);
             }),
             System::new(SystemTrigger::Update, |SystemInput { resources, .. }| {
                 let window = resources.get_mut::<Arc<WindowWrapper>>().unwrap();
