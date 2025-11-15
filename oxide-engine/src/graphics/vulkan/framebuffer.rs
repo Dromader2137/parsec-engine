@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{VulkanError, image::ImageView, renderpass::Renderpass};
+use crate::graphics::vulkan::{VulkanError, image::ImageView, renderpass::Renderpass};
 
 pub struct Framebuffer {
     pub renderpass: Arc<Renderpass>,

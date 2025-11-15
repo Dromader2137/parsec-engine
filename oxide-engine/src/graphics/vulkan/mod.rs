@@ -15,8 +15,7 @@ use shader::ShaderError;
 use surface::SurfaceError;
 use swapchain::SwapchainError;
 
-use super::GraphicsError;
-use crate::graphics::renderer::RendererError;
+use crate::graphics::{GraphicsError, renderer::RendererError};
 
 pub mod buffer;
 pub mod command_buffer;

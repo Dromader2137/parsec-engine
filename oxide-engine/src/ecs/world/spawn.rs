@@ -1,4 +1,4 @@
-use super::{
+use crate::ecs::world::{
     archetype::{Archetype, ArchetypeError, ArchetypeId},
     component::Component,
 };

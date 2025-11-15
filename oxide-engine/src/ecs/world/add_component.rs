@@ -1,5 +1,7 @@
-use super::archetype::{Archetype, ArchetypeError, ArchetypeId};
-use crate::ecs::world::spawn::Spawn;
+use crate::ecs::world::{
+    archetype::{Archetype, ArchetypeError, ArchetypeId},
+    spawn::Spawn,
+};
 
 pub trait AddComponent {
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError>;

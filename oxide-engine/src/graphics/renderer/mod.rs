@@ -1,21 +1,25 @@
 use std::sync::Arc;
 
+pub mod camera_data;
 pub mod draw_queue;
 pub mod image_data;
+pub mod material_data;
+pub mod mesh_data;
 pub mod sync;
+pub mod transform_data;
 
 use sync::{VulkanRendererFrameSync, VulkanRendererImageSync};
 
 use crate::{
     graphics::{
-        camera::CameraData,
-        material::{MaterialBase, MaterialData},
-        mesh::MeshData,
         renderer::{
+            camera_data::CameraData,
             draw_queue::{Draw, MeshAndMaterial},
             image_data::{init_renderer_images, recreate_renderer_images},
+            material_data::{MaterialBase, MaterialData},
+            mesh_data::MeshData,
+            transform_data::TransformData,
         },
-        transform::TransformData,
         vulkan::{
             VulkanError,
             buffer::{Buffer, BufferUsage},

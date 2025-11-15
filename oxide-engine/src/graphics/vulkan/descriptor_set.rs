@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{VulkanError, buffer::Buffer, device::Device, image::ImageView};
+use crate::graphics::vulkan::{VulkanError, buffer::Buffer, device::Device, image::ImageView};
 
 pub struct DescriptorPool {
     pub device: Arc<Device>,

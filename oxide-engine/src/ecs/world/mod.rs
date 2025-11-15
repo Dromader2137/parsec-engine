@@ -5,9 +5,11 @@ use fetch::Fetch;
 use query::Query;
 use spawn::Spawn;
 
-use super::entity::Entity;
 use crate::{
-    ecs::world::{add_component::AddComponent, remove_component::RemoveComponent},
+    ecs::{
+        entity::Entity,
+        world::{add_component::AddComponent, remove_component::RemoveComponent},
+    },
     error::EngineError,
 };
 

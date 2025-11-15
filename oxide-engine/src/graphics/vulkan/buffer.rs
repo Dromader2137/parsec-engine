@@ -1,6 +1,8 @@
 use std::{fmt::Debug, sync::Arc};
 
-use super::{VulkanError, device::Device, instance::Instance, physical_device::PhysicalDevice};
+use crate::graphics::vulkan::{
+    VulkanError, device::Device, instance::Instance, physical_device::PhysicalDevice,
+};
 
 pub struct Buffer {
     pub device: Arc<Device>,

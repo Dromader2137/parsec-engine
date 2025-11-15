@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{VulkanError, device::Device, surface::Surface};
+use crate::graphics::vulkan::{VulkanError, device::Device, surface::Surface};
 
 pub struct Renderpass {
     pub device: Arc<Device>,

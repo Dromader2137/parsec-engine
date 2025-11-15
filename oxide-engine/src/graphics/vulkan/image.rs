@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use super::{VulkanError, buffer::find_memorytype_index, device::Device, format_size::format_size};
+use crate::graphics::vulkan::{
+    VulkanError, buffer::find_memorytype_index, device::Device, format_size::format_size,
+};
 
 pub trait Image: 'static {
     fn get_image_raw(&self) -> &ash::vk::Image;

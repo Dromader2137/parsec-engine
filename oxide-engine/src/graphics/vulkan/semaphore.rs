@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{VulkanError, device::Device};
+use crate::graphics::vulkan::{VulkanError, device::Device};
 
 #[derive(Clone)]
 pub struct Semaphore {

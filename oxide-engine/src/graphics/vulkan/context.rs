@@ -1,14 +1,19 @@
 use std::sync::Arc;
 
-use super::{
-    VulkanError,
-    command_buffer::CommandPool,
-    device::Device,
-    instance::Instance,
-    physical_device::PhysicalDevice,
-    surface::{InitialSurface, Surface},
+use crate::{
+    graphics::{
+        vulkan::{
+            VulkanError,
+            command_buffer::CommandPool,
+            device::Device,
+            instance::Instance,
+            physical_device::PhysicalDevice,
+            surface::{InitialSurface, Surface},
+        },
+        window::WindowWrapper,
+    },
+    resources::ResourceCollection,
 };
-use crate::{graphics::window::WindowWrapper, resources::ResourceCollection};
 
 pub fn init_vulkan(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
     let window = resources.get::<Arc<WindowWrapper>>().unwrap();

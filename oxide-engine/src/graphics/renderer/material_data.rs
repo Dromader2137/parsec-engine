@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     graphics::{
-        camera::CameraData,
-        renderer::DefaultVertex,
-        transform::TransformData,
+        renderer::{DefaultVertex, camera_data::CameraData, transform_data::TransformData},
         vulkan::{
             VulkanError,
             command_buffer::CommandBuffer,

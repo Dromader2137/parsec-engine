@@ -1,6 +1,6 @@
 use std::{fs::File, sync::Arc};
 
-use super::{VulkanError, device::Device};
+use crate::graphics::vulkan::{VulkanError, device::Device};
 
 pub struct ShaderModule {
     pub device: Arc<Device>,

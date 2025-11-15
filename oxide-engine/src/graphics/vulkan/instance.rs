@@ -1,7 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use super::VulkanError;
-use crate::graphics::window::WindowWrapper;
+use crate::graphics::{vulkan::VulkanError, window::WindowWrapper};
 
 pub struct Instance {
     entry: ash::Entry,

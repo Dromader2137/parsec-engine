@@ -1,6 +1,6 @@
 use std::ops::Mul;
 
-use super::vec::Vec3f;
+use crate::math::vec::Vec3f;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 #[repr(C)]

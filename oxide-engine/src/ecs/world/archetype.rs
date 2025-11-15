@@ -8,8 +8,10 @@ use std::{
 
 use oxide_engine_macros::{impl_spawn, multiple_tuples};
 
-use super::{WorldError, component::Component, spawn::Spawn};
-use crate::ecs::entity::Entity;
+use crate::ecs::{
+    entity::Entity,
+    world::{WorldError, component::Component, spawn::Spawn},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArchetypeError {

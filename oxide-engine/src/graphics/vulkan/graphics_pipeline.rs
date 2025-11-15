@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{
+use crate::graphics::vulkan::{
     VulkanError, descriptor_set::DescriptorSetLayout, framebuffer::Framebuffer,
     shader::ShaderModule,
 };

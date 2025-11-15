@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
-use super::{
-    archetype::{Archetype, ArchetypeError, ArchetypeId},
-    fetch::Fetch,
+use crate::ecs::{
+    entity::Entity,
+    world::{
+        archetype::{Archetype, ArchetypeError, ArchetypeId},
+        fetch::Fetch,
+    },
 };
-use crate::ecs::entity::Entity;
 
 #[derive(Debug)]
 pub struct Query<'a, T: Fetch<'a>> {

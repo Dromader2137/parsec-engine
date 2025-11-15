@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use super::world::World;
-use crate::{assets::library::AssetLibrary, resources::ResourceCollection};
+use crate::{assets::library::AssetLibrary, ecs::world::World, resources::ResourceCollection};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum SystemTrigger {

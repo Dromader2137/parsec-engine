@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{
+use crate::graphics::vulkan::{
     VulkanError, device::Device, fence::Fence, image::SwapchainImage, queue::Queue,
     semaphore::Semaphore, surface::Surface,
 };

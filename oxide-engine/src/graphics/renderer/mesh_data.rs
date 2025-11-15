@@ -1,10 +1,12 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use super::vulkan::{
-    VulkanError, buffer::Buffer, command_buffer::CommandBuffer, device::Device,
+use crate::graphics::vulkan::{
+    VulkanError,
+    buffer::{Buffer, BufferUsage},
+    command_buffer::CommandBuffer,
+    device::Device,
     graphics_pipeline::Vertex,
 };
-use crate::graphics::vulkan::buffer::BufferUsage;
 
 pub struct MeshBuffer<V: Vertex> {
     vertex_buffer: Arc<Buffer>,

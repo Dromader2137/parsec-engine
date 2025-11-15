@@ -2,7 +2,7 @@ use std::any::TypeId;
 
 use oxide_engine_macros::{impl_fetch, multiple_tuples};
 
-use super::{
+use crate::ecs::world::{
     archetype::{Archetype, ArchetypeError, ArchetypeId},
     component::Component,
 };

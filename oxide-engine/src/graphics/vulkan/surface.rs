@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
-use super::{VulkanError, instance::Instance, physical_device::PhysicalDevice};
-use crate::graphics::window::WindowWrapper;
+use crate::graphics::{
+    vulkan::{VulkanError, instance::Instance, physical_device::PhysicalDevice},
+    window::WindowWrapper,
+};
 
 pub struct InitialSurface {
     pub window: Arc<WindowWrapper>,

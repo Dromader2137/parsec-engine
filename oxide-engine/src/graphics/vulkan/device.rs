@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{VulkanError, physical_device::PhysicalDevice};
+use crate::graphics::vulkan::{VulkanError, physical_device::PhysicalDevice};
 
 pub struct Device {
     pub physical_device: Arc<PhysicalDevice>,

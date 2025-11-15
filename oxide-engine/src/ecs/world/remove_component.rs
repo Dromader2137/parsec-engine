@@ -1,5 +1,7 @@
-use super::archetype::{ArchetypeError, ArchetypeId};
-use crate::ecs::world::spawn::Spawn;
+use crate::ecs::world::{
+    archetype::{ArchetypeError, ArchetypeId},
+    spawn::Spawn,
+};
 
 pub trait RemoveComponent {
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError>;

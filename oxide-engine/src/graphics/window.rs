@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-use super::GraphicsError;
+use crate::graphics::GraphicsError;
 
 #[derive(Debug)]
 pub struct WindowWrapper {

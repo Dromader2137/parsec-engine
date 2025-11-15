@@ -3,14 +3,15 @@ use oxide_engine::{
     ecs::system::{System, SystemInput, SystemTrigger},
     graphics::{
         GraphicsBundle,
-        camera::create_camera_data,
-        material::{MaterialDescriptorSets, create_material, create_material_base},
         renderer::{
-            DefaultVertex, create_mesh, create_shader,
+            DefaultVertex,
+            camera_data::create_camera_data,
+            create_mesh, create_shader,
             draw_queue::{Draw, MeshAndMaterial},
+            material_data::{MaterialDescriptorSets, create_material, create_material_base},
             queue_draw,
+            transform_data::create_transform_data,
         },
-        transform::create_transform_data,
         vulkan::{
             descriptor_set::{DescriptorSetBinding, DescriptorStage, DescriptorType},
             shader::{ShaderType, read_shader_code},

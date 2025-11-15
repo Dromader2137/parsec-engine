@@ -8,17 +8,12 @@ use crate::{
     ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
     error::EngineError,
     graphics::{
-        camera::update_camera_data,
-        renderer::{init_renderer, queue_clear, render},
+        renderer::{camera_data::update_camera_data, init_renderer, queue_clear, render},
         vulkan::context::init_vulkan,
     },
 };
 
-pub mod camera;
-pub mod material;
-pub mod mesh;
 pub mod renderer;
-pub mod transform;
 pub mod vulkan;
 pub mod window;
 
