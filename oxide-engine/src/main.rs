@@ -59,10 +59,16 @@ fn main() {
             ])
             .unwrap();
 
-            let _camera = create_camera_data(resources, 40.0, 1.0, 100.0).unwrap();
+            let scale = 1.0;
+
+            let _camera = create_camera_data(resources, 40.0_f32.to_radians(), 1.0, 100.0).unwrap();
             let _transform = create_transform_data(
                 resources,
-                Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * 22.0,
+                Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale,
+            );
+            let _transform = create_transform_data(
+                resources,
+                Vec3f::FORWARD * 6.0,
             );
 
             let _material = create_material(resources, material_base, vec![
@@ -73,10 +79,10 @@ fn main() {
             .unwrap();
 
             let pos = vec![
-                Vec3f::new(0.0, 0.0, 0.0) * 22.0,
-                Vec3f::new(1.0, 1.0, 0.0) * 22.0,
-                Vec3f::new(0.0, 1.0, 0.0) * 22.0,
-                Vec3f::new(1.0, 0.0, 0.0) * 22.0,
+                Vec3f::new(0.0, 0.0, 0.0) * scale,
+                Vec3f::new(1.0, 1.0, 0.0) * scale,
+                Vec3f::new(0.0, 1.0, 0.0) * scale,
+                Vec3f::new(1.0, 0.0, 0.0) * scale,
             ];
 
             let nor = vec![
@@ -106,6 +112,15 @@ fn main() {
                     mesh_id: 0,
                     material_id: 0,
                     transform_id: 0,
+                    camera_id: 0,
+                }),
+            );
+            queue_draw(
+                resources,
+                Draw::MeshAndMaterial(MeshAndMaterial {
+                    mesh_id: 0,
+                    material_id: 0,
+                    transform_id: 1,
                     camera_id: 0,
                 }),
             );

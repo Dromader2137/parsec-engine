@@ -49,7 +49,7 @@ impl SystemBundle for GraphicsBundle {
             System::new(
                 SystemTrigger::Render,
                 |SystemInput { resources, .. }| {
-                    update_camera_data(resources, 40.0, 1.0, 100.0).unwrap();
+                    update_camera_data(resources, 40.0_f32.to_radians(), 1.0, 100.0).unwrap();
                     render(resources).unwrap();
                     queue_clear(resources);
                 },
