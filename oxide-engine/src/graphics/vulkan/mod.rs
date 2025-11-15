@@ -39,28 +39,28 @@ pub mod swapchain;
 
 #[derive(Debug)]
 pub enum VulkanError {
-  InstanceError(InstanceError),
-  PhysicalDeviceError(PhysicalDeviceError),
-  SurfaceError(SurfaceError),
-  DeviceError(DeviceError),
-  QueueError(QueueError),
-  SwapchainError(SwapchainError),
-  ImageError(ImageError),
-  FramebufferError(FramebufferError),
-  RenderpassError(RenderpassError),
-  CommandBufferError(CommandBufferError),
-  CommandPoolError(CommandPoolError),
-  FenceError(FenceError),
-  SemaphoreError(SemaphoreError),
-  ShaderError(ShaderError),
-  GrphicsPipelineError(GraphicsPipelineError),
-  BufferError(BufferError),
-  DescriptorError(DescriptorError),
-  RendererError(RendererError),
+    InstanceError(InstanceError),
+    PhysicalDeviceError(PhysicalDeviceError),
+    SurfaceError(SurfaceError),
+    DeviceError(DeviceError),
+    QueueError(QueueError),
+    SwapchainError(SwapchainError),
+    ImageError(ImageError),
+    FramebufferError(FramebufferError),
+    RenderpassError(RenderpassError),
+    CommandBufferError(CommandBufferError),
+    CommandPoolError(CommandPoolError),
+    FenceError(FenceError),
+    SemaphoreError(SemaphoreError),
+    ShaderError(ShaderError),
+    GrphicsPipelineError(GraphicsPipelineError),
+    BufferError(BufferError),
+    DescriptorError(DescriptorError),
+    RendererError(RendererError),
 }
 
 impl From<VulkanError> for GraphicsError {
-  fn from(value: VulkanError) -> Self {
-    GraphicsError::VulkanError(value)
-  }
+    fn from(value: VulkanError) -> Self {
+        GraphicsError::VulkanError(value)
+    }
 }

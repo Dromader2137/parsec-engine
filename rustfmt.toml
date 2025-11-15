@@ -5,4 +5,4 @@ use_field_init_shorthand = true
 group_imports = "StdExternalCrate"
 imports_granularity = "Crate"
 overflow_delimited_expr =	true
-tab_spaces = 2
+tab_spaces = 4
