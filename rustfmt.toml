@@ -1,6 +1,8 @@
 edition = "2024"
-max_width = 120
+max_width = 100
 use_try_shorthand = true
 use_field_init_shorthand = true
 group_imports = "StdExternalCrate"
 imports_granularity = "Crate"
+overflow_delimited_expr =	true
+tab_spaces = 2
