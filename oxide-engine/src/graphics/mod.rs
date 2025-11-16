@@ -4,13 +4,10 @@ use vulkan::VulkanError;
 use window::{WindowError, WindowWrapper};
 
 use crate::{
-    app::ActiveEventLoopStore,
-    ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
-    error::EngineError,
-    graphics::{
-        renderer::{camera_data::{autoadd_cameras, update_camera_data}, init_renderer, queue_clear, render},
+    app::ActiveEventLoopStore, components::camers::CameraController, ecs::system::{System, SystemBundle, SystemInput, SystemTrigger}, error::EngineError, graphics::{
+        renderer::{camera_data::update_camera_data, init_renderer, queue_clear, render},
         vulkan::context::init_vulkan,
-    },
+    }
 };
 
 pub mod renderer;
@@ -44,6 +41,7 @@ impl SystemBundle for GraphicsBundle {
                     resources.add(window).unwrap();
                     init_vulkan(resources).unwrap();
                     init_renderer(resources).unwrap();
+                    resources.add(CameraController::default()).unwrap();
                 },
             ),
             System::new(
@@ -51,7 +49,6 @@ impl SystemBundle for GraphicsBundle {
                 |SystemInput {
                      resources, world, ..
                  }| {
-                    autoadd_cameras(resources, world).unwrap();
                     update_camera_data(resources, world).unwrap();
                     render(resources).unwrap();
                     queue_clear(resources);

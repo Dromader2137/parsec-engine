@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    components::{camers::Camera, transform::Transform},
+    components::{camers::{Camera, CameraController}, transform::Transform},
     ecs::world::{World, query::QueryIter},
     graphics::{
         renderer::{create_buffer, create_descriptor_set, get_aspect_ratio},
@@ -90,25 +90,17 @@ pub fn create_camera_data(
     Ok(cameras.push(camera_data))
 }
 
-pub fn autoadd_cameras(
+fn autoadd_cameras(
     resources: &mut ResourceCollection,
     world: &mut World,
 ) -> Result<(), VulkanError> {
-    let mut ids_to_add = Vec::new();
-    {
-        let mut camera_components = world.query::<&[Camera]>().unwrap();
-        let cameras_data = resources.get_mut::<IdVec<CameraData>>().unwrap();
-        while let Some((_, camera)) = camera_components.next() {
-            if cameras_data
-                .iter()
-                .find(|x| x.camera_id == camera.id)
-                .is_none()
-            {
-                ids_to_add.push(camera.id);
-            }
-        }
-    }
-    for id in ids_to_add {
+    let cameras_to_add = {
+        let mut camera_controller = resources.get_mut::<CameraController>().unwrap();
+        let ret = camera_controller.just_added.clone();
+        camera_controller.just_added.clear();
+        ret
+    };
+    for id in cameras_to_add {
         create_camera_data(resources, world, id)?;
     }
     Ok(())
@@ -118,6 +110,7 @@ pub fn update_camera_data(
     resources: &mut ResourceCollection,
     world: &mut World,
 ) -> Result<(), VulkanError> {
+    autoadd_cameras(resources, world)?;
     let aspect_ratio = get_aspect_ratio(resources);
     let mut cameras = resources.get_mut::<IdVec<CameraData>>().unwrap();
     for camera in cameras.iter_mut() {

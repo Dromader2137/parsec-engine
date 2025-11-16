@@ -1,6 +1,4 @@
-use std::cell::RefCell;
-
-use crate::ecs::world::component::Component;
+use crate::{ecs::world::component::Component, resources::ResourceCollection};
 
 #[derive(Component, Clone)]
 pub struct Camera {
@@ -11,13 +9,11 @@ pub struct Camera {
 }
 
 impl Camera {
-    const ID_COUNTER: RefCell<u32> = RefCell::new(0);
-
-    pub fn new(vertical_fov: f32, near_clipping_plane: f32, far_clipping_plane: f32) -> Camera {
-        let id_counter = Self::ID_COUNTER;
-        let mut borrowed = id_counter.borrow_mut();
-        let id = *borrowed;
-        *borrowed += 1;
+    pub fn new(resources: &ResourceCollection, vertical_fov: f32, near_clipping_plane: f32, far_clipping_plane: f32) -> Camera {
+        let mut camera_controller = resources.get_mut::<CameraController>().unwrap();
+        let id = camera_controller.id_counter;
+        camera_controller.id_counter += 1;
+        camera_controller.just_added.push(id);
         Camera {
             id,
             vfov: vertical_fov,
@@ -25,4 +21,10 @@ impl Camera {
             far: far_clipping_plane,
         }
     }
+}
+
+#[derive(Default)]
+pub struct CameraController {
+    id_counter: u32,
+    pub just_added: Vec<u32>,
 }
