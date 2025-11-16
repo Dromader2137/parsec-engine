@@ -8,7 +8,7 @@ use crate::{
     ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
     error::EngineError,
     graphics::{
-        renderer::{camera_data::update_camera_data, init_renderer, queue_clear, render},
+        renderer::{camera_data::{autoadd_cameras, update_camera_data}, init_renderer, queue_clear, render},
         vulkan::context::init_vulkan,
     },
 };
@@ -48,8 +48,11 @@ impl SystemBundle for GraphicsBundle {
             ),
             System::new(
                 SystemTrigger::Render,
-                |SystemInput { resources, .. }| {
-                    update_camera_data(resources, 40.0_f32.to_radians(), 1.0, 100.0).unwrap();
+                |SystemInput {
+                     resources, world, ..
+                 }| {
+                    autoadd_cameras(resources, world).unwrap();
+                    update_camera_data(resources, world).unwrap();
                     render(resources).unwrap();
                     queue_clear(resources);
                 },

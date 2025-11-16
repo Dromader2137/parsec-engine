@@ -1,5 +1,6 @@
 use oxide_engine::{
     app::App,
+    components::{camers::Camera, transform::Transform},
     ecs::system::{System, SystemInput, SystemTrigger},
     graphics::{
         GraphicsBundle,
@@ -25,7 +26,16 @@ fn main() {
     app.systems.add_bundle(GraphicsBundle::default());
     app.systems.add(System::new(
         SystemTrigger::LateStart,
-        |SystemInput { resources, .. }| {
+        |SystemInput {
+             resources, world, ..
+         }| {
+            world
+                .spawn((
+                    Camera::new(40.0_f32.to_radians(), 1.0, 100.0),
+                    Transform::new(Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
+                ))
+                .unwrap();
+
             let vertex = create_shader(
                 resources,
                 &read_shader_code("shaders/simple.spv").unwrap(),
@@ -61,15 +71,12 @@ fn main() {
 
             let scale = 1.0;
 
-            let _camera = create_camera_data(resources, 40.0_f32.to_radians(), 1.0, 100.0).unwrap();
+            // let _camera = create_camera_data(resources, world, 0).unwrap();
             let _transform = create_transform_data(
                 resources,
                 Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale,
             );
-            let _transform = create_transform_data(
-                resources,
-                Vec3f::FORWARD * 6.0,
-            );
+            let _transform = create_transform_data(resources, Vec3f::FORWARD * 6.0);
 
             let _material = create_material(resources, material_base, vec![
                 MaterialDescriptorSets::ModelMatrixSet,
