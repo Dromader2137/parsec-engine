@@ -1,17 +1,15 @@
 use oxide_engine::{
     app::App,
-    components::{camers::Camera, transform::Transform},
+    components::{camera::Camera, transform::Transform},
     ecs::system::{System, SystemInput, SystemTrigger},
     graphics::{
         GraphicsBundle,
         renderer::{
             DefaultVertex,
-            camera_data::create_camera_data,
             create_mesh, create_shader,
             draw_queue::{Draw, MeshAndMaterial},
             material_data::{MaterialDescriptorSets, create_material, create_material_base},
             queue_draw,
-            transform_data::create_transform_data,
         },
         vulkan::{
             descriptor_set::{DescriptorSetBinding, DescriptorStage, DescriptorType},
@@ -29,11 +27,25 @@ fn main() {
         |SystemInput {
              resources, world, ..
          }| {
+            let scale = 1.0;
+
             world
                 .spawn((
-                    Camera::new(40.0_f32.to_radians(), 1.0, 100.0),
-                    Transform::new(Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
+                    Camera::new(resources, 40.0_f32.to_radians(), 1.0, 100.0),
+                    Transform::new(resources, Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
                 ))
+                .unwrap();
+            
+            world
+                .spawn(
+                    Transform::new(resources, Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale, Vec3f::ZERO, Vec3f::ZERO),
+                )
+                .unwrap();
+            
+            world
+                .spawn(
+                    Transform::new(resources, Vec3f::FORWARD * 6.0, Vec3f::ZERO, Vec3f::ZERO),
+                )
                 .unwrap();
 
             let vertex = create_shader(
@@ -68,15 +80,6 @@ fn main() {
                 )],
             ])
             .unwrap();
-
-            let scale = 1.0;
-
-            // let _camera = create_camera_data(resources, world, 0).unwrap();
-            let _transform = create_transform_data(
-                resources,
-                Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale,
-            );
-            let _transform = create_transform_data(resources, Vec3f::FORWARD * 6.0);
 
             let _material = create_material(resources, material_base, vec![
                 MaterialDescriptorSets::ModelMatrixSet,
@@ -118,7 +121,7 @@ fn main() {
                 Draw::MeshAndMaterial(MeshAndMaterial {
                     mesh_id: 0,
                     material_id: 0,
-                    transform_id: 0,
+                    transform_id: 2,
                     camera_id: 0,
                 }),
             );

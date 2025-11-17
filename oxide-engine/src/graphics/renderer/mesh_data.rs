@@ -35,6 +35,7 @@ impl<V: Vertex> MeshBuffer<V> {
 }
 
 pub struct MeshData<V: Vertex> {
+    mesh_id: u32,
     buffer: MeshBuffer<V>,
 }
 

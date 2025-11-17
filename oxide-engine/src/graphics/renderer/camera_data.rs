@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    components::{camers::{Camera, CameraController}, transform::Transform},
+    components::{camera::{Camera, CameraController}, transform::Transform},
     ecs::world::{World, query::QueryIter},
     graphics::{
         renderer::{create_buffer, create_descriptor_set, get_aspect_ratio},

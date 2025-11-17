@@ -1,3 +1,3 @@
-pub mod camers;
+pub mod camera;
 pub mod mesh;
 pub mod transform;

@@ -1,6 +1,4 @@
-use std::cell::RefCell;
-
-use crate::{ecs::world::component::Component, math::vec::Vec3f};
+use crate::{ecs::world::component::Component, math::vec::Vec3f, resources::ResourceCollection};
 
 #[derive(Component, Clone)]
 pub struct Transform {
@@ -11,13 +9,11 @@ pub struct Transform {
 }
 
 impl Transform {
-    const ID_COUNTER: RefCell<u32> = RefCell::new(0);
-
-    pub fn new(position: Vec3f, scale: Vec3f, rotation: Vec3f) -> Transform {
-        let id_counter = Self::ID_COUNTER;
-        let mut borrowed = id_counter.borrow_mut();
-        let id = *borrowed;
-        *borrowed += 1;
+    pub fn new(resources: &ResourceCollection, position: Vec3f, scale: Vec3f, rotation: Vec3f) -> Transform {
+        let mut transform_controller = resources.get_mut::<TransformController>().unwrap();
+        let id = transform_controller.id_counter;
+        transform_controller.id_counter += 1;
+        transform_controller.just_added.push(id);
         Transform {
             id,
             position,
@@ -25,4 +21,10 @@ impl Transform {
             rotation,
         }
     }
+}
+
+#[derive(Default)]
+pub struct TransformController {
+    id_counter: u32,
+    pub just_added: Vec<u32>,
 }
