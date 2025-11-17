@@ -9,7 +9,7 @@ use crate::{
     error::EngineError,
     graphics::{
         renderer::{camera_data::update_camera_data, init_renderer, queue_clear, render},
-        vulkan::context::init_vulkan,
+        vulkan::{context::init_vulkan, device::Device},
     },
 };
 
@@ -61,6 +61,10 @@ impl SystemBundle for GraphicsBundle {
                     window.request_redraw();
                 },
             ),
+            System::new(SystemTrigger::End, |SystemInput { resources, .. }| {
+                let device = resources.get_mut::<Arc<Device>>().unwrap();
+                device.wait_idle().unwrap();
+            }),
         ]
     }
 }
