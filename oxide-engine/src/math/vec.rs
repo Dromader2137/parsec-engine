@@ -353,8 +353,8 @@ impl Vec2f {
     pub const ZERO: Vec2f = Vec2f { x: 0.0, y: 0.0 };
     pub const UP: Vec2f = Vec2f { x: 0.0, y: 1.0 };
     pub const DOWN: Vec2f = Vec2f { x: 0.0, y: -1.0 };
-    pub const LEFT: Vec2f = Vec2f { x: -1.0, y: 0.0 };
-    pub const RIGHT: Vec2f = Vec2f { x: 1.0, y: 0.0 };
+    pub const LEFT: Vec2f = Vec2f { x: 1.0, y: 0.0 };
+    pub const RIGHT: Vec2f = Vec2f { x: -1.0, y: 0.0 };
 
     pub fn new(x: f32, y: f32) -> Vec2f { Vec2f { x, y } }
 
@@ -394,12 +394,12 @@ impl Vec3f {
         z: 0.0,
     };
     pub const LEFT: Vec3f = Vec3f {
-        x: -1.0,
+        x: 1.0,
         y: 0.0,
         z: 0.0,
     };
     pub const RIGHT: Vec3f = Vec3f {
-        x: 1.0,
+        x: -1.0,
         y: 0.0,
         z: 0.0,
     };
@@ -460,8 +460,8 @@ impl Vec2d {
     pub const ZERO: Vec2d = Vec2d { x: 0.0, y: 0.0 };
     pub const UP: Vec2d = Vec2d { x: 0.0, y: 1.0 };
     pub const DOWN: Vec2d = Vec2d { x: 0.0, y: -1.0 };
-    pub const LEFT: Vec2d = Vec2d { x: -1.0, y: 0.0 };
-    pub const RIGHT: Vec2d = Vec2d { x: 1.0, y: 0.0 };
+    pub const LEFT: Vec2d = Vec2d { x: 1.0, y: 0.0 };
+    pub const RIGHT: Vec2d = Vec2d { x: -1.0, y: 0.0 };
 
     pub fn new(x: f64, y: f64) -> Vec2d { Vec2d { x, y } }
 
@@ -501,12 +501,12 @@ impl Vec3d {
         z: 0.0,
     };
     pub const LEFT: Vec3d = Vec3d {
-        x: -1.0,
+        x: 1.0,
         y: 0.0,
         z: 0.0,
     };
     pub const RIGHT: Vec3d = Vec3d {
-        x: 1.0,
+        x: -1.0,
         y: 0.0,
         z: 0.0,
     };

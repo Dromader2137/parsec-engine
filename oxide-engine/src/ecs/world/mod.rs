@@ -177,10 +177,10 @@ mod tests {
     use super::{component::Component, *};
     use crate::ecs::world::query::QueryIter;
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Component)]
+    #[derive(Debug, PartialEq, Eq, Hash, Component)]
     struct Position(i32, i32);
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Component)]
+    #[derive(Debug, PartialEq, Eq, Hash, Component)]
     struct Velocity(i32, i32);
 
     #[test]

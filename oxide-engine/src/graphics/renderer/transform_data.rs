@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
 use crate::{
-    components::transform::{Transform, TransformController},
-    ecs::world::{World, query::QueryIter},
     graphics::{
         renderer::{create_buffer, create_descriptor_set},
         vulkan::{
@@ -13,41 +11,40 @@ use crate::{
             },
         },
     },
-    math::mat::Matrix4f,
+    math::{mat::Matrix4f, vec::Vec3f},
     resources::ResourceCollection,
     utils::id_vec::IdVec,
 };
 
 #[derive(Debug)]
 pub struct TransformData {
-    pub transform_id: u32,
-    pub transform_matrix: Matrix4f,
+    pub model_matrix: Matrix4f,
     pub model_buffer_id: u32,
     pub model_set_id: u32,
+    pub look_at_matrix: Matrix4f,
+    pub look_at_buffer_id: u32,
+    pub look_at_set_id: u32,
+    pub changed: bool,
 }
 
 pub fn create_transform_data(
-    resources: &mut ResourceCollection,
-    world: &mut World,
-    transform_id: u32,
+    resources: &ResourceCollection,
+    position: Vec3f,
+    scale: Vec3f,
+    rotation: Vec3f,
 ) -> Result<u32, VulkanError> {
-    let mut transform_components = world.query::<&[Transform]>().unwrap();
-    let model = {
-        let mut entity = None;
-        while let Some((_, tra)) = transform_components.next() {
-            if tra.id == transform_id {
-                entity = Some(tra.clone());
-                break;
-            }
-        }
-        match entity {
-            Some(transform) => Matrix4f::translation(transform.position),
-            None => Matrix4f::indentity(),
-        }
-    };
-
-    let model_buffer_id = create_buffer(resources, vec![model])?;
+    let _ = rotation;
+    let _ = scale;
+    let model_matrix = Matrix4f::translation(position);
+    let look_at_matrix = Matrix4f::look_at(position, Vec3f::FORWARD, Vec3f::UP);
+    let model_buffer_id = create_buffer(resources, vec![model_matrix])?;
+    let look_at_buffer_id = create_buffer(resources, vec![look_at_matrix])?;
     let model_set_id = create_descriptor_set(resources, vec![DescriptorSetBinding::new(
+        0,
+        DescriptorType::UNIFORM_BUFFER,
+        DescriptorStage::VERTEX,
+    )])?;
+    let look_at_set_id = create_descriptor_set(resources, vec![DescriptorSetBinding::new(
         0,
         DescriptorType::UNIFORM_BUFFER,
         DescriptorStage::VERTEX,
@@ -58,29 +55,19 @@ pub fn create_transform_data(
         let model_set = descriptor_sets.get(model_set_id).unwrap();
         let model_buffer = buffers.get(model_buffer_id).unwrap();
         model_set.bind_buffer(model_buffer.clone(), 0)?;
+        let look_at_set = descriptor_sets.get(look_at_set_id).unwrap();
+        let look_at_buffer = buffers.get(look_at_buffer_id).unwrap();
+        look_at_set.bind_buffer(look_at_buffer.clone(), 0)?;
     }
     let transform_data = TransformData {
-        transform_id,
-        transform_matrix: model,
+        model_matrix,
         model_buffer_id,
         model_set_id,
+        look_at_matrix,
+        look_at_buffer_id,
+        look_at_set_id,
+        changed: false,
     };
     let mut transforms = resources.get_mut::<IdVec<TransformData>>().unwrap();
     Ok(transforms.push(transform_data))
-}
-
-pub fn autoadd_transforms(
-    resources: &mut ResourceCollection,
-    world: &mut World,
-) -> Result<(), VulkanError> {
-    let transforms_to_add = {
-        let mut transform_controller = resources.get_mut::<TransformController>().unwrap();
-        let ret = transform_controller.just_added.clone();
-        transform_controller.just_added.clear();
-        ret
-    };
-    for id in transforms_to_add {
-        create_transform_data(resources, world, id)?;
-    }
-    Ok(())
 }

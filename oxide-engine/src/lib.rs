@@ -1,6 +1,5 @@
 pub mod app;
 pub mod assets;
-pub mod components;
 pub mod ecs;
 pub mod error;
 pub mod graphics;

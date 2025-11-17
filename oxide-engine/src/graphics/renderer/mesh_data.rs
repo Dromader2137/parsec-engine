@@ -1,11 +1,18 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use crate::graphics::vulkan::{
-    VulkanError,
-    buffer::{Buffer, BufferUsage},
-    command_buffer::CommandBuffer,
-    device::Device,
-    graphics_pipeline::Vertex,
+use crate::{
+    graphics::{
+        renderer::DefaultVertex,
+        vulkan::{
+            VulkanError,
+            buffer::{Buffer, BufferUsage},
+            command_buffer::CommandBuffer,
+            device::Device,
+            graphics_pipeline::Vertex,
+        },
+    },
+    resources::ResourceCollection,
+    utils::id_vec::IdVec,
 };
 
 pub struct MeshBuffer<V: Vertex> {
@@ -35,8 +42,7 @@ impl<V: Vertex> MeshBuffer<V> {
 }
 
 pub struct MeshData<V: Vertex> {
-    mesh_id: u32,
-    buffer: MeshBuffer<V>,
+    pub buffer: MeshBuffer<V>,
 }
 
 impl<V: Vertex> MeshData<V> {
@@ -52,4 +58,16 @@ impl<V: Vertex> MeshData<V> {
     pub fn record_commands(&self, command_buffer: Arc<CommandBuffer>) {
         self.buffer.record_draw_commands(command_buffer);
     }
+}
+
+pub fn create_mesh_data(
+    resources: &ResourceCollection,
+    vertices: Vec<DefaultVertex>,
+    indices: Vec<u32>,
+) -> Result<u32, VulkanError> {
+    let device = resources.get::<Arc<Device>>().unwrap();
+    let mut meshes = resources
+        .get_mut::<IdVec<MeshData<DefaultVertex>>>()
+        .unwrap();
+    Ok(meshes.push(MeshData::new(device.clone(), vertices, indices)?))
 }

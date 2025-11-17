@@ -170,6 +170,12 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     let ident = input.ident;
 
     let expanded = quote! {
+        impl Copy for #ident {}
+        impl Clone for #ident {
+            fn clone(&self) -> Self {
+                *self
+            }
+        }
         impl Component for #ident {}
     };
 

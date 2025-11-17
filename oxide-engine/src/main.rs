@@ -1,11 +1,12 @@
 use oxide_engine::{
     app::App,
-    components::{camera::Camera, transform::Transform},
     ecs::system::{System, SystemInput, SystemTrigger},
     graphics::{
         GraphicsBundle,
         renderer::{
-            DefaultVertex, create_mesh, create_shader,
+            DefaultVertex,
+            components::{camera::Camera, mesh::MeshRenderer, transform::Transform},
+            create_shader,
             draw_queue::{Draw, MeshAndMaterial},
             material_data::{MaterialDescriptorSets, create_material, create_material_base},
             queue_draw,
@@ -27,31 +28,6 @@ fn main() {
              resources, world, ..
          }| {
             let scale = 1.0;
-
-            world
-                .spawn((
-                    Camera::new(resources, 40.0_f32.to_radians(), 1.0, 100.0),
-                    Transform::new(resources, Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
-                ))
-                .unwrap();
-
-            world
-                .spawn(Transform::new(
-                    resources,
-                    Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale,
-                    Vec3f::ZERO,
-                    Vec3f::ZERO,
-                ))
-                .unwrap();
-
-            world
-                .spawn(Transform::new(
-                    resources,
-                    Vec3f::FORWARD * 6.0,
-                    Vec3f::ZERO,
-                    Vec3f::ZERO,
-                ))
-                .unwrap();
 
             let vertex = create_shader(
                 resources,
@@ -93,29 +69,45 @@ fn main() {
             ])
             .unwrap();
 
-            let pos = vec![
-                Vec3f::new(0.0, 0.0, 0.0) * scale,
-                Vec3f::new(1.0, 1.0, 0.0) * scale,
-                Vec3f::new(0.0, 1.0, 0.0) * scale,
-                Vec3f::new(1.0, 0.0, 0.0) * scale,
+            let vertices = [
+                DefaultVertex::new(Vec3f::new(0.0, 0.0, 0.0) * scale, Vec3f::new(0.0, 0.0, 0.0)),
+                DefaultVertex::new(Vec3f::new(1.0, 1.0, 0.0) * scale, Vec3f::new(1.0, 1.0, 0.0)),
+                DefaultVertex::new(Vec3f::new(0.0, 1.0, 0.0) * scale, Vec3f::new(0.0, 1.0, 0.0)),
+                DefaultVertex::new(Vec3f::new(1.0, 0.0, 0.0) * scale, Vec3f::new(1.0, 0.0, 0.0)),
             ];
 
-            let nor = vec![
-                Vec3f::new(0.0, 0.0, 0.0),
-                Vec3f::new(1.0, 1.0, 0.0),
-                Vec3f::new(0.0, 1.0, 0.0),
-                Vec3f::new(1.0, 0.0, 0.0),
-            ];
+            let indices = [0, 2, 1, 0, 1, 3];
 
-            let indices = vec![0, 2, 1, 0, 1, 3];
+            world
+                .spawn((
+                    Camera::new(resources, 40.0_f32.to_radians(), 1.0, 100.0),
+                    Transform::new(resources, Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
+                ))
+                .unwrap();
 
-            let vertices = pos
-                .iter()
-                .zip(nor.iter())
-                .map(|x| DefaultVertex::new(*x.0, *x.1))
-                .collect();
+            world
+                .spawn((
+                    Transform::new(
+                        resources,
+                        Vec3f::FORWARD * 5.0 + Vec3f::new(0.5, -0.5, 0.0) * scale,
+                        Vec3f::ZERO,
+                        Vec3f::ZERO,
+                    ),
+                    MeshRenderer::new(resources, vertices, indices),
+                ))
+                .unwrap();
 
-            let _mesh = create_mesh(resources, vertices, indices).unwrap();
+            world
+                .spawn((
+                    Transform::new(
+                        resources,
+                        Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale,
+                        Vec3f::ZERO,
+                        Vec3f::ZERO,
+                    ),
+                    MeshRenderer::new(resources, vertices, indices),
+                ))
+                .unwrap();
         },
     ));
     app.systems.add(System::new(
@@ -127,15 +119,17 @@ fn main() {
                     mesh_id: 0,
                     material_id: 0,
                     transform_id: 2,
+                    camera_transform_id: 0,
                     camera_id: 0,
                 }),
             );
             queue_draw(
                 resources,
                 Draw::MeshAndMaterial(MeshAndMaterial {
-                    mesh_id: 0,
+                    mesh_id: 1,
                     material_id: 0,
                     transform_id: 1,
+                    camera_transform_id: 0,
                     camera_id: 0,
                 }),
             );

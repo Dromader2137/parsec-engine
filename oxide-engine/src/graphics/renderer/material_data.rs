@@ -41,6 +41,7 @@ impl MaterialData {
         resources: &ResourceCollection,
         command_buffer: Arc<CommandBuffer>,
         camera_id: u32,
+        camera_transform_id: u32,
         transform_id: u32,
     ) {
         let descriptor_sets = resources.get::<IdVec<Arc<DescriptorSet>>>().unwrap();
@@ -50,8 +51,8 @@ impl MaterialData {
         for (set_index, set) in self.descriptor_sets.iter().enumerate() {
             let descriptor_set_id = match set {
                 MaterialDescriptorSets::ViewMatrixSet => {
-                    let camera = cameras.get(camera_id).unwrap();
-                    camera.view_set_id
+                    let transform = transforms.get(camera_transform_id).unwrap();
+                    transform.look_at_set_id
                 },
                 MaterialDescriptorSets::ProjectionMatrixSet => {
                     let camera = cameras.get(camera_id).unwrap();

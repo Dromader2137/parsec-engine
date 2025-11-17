@@ -5,14 +5,10 @@ use window::{WindowError, WindowWrapper};
 
 use crate::{
     app::ActiveEventLoopStore,
-    components::{camera::CameraController, transform::TransformController},
     ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
     error::EngineError,
     graphics::{
-        renderer::{
-            camera_data::update_camera_data, init_renderer, queue_clear, render,
-            transform_data::autoadd_transforms,
-        },
+        renderer::{camera_data::update_camera_data, init_renderer, queue_clear, render},
         vulkan::context::init_vulkan,
     },
 };
@@ -48,17 +44,12 @@ impl SystemBundle for GraphicsBundle {
                     resources.add(window).unwrap();
                     init_vulkan(resources).unwrap();
                     init_renderer(resources).unwrap();
-                    resources.add(CameraController::default()).unwrap();
-                    resources.add(TransformController::default()).unwrap();
                 },
             ),
             System::new(
                 SystemTrigger::Render,
-                |SystemInput {
-                     resources, world, ..
-                 }| {
-                    autoadd_transforms(resources, world).unwrap();
-                    update_camera_data(resources, world).unwrap();
+                |SystemInput { resources, .. }| {
+                    update_camera_data(resources).unwrap();
                     render(resources).unwrap();
                     queue_clear(resources);
                 },

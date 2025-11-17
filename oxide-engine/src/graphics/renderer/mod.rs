@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 pub mod camera_data;
+pub mod components;
 pub mod draw_queue;
 pub mod image_data;
 pub mod material_data;
@@ -189,7 +190,7 @@ pub fn init_renderer(resources: &mut ResourceCollection) -> Result<(), VulkanErr
 }
 
 pub fn create_descriptor_set(
-    resources: &mut ResourceCollection,
+    resources: &ResourceCollection,
     descriptor_set_bindings: Vec<DescriptorSetBinding>,
 ) -> Result<u32, VulkanError> {
     let descriptor_pool = resources.get::<Arc<DescriptorPool>>().unwrap();
@@ -275,11 +276,18 @@ pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
                     mesh_id,
                     material_id,
                     camera_id,
+                    camera_transform_id,
                     transform_id,
                 }) => {
                     let material = materials.get(*material_id).unwrap();
                     let mesh = meshes.get(*mesh_id).unwrap();
-                    material.bind(resources, command_buffer.clone(), *camera_id, *transform_id);
+                    material.bind(
+                        resources,
+                        command_buffer.clone(),
+                        *camera_id,
+                        *camera_transform_id,
+                        *transform_id,
+                    );
                     mesh.record_commands(command_buffer.clone());
                 },
             }
@@ -320,7 +328,7 @@ pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
 }
 
 pub fn create_shader(
-    resources: &mut ResourceCollection,
+    resources: &ResourceCollection,
     code: &[u32],
     shader_type: ShaderType,
 ) -> Result<u32, VulkanError> {
@@ -334,7 +342,7 @@ pub fn create_shader(
 }
 
 pub fn create_buffer<T: Copy + Clone>(
-    resources: &mut ResourceCollection,
+    resources: &ResourceCollection,
     data: Vec<T>,
 ) -> Result<u32, VulkanError> {
     let device = resources.get::<Arc<Device>>().unwrap();
@@ -346,20 +354,8 @@ pub fn create_buffer<T: Copy + Clone>(
     )?))
 }
 
-pub fn create_mesh(
-    resources: &mut ResourceCollection,
-    vertices: Vec<DefaultVertex>,
-    indices: Vec<u32>,
-) -> Result<u32, VulkanError> {
-    let mut materials = resources
-        .get_mut::<IdVec<MeshData<DefaultVertex>>>()
-        .unwrap();
-    let device = resources.get::<Arc<Device>>().unwrap();
-    Ok(materials.push(MeshData::new(device.clone(), vertices, indices)?))
-}
-
 pub fn update_buffer<T: Copy + Clone>(
-    resources: &mut ResourceCollection,
+    resources: &ResourceCollection,
     buffer_id: u32,
     data: Vec<T>,
 ) -> Result<(), VulkanError> {
@@ -369,17 +365,17 @@ pub fn update_buffer<T: Copy + Clone>(
     Ok(())
 }
 
-pub fn get_aspect_ratio(resources: &mut ResourceCollection) -> f32 {
+pub fn get_aspect_ratio(resources: &ResourceCollection) -> f32 {
     let surface = resources.get::<Arc<Surface>>().unwrap();
     surface.aspect_ratio()
 }
 
-pub fn queue_draw(resources: &mut ResourceCollection, draw: Draw) {
+pub fn queue_draw(resources: &ResourceCollection, draw: Draw) {
     let mut draw_queue = resources.get_mut::<Vec<Draw>>().unwrap();
     draw_queue.push(draw);
 }
 
-pub fn queue_clear(resources: &mut ResourceCollection) {
+pub fn queue_clear(resources: &ResourceCollection) {
     let mut draw_queue = resources.get_mut::<Vec<Draw>>().unwrap();
     draw_queue.clear();
 }
