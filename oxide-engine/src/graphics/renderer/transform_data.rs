@@ -1,14 +1,21 @@
 use std::sync::Arc;
 
 use crate::{
-    components::transform::{Transform, TransformController}, ecs::world::{query::QueryIter, World}, graphics::{
+    components::transform::{Transform, TransformController},
+    ecs::world::{World, query::QueryIter},
+    graphics::{
         renderer::{create_buffer, create_descriptor_set},
         vulkan::{
-            buffer::Buffer, descriptor_set::{
+            VulkanError,
+            buffer::Buffer,
+            descriptor_set::{
                 DescriptorSet, DescriptorSetBinding, DescriptorStage, DescriptorType,
-            }, VulkanError
+            },
         },
-    }, math::mat::Matrix4f, resources::ResourceCollection, utils::id_vec::IdVec
+    },
+    math::mat::Matrix4f,
+    resources::ResourceCollection,
+    utils::id_vec::IdVec,
 };
 
 #[derive(Debug)]
@@ -38,7 +45,6 @@ pub fn create_transform_data(
             None => Matrix4f::indentity(),
         }
     };
-
 
     let model_buffer_id = create_buffer(resources, vec![model])?;
     let model_set_id = create_descriptor_set(resources, vec![DescriptorSetBinding::new(

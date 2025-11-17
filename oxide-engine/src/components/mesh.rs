@@ -1,14 +1,21 @@
-use crate::{ecs::world::component::Component, graphics::renderer::DefaultVertex, resources::ResourceCollection};
+use crate::{
+    ecs::world::component::Component, graphics::renderer::DefaultVertex,
+    resources::ResourceCollection,
+};
 
 #[derive(Component, Clone)]
 pub struct MeshRenderer {
     pub id: u32,
     pub vertices: Vec<DefaultVertex>,
-    pub indices: Vec<u32>
+    pub indices: Vec<u32>,
 }
 
 impl MeshRenderer {
-    pub fn new(resources: &ResourceCollection, vertices: Vec<DefaultVertex>, indices: Vec<u32>) -> MeshRenderer {
+    pub fn new(
+        resources: &ResourceCollection,
+        vertices: Vec<DefaultVertex>,
+        indices: Vec<u32>,
+    ) -> MeshRenderer {
         let mut mesh_renderer_controller = resources.get_mut::<MeshRendererController>().unwrap();
         let id = mesh_renderer_controller.id_counter;
         mesh_renderer_controller.id_counter += 1;
@@ -16,7 +23,7 @@ impl MeshRenderer {
         MeshRenderer {
             id,
             vertices,
-            indices
+            indices,
         }
     }
 }

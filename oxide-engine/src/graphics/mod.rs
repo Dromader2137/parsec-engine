@@ -4,10 +4,17 @@ use vulkan::VulkanError;
 use window::{WindowError, WindowWrapper};
 
 use crate::{
-    app::ActiveEventLoopStore, components::{camera::CameraController, transform::TransformController}, ecs::system::{System, SystemBundle, SystemInput, SystemTrigger}, error::EngineError, graphics::{
-        renderer::{camera_data::update_camera_data, init_renderer, queue_clear, render, transform_data::autoadd_transforms},
+    app::ActiveEventLoopStore,
+    components::{camera::CameraController, transform::TransformController},
+    ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
+    error::EngineError,
+    graphics::{
+        renderer::{
+            camera_data::update_camera_data, init_renderer, queue_clear, render,
+            transform_data::autoadd_transforms,
+        },
         vulkan::context::init_vulkan,
-    }
+    },
 };
 
 pub mod renderer;

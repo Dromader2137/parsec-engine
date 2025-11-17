@@ -5,8 +5,7 @@ use oxide_engine::{
     graphics::{
         GraphicsBundle,
         renderer::{
-            DefaultVertex,
-            create_mesh, create_shader,
+            DefaultVertex, create_mesh, create_shader,
             draw_queue::{Draw, MeshAndMaterial},
             material_data::{MaterialDescriptorSets, create_material, create_material_base},
             queue_draw,
@@ -35,17 +34,23 @@ fn main() {
                     Transform::new(resources, Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
                 ))
                 .unwrap();
-            
+
             world
-                .spawn(
-                    Transform::new(resources, Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale, Vec3f::ZERO, Vec3f::ZERO),
-                )
+                .spawn(Transform::new(
+                    resources,
+                    Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale,
+                    Vec3f::ZERO,
+                    Vec3f::ZERO,
+                ))
                 .unwrap();
-            
+
             world
-                .spawn(
-                    Transform::new(resources, Vec3f::FORWARD * 6.0, Vec3f::ZERO, Vec3f::ZERO),
-                )
+                .spawn(Transform::new(
+                    resources,
+                    Vec3f::FORWARD * 6.0,
+                    Vec3f::ZERO,
+                    Vec3f::ZERO,
+                ))
                 .unwrap();
 
             let vertex = create_shader(

@@ -9,7 +9,12 @@ pub struct Transform {
 }
 
 impl Transform {
-    pub fn new(resources: &ResourceCollection, position: Vec3f, scale: Vec3f, rotation: Vec3f) -> Transform {
+    pub fn new(
+        resources: &ResourceCollection,
+        position: Vec3f,
+        scale: Vec3f,
+        rotation: Vec3f,
+    ) -> Transform {
         let mut transform_controller = resources.get_mut::<TransformController>().unwrap();
         let id = transform_controller.id_counter;
         transform_controller.id_counter += 1;
