@@ -39,8 +39,17 @@ impl AssetLibrary {
         }
     }
 
-    pub fn add<A: Asset>(&mut self, value: A) -> Result<u32, AssetLibraryError> {
+    pub fn add<A: Asset>(
+        &mut self,
+        mut value: A,
+        world: &mut crate::ecs::world::World,
+        resources: &mut crate::resources::ResourceCollection,
+    ) -> Result<u32, AssetLibraryError> {
         let type_id = TypeId::of::<A>();
+
+        value
+            .on_load(super::AssetLoadInput { world, resources })
+            .unwrap();
 
         let vec = self
             .assets
@@ -70,9 +79,8 @@ impl AssetLibrary {
         if let Some(vec) = self.assets.get(&type_id) {
             return vec
                 .get_all()
-                .iter()
-                .map(|x| x.downcast_ref::<A>().unwrap())
-                .nth(id);
+                .get(id)
+                .map(|x| x.downcast_ref::<A>().unwrap());
         }
 
         None

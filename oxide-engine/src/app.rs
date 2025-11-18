@@ -1,4 +1,4 @@
-use std::ptr::NonNull;
+use std::{cell::RefCell, ptr::NonNull};
 
 use crate::{
     assets::library::AssetLibrary,
@@ -48,6 +48,10 @@ pub struct ActiveEventLoopStore {
     event_loop: NonNull<winit::event_loop::ActiveEventLoop>,
 }
 
+thread_local! {
+pub static ACTIVE_EVENT_LOOP: RefCell<Option<ActiveEventLoopStore>> = RefCell::new(None);
+}
+
 impl ActiveEventLoopStore {
     fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> ActiveEventLoopStore {
         ActiveEventLoopStore {
@@ -62,9 +66,7 @@ impl ActiveEventLoopStore {
 
 impl winit::application::ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        self.resources
-            .add(ActiveEventLoopStore::new(event_loop))
-            .unwrap();
+        ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = Some(ActiveEventLoopStore::new(event_loop)));
 
         self.systems
             .execute_type(SystemTrigger::LateStart, SystemInput {
@@ -73,7 +75,7 @@ impl winit::application::ApplicationHandler for App {
                 resources: &mut self.resources,
             });
 
-        self.resources.remove::<ActiveEventLoopStore>().unwrap();
+        ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);
     }
 
     fn window_event(

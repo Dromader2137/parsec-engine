@@ -4,13 +4,24 @@ use vulkan::VulkanError;
 use window::{WindowError, WindowWrapper};
 
 use crate::{
-    app::ActiveEventLoopStore,
-    ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
+    app::{self},
+    assets::library::AssetLibrary,
+    ecs::{
+        system::{System, SystemBundle, SystemInput, SystemTrigger},
+        world::{World, query::QueryIter},
+    },
     error::EngineError,
     graphics::{
-        renderer::{camera_data::update_camera_data, init_renderer, queue_clear, render},
+        renderer::{
+            assets::mesh::Mesh,
+            camera_data::update_camera_data,
+            components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
+            draw_queue::{Draw, MeshAndMaterial},
+            init_renderer, queue_clear, queue_draw, render,
+        },
         vulkan::{context::init_vulkan, device::Device},
     },
+    resources::ResourceCollection,
 };
 
 pub mod renderer;
@@ -37,7 +48,7 @@ impl SystemBundle for GraphicsBundle {
                 SystemTrigger::LateStart,
                 |SystemInput { resources, .. }| {
                     let window = {
-                        let event_loop = resources.get::<ActiveEventLoopStore>().unwrap();
+                        let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
                         let event_loop_raw = event_loop.get_event_loop();
                         WindowWrapper::new(event_loop_raw, "Oxide Engine test").unwrap()
                     };
@@ -48,8 +59,13 @@ impl SystemBundle for GraphicsBundle {
             ),
             System::new(
                 SystemTrigger::Render,
-                |SystemInput { resources, .. }| {
+                |SystemInput {
+                     resources,
+                     world,
+                     assets,
+                 }| {
                     update_camera_data(resources).unwrap();
+                    auto_enqueue(world, resources, assets);
                     render(resources).unwrap();
                     queue_clear(resources);
                 },
@@ -66,5 +82,30 @@ impl SystemBundle for GraphicsBundle {
                 device.wait_idle().unwrap();
             }),
         ]
+    }
+}
+
+fn auto_enqueue(world: &World, resources: &ResourceCollection, assets: &AssetLibrary) {
+    let mut cameras = world.query::<(&[Transform], &[Camera])>().unwrap();
+    let mut mesh_renderers = world.query::<(&[Transform], &[MeshRenderer])>().unwrap();
+    while let Some((_, (camera_transform, camera))) = cameras.next() {
+        while let Some((_, (transform, mesh_renderer))) = mesh_renderers.next() {
+            let mesh = assets
+                .get_one::<Mesh>(mesh_renderer.mesh_id as usize)
+                .unwrap();
+            if mesh.data_id.is_none() {
+                continue;
+            }
+            queue_draw(
+                resources,
+                Draw::MeshAndMaterial(MeshAndMaterial {
+                    mesh_id: mesh.data_id.unwrap(),
+                    material_id: mesh_renderer.material_id,
+                    transform_id: transform.data_id,
+                    camera_transform_id: camera_transform.data_id,
+                    camera_id: camera.data_id,
+                }),
+            );
+        }
     }
 }

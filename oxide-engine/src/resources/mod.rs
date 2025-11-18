@@ -1,22 +1,24 @@
 use std::{
     any::{Any, TypeId},
-    cell::{Ref, RefCell, RefMut},
     collections::HashMap,
     marker::PhantomData,
     ops::{Deref, DerefMut},
+    sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
+
+use once_cell::sync::Lazy;
 
 use crate::error::EngineError;
 
-pub trait Resource: 'static {}
-impl<T: 'static> Resource for T {}
+pub trait Resource: Send + Sync + 'static {}
+impl<T: Send + Sync + 'static> Resource for T {}
 
 pub struct ResourceCollection {
-    resources: HashMap<TypeId, RefCell<Box<dyn Any>>>,
+    resources: HashMap<TypeId, RwLock<Box<dyn Any + Send + Sync>>>,
 }
 
 pub struct Rsc<'a, T: Resource> {
-    borrow: Ref<'a, Box<dyn Any>>,
+    borrow: RwLockReadGuard<'a, Box<dyn Any + Send + Sync>>,
     _marker: PhantomData<T>,
 }
 
@@ -30,7 +32,7 @@ impl<'a, T: Resource> Deref for Rsc<'a, T> {
 }
 
 pub struct RscMut<'a, T: Resource> {
-    borrow: RefMut<'a, Box<dyn Any>>,
+    borrow: RwLockWriteGuard<'a, Box<dyn Any + Send + Sync>>,
     _marker: PhantomData<T>,
 }
 
@@ -51,6 +53,16 @@ impl<'a, T: Resource> DerefMut for RscMut<'a, T> {
     }
 }
 
+static RESOURCES: Lazy<RwLock<ResourceCollection>> =
+    Lazy::new(|| RwLock::new(ResourceCollection::new()));
+
+pub struct Resources {}
+impl Resources {
+    pub fn add<R: Resource>(resource: R) -> Result<(), ResourceError> {
+        let mut resources = RESOURCES.write();
+    }
+} 
+
 impl ResourceCollection {
     pub fn new() -> ResourceCollection {
         ResourceCollection {
@@ -64,14 +76,14 @@ impl ResourceCollection {
             return Err(ResourceError::ResourceAlreadyExists);
         }
         self.resources
-            .insert(type_id, RefCell::new(Box::new(resource)));
+            .insert(type_id, RwLock::new(Box::new(resource)));
         Ok(())
     }
 
     pub fn add_or_change<R: Resource>(&mut self, resource: R) -> Result<(), ResourceError> {
         let type_id = TypeId::of::<R>();
         self.resources
-            .insert(type_id, RefCell::new(Box::new(resource)));
+            .insert(type_id, RwLock::new(Box::new(resource)));
         Ok(())
     }
 
@@ -81,7 +93,7 @@ impl ResourceCollection {
     {
         let type_id = TypeId::of::<R>();
         if let Some(resource_cell) = self.resources.get(&type_id) {
-            let resource = match resource_cell.try_borrow() {
+            let resource = match resource_cell.try_read() {
                 Ok(val) => val,
                 Err(_) => return Err(ResourceError::UnableToBorrow),
             };
@@ -99,7 +111,7 @@ impl ResourceCollection {
     {
         let type_id = TypeId::of::<R>();
         if let Some(resource_cell) = self.resources.get(&type_id) {
-            let resource = match resource_cell.try_borrow_mut() {
+            let resource = match resource_cell.try_write() {
                 Ok(val) => val,
                 Err(_) => return Err(ResourceError::UnableToBorrow),
             };

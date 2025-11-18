@@ -1,10 +1,21 @@
-use crate::error::EngineError;
+use crate::{ecs::world::World, error::EngineError, resources::ResourceCollection};
 
 pub mod library;
 
+pub struct AssetLoadInput<'a> {
+    pub world: &'a mut World,
+    pub resources: &'a mut ResourceCollection,
+}
+
 pub trait Asset: 'static {
-    fn on_load() -> Result<(), AssetError> { Ok(()) }
-    fn on_unload() -> Result<(), AssetError> { Ok(()) }
+    fn on_load(&mut self, state: AssetLoadInput) -> Result<(), AssetError> {
+        let _ = state;
+        Ok(())
+    }
+    fn on_unload(&mut self, state: AssetLoadInput) -> Result<(), AssetError> {
+        let _ = state;
+        Ok(())
+    }
 }
 
 #[derive(Debug)]

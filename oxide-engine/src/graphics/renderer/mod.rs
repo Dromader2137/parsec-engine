@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+pub mod assets;
 pub mod camera_data;
 pub mod components;
 pub mod draw_queue;
@@ -349,7 +350,7 @@ pub fn create_buffer<T: Copy + Clone>(
     let mut buffers = resources.get_mut::<IdVec<Arc<Buffer>>>().unwrap();
     Ok(buffers.push(Buffer::from_vec(
         device.clone(),
-        data,
+        &data,
         BufferUsage::UNIFORM_BUFFER,
     )?))
 }

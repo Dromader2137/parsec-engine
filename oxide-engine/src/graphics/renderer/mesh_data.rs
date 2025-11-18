@@ -24,8 +24,8 @@ pub struct MeshBuffer<V: Vertex> {
 impl<V: Vertex> MeshBuffer<V> {
     pub fn new(
         device: Arc<Device>,
-        vertices: Vec<V>,
-        indices: Vec<u32>,
+        vertices: &[V],
+        indices: &[u32],
     ) -> Result<MeshBuffer<V>, VulkanError> {
         Ok(MeshBuffer {
             vertex_buffer: Buffer::from_vec(device.clone(), vertices, BufferUsage::VERTEX_BUFFER)?,
@@ -48,8 +48,8 @@ pub struct MeshData<V: Vertex> {
 impl<V: Vertex> MeshData<V> {
     pub fn new(
         device: Arc<Device>,
-        vertices: Vec<V>,
-        indices: Vec<u32>,
+        vertices: &[V],
+        indices: &[u32],
     ) -> Result<MeshData<V>, VulkanError> {
         let buffer = MeshBuffer::new(device, vertices, indices)?;
         Ok(MeshData { buffer })
@@ -62,8 +62,8 @@ impl<V: Vertex> MeshData<V> {
 
 pub fn create_mesh_data(
     resources: &ResourceCollection,
-    vertices: Vec<DefaultVertex>,
-    indices: Vec<u32>,
+    vertices: &[DefaultVertex],
+    indices: &[u32],
 ) -> Result<u32, VulkanError> {
     let device = resources.get::<Arc<Device>>().unwrap();
     let mut meshes = resources

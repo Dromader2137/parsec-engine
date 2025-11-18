@@ -5,11 +5,10 @@ use oxide_engine::{
         GraphicsBundle,
         renderer::{
             DefaultVertex,
-            components::{camera::Camera, mesh::MeshRenderer, transform::Transform},
+            assets::mesh::Mesh,
+            components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
             create_shader,
-            draw_queue::{Draw, MeshAndMaterial},
             material_data::{MaterialDescriptorSets, create_material, create_material_base},
-            queue_draw,
         },
         vulkan::{
             descriptor_set::{DescriptorSetBinding, DescriptorStage, DescriptorType},
@@ -25,7 +24,9 @@ fn main() {
     app.systems.add(System::new(
         SystemTrigger::LateStart,
         |SystemInput {
-             resources, world, ..
+             resources,
+             world,
+             assets,
          }| {
             let scale = 1.0;
 
@@ -69,14 +70,18 @@ fn main() {
             ])
             .unwrap();
 
-            let vertices = [
+            let vertices = vec![
                 DefaultVertex::new(Vec3f::new(0.0, 0.0, 0.0) * scale, Vec3f::new(0.0, 0.0, 0.0)),
                 DefaultVertex::new(Vec3f::new(1.0, 1.0, 0.0) * scale, Vec3f::new(1.0, 1.0, 0.0)),
                 DefaultVertex::new(Vec3f::new(0.0, 1.0, 0.0) * scale, Vec3f::new(0.0, 1.0, 0.0)),
                 DefaultVertex::new(Vec3f::new(1.0, 0.0, 0.0) * scale, Vec3f::new(1.0, 0.0, 0.0)),
             ];
 
-            let indices = [0, 2, 1, 0, 1, 3];
+            let indices = vec![0, 2, 1, 0, 1, 3];
+
+            let mesh = assets
+                .add(Mesh::new(vertices, indices), world, resources)
+                .unwrap();
 
             world
                 .spawn((
@@ -93,7 +98,7 @@ fn main() {
                         Vec3f::ZERO,
                         Vec3f::ZERO,
                     ),
-                    MeshRenderer::new(resources, vertices, indices),
+                    MeshRenderer::new(mesh, 0),
                 ))
                 .unwrap();
 
@@ -105,35 +110,11 @@ fn main() {
                         Vec3f::ZERO,
                         Vec3f::ZERO,
                     ),
-                    MeshRenderer::new(resources, vertices, indices),
+                    MeshRenderer::new(mesh, 0),
                 ))
                 .unwrap();
         },
     ));
-    app.systems.add(System::new(
-        SystemTrigger::Update,
-        |SystemInput { resources, .. }| {
-            queue_draw(
-                resources,
-                Draw::MeshAndMaterial(MeshAndMaterial {
-                    mesh_id: 0,
-                    material_id: 0,
-                    transform_id: 2,
-                    camera_transform_id: 0,
-                    camera_id: 0,
-                }),
-            );
-            queue_draw(
-                resources,
-                Draw::MeshAndMaterial(MeshAndMaterial {
-                    mesh_id: 1,
-                    material_id: 0,
-                    transform_id: 1,
-                    camera_transform_id: 0,
-                    camera_id: 0,
-                }),
-            );
-        },
-    ));
+
     app.run();
 }

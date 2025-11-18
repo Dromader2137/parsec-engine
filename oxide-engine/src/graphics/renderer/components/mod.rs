@@ -1,3 +1,3 @@
 pub mod camera;
-pub mod mesh;
+pub mod mesh_renderer;
 pub mod transform;
