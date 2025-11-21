@@ -23,10 +23,7 @@ fn main() {
     app.systems.add_bundle(GraphicsBundle::default());
     app.systems.add(System::new(
         SystemTrigger::LateStart,
-        |SystemInput {
-             world,
-             assets,
-         }| {
+        |SystemInput { world, assets }| {
             let scale = 1.0;
 
             let vertex = create_shader(
@@ -60,7 +57,7 @@ fn main() {
             ])
             .unwrap();
 
-            let _material = create_material(material_base, vec![
+            let material = create_material(material_base, vec![
                 MaterialDescriptorSets::ModelMatrixSet,
                 MaterialDescriptorSets::ViewMatrixSet,
                 MaterialDescriptorSets::ProjectionMatrixSet,
@@ -76,9 +73,7 @@ fn main() {
 
             let indices = vec![0, 2, 1, 0, 1, 3];
 
-            let mesh = assets
-                .add(Mesh::new(vertices, indices), world)
-                .unwrap();
+            let mesh = assets.add(Mesh::new(vertices, indices), world).unwrap();
 
             world
                 .spawn((
@@ -94,7 +89,7 @@ fn main() {
                         Vec3f::ZERO,
                         Vec3f::ZERO,
                     ),
-                    MeshRenderer::new(mesh, 0),
+                    MeshRenderer::new(mesh, material),
                 ))
                 .unwrap();
 
@@ -105,7 +100,7 @@ fn main() {
                         Vec3f::ZERO,
                         Vec3f::ZERO,
                     ),
-                    MeshRenderer::new(mesh, 0),
+                    MeshRenderer::new(mesh, material),
                 ))
                 .unwrap();
         },

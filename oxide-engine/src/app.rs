@@ -6,7 +6,8 @@ use crate::{
         system::{SystemInput, SystemTrigger, Systems},
         world::World,
     },
-    input::InputEvent, resources::Rsc,
+    input::InputEvent,
+    resources::Rsc,
 };
 
 #[allow(unused)]

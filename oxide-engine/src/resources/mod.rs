@@ -39,10 +39,7 @@ impl<'a, R: Resource> Rsc<'a, R> {
     pub fn get() -> Result<Rsc<'a, R>, ResourceError> {
         let resources = RESOURCES.read().unwrap();
         let inner = resources.get::<R>()?;
-        Ok(Rsc {
-            inner,
-            guard: None,
-        })
+        Ok(Rsc { inner, guard: None })
     }
 
     pub fn remove() -> Result<(), ResourceError> {
@@ -83,10 +80,7 @@ impl<'a, R: Resource> RscMut<'a, R> {
     pub fn get() -> Result<RscMut<'a, R>, ResourceError> {
         let resources = RESOURCES.read().unwrap();
         let inner = resources.get::<R>()?;
-        Ok(RscMut {
-            inner,
-            guard: None,
-        })
+        Ok(RscMut { inner, guard: None })
     }
 
     pub fn remove() -> Result<(), ResourceError> {

@@ -6,7 +6,7 @@ pub struct AssetLoadInput<'a> {
     pub world: &'a mut World,
 }
 
-pub trait Asset: 'static {
+pub trait Asset: Send + Sync + 'static {
     fn on_load(&mut self, state: AssetLoadInput) -> Result<(), AssetError> {
         let _ = state;
         Ok(())

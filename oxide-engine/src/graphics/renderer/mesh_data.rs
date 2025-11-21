@@ -10,7 +10,9 @@ use crate::{
             device::Device,
             graphics_pipeline::Vertex,
         },
-    }, resources::{Rsc, RscMut}, utils::id_vec::IdVec
+    },
+    resources::{Rsc, RscMut},
+    utils::id_vec::IdVec,
 };
 
 pub struct MeshBuffer<V: Vertex> {
@@ -58,12 +60,8 @@ impl<V: Vertex> MeshData<V> {
     }
 }
 
-pub fn create_mesh_data(
-    vertices: &[DefaultVertex],
-    indices: &[u32],
-) -> Result<u32, VulkanError> {
+pub fn create_mesh_data(vertices: &[DefaultVertex], indices: &[u32]) -> Result<u32, VulkanError> {
     let device = Rsc::<Arc<Device>>::get().unwrap();
-    let mut meshes = RscMut::<IdVec<MeshData<DefaultVertex>>>::get()
-        .unwrap();
+    let mut meshes = RscMut::<IdVec<MeshData<DefaultVertex>>>::get().unwrap();
     Ok(meshes.push(MeshData::new(device.clone(), vertices, indices)?))
 }

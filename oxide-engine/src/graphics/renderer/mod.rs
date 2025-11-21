@@ -179,8 +179,7 @@ pub fn init_renderer() -> Result<(), VulkanError> {
     Rsc::add(IdVec::<Arc<MaterialBase>>::new()).unwrap();
     Rsc::add(IdVec::<Arc<ShaderModule>>::new()).unwrap();
     Rsc::add(IdVec::<Arc<Buffer>>::new()).unwrap();
-    Rsc::add(IdVec::<MeshData<DefaultVertex>>::new())
-        .unwrap();
+    Rsc::add(IdVec::<MeshData<DefaultVertex>>::new()).unwrap();
     Rsc::add(IdVec::<MaterialData>::new()).unwrap();
     Rsc::add(IdVec::<TransformData>::new()).unwrap();
     Rsc::add(IdVec::<CameraData>::new()).unwrap();
@@ -200,8 +199,7 @@ pub fn create_descriptor_set(
     Ok(descriptor_sets.push(descriptor_set))
 }
 
-fn recreate_size_dependent_components(
-) -> Result<(), VulkanError> {
+fn recreate_size_dependent_components() -> Result<(), VulkanError> {
     {
         let device = Rsc::<Arc<Device>>::get().unwrap();
         device.wait_idle()?;
@@ -324,10 +322,7 @@ pub fn render() -> Result<(), VulkanError> {
     Ok(())
 }
 
-pub fn create_shader(
-    code: &[u32],
-    shader_type: ShaderType,
-) -> Result<u32, VulkanError> {
+pub fn create_shader(code: &[u32], shader_type: ShaderType) -> Result<u32, VulkanError> {
     let shader = {
         let device = Rsc::<Arc<Device>>::get().unwrap();
         ShaderModule::new(device.clone(), code, shader_type)?
@@ -337,9 +332,7 @@ pub fn create_shader(
     Ok(shader_modules.push(shader))
 }
 
-pub fn create_buffer<T: Copy + Clone>(
-    data: Vec<T>,
-) -> Result<u32, VulkanError> {
+pub fn create_buffer<T: Copy + Clone>(data: Vec<T>) -> Result<u32, VulkanError> {
     let device = Rsc::<Arc<Device>>::get().unwrap();
     let mut buffers = RscMut::<IdVec<Arc<Buffer>>>::get().unwrap();
     Ok(buffers.push(Buffer::from_vec(
@@ -349,10 +342,7 @@ pub fn create_buffer<T: Copy + Clone>(
     )?))
 }
 
-pub fn update_buffer<T: Copy + Clone>(
-    buffer_id: u32,
-    data: Vec<T>,
-) -> Result<(), VulkanError> {
+pub fn update_buffer<T: Copy + Clone>(buffer_id: u32, data: Vec<T>) -> Result<(), VulkanError> {
     let mut buffers = RscMut::<IdVec<Arc<Buffer>>>::get().unwrap();
     let buffer = buffers.get_mut(buffer_id).unwrap();
     buffer.update(data)?;

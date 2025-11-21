@@ -2,7 +2,8 @@ use keys::Keys;
 
 use crate::{
     ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
-    input::key::{KeyCode, KeyState}, resources::{Rsc, RscMut},
+    input::key::{KeyCode, KeyState},
+    resources::{Rsc, RscMut},
 };
 
 pub mod key;
@@ -35,28 +36,19 @@ impl SystemBundle for InputBundle {
             System::new(SystemTrigger::Start, |SystemInput { .. }| {
                 Rsc::add(Input::new()).unwrap();
             }),
-            System::new(
-                SystemTrigger::Render,
-                |SystemInput { .. }| {
-                    let mut input = RscMut::<Input>::get().unwrap();
-                    input.keys.clear();
-                },
-            ),
-            System::new(
-                SystemTrigger::WindowCursorLeft,
-                |SystemInput { .. }| {
-                    let mut input = RscMut::<Input>::get().unwrap();
-                    input.keys.clear_all();
-                },
-            ),
-            System::new(
-                SystemTrigger::KeyboardInput,
-                |SystemInput { .. }| {
-                    let mut input = RscMut::<Input>::get().unwrap();
-                    let event = Rsc::<InputEvent>::get().unwrap();
-                    input.keys.process_input_event(*event);
-                },
-            ),
+            System::new(SystemTrigger::Render, |SystemInput { .. }| {
+                let mut input = RscMut::<Input>::get().unwrap();
+                input.keys.clear();
+            }),
+            System::new(SystemTrigger::WindowCursorLeft, |SystemInput { .. }| {
+                let mut input = RscMut::<Input>::get().unwrap();
+                input.keys.clear_all();
+            }),
+            System::new(SystemTrigger::KeyboardInput, |SystemInput { .. }| {
+                let mut input = RscMut::<Input>::get().unwrap();
+                let event = Rsc::<InputEvent>::get().unwrap();
+                input.keys.process_input_event(*event);
+            }),
         ]
     }
 }

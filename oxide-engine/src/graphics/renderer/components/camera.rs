@@ -11,17 +11,9 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(
-        vertical_fov: f32,
-        near_clipping_plane: f32,
-        far_clipping_plane: f32,
-    ) -> Camera {
-        let data_id = create_camera_data(
-            vertical_fov,
-            near_clipping_plane,
-            far_clipping_plane,
-        )
-        .unwrap();
+    pub fn new(vertical_fov: f32, near_clipping_plane: f32, far_clipping_plane: f32) -> Camera {
+        let data_id =
+            create_camera_data(vertical_fov, near_clipping_plane, far_clipping_plane).unwrap();
         Camera {
             vertical_fov,
             near_clipping_plane,

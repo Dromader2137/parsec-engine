@@ -12,11 +12,7 @@ pub struct Transform {
 }
 
 impl Transform {
-    pub fn new(
-        position: Vec3f,
-        scale: Vec3f,
-        rotation: Vec3f,
-    ) -> Transform {
+    pub fn new(position: Vec3f, scale: Vec3f, rotation: Vec3f) -> Transform {
         let data_id = create_transform_data(position, scale, rotation).unwrap();
         Transform {
             position,

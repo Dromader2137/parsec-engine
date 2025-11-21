@@ -10,7 +10,10 @@ use crate::{
                 DescriptorSet, DescriptorSetBinding, DescriptorStage, DescriptorType,
             },
         },
-    }, math::mat::Matrix4f, resources::{Rsc, RscMut}, utils::id_vec::IdVec
+    },
+    math::mat::Matrix4f,
+    resources::{Rsc, RscMut},
+    utils::id_vec::IdVec,
 };
 
 pub struct CameraData {
@@ -23,11 +26,7 @@ pub struct CameraData {
     pub changed: bool,
 }
 
-pub fn create_camera_data(
-    vfov: f32,
-    near: f32,
-    far: f32,
-) -> Result<u32, VulkanError> {
+pub fn create_camera_data(vfov: f32, near: f32, far: f32) -> Result<u32, VulkanError> {
     let projection_matrix = Matrix4f::perspective(vfov, get_aspect_ratio(), near, far);
     let projection_buffer_id = create_buffer(vec![projection_matrix])?;
     let projection_set_id = create_descriptor_set(vec![DescriptorSetBinding::new(

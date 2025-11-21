@@ -7,7 +7,8 @@ use crate::{
         image::{ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView, OwnedImage},
         renderpass::Renderpass,
         swapchain::Swapchain,
-    }, resources::Rsc,
+    },
+    resources::Rsc,
 };
 
 #[allow(unused)]
@@ -134,8 +135,7 @@ pub fn recreate_renderer_images() -> Result<(), VulkanError> {
     drop(renderpass);
 
     Rsc::add_overwrite(swapchain.clone()).unwrap();
-    Rsc::add_overwrite(SwapchainViews(swapchain_views))
-        .unwrap();
+    Rsc::add_overwrite(SwapchainViews(swapchain_views)).unwrap();
     Rsc::add_overwrite(DepthImage(depth_image)).unwrap();
     Rsc::add_overwrite(DepthView(depth_view)).unwrap();
     Rsc::add_overwrite(framebuffers).unwrap();

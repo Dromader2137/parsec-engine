@@ -20,10 +20,7 @@ impl Mesh {
 }
 
 impl Asset for Mesh {
-    fn on_load(
-        &mut self,
-        AssetLoadInput { .. }: AssetLoadInput,
-    ) -> Result<(), AssetError> {
+    fn on_load(&mut self, AssetLoadInput { .. }: AssetLoadInput) -> Result<(), AssetError> {
         self.data_id = Some(create_mesh_data(&self.vertices, &self.indices).unwrap());
         Ok(())
     }

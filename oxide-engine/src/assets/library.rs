@@ -46,9 +46,7 @@ impl AssetLibrary {
     ) -> Result<u32, AssetLibraryError> {
         let type_id = TypeId::of::<A>();
 
-        value
-            .on_load(super::AssetLoadInput { world })
-            .unwrap();
+        value.on_load(super::AssetLoadInput { world }).unwrap();
 
         let vec = self
             .assets

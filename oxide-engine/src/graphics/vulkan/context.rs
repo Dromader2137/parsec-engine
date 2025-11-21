@@ -11,7 +11,8 @@ use crate::{
             surface::{InitialSurface, Surface},
         },
         window::WindowWrapper,
-    }, resources::Rsc,
+    },
+    resources::Rsc,
 };
 
 pub fn init_vulkan() -> Result<(), VulkanError> {
