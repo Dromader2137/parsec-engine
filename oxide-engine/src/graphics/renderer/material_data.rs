@@ -13,7 +13,7 @@ use crate::{
             shader::ShaderModule,
         },
     },
-    resources::ResourceCollection,
+    resources::{Rsc, RscMut},
     utils::id_vec::IdVec,
 };
 
@@ -38,15 +38,14 @@ pub enum MaterialDescriptorSets {
 impl MaterialData {
     pub fn bind(
         &self,
-        resources: &ResourceCollection,
         command_buffer: Arc<CommandBuffer>,
         camera_id: u32,
         camera_transform_id: u32,
         transform_id: u32,
     ) {
-        let descriptor_sets = resources.get::<IdVec<Arc<DescriptorSet>>>().unwrap();
-        let transforms = resources.get::<IdVec<TransformData>>().unwrap();
-        let cameras = resources.get::<IdVec<CameraData>>().unwrap();
+        let descriptor_sets = Rsc::<IdVec<Arc<DescriptorSet>>>::get().unwrap();
+        let transforms = Rsc::<IdVec<TransformData>>::get().unwrap();
+        let cameras = Rsc::<IdVec<CameraData>>::get().unwrap();
         command_buffer.bind_graphics_pipeline(self.base.pipeline.clone());
         for (set_index, set) in self.descriptor_sets.iter().enumerate() {
             let descriptor_set_id = match set {
@@ -75,15 +74,14 @@ impl MaterialData {
 }
 
 pub fn create_material_base(
-    resources: &mut ResourceCollection,
     vertex_id: u32,
     fragment_id: u32,
     layout: Vec<Vec<DescriptorSetBinding>>,
 ) -> Result<u32, VulkanError> {
     let material_base = {
-        let device = resources.get::<Arc<Device>>().unwrap();
-        let framebuffers = resources.get::<Vec<Arc<Framebuffer>>>().unwrap();
-        let shader_modules = resources.get::<IdVec<Arc<ShaderModule>>>().unwrap();
+        let device = Rsc::<Arc<Device>>::get().unwrap();
+        let framebuffers = Rsc::<Vec<Arc<Framebuffer>>>::get().unwrap();
+        let shader_modules = Rsc::<IdVec<Arc<ShaderModule>>>::get().unwrap();
         let mut descriptor_set_layouts = Vec::new();
 
         for bindings in layout {
@@ -103,22 +101,21 @@ pub fn create_material_base(
         })
     };
 
-    let mut material_bases = resources.get_mut::<IdVec<Arc<MaterialBase>>>().unwrap();
+    let mut material_bases = RscMut::<IdVec<Arc<MaterialBase>>>::get().unwrap();
     Ok(material_bases.push(material_base))
 }
 
 pub fn create_material(
-    resources: &mut ResourceCollection,
     material_base_id: u32,
     material_descriptor_sets: Vec<MaterialDescriptorSets>,
 ) -> Result<u32, VulkanError> {
-    let material_bases = resources.get::<IdVec<Arc<MaterialBase>>>().unwrap();
+    let material_bases = Rsc::<IdVec<Arc<MaterialBase>>>::get().unwrap();
     let base = material_bases.get(material_base_id).unwrap().clone();
     let material_data = MaterialData {
         base,
         descriptor_sets: material_descriptor_sets,
     };
 
-    let mut materials = resources.get_mut::<IdVec<MaterialData>>().unwrap();
+    let mut materials = RscMut::<IdVec<MaterialData>>::get().unwrap();
     Ok(materials.push(material_data))
 }

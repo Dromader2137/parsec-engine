@@ -1,10 +1,9 @@
-use crate::{ecs::world::World, error::EngineError, resources::ResourceCollection};
+use crate::{ecs::world::World, error::EngineError};
 
 pub mod library;
 
 pub struct AssetLoadInput<'a> {
     pub world: &'a mut World,
-    pub resources: &'a mut ResourceCollection,
 }
 
 pub trait Asset: 'static {

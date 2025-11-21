@@ -20,8 +20,7 @@ use crate::{
             init_renderer, queue_clear, queue_draw, render,
         },
         vulkan::{context::init_vulkan, device::Device},
-    },
-    resources::ResourceCollection,
+    }, resources::Rsc,
 };
 
 pub mod renderer;
@@ -46,46 +45,45 @@ impl SystemBundle for GraphicsBundle {
         vec![
             System::new(
                 SystemTrigger::LateStart,
-                |SystemInput { resources, .. }| {
+                |SystemInput { .. }| {
                     let window = {
                         let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
                         let event_loop_raw = event_loop.get_event_loop();
                         WindowWrapper::new(event_loop_raw, "Oxide Engine test").unwrap()
                     };
-                    resources.add(window).unwrap();
-                    init_vulkan(resources).unwrap();
-                    init_renderer(resources).unwrap();
+                    Rsc::add(window).unwrap();
+                    init_vulkan().unwrap();
+                    init_renderer().unwrap();
                 },
             ),
             System::new(
                 SystemTrigger::Render,
                 |SystemInput {
-                     resources,
                      world,
                      assets,
                  }| {
-                    update_camera_data(resources).unwrap();
-                    auto_enqueue(world, resources, assets);
-                    render(resources).unwrap();
-                    queue_clear(resources);
+                    update_camera_data().unwrap();
+                    auto_enqueue(world, assets);
+                    render().unwrap();
+                    queue_clear();
                 },
             ),
             System::new(
                 SystemTrigger::Update,
-                |SystemInput { resources, .. }| {
-                    let window = resources.get_mut::<Arc<WindowWrapper>>().unwrap();
-                    window.request_redraw();
+                |SystemInput { .. }| {
+                    let window = Rsc::<Arc<WindowWrapper>>::get().unwrap();
+                    window.request_redraw(); 
                 },
             ),
-            System::new(SystemTrigger::End, |SystemInput { resources, .. }| {
-                let device = resources.get_mut::<Arc<Device>>().unwrap();
+            System::new(SystemTrigger::End, |SystemInput { .. }| {
+                let device = Rsc::<Arc<Device>>::get().unwrap();
                 device.wait_idle().unwrap();
             }),
         ]
     }
 }
 
-fn auto_enqueue(world: &World, resources: &ResourceCollection, assets: &AssetLibrary) {
+fn auto_enqueue(world: &World, assets: &AssetLibrary) {
     let mut cameras = world.query::<(&[Transform], &[Camera])>().unwrap();
     let mut mesh_renderers = world.query::<(&[Transform], &[MeshRenderer])>().unwrap();
     while let Some((_, (camera_transform, camera))) = cameras.next() {
@@ -97,7 +95,6 @@ fn auto_enqueue(world: &World, resources: &ResourceCollection, assets: &AssetLib
                 continue;
             }
             queue_draw(
-                resources,
                 Draw::MeshAndMaterial(MeshAndMaterial {
                     mesh_id: mesh.data_id.unwrap(),
                     material_id: mesh_renderer.material_id,

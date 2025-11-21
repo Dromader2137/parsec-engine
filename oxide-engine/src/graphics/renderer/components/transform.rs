@@ -1,6 +1,6 @@
 use crate::{
     ecs::world::component::Component, graphics::renderer::transform_data::create_transform_data,
-    math::vec::Vec3f, resources::ResourceCollection,
+    math::vec::Vec3f,
 };
 
 #[derive(Component)]
@@ -13,12 +13,11 @@ pub struct Transform {
 
 impl Transform {
     pub fn new(
-        resources: &ResourceCollection,
         position: Vec3f,
         scale: Vec3f,
         rotation: Vec3f,
     ) -> Transform {
-        let data_id = create_transform_data(resources, position, scale, rotation).unwrap();
+        let data_id = create_transform_data(position, scale, rotation).unwrap();
         Transform {
             position,
             scale,

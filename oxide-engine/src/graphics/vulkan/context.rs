@@ -11,12 +11,11 @@ use crate::{
             surface::{InitialSurface, Surface},
         },
         window::WindowWrapper,
-    },
-    resources::ResourceCollection,
+    }, resources::Rsc,
 };
 
-pub fn init_vulkan(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
-    let window = resources.get::<Arc<WindowWrapper>>().unwrap();
+pub fn init_vulkan() -> Result<(), VulkanError> {
+    let window = Rsc::<Arc<WindowWrapper>>::get().unwrap();
     let instance = Instance::new(window.clone())?;
     let initial_surface = InitialSurface::new(instance.clone(), window.clone())?;
     drop(window);
@@ -24,10 +23,10 @@ pub fn init_vulkan(resources: &mut ResourceCollection) -> Result<(), VulkanError
     let surface = Surface::from_initial_surface(initial_surface, physical_device.clone())?;
     let device = Device::new(physical_device.clone())?;
     let command_pool = CommandPool::new(device.clone())?;
-    resources.add(instance).unwrap();
-    resources.add(physical_device).unwrap();
-    resources.add(surface).unwrap();
-    resources.add(device).unwrap();
-    resources.add(command_pool).unwrap();
+    Rsc::add(instance).unwrap();
+    Rsc::add(physical_device).unwrap();
+    Rsc::add(surface).unwrap();
+    Rsc::add(device).unwrap();
+    Rsc::add(command_pool).unwrap();
     Ok(())
 }

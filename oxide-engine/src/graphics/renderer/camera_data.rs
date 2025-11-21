@@ -10,10 +10,7 @@ use crate::{
                 DescriptorSet, DescriptorSetBinding, DescriptorStage, DescriptorType,
             },
         },
-    },
-    math::mat::Matrix4f,
-    resources::ResourceCollection,
-    utils::id_vec::IdVec,
+    }, math::mat::Matrix4f, resources::{Rsc, RscMut}, utils::id_vec::IdVec
 };
 
 pub struct CameraData {
@@ -27,21 +24,20 @@ pub struct CameraData {
 }
 
 pub fn create_camera_data(
-    resources: &ResourceCollection,
     vfov: f32,
     near: f32,
     far: f32,
 ) -> Result<u32, VulkanError> {
-    let projection_matrix = Matrix4f::perspective(vfov, get_aspect_ratio(resources), near, far);
-    let projection_buffer_id = create_buffer(resources, vec![projection_matrix])?;
-    let projection_set_id = create_descriptor_set(resources, vec![DescriptorSetBinding::new(
+    let projection_matrix = Matrix4f::perspective(vfov, get_aspect_ratio(), near, far);
+    let projection_buffer_id = create_buffer(vec![projection_matrix])?;
+    let projection_set_id = create_descriptor_set(vec![DescriptorSetBinding::new(
         0,
         DescriptorType::UNIFORM_BUFFER,
         DescriptorStage::VERTEX,
     )])?;
     {
-        let descriptor_sets = resources.get::<IdVec<Arc<DescriptorSet>>>().unwrap();
-        let buffers = resources.get::<IdVec<Arc<Buffer>>>().unwrap();
+        let descriptor_sets = Rsc::<IdVec<Arc<DescriptorSet>>>::get().unwrap();
+        let buffers = Rsc::<IdVec<Arc<Buffer>>>::get().unwrap();
         let projection_set = descriptor_sets.get(projection_set_id).unwrap();
         let projection_buffer = buffers.get(projection_buffer_id).unwrap();
         projection_set.bind_buffer(projection_buffer.clone(), 0)?;
@@ -55,14 +51,14 @@ pub fn create_camera_data(
         projection_set_id,
         changed: false,
     };
-    let mut cameras = resources.get_mut::<IdVec<CameraData>>().unwrap();
+    let mut cameras = RscMut::<IdVec<CameraData>>::get().unwrap();
     Ok(cameras.push(camera_data))
 }
 
-pub fn update_camera_data(resources: &ResourceCollection) -> Result<(), VulkanError> {
-    let aspect_ratio = get_aspect_ratio(resources);
-    let mut cameras = resources.get_mut::<IdVec<CameraData>>().unwrap();
-    let mut buffers = resources.get_mut::<IdVec<Arc<Buffer>>>().unwrap();
+pub fn update_camera_data() -> Result<(), VulkanError> {
+    let aspect_ratio = get_aspect_ratio();
+    let mut cameras = RscMut::<IdVec<CameraData>>::get().unwrap();
+    let mut buffers = RscMut::<IdVec<Arc<Buffer>>>::get().unwrap();
     for camera in cameras.iter_mut() {
         camera.projection_matrix =
             Matrix4f::perspective(camera.vfov, aspect_ratio, camera.near, camera.far);

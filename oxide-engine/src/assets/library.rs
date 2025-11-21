@@ -43,12 +43,11 @@ impl AssetLibrary {
         &mut self,
         mut value: A,
         world: &mut crate::ecs::world::World,
-        resources: &mut crate::resources::ResourceCollection,
     ) -> Result<u32, AssetLibraryError> {
         let type_id = TypeId::of::<A>();
 
         value
-            .on_load(super::AssetLoadInput { world, resources })
+            .on_load(super::AssetLoadInput { world })
             .unwrap();
 
         let vec = self

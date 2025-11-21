@@ -2,7 +2,7 @@ use keys::Keys;
 
 use crate::{
     ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
-    input::key::{KeyCode, KeyState},
+    input::key::{KeyCode, KeyState}, resources::{Rsc, RscMut},
 };
 
 pub mod key;
@@ -32,28 +32,28 @@ pub struct InputBundle {}
 impl SystemBundle for InputBundle {
     fn systems(self) -> Vec<System> {
         vec![
-            System::new(SystemTrigger::Start, |SystemInput { resources, .. }| {
-                resources.add(Input::new()).unwrap();
+            System::new(SystemTrigger::Start, |SystemInput { .. }| {
+                Rsc::add(Input::new()).unwrap();
             }),
             System::new(
                 SystemTrigger::Render,
-                |SystemInput { resources, .. }| {
-                    let mut input = resources.get_mut::<Input>().unwrap();
+                |SystemInput { .. }| {
+                    let mut input = RscMut::<Input>::get().unwrap();
                     input.keys.clear();
                 },
             ),
             System::new(
                 SystemTrigger::WindowCursorLeft,
-                |SystemInput { resources, .. }| {
-                    let mut input = resources.get_mut::<Input>().unwrap();
+                |SystemInput { .. }| {
+                    let mut input = RscMut::<Input>::get().unwrap();
                     input.keys.clear_all();
                 },
             ),
             System::new(
                 SystemTrigger::KeyboardInput,
-                |SystemInput { resources, .. }| {
-                    let mut input = resources.get_mut::<Input>().unwrap();
-                    let event = resources.get::<InputEvent>().unwrap();
+                |SystemInput { .. }| {
+                    let mut input = RscMut::<Input>::get().unwrap();
+                    let event = Rsc::<InputEvent>::get().unwrap();
                     input.keys.process_input_event(*event);
                 },
             ),

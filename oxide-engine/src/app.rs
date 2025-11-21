@@ -6,8 +6,7 @@ use crate::{
         system::{SystemInput, SystemTrigger, Systems},
         world::World,
     },
-    input::InputEvent,
-    resources::ResourceCollection,
+    input::InputEvent, resources::Rsc,
 };
 
 #[allow(unused)]
@@ -15,7 +14,6 @@ pub struct App {
     world: World,
     pub systems: Systems,
     assets: AssetLibrary,
-    resources: ResourceCollection,
 }
 
 impl App {
@@ -24,7 +22,6 @@ impl App {
             world: World::new(),
             systems: Systems::new(),
             assets: AssetLibrary::new(),
-            resources: ResourceCollection::new(),
         }
     }
 
@@ -33,7 +30,6 @@ impl App {
             .execute_type(SystemTrigger::Start, SystemInput {
                 world: &mut self.world,
                 assets: &mut self.assets,
-                resources: &mut self.resources,
             });
 
         let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
@@ -72,7 +68,6 @@ impl winit::application::ApplicationHandler for App {
             .execute_type(SystemTrigger::LateStart, SystemInput {
                 world: &mut self.world,
                 assets: &mut self.assets,
-                resources: &mut self.resources,
             });
 
         ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);
@@ -95,26 +90,24 @@ impl winit::application::ApplicationHandler for App {
                 ..
             } => {
                 if let winit::keyboard::PhysicalKey::Code(key_code) = physical_key {
-                    self.resources
-                        .add(InputEvent::new(key_code.into(), state.into()))
-                        .unwrap();
+                    Rsc::add(InputEvent::new(key_code.into(), state.into())).unwrap();
                 }
 
                 self.systems
                     .execute_type(SystemTrigger::KeyboardInput, SystemInput {
                         world: &mut self.world,
                         assets: &mut self.assets,
-                        resources: &mut self.resources,
                     });
 
-                let _ = self.resources.remove::<InputEvent>();
+                if let winit::keyboard::PhysicalKey::Code(_) = physical_key {
+                    Rsc::<InputEvent>::remove().unwrap();
+                }
             },
             winit::event::WindowEvent::CursorLeft { device_id: _ } => {
                 self.systems
                     .execute_type(SystemTrigger::WindowCursorLeft, SystemInput {
                         world: &mut self.world,
                         assets: &mut self.assets,
-                        resources: &mut self.resources,
                     });
             },
             winit::event::WindowEvent::Resized(_) => {
@@ -122,14 +115,12 @@ impl winit::application::ApplicationHandler for App {
                     .execute_type(SystemTrigger::WindowResized, SystemInput {
                         world: &mut self.world,
                         assets: &mut self.assets,
-                        resources: &mut self.resources,
                     });
             },
             winit::event::WindowEvent::CloseRequested => {
                 self.systems.execute_type(SystemTrigger::End, SystemInput {
                     world: &mut self.world,
                     assets: &mut self.assets,
-                    resources: &mut self.resources,
                 });
                 event_loop.exit();
             },
@@ -138,7 +129,6 @@ impl winit::application::ApplicationHandler for App {
                     .execute_type(SystemTrigger::Render, SystemInput {
                         world: &mut self.world,
                         assets: &mut self.assets,
-                        resources: &mut self.resources,
                     });
             },
             _ => (),
@@ -150,7 +140,6 @@ impl winit::application::ApplicationHandler for App {
             .execute_type(SystemTrigger::Update, SystemInput {
                 world: &mut self.world,
                 assets: &mut self.assets,
-                resources: &mut self.resources,
             });
     }
 }

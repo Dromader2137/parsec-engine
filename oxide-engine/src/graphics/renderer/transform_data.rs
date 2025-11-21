@@ -12,7 +12,7 @@ use crate::{
         },
     },
     math::{mat::Matrix4f, vec::Vec3f},
-    resources::ResourceCollection,
+    resources::{Rsc, RscMut},
     utils::id_vec::IdVec,
 };
 
@@ -28,7 +28,6 @@ pub struct TransformData {
 }
 
 pub fn create_transform_data(
-    resources: &ResourceCollection,
     position: Vec3f,
     scale: Vec3f,
     rotation: Vec3f,
@@ -37,21 +36,21 @@ pub fn create_transform_data(
     let _ = scale;
     let model_matrix = Matrix4f::translation(position);
     let look_at_matrix = Matrix4f::look_at(position, Vec3f::FORWARD, Vec3f::UP);
-    let model_buffer_id = create_buffer(resources, vec![model_matrix])?;
-    let look_at_buffer_id = create_buffer(resources, vec![look_at_matrix])?;
-    let model_set_id = create_descriptor_set(resources, vec![DescriptorSetBinding::new(
+    let model_buffer_id = create_buffer(vec![model_matrix])?;
+    let look_at_buffer_id = create_buffer(vec![look_at_matrix])?;
+    let model_set_id = create_descriptor_set(vec![DescriptorSetBinding::new(
         0,
         DescriptorType::UNIFORM_BUFFER,
         DescriptorStage::VERTEX,
     )])?;
-    let look_at_set_id = create_descriptor_set(resources, vec![DescriptorSetBinding::new(
+    let look_at_set_id = create_descriptor_set(vec![DescriptorSetBinding::new(
         0,
         DescriptorType::UNIFORM_BUFFER,
         DescriptorStage::VERTEX,
     )])?;
     {
-        let descriptor_sets = resources.get::<IdVec<Arc<DescriptorSet>>>().unwrap();
-        let buffers = resources.get::<IdVec<Arc<Buffer>>>().unwrap();
+        let descriptor_sets = Rsc::<IdVec<Arc<DescriptorSet>>>::get().unwrap();
+        let buffers = Rsc::<IdVec<Arc<Buffer>>>::get().unwrap();
         let model_set = descriptor_sets.get(model_set_id).unwrap();
         let model_buffer = buffers.get(model_buffer_id).unwrap();
         model_set.bind_buffer(model_buffer.clone(), 0)?;
@@ -68,6 +67,6 @@ pub fn create_transform_data(
         look_at_set_id,
         changed: false,
     };
-    let mut transforms = resources.get_mut::<IdVec<TransformData>>().unwrap();
+    let mut transforms = RscMut::<IdVec<TransformData>>::get().unwrap();
     Ok(transforms.push(transform_data))
 }

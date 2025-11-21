@@ -43,7 +43,7 @@ use crate::{
         },
     },
     math::vec::Vec3f,
-    resources::ResourceCollection,
+    resources::{Rsc, RscMut},
     utils::id_vec::IdVec,
 };
 
@@ -129,32 +129,32 @@ fn create_commad_buffers(
     Ok(ret)
 }
 
-pub fn init_renderer(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
+pub fn init_renderer() -> Result<(), VulkanError> {
     let renderpass = {
-        let surface = resources.get::<Arc<Surface>>().unwrap();
-        let device = resources.get::<Arc<Device>>().unwrap();
+        let surface = Rsc::<Arc<Surface>>::get().unwrap();
+        let device = Rsc::<Arc<Device>>::get().unwrap();
         Renderpass::new(surface.clone(), device.clone())?
     };
-    resources.add(renderpass).unwrap();
-    init_renderer_images(resources).unwrap();
+    Rsc::add(renderpass).unwrap();
+    init_renderer_images().unwrap();
     let frames_in_flight = {
-        let swapchain = resources.get::<Arc<Swapchain>>().unwrap();
+        let swapchain = Rsc::<Arc<Swapchain>>::get().unwrap();
         2.min(swapchain.swapchain_images.len()).max(1)
     };
     let (frame_sync, image_sync) = {
-        let device = resources.get::<Arc<Device>>().unwrap();
-        let swapchain = resources.get::<Arc<Swapchain>>().unwrap();
+        let device = Rsc::<Arc<Device>>::get().unwrap();
+        let swapchain = Rsc::<Arc<Swapchain>>::get().unwrap();
         let frame_sync = create_frame_sync(device.clone(), frames_in_flight)?;
         let image_sync = create_image_sync(device.clone(), swapchain.swapchain_images.len())?;
         (frame_sync, image_sync)
     };
     let command_buffers = {
-        let command_pool = resources.get::<Arc<CommandPool>>().unwrap();
+        let command_pool = Rsc::<Arc<CommandPool>>::get().unwrap();
         create_commad_buffers(command_pool.clone(), frames_in_flight)?
     };
 
     let descriptor_pool = {
-        let device = resources.get::<Arc<Device>>().unwrap();
+        let device = Rsc::<Arc<Device>>::get().unwrap();
         DescriptorPool::new(device.clone(), 32, &[DescriptorPoolSize::new(
             16,
             DescriptorType::UNIFORM_BUFFER,
@@ -162,86 +162,83 @@ pub fn init_renderer(resources: &mut ResourceCollection) -> Result<(), VulkanErr
     };
 
     let graphics_queue = {
-        let physical_device = resources.get::<Arc<PhysicalDevice>>().unwrap();
-        let device = resources.get::<Arc<Device>>().unwrap();
+        let physical_device = Rsc::<Arc<PhysicalDevice>>::get().unwrap();
+        let device = Rsc::<Arc<Device>>::get().unwrap();
         Queue::present(device.clone(), physical_device.get_queue_family_index())
     };
 
-    resources.add(frame_sync).unwrap();
-    resources.add(image_sync).unwrap();
-    resources.add(command_buffers).unwrap();
-    resources.add(descriptor_pool).unwrap();
-    resources.add(graphics_queue).unwrap();
-    resources.add(FramesInFlight(frames_in_flight)).unwrap();
-    resources.add(RendererCurrentFrame(0)).unwrap();
-    resources.add(RendererResizeFlag(false)).unwrap();
-    resources.add(Vec::<Draw>::new()).unwrap();
-    resources.add(IdVec::<Arc<MaterialBase>>::new()).unwrap();
-    resources.add(IdVec::<Arc<ShaderModule>>::new()).unwrap();
-    resources.add(IdVec::<Arc<Buffer>>::new()).unwrap();
-    resources
-        .add(IdVec::<MeshData<DefaultVertex>>::new())
+    Rsc::add(frame_sync).unwrap();
+    Rsc::add(image_sync).unwrap();
+    Rsc::add(command_buffers).unwrap();
+    Rsc::add(descriptor_pool).unwrap();
+    Rsc::add(graphics_queue).unwrap();
+    Rsc::add(FramesInFlight(frames_in_flight)).unwrap();
+    Rsc::add(RendererCurrentFrame(0)).unwrap();
+    Rsc::add(RendererResizeFlag(false)).unwrap();
+    Rsc::add(Vec::<Draw>::new()).unwrap();
+    Rsc::add(IdVec::<Arc<MaterialBase>>::new()).unwrap();
+    Rsc::add(IdVec::<Arc<ShaderModule>>::new()).unwrap();
+    Rsc::add(IdVec::<Arc<Buffer>>::new()).unwrap();
+    Rsc::add(IdVec::<MeshData<DefaultVertex>>::new())
         .unwrap();
-    resources.add(IdVec::<MaterialData>::new()).unwrap();
-    resources.add(IdVec::<TransformData>::new()).unwrap();
-    resources.add(IdVec::<CameraData>::new()).unwrap();
-    resources.add(IdVec::<Arc<DescriptorSet>>::new()).unwrap();
+    Rsc::add(IdVec::<MaterialData>::new()).unwrap();
+    Rsc::add(IdVec::<TransformData>::new()).unwrap();
+    Rsc::add(IdVec::<CameraData>::new()).unwrap();
+    Rsc::add(IdVec::<Arc<DescriptorSet>>::new()).unwrap();
 
     Ok(())
 }
 
 pub fn create_descriptor_set(
-    resources: &ResourceCollection,
     descriptor_set_bindings: Vec<DescriptorSetBinding>,
 ) -> Result<u32, VulkanError> {
-    let descriptor_pool = resources.get::<Arc<DescriptorPool>>().unwrap();
-    let device = resources.get::<Arc<Device>>().unwrap();
+    let descriptor_pool = Rsc::<Arc<DescriptorPool>>::get().unwrap();
+    let device = Rsc::<Arc<Device>>::get().unwrap();
     let descriptor_layout = DescriptorSetLayout::new(device.clone(), descriptor_set_bindings)?;
     let descriptor_set = DescriptorSet::new(descriptor_layout, descriptor_pool.clone())?;
-    let mut descriptor_sets = resources.get_mut::<IdVec<Arc<DescriptorSet>>>().unwrap();
+    let mut descriptor_sets = RscMut::<IdVec<Arc<DescriptorSet>>>::get().unwrap();
     Ok(descriptor_sets.push(descriptor_set))
 }
 
 fn recreate_size_dependent_components(
-    resources: &mut ResourceCollection,
 ) -> Result<(), VulkanError> {
     {
-        let renderpass = resources.get::<Arc<Renderpass>>().unwrap();
-        renderpass.device.wait_idle()?;
+        let device = Rsc::<Arc<Device>>::get().unwrap();
+        device.wait_idle()?;
     }
 
-    recreate_renderer_images(resources)?;
+    recreate_renderer_images()?;
 
     Ok(())
 }
 
-pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
+pub fn render() -> Result<(), VulkanError> {
     let current_frame = {
-        let current_frame = resources.get::<RendererCurrentFrame>().unwrap();
-        let frame_sync = resources.get::<Vec<VulkanRendererFrameSync>>().unwrap();
+        let current_frame = Rsc::<RendererCurrentFrame>::get().unwrap();
+        let frame_sync = Rsc::<Vec<VulkanRendererFrameSync>>::get().unwrap();
         frame_sync[current_frame.0].command_buffer_fence.wait()?;
         current_frame.0
     };
 
     {
-        let surface = resources.get::<Arc<Surface>>().unwrap();
+        let surface = Rsc::<Arc<Surface>>::get().unwrap();
         if surface.window.minimized() {
             return Ok(());
         }
     }
 
     {
-        let resize = { resources.get::<RendererResizeFlag>().unwrap().0 };
+        let resize = { Rsc::<RendererResizeFlag>::get().unwrap().0 };
         if resize {
-            recreate_size_dependent_components(resources)?;
-            resources.get_mut::<RendererResizeFlag>().unwrap().0 = false;
+            recreate_size_dependent_components()?;
+            RscMut::<RendererResizeFlag>::get().unwrap().0 = false;
         }
     }
 
     let present_index = {
-        let swapchain = resources.get::<Arc<Swapchain>>().unwrap();
-        let frame_sync = resources.get::<Vec<VulkanRendererFrameSync>>().unwrap();
-        let mut resize = resources.get_mut::<RendererResizeFlag>().unwrap();
+        let swapchain = Rsc::<Arc<Swapchain>>::get().unwrap();
+        let frame_sync = Rsc::<Vec<VulkanRendererFrameSync>>::get().unwrap();
+        let mut resize = RscMut::<RendererResizeFlag>::get().unwrap();
         let (present_index, suboptimal) = swapchain.acquire_next_image(
             frame_sync[current_frame].image_available_semaphore.clone(),
             Fence::null(swapchain.device.clone()),
@@ -252,11 +249,11 @@ pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
     };
 
     let command_buffer = {
-        let command_buffers = resources.get::<Vec<Arc<CommandBuffer>>>().unwrap();
+        let command_buffers = Rsc::<Vec<Arc<CommandBuffer>>>::get().unwrap();
         command_buffers[current_frame].clone()
     };
     let framebuffer = {
-        let framebuffers = resources.get::<Vec<Arc<Framebuffer>>>().unwrap();
+        let framebuffers = Rsc::<Vec<Arc<Framebuffer>>>::get().unwrap();
         framebuffers[present_index].clone()
     };
 
@@ -267,9 +264,9 @@ pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
         command_buffer.set_viewports(framebuffer.clone());
         command_buffer.set_scissor(framebuffer);
 
-        let draw_queue = resources.get::<Vec<Draw>>().unwrap();
-        let materials = resources.get::<IdVec<MaterialData>>().unwrap();
-        let meshes = resources.get::<IdVec<MeshData<DefaultVertex>>>().unwrap();
+        let draw_queue = Rsc::<Vec<Draw>>::get().unwrap();
+        let materials = Rsc::<IdVec<MaterialData>>::get().unwrap();
+        let meshes = Rsc::<IdVec<MeshData<DefaultVertex>>>::get().unwrap();
 
         for draw in draw_queue.iter() {
             match draw {
@@ -283,7 +280,6 @@ pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
                     let material = materials.get(*material_id).unwrap();
                     let mesh = meshes.get(*mesh_id).unwrap();
                     material.bind(
-                        resources,
                         command_buffer.clone(),
                         *camera_id,
                         *camera_transform_id,
@@ -298,10 +294,10 @@ pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
     }
 
     {
-        let swapchain = resources.get::<Arc<Swapchain>>().unwrap();
-        let graphics_queue = resources.get::<Arc<Queue>>().unwrap();
-        let frame_sync = resources.get::<Vec<VulkanRendererFrameSync>>().unwrap();
-        let image_sync = resources.get::<Vec<VulkanRendererImageSync>>().unwrap();
+        let swapchain = Rsc::<Arc<Swapchain>>::get().unwrap();
+        let graphics_queue = Rsc::<Arc<Queue>>::get().unwrap();
+        let frame_sync = Rsc::<Vec<VulkanRendererFrameSync>>::get().unwrap();
+        let image_sync = Rsc::<Vec<VulkanRendererImageSync>>::get().unwrap();
         graphics_queue.submit(
             &[frame_sync[current_frame].image_available_semaphore.clone()],
             &[image_sync[present_index]
@@ -321,33 +317,31 @@ pub fn render(resources: &mut ResourceCollection) -> Result<(), VulkanError> {
     }
 
     {
-        let mut current_frame = resources.get_mut::<RendererCurrentFrame>().unwrap();
-        let frames_in_flight = resources.get::<FramesInFlight>().unwrap();
+        let mut current_frame = RscMut::<RendererCurrentFrame>::get().unwrap();
+        let frames_in_flight = Rsc::<FramesInFlight>::get().unwrap();
         current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
     }
     Ok(())
 }
 
 pub fn create_shader(
-    resources: &ResourceCollection,
     code: &[u32],
     shader_type: ShaderType,
 ) -> Result<u32, VulkanError> {
     let shader = {
-        let device = resources.get::<Arc<Device>>().unwrap();
+        let device = Rsc::<Arc<Device>>::get().unwrap();
         ShaderModule::new(device.clone(), code, shader_type)?
     };
 
-    let mut shader_modules = resources.get_mut::<IdVec<Arc<ShaderModule>>>().unwrap();
+    let mut shader_modules = RscMut::<IdVec<Arc<ShaderModule>>>::get().unwrap();
     Ok(shader_modules.push(shader))
 }
 
 pub fn create_buffer<T: Copy + Clone>(
-    resources: &ResourceCollection,
     data: Vec<T>,
 ) -> Result<u32, VulkanError> {
-    let device = resources.get::<Arc<Device>>().unwrap();
-    let mut buffers = resources.get_mut::<IdVec<Arc<Buffer>>>().unwrap();
+    let device = Rsc::<Arc<Device>>::get().unwrap();
+    let mut buffers = RscMut::<IdVec<Arc<Buffer>>>::get().unwrap();
     Ok(buffers.push(Buffer::from_vec(
         device.clone(),
         &data,
@@ -356,28 +350,27 @@ pub fn create_buffer<T: Copy + Clone>(
 }
 
 pub fn update_buffer<T: Copy + Clone>(
-    resources: &ResourceCollection,
     buffer_id: u32,
     data: Vec<T>,
 ) -> Result<(), VulkanError> {
-    let mut buffers = resources.get_mut::<IdVec<Arc<Buffer>>>().unwrap();
+    let mut buffers = RscMut::<IdVec<Arc<Buffer>>>::get().unwrap();
     let buffer = buffers.get_mut(buffer_id).unwrap();
     buffer.update(data)?;
     Ok(())
 }
 
-pub fn get_aspect_ratio(resources: &ResourceCollection) -> f32 {
-    let surface = resources.get::<Arc<Surface>>().unwrap();
+pub fn get_aspect_ratio() -> f32 {
+    let surface = Rsc::<Arc<Surface>>::get().unwrap();
     surface.aspect_ratio()
 }
 
-pub fn queue_draw(resources: &ResourceCollection, draw: Draw) {
-    let mut draw_queue = resources.get_mut::<Vec<Draw>>().unwrap();
+pub fn queue_draw(draw: Draw) {
+    let mut draw_queue = RscMut::<Vec<Draw>>::get().unwrap();
     draw_queue.push(draw);
 }
 
-pub fn queue_clear(resources: &ResourceCollection) {
-    let mut draw_queue = resources.get_mut::<Vec<Draw>>().unwrap();
+pub fn queue_clear() {
+    let mut draw_queue = RscMut::<Vec<Draw>>::get().unwrap();
     draw_queue.clear();
 }
 

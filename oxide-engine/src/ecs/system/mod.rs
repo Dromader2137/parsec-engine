@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{assets::library::AssetLibrary, ecs::world::World, resources::ResourceCollection};
+use crate::{assets::library::AssetLibrary, ecs::world::World};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum SystemTrigger {
@@ -53,7 +53,6 @@ impl Systems {
 pub struct SystemInput<'a> {
     pub world: &'a mut World,
     pub assets: &'a mut AssetLibrary,
-    pub resources: &'a mut ResourceCollection,
 }
 
 pub struct System {

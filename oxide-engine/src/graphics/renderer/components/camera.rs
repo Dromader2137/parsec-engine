@@ -1,6 +1,5 @@
 use crate::{
     ecs::world::component::Component, graphics::renderer::camera_data::create_camera_data,
-    resources::ResourceCollection,
 };
 
 #[derive(Component)]
@@ -13,13 +12,11 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(
-        resources: &ResourceCollection,
         vertical_fov: f32,
         near_clipping_plane: f32,
         far_clipping_plane: f32,
     ) -> Camera {
         let data_id = create_camera_data(
-            resources,
             vertical_fov,
             near_clipping_plane,
             far_clipping_plane,

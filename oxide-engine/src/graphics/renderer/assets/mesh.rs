@@ -22,9 +22,9 @@ impl Mesh {
 impl Asset for Mesh {
     fn on_load(
         &mut self,
-        AssetLoadInput { resources, .. }: AssetLoadInput,
+        AssetLoadInput { .. }: AssetLoadInput,
     ) -> Result<(), AssetError> {
-        self.data_id = Some(create_mesh_data(resources, &self.vertices, &self.indices).unwrap());
+        self.data_id = Some(create_mesh_data(&self.vertices, &self.indices).unwrap());
         Ok(())
     }
 }
