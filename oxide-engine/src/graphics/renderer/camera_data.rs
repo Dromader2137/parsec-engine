@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    ecs::world::{World, query::{Query, QueryIter}},
+    ecs::world::{World, query::{OldQuery, OldQueryIter}},
     graphics::{
         renderer::components::camera::Camera,
         vulkan::{
@@ -74,7 +74,7 @@ fn add_camera_data(
     surface: Resource<Arc<Surface>>,
     descriptor_pool: Resource<Arc<DescriptorPool>>,
     mut cameras_data: Resource<IdVec<CameraData>>,
-    mut cameras: Query<&mut [Camera]>
+    mut cameras: OldQuery<&mut [Camera]>
 ) {
     while let Some((_, camera)) = cameras.next() {
         if camera.data_id.is_none() {

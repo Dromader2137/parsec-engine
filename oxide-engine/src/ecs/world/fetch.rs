@@ -7,13 +7,10 @@ use crate::ecs::world::{
     component::Component,
 };
 
-pub trait Fetch<'a>: Sized {
-    type Item<'b>
-    where
-        'a: 'b,
-        Self: 'b;
+pub trait Fetch<'w>: Sized {
+    type Item<'a> where Self: 'a;
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError>;
-    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError>;
+    fn borrow(world: &'w Archetype) -> Result<Self, ArchetypeError>;
     fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError>;
     fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b>;
     fn count(&self) -> usize;

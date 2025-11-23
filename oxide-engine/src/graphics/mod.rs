@@ -7,7 +7,7 @@ use crate::{
     app::{self},
     ecs::{
         system::{System, SystemBundle, SystemTrigger},
-        world::{World, query::{Query, QueryIter}},
+        world::{World, query::{OldQuery, OldQueryIter}},
     },
     error::EngineError,
     graphics::{
@@ -79,12 +79,12 @@ fn init_window() {
     Resources::add(window).unwrap();
 }
 
-#[system]
+// #[system]
 fn auto_enqueue(
     mut draw_queue: Resource<Vec<Draw>>,
     meshes: Resource<IdVec<Mesh>>,
-    mut cameras: Query<(&[Transform], &[Camera])>,
-    mut mesh_renderers: Query<(&[Transform], &[MeshRenderer])>,
+    mut cameras: OldQuery<(&[Transform], &[Camera])>,
+    mut mesh_renderers: OldQuery<(&[Transform], &[MeshRenderer])>,
 ) {
     while let Some((_, (camera_transform, camera))) = cameras.next() {
         while let Some((_, (transform, mesh_renderer))) = mesh_renderers.next() {
@@ -106,4 +106,27 @@ fn auto_enqueue(
             }));
         }
     }
-}
+}    
+pub struct AutoEnqueue;
+    impl AutoEnqueue {
+        pub fn new() -> Box<Self> {
+            Box::new(Self)
+        }
+    }
+    impl crate::ecs::system::System for AutoEnqueue {
+        fn run(&mut self) {
+            let mut draw_queue = <Resource<
+                Vec<Draw>,
+            > as crate::ecs::system::SystemInput>::borrow();
+            let meshes = <Resource<
+                IdVec<Mesh>,
+            > as crate::ecs::system::SystemInput>::borrow();
+            let mut cameras = <OldQuery<
+                (&[Transform], &[Camera]),
+            > as crate::ecs::system::SystemInput>::borrow();
+            let mut mesh_renderers = <OldQuery<
+                (&[Transform], &[MeshRenderer]),
+            > as crate::ecs::system::SystemInput>::borrow();
+            auto_enqueue(draw_queue, meshes, cameras, mesh_renderers);
+        }
+    }

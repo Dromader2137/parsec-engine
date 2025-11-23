@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
 use crate::ecs::{
     entity::Entity, system::SystemInput, world::{
@@ -6,8 +6,15 @@ use crate::ecs::{
     }
 };
 
-#[derive(Debug)]
-pub struct Query<'a, T: Fetch<'a>> {
+pub struct Query<T>
+where 
+    T: for<'a> Fetch<'a>
+{
+    archetype_ids: Vec<ArchetypeId>,
+    fetch: PhantomData<T>
+}
+
+pub struct QueryIter<'a, T: Fetch<'a>> {
     outside_len: usize,
     inside_len: usize,
     outside_idx: usize,
@@ -17,16 +24,21 @@ pub struct Query<'a, T: Fetch<'a>> {
     archetypes: Vec<&'a Archetype>,
 }
 
-impl<'a, T: Fetch<'a>> SystemInput for Query<'a, T> {
-    fn borrow() -> Self {
-        world.query().unwrap()
-    }
+#[derive(Debug)]
+pub struct OldQuery<'a, T: Fetch<'a>> {
+    outside_len: usize,
+    inside_len: usize,
+    outside_idx: usize,
+    inside_idx: usize,
+    released: bool,
+    fetch: Vec<T>,
+    archetypes: Vec<&'a Archetype>,
 }
 
-impl<'a, T: Fetch<'a>> Query<'a, T> {
+impl<'a, T: Fetch<'a>> OldQuery<'a, T> {
     pub fn new(
         archetype_map: &'a HashMap<ArchetypeId, Archetype>,
-    ) -> Result<Query<'a, T>, ArchetypeError> {
+    ) -> Result<OldQuery<'a, T>, ArchetypeError> {
         let mut fetch = Vec::new();
         let mut archetypes = Vec::new();
         let t_archetype_id = T::archetype_id()?;
@@ -43,7 +55,7 @@ impl<'a, T: Fetch<'a>> Query<'a, T> {
             None => 0,
         };
 
-        Ok(Query {
+        Ok(OldQuery {
             outside_len: fetch.len(),
             inside_len,
             outside_idx: 0,
@@ -63,7 +75,7 @@ impl<'a, T: Fetch<'a>> Query<'a, T> {
     }
 }
 
-impl<'a, T: Fetch<'a>> Drop for Query<'a, T> {
+impl<'a, T: Fetch<'a>> Drop for OldQuery<'a, T> {
     fn drop(&mut self) {
         if !self.released {
             self.release_lock().expect("Clean lock release");
@@ -71,14 +83,14 @@ impl<'a, T: Fetch<'a>> Drop for Query<'a, T> {
     }
 }
 
-pub trait QueryIter {
+pub trait OldQueryIter {
     type Item<'b>
     where
         Self: 'b;
     fn next<'b>(&'b mut self) -> Option<Self::Item<'b>>;
 }
 
-impl<'a, T: Fetch<'a>> QueryIter for Query<'a, T> {
+impl<'a, T: Fetch<'a>> OldQueryIter for OldQuery<'a, T> {
     type Item<'b>
         = (Entity, T::Item<'b>)
     where

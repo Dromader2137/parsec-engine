@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    ecs::world::{World, query::{Query, QueryIter}},
+    ecs::world::{World, query::{OldQuery, OldQueryIter, Query}},
     graphics::{
         renderer::components::transform::Transform,
         vulkan::{
@@ -82,7 +82,7 @@ fn add_transform_data(
     device: Resource<Arc<Device>>,
     descriptor_pool: Resource<Arc<DescriptorPool>>,
     mut transforms_data: Resource<IdVec<TransformData>>,
-    mut transforms: Query<&'static mut [Transform]>)
+    mut transforms: Query<&mut [Transform]>)
 {
     while let Some((_, transform)) = transforms.next() {
         if transform.data_id.is_none() {

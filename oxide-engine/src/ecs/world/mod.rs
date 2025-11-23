@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Debug, sync::RwLock};
 use archetype::{Archetype, ArchetypeError, ArchetypeId};
 use fetch::Fetch;
 use once_cell::sync::Lazy;
-use query::Query;
+use query::OldQuery;
 use spawn::Spawn;
 
 use crate::{
@@ -77,8 +77,8 @@ impl World {
     }
 
     /// Query all entities containing component specified inside T
-    fn query<'a, T: Fetch<'a>>(&'a self) -> Result<Query<'a, T>, WorldError> {
-        Ok(Query::new(&self.archetypes)?)
+    fn query<'a, T: Fetch<'a>>(&'a self) -> Result<OldQuery<'a, T>, WorldError> {
+        Ok(OldQuery::new(&self.archetypes)?)
     }
 
     /// Delete an entity
