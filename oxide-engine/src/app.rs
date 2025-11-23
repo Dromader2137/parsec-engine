@@ -1,37 +1,30 @@
-use std::{cell::RefCell, ptr::NonNull};
+use std::{cell::RefCell, ptr::NonNull, sync::Mutex};
 
 use crate::{
-    assets::library::AssetLibrary,
     ecs::{
-        system::{SystemInput, SystemTrigger, Systems},
+        system::{SystemTrigger, Systems},
         world::World,
     },
     input::InputEvent,
-    resources::Rsc,
+    resources::Resources,
 };
 
 #[allow(unused)]
 pub struct App {
-    world: World,
     pub systems: Systems,
-    assets: AssetLibrary,
 }
 
 impl App {
     pub fn new() -> App {
         App {
-            world: World::new(),
             systems: Systems::new(),
-            assets: AssetLibrary::new(),
         }
     }
 
     pub fn run(&mut self) {
-        self.systems
-            .execute_type(SystemTrigger::Start, SystemInput {
-                world: &mut self.world,
-                assets: &mut self.assets,
-            });
+        self.systems.execute_type(SystemTrigger::Start);
+
+        Resources::add(Mutex::new(World::new())).unwrap();
 
         let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
@@ -65,13 +58,7 @@ impl winit::application::ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = Some(ActiveEventLoopStore::new(event_loop)));
 
-        self.systems
-            .execute_type(SystemTrigger::LateStart, SystemInput {
-                world: &mut self.world,
-                assets: &mut self.assets,
-            });
-
-        ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);
+        self.systems.execute_type(SystemTrigger::LateStart);
     }
 
     fn window_event(
@@ -91,56 +78,34 @@ impl winit::application::ApplicationHandler for App {
                 ..
             } => {
                 if let winit::keyboard::PhysicalKey::Code(key_code) = physical_key {
-                    Rsc::add(InputEvent::new(key_code.into(), state.into())).unwrap();
+                    Resources::add(InputEvent::new(key_code.into(), state.into())).unwrap();
                 }
 
-                self.systems
-                    .execute_type(SystemTrigger::KeyboardInput, SystemInput {
-                        world: &mut self.world,
-                        assets: &mut self.assets,
-                    });
+                self.systems.execute_type(SystemTrigger::KeyboardInput);
 
                 if let winit::keyboard::PhysicalKey::Code(_) = physical_key {
-                    Rsc::<InputEvent>::remove().unwrap();
+                    Resources::remove::<InputEvent>().unwrap();
                 }
             },
             winit::event::WindowEvent::CursorLeft { device_id: _ } => {
-                self.systems
-                    .execute_type(SystemTrigger::WindowCursorLeft, SystemInput {
-                        world: &mut self.world,
-                        assets: &mut self.assets,
-                    });
+                self.systems.execute_type(SystemTrigger::WindowCursorLeft);
             },
             winit::event::WindowEvent::Resized(_) => {
-                self.systems
-                    .execute_type(SystemTrigger::WindowResized, SystemInput {
-                        world: &mut self.world,
-                        assets: &mut self.assets,
-                    });
+                self.systems.execute_type(SystemTrigger::WindowResized);
             },
             winit::event::WindowEvent::CloseRequested => {
-                self.systems.execute_type(SystemTrigger::End, SystemInput {
-                    world: &mut self.world,
-                    assets: &mut self.assets,
-                });
+                ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);
+                self.systems.execute_type(SystemTrigger::End);
                 event_loop.exit();
             },
             winit::event::WindowEvent::RedrawRequested => {
-                self.systems
-                    .execute_type(SystemTrigger::Render, SystemInput {
-                        world: &mut self.world,
-                        assets: &mut self.assets,
-                    });
+                self.systems.execute_type(SystemTrigger::Render);
             },
             _ => (),
         }
     }
 
     fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-        self.systems
-            .execute_type(SystemTrigger::Update, SystemInput {
-                world: &mut self.world,
-                assets: &mut self.assets,
-            });
+        self.systems.execute_type(SystemTrigger::Update);
     }
 }

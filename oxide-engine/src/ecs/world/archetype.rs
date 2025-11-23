@@ -1,9 +1,8 @@
 use std::{
     any::TypeId,
-    cell::RefCell,
     collections::{HashMap, HashSet},
     fmt::Debug,
-    hash::{DefaultHasher, Hash, Hasher},
+    hash::{DefaultHasher, Hash, Hasher}, sync::RwLock,
 };
 
 use oxide_engine_macros::{impl_spawn, multiple_tuples};
@@ -126,8 +125,8 @@ enum ArchetypeColumnAccess {
 #[derive(Debug)]
 struct ArchetypeColumn {
     data: Vec<u8>,
-    access: RefCell<ArchetypeColumnAccess>,
-    borrow_count: RefCell<usize>,
+    access: RwLock<ArchetypeColumnAccess>,
+    borrow_count: RwLock<usize>,
     rows: usize,
     component_size: usize,
 }
@@ -136,8 +135,8 @@ impl ArchetypeColumn {
     fn new() -> ArchetypeColumn {
         ArchetypeColumn {
             data: Vec::new(),
-            access: RefCell::new(ArchetypeColumnAccess::ReadWrite),
-            borrow_count: RefCell::new(0),
+            access: RwLock::new(ArchetypeColumnAccess::ReadWrite),
+            borrow_count: RwLock::new(0),
             rows: 0,
             component_size: 1,
         }
@@ -148,7 +147,7 @@ impl ArchetypeColumn {
     fn push<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
         self.set_component_size::<T>();
 
-        let access = self.access.borrow();
+        let access = self.access.read().unwrap();
 
         if *access != ArchetypeColumnAccess::ReadWrite {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
@@ -165,7 +164,7 @@ impl ArchetypeColumn {
     }
 
     fn push_raw(&mut self, data: Vec<u8>) -> Result<(), ArchetypeError> {
-        let access = self.access.borrow();
+        let access = self.access.read().unwrap();
 
         if *access != ArchetypeColumnAccess::ReadWrite {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
@@ -211,7 +210,7 @@ impl ArchetypeColumn {
     }
 
     fn get_slice<T: Component>(&self) -> Result<&[T], ArchetypeError> {
-        let access = self.access.borrow();
+        let access = self.access.read().unwrap();
 
         if *access == ArchetypeColumnAccess::None {
             return Err(ArchetypeError::ArchetypeColumnNotReadable);
@@ -228,7 +227,7 @@ impl ArchetypeColumn {
     }
 
     fn get_mut_slice<T: Component>(&self) -> Result<&mut [T], ArchetypeError> {
-        let access = self.access.borrow();
+        let access = self.access.read().unwrap();
 
         if *access != ArchetypeColumnAccess::ReadWrite {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
@@ -385,30 +384,30 @@ impl Archetype {
     pub fn get<T: Component>(&self) -> Result<&[T], ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_slice::<T>()?;
-        *column.borrow_count.borrow_mut() += 1;
-        *column.access.borrow_mut() = ArchetypeColumnAccess::Read;
+        *column.borrow_count.write().unwrap() += 1;
+        *column.access.write().unwrap() = ArchetypeColumnAccess::Read;
         Ok(slice)
     }
 
     pub fn get_mut<T: Component>(&self) -> Result<&mut [T], ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_mut_slice::<T>()?;
-        *column.access.borrow_mut() = ArchetypeColumnAccess::None;
+        *column.access.write().unwrap() = ArchetypeColumnAccess::None;
         Ok(slice)
     }
 
     pub fn release_lock<T: Component>(&self) -> Result<(), ArchetypeError> {
         let column = self.get_column::<T>()?;
-        let column_access = *column.access.borrow();
+        let column_access = *column.access.read().unwrap();
         match column_access {
             ArchetypeColumnAccess::None => {
-                *column.access.borrow_mut() = ArchetypeColumnAccess::ReadWrite;
+                *column.access.write().unwrap() = ArchetypeColumnAccess::ReadWrite;
             },
             ArchetypeColumnAccess::Read => {
-                let mut borrow_count = column.borrow_count.borrow_mut();
+                let mut borrow_count = column.borrow_count.write().unwrap();
                 *borrow_count -= 1;
                 if *borrow_count == 0 {
-                    *column.access.borrow_mut() = ArchetypeColumnAccess::ReadWrite;
+                    *column.access.write().unwrap() = ArchetypeColumnAccess::ReadWrite;
                 }
             },
             _ => (),

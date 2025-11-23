@@ -1,7 +1,10 @@
+use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
+use proc_macro_crate::{FoundCrate, crate_name};
+use proc_macro2::Span;
 use quote::{format_ident, quote};
 use syn::{
-    DeriveInput, Ident, LitInt, Token,
+    DeriveInput, FnArg, Ident, ItemFn, LitInt, Pat, PatType, Token,
     parse::{Parse, ParseStream, Result},
     parse_macro_input,
     punctuated::Punctuated,
@@ -180,4 +183,86 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+#[proc_macro_attribute]
+pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input_fn = parse_macro_input!(item as ItemFn);
+
+    let fn_name = &input_fn.sig.ident;
+    let struct_name = format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
+
+    let found_crate = crate_name("oxide-engine").expect("oxide-engine is present in `Cargo.toml`");
+
+    let engine_crate = match found_crate {
+        FoundCrate::Itself => quote!(crate),
+        FoundCrate::Name(name) => {
+            let ident = Ident::new(&name, Span::call_site());
+            quote!( ::#ident )
+        },
+    };
+
+    let borrows = input_fn.sig.inputs.iter().map(|arg| match arg {
+        FnArg::Typed(PatType { pat, ty, .. }) => {
+            let argument_type = ty;
+
+            let (argument_name, mutability) = match &**pat {
+                Pat::Ident(pat_ident) => {
+                    let is_mut = pat_ident.mutability.is_some();
+                    let ident = &pat_ident.ident;
+                    // is_mut == true for `mut b`
+                    (ident, is_mut)
+                },
+                _ => panic!("Only ident is supported inside systems"),
+            };
+
+            if mutability {
+                quote! {
+                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
+                }
+            } else {
+                quote! {
+                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
+                }
+            }
+        },
+        FnArg::Receiver(_) => {
+            panic!("Systems cannot take &self or &mut self");
+        },
+    });
+
+    let argument_names = input_fn.sig.inputs.iter().map(|arg| match arg {
+        FnArg::Typed(PatType { pat, .. }) => {
+            let argument_name = match &**pat {
+                Pat::Ident(pat_ident) => {
+                    let ident = &pat_ident.ident;
+                    ident
+                },
+                _ => panic!("Only ident is supported inside systems"),
+            };
+            quote! { #argument_name }
+        },
+        _ => unreachable!(),
+    });
+
+    let output = quote! {
+        #input_fn
+
+        pub struct #struct_name;
+
+        impl #struct_name {
+            pub fn new() -> Box<Self> {
+                Box::new(Self)
+            }
+        }
+
+        impl #engine_crate::ecs::system::System for #struct_name {
+            fn run(&mut self) {
+                #(#borrows)*
+                #fn_name( #(#argument_names),* );
+            }
+        }
+    };
+
+    output.into()
 }

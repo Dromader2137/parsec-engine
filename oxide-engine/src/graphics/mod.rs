@@ -1,27 +1,30 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use vulkan::VulkanError;
 use window::{WindowError, WindowWrapper};
 
 use crate::{
     app::{self},
-    assets::library::AssetLibrary,
     ecs::{
-        system::{System, SystemBundle, SystemInput, SystemTrigger},
-        world::{World, query::QueryIter},
+        system::{System, SystemBundle, SystemTrigger},
+        world::{World, query::{Query, QueryIter}},
     },
     error::EngineError,
     graphics::{
         renderer::{
+            InitRenderer, QueueClear, Render,
             assets::mesh::Mesh,
-            camera_data::update_camera_data,
+            camera_data::{AddCameraData, UpdateCameraData},
             components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
             draw_queue::{Draw, MeshAndMaterial},
-            init_renderer, queue_clear, queue_draw, render,
+            mesh_data::AddMeshData,
+            transform_data::AddTransformData,
         },
-        vulkan::{context::init_vulkan, device::Device},
+        vulkan::{context::InitVulkan, device::Device},
     },
-    resources::Rsc,
+    resources::{Resource, Resources},
+    system,
+    utils::id_vec::IdVec,
 };
 
 pub mod renderer;
@@ -42,53 +45,64 @@ impl From<GraphicsError> for EngineError {
 #[derive(Default)]
 pub struct GraphicsBundle {}
 impl SystemBundle for GraphicsBundle {
-    fn systems(self) -> Vec<System> {
+    fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
         vec![
-            System::new(SystemTrigger::LateStart, |SystemInput { .. }| {
-                let window = {
-                    let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
-                    let event_loop_raw = event_loop.get_event_loop();
-                    WindowWrapper::new(event_loop_raw, "Oxide Engine test").unwrap()
-                };
-                Rsc::add(window).unwrap();
-                init_vulkan().unwrap();
-                init_renderer().unwrap();
-            }),
-            System::new(SystemTrigger::Render, |SystemInput { world, assets }| {
-                update_camera_data().unwrap();
-                auto_enqueue(world, assets);
-                render().unwrap();
-                queue_clear();
-            }),
-            System::new(SystemTrigger::Update, |SystemInput { .. }| {
-                let window = Rsc::<Arc<WindowWrapper>>::get().unwrap();
-                window.request_redraw();
-            }),
-            System::new(SystemTrigger::End, |SystemInput { .. }| {
-                let device = Rsc::<Arc<Device>>::get().unwrap();
-                device.wait_idle().unwrap();
-            }),
+            (SystemTrigger::LateStart, InitWindow::new()),
+            (SystemTrigger::LateStart, InitVulkan::new()),
+            (SystemTrigger::LateStart, InitRenderer::new()),
+            (SystemTrigger::Render, UpdateCameraData::new()),
+            (SystemTrigger::Render, AutoEnqueue::new()),
+            (SystemTrigger::Render, Render::new()),
+            (SystemTrigger::Render, QueueClear::new()),
+            (SystemTrigger::Update, RequestRedraw::new()),
+            (SystemTrigger::Update, AddCameraData::new()),
+            (SystemTrigger::Update, AddMeshData::new()),
+            (SystemTrigger::Update, AddTransformData::new()),
+            (SystemTrigger::End, EndWaitIdle::new()),
         ]
     }
 }
 
-fn auto_enqueue(world: &World, assets: &AssetLibrary) {
-    let mut cameras = world.query::<(&[Transform], &[Camera])>().unwrap();
-    let mut mesh_renderers = world.query::<(&[Transform], &[MeshRenderer])>().unwrap();
+#[system]
+fn request_redraw(window: Resource<Arc<WindowWrapper>>) { window.request_redraw(); }
+
+#[system]
+fn end_wait_idle(device: Resource<Arc<Device>>) { device.wait_idle().unwrap() }
+
+#[system]
+fn init_window() {
+    let window = {
+        let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
+        let event_loop_raw = event_loop.get_event_loop();
+        WindowWrapper::new(event_loop_raw, "Oxide Engine test").unwrap()
+    };
+    Resources::add(window).unwrap();
+}
+
+#[system]
+fn auto_enqueue(
+    mut draw_queue: Resource<Vec<Draw>>,
+    meshes: Resource<IdVec<Mesh>>,
+    mut cameras: Query<(&[Transform], &[Camera])>,
+    mut mesh_renderers: Query<(&[Transform], &[MeshRenderer])>,
+) {
     while let Some((_, (camera_transform, camera))) = cameras.next() {
         while let Some((_, (transform, mesh_renderer))) = mesh_renderers.next() {
-            let mesh = assets
-                .get_one::<Mesh>(mesh_renderer.mesh_id as usize)
-                .unwrap();
-            if mesh.data_id.is_none() {
+            let mesh_asset = meshes.get(mesh_renderer.mesh_id).unwrap();
+            if mesh_asset.data_id.is_none()
+                || camera.data_id.is_none()
+                || camera_transform.data_id.is_none()
+                || transform.data_id.is_none()
+            {
                 continue;
             }
-            queue_draw(Draw::MeshAndMaterial(MeshAndMaterial {
-                mesh_id: mesh.data_id.unwrap(),
-                material_id: mesh_renderer.material_id,
-                transform_id: transform.data_id,
-                camera_transform_id: camera_transform.data_id,
-                camera_id: camera.data_id,
+
+            draw_queue.push(Draw::MeshAndMaterial(MeshAndMaterial {
+                mesh: mesh_asset.data_id.unwrap(),
+                material: mesh_renderer.material_id,
+                camera: camera.data_id.unwrap(),
+                camera_transform: camera_transform.data_id.unwrap(),
+                transform: transform.data_id.unwrap(),
             }));
         }
     }

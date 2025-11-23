@@ -2,157 +2,82 @@ use std::{
     any::{Any, TypeId},
     collections::HashMap,
     ops::{Deref, DerefMut},
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{Arc, RwLock},
 };
 
 use once_cell::sync::Lazy;
 
-use crate::error::EngineError;
+use crate::{ecs::{system::SystemInput, world::World}, error::EngineError};
 
-pub trait Resource: Send + Sync + Sized + 'static {}
-impl<T: Send + Sync + Sized + 'static> Resource for T {}
+pub trait ResourceMarker: Send + Sync + 'static {}
+impl<T: Send + Sync + 'static> ResourceMarker for T {}
 
-struct ResourceCollection {
-    //                         Box<Arc<RwLock<dyn Any + Send + Sync>>>>,
-    resources: HashMap<TypeId, Box<dyn Any + Send + Sync>>,
+static RESOURCES: Lazy<RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync>>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
+
+pub struct Resource<R: ResourceMarker> {
+    lock: Arc<RwLock<R>>,
 }
 
-static RESOURCES: Lazy<RwLock<ResourceCollection>> =
-    Lazy::new(|| RwLock::new(ResourceCollection::new()));
-
-pub struct Rsc<'a, R: Resource> {
-    inner: Arc<RwLock<R>>,
-    guard: Option<RwLockReadGuard<'a, R>>,
-}
-
-impl<'a, R: Resource> Rsc<'a, R> {
-    pub fn add(resource: R) -> Result<(), ResourceError> {
-        let mut resources = RESOURCES.write().unwrap();
-        resources.add(resource)
-    }
-
-    pub fn add_overwrite(resource: R) -> Result<(), ResourceError> {
-        let mut resources = RESOURCES.write().unwrap();
-        resources.add_or_change(resource)
-    }
-
-    pub fn get() -> Result<Rsc<'a, R>, ResourceError> {
-        let resources = RESOURCES.read().unwrap();
-        let inner = resources.get::<R>()?;
-        Ok(Rsc { inner, guard: None })
-    }
-
-    pub fn remove() -> Result<(), ResourceError> {
-        let mut resources = RESOURCES.write().unwrap();
-        resources.remove::<R>()
-    }
-}
-
-impl<'a, R: Resource> Deref for Rsc<'a, R> {
+impl<R: ResourceMarker> Deref for Resource<R> {
     type Target = R;
     fn deref(&self) -> &Self::Target {
-        unsafe {
-            let this = self as *const _ as *mut Self;
-            if (*this).guard.is_none() {
-                (*this).guard = Some((*this).inner.read().unwrap());
-            }
-            (*this).guard.as_ref().unwrap()
-        }
+        let guard = self.lock.read().unwrap();
+        let r = &*guard as *const Self::Target;
+        unsafe { &*r }
     }
 }
 
-pub struct RscMut<'a, R: Resource> {
-    inner: Arc<RwLock<R>>,
-    guard: Option<RwLockWriteGuard<'a, R>>,
-}
-
-impl<'a, R: Resource> RscMut<'a, R> {
-    pub fn add(resource: R) -> Result<(), ResourceError> {
-        let mut resources = RESOURCES.write().unwrap();
-        resources.add(resource)
-    }
-
-    pub fn add_overwrite(resource: R) -> Result<(), ResourceError> {
-        let mut resources = RESOURCES.write().unwrap();
-        resources.add_or_change(resource)
-    }
-
-    pub fn get() -> Result<RscMut<'a, R>, ResourceError> {
-        let resources = RESOURCES.read().unwrap();
-        let inner = resources.get::<R>()?;
-        Ok(RscMut { inner, guard: None })
-    }
-
-    pub fn remove() -> Result<(), ResourceError> {
-        let mut resources = RESOURCES.write().unwrap();
-        resources.remove::<R>()
-    }
-}
-
-impl<'a, R: Resource> Deref for RscMut<'a, R> {
-    type Target = R;
-    fn deref(&self) -> &Self::Target {
-        unsafe {
-            let this = self as *const _ as *mut Self;
-            if (*this).guard.is_none() {
-                (*this).guard = Some((*this).inner.write().unwrap());
-            }
-            (*this).guard.as_ref().unwrap()
-        }
-    }
-}
-
-impl<'a, R: Resource> DerefMut for RscMut<'a, R> {
+impl<R: ResourceMarker> DerefMut for Resource<R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe {
-            let this = self as *const _ as *mut Self;
-            if (*this).guard.is_none() {
-                (*this).guard = Some((*this).inner.write().unwrap());
-            }
-            (*this).guard.as_mut().unwrap()
-        }
+        let mut guard = self.lock.write().unwrap();
+        let x = guard.deref_mut();
+        let r = x as *mut Self::Target;
+        unsafe { &mut *r }
     }
 }
 
-impl ResourceCollection {
-    fn new() -> ResourceCollection {
-        ResourceCollection {
-            resources: HashMap::new(),
-        }
+impl<T: ResourceMarker> SystemInput for Resource<T> {
+    fn borrow() -> Self {
+        let lock = Resources::get().unwrap();
+        Resource { lock }
     }
+}
 
-    fn add<R: Resource>(&mut self, resource: R) -> Result<(), ResourceError> {
+pub struct Resources {}
+impl Resources {
+    pub fn add<R: ResourceMarker>(resource: R) -> Result<(), ResourceError> {
+        let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
-        if self.resources.contains_key(&type_id) {
+        if resources.contains_key(&type_id) {
             return Err(ResourceError::ResourceAlreadyExists);
         }
-        self.resources
-            .insert(type_id, Box::new(Arc::new(RwLock::new(resource))));
+        resources.insert(type_id, Box::new(Arc::new(RwLock::new(resource))));
         Ok(())
     }
 
-    fn add_or_change<R: Resource>(&mut self, resource: R) -> Result<(), ResourceError> {
+    pub fn add_or_change<R: ResourceMarker>(resource: R) {
+        let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
-        self.resources
-            .insert(type_id, Box::new(Arc::new(RwLock::new(resource))));
-        Ok(())
+        resources.insert(type_id, Box::new(Arc::new(RwLock::new(resource))));
     }
 
-    fn get<R: Resource>(&self) -> Result<Arc<RwLock<R>>, ResourceError> {
+    fn get<R: ResourceMarker>() -> Result<Arc<RwLock<R>>, ResourceError> {
+        let resources = RESOURCES.read().expect("Clean resources read");
         let type_id = TypeId::of::<R>();
-        if let Some(resource_any) = self.resources.get(&type_id) {
-            let resource = resource_any
+        let lock = match resources.get(&type_id) {
+            Some(lock_any) => lock_any
                 .downcast_ref::<Arc<RwLock<R>>>()
-                .expect("This downcast can't fail");
-            Ok(resource.clone())
-        } else {
-            Err(ResourceError::ResourceNotFound)
-        }
+                .expect("This downcast can't fail"),
+            None => return Err(ResourceError::ResourceNotFound),
+        };
+        Ok(lock.clone())
     }
 
-    fn remove<R: Resource>(&mut self) -> Result<(), ResourceError> {
+    pub fn remove<R: ResourceMarker>() -> Result<(), ResourceError> {
+        let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
-        self.resources
+        resources
             .remove(&type_id)
             .map_or(Err(ResourceError::ResourceNotFound), |_| Ok(()))
     }

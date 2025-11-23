@@ -1,72 +1,102 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::{
+    ecs::world::{World, query::{Query, QueryIter}},
     graphics::{
-        renderer::{create_buffer, create_descriptor_set},
+        renderer::components::transform::Transform,
         vulkan::{
             VulkanError,
-            buffer::Buffer,
+            buffer::{Buffer, BufferUsage},
             descriptor_set::{
-                DescriptorSet, DescriptorSetBinding, DescriptorStage, DescriptorType,
+                DescriptorPool, DescriptorSet, DescriptorSetBinding, DescriptorSetLayout,
+                DescriptorStage, DescriptorType,
             },
+            device::Device,
         },
     },
     math::{mat::Matrix4f, vec::Vec3f},
-    resources::{Rsc, RscMut},
+    resources::Resource,
+    system,
     utils::id_vec::IdVec,
 };
 
-#[derive(Debug)]
 pub struct TransformData {
     pub model_matrix: Matrix4f,
-    pub model_buffer_id: u32,
-    pub model_set_id: u32,
+    pub model_buffer: Arc<Buffer>,
+    pub model_set: Arc<DescriptorSet>,
     pub look_at_matrix: Matrix4f,
-    pub look_at_buffer_id: u32,
-    pub look_at_set_id: u32,
-    pub changed: bool,
+    pub look_at_buffer: Arc<Buffer>,
+    pub look_at_set: Arc<DescriptorSet>,
 }
 
-pub fn create_transform_data(
-    position: Vec3f,
-    scale: Vec3f,
-    rotation: Vec3f,
-) -> Result<u32, VulkanError> {
-    let _ = rotation;
-    let _ = scale;
-    let model_matrix = Matrix4f::translation(position);
-    let look_at_matrix = Matrix4f::look_at(position, Vec3f::FORWARD, Vec3f::UP);
-    let model_buffer_id = create_buffer(vec![model_matrix])?;
-    let look_at_buffer_id = create_buffer(vec![look_at_matrix])?;
-    let model_set_id = create_descriptor_set(vec![DescriptorSetBinding::new(
-        0,
-        DescriptorType::UNIFORM_BUFFER,
-        DescriptorStage::VERTEX,
-    )])?;
-    let look_at_set_id = create_descriptor_set(vec![DescriptorSetBinding::new(
-        0,
-        DescriptorType::UNIFORM_BUFFER,
-        DescriptorStage::VERTEX,
-    )])?;
-    {
-        let descriptor_sets = Rsc::<IdVec<Arc<DescriptorSet>>>::get().unwrap();
-        let buffers = Rsc::<IdVec<Arc<Buffer>>>::get().unwrap();
-        let model_set = descriptor_sets.get(model_set_id).unwrap();
-        let model_buffer = buffers.get(model_buffer_id).unwrap();
-        model_set.bind_buffer(model_buffer.clone(), 0)?;
-        let look_at_set = descriptor_sets.get(look_at_set_id).unwrap();
-        let look_at_buffer = buffers.get(look_at_buffer_id).unwrap();
-        look_at_set.bind_buffer(look_at_buffer.clone(), 0)?;
+impl TransformData {
+    pub fn new(
+        device: Arc<Device>,
+        descriptor_pool: Arc<DescriptorPool>,
+        position: Vec3f,
+        scale: Vec3f,
+        rotation: Vec3f,
+    ) -> Result<TransformData, VulkanError> {
+        let _ = rotation;
+        let _ = scale;
+        let model_matrix = Matrix4f::translation(position);
+        let look_at_matrix = Matrix4f::look_at(position, Vec3f::FORWARD, Vec3f::UP);
+        let model_buffer =
+            Buffer::from_vec(device.clone(), &[model_matrix], BufferUsage::UNIFORM_BUFFER).unwrap();
+        let look_at_buffer = Buffer::from_vec(
+            device.clone(),
+            &[look_at_matrix],
+            BufferUsage::UNIFORM_BUFFER,
+        )
+        .unwrap();
+        let model_set_layout =
+            DescriptorSetLayout::new(device.clone(), vec![DescriptorSetBinding::new(
+                0,
+                DescriptorType::UNIFORM_BUFFER,
+                DescriptorStage::VERTEX,
+            )])
+            .unwrap();
+        let look_at_set_layout = DescriptorSetLayout::new(device, vec![DescriptorSetBinding::new(
+            0,
+            DescriptorType::UNIFORM_BUFFER,
+            DescriptorStage::VERTEX,
+        )])
+        .unwrap();
+        let model_set = DescriptorSet::new(model_set_layout, descriptor_pool.clone()).unwrap();
+        let look_at_set = DescriptorSet::new(look_at_set_layout, descriptor_pool).unwrap();
+        model_set.bind_buffer(model_buffer.clone(), 0).unwrap();
+        look_at_set.bind_buffer(look_at_buffer.clone(), 0).unwrap();
+        Ok(TransformData {
+            model_matrix,
+            model_buffer,
+            model_set,
+            look_at_matrix,
+            look_at_buffer,
+            look_at_set,
+        })
     }
-    let transform_data = TransformData {
-        model_matrix,
-        model_buffer_id,
-        model_set_id,
-        look_at_matrix,
-        look_at_buffer_id,
-        look_at_set_id,
-        changed: false,
-    };
-    let mut transforms = RscMut::<IdVec<TransformData>>::get().unwrap();
-    Ok(transforms.push(transform_data))
+}
+
+#[system]
+fn add_transform_data(
+    device: Resource<Arc<Device>>,
+    descriptor_pool: Resource<Arc<DescriptorPool>>,
+    mut transforms_data: Resource<IdVec<TransformData>>,
+    mut transforms: Query<&'static mut [Transform]>)
+{
+    while let Some((_, transform)) = transforms.next() {
+        if transform.data_id.is_none() {
+            let transform_data = TransformData::new(
+                device.clone(),
+                descriptor_pool.clone(),
+                transform.position,
+                Vec3f::ZERO,
+                Vec3f::ZERO,
+            )
+            .unwrap();
+
+            let data_id = transforms_data.push(transform_data);
+            transform.data_id = Some(data_id);
+        }
+    }
 }

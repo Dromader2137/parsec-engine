@@ -1,5 +1,6 @@
+pub use oxide_engine_macros::system;
+
 pub mod app;
-pub mod assets;
 pub mod ecs;
 pub mod error;
 pub mod graphics;

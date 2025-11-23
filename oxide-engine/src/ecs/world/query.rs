@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
 use crate::ecs::{
-    entity::Entity,
-    world::{
-        archetype::{Archetype, ArchetypeError, ArchetypeId},
-        fetch::Fetch,
-    },
+    entity::Entity, system::SystemInput, world::{
+        WORLD, World, archetype::{Archetype, ArchetypeError, ArchetypeId}, fetch::Fetch
+    }
 };
 
 #[derive(Debug)]
@@ -17,6 +15,12 @@ pub struct Query<'a, T: Fetch<'a>> {
     released: bool,
     fetch: Vec<T>,
     archetypes: Vec<&'a Archetype>,
+}
+
+impl<'a, T: Fetch<'a>> SystemInput for Query<'a, T> {
+    fn borrow() -> Self {
+        world.query().unwrap()
+    }
 }
 
 impl<'a, T: Fetch<'a>> Query<'a, T> {

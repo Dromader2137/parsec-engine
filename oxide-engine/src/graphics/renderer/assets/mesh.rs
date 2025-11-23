@@ -1,7 +1,4 @@
-use crate::{
-    assets::{Asset, AssetError, AssetLoadInput},
-    graphics::renderer::{DefaultVertex, mesh_data::create_mesh_data},
-};
+use crate::graphics::renderer::DefaultVertex;
 
 pub struct Mesh {
     pub vertices: Vec<DefaultVertex>,
@@ -16,12 +13,5 @@ impl Mesh {
             indices,
             data_id: None,
         }
-    }
-}
-
-impl Asset for Mesh {
-    fn on_load(&mut self, AssetLoadInput { .. }: AssetLoadInput) -> Result<(), AssetError> {
-        self.data_id = Some(create_mesh_data(&self.vertices, &self.indices).unwrap());
-        Ok(())
     }
 }

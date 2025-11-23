@@ -8,7 +8,7 @@ use crate::{
         renderpass::Renderpass,
         swapchain::Swapchain,
     },
-    resources::Rsc,
+    resources::Resources,
 };
 
 #[allow(unused)]
@@ -18,9 +18,7 @@ pub struct DepthImage(Arc<OwnedImage>);
 #[allow(unused)]
 pub struct DepthView(Arc<ImageView>);
 
-pub fn init_renderer_images() -> Result<(), VulkanError> {
-    let renderpass = Rsc::<Arc<Renderpass>>::get().unwrap();
-
+pub fn init_renderer_images(renderpass: Arc<Renderpass>) -> Result<Arc<Swapchain>, VulkanError> {
     let swapchain = Swapchain::new(renderpass.surface.clone(), renderpass.device.clone(), None)?;
 
     let swapchain_images = &swapchain.swapchain_images;
@@ -68,19 +66,19 @@ pub fn init_renderer_images() -> Result<(), VulkanError> {
 
     drop(renderpass);
 
-    Rsc::add(swapchain.clone()).unwrap();
-    Rsc::add(SwapchainViews(swapchain_views)).unwrap();
-    Rsc::add(DepthImage(depth_image)).unwrap();
-    Rsc::add(DepthView(depth_view)).unwrap();
-    Rsc::add(framebuffers).unwrap();
+    Resources::add(swapchain.clone()).unwrap();
+    Resources::add(SwapchainViews(swapchain_views)).unwrap();
+    Resources::add(DepthImage(depth_image)).unwrap();
+    Resources::add(DepthView(depth_view)).unwrap();
+    Resources::add(framebuffers).unwrap();
 
-    Ok(())
+    Ok(swapchain)
 }
 
-pub fn recreate_renderer_images() -> Result<(), VulkanError> {
-    let renderpass = Rsc::<Arc<Renderpass>>::get().unwrap();
-    let old_swapchain = Rsc::<Arc<Swapchain>>::get().unwrap();
-
+pub fn recreate_renderer_images(
+    renderpass: Arc<Renderpass>,
+    old_swapchain: Arc<Swapchain>,
+) -> Result<(), VulkanError> {
     let swapchain = Swapchain::new(
         renderpass.surface.clone(),
         renderpass.device.clone(),
@@ -134,11 +132,11 @@ pub fn recreate_renderer_images() -> Result<(), VulkanError> {
 
     drop(renderpass);
 
-    Rsc::add_overwrite(swapchain.clone()).unwrap();
-    Rsc::add_overwrite(SwapchainViews(swapchain_views)).unwrap();
-    Rsc::add_overwrite(DepthImage(depth_image)).unwrap();
-    Rsc::add_overwrite(DepthView(depth_view)).unwrap();
-    Rsc::add_overwrite(framebuffers).unwrap();
+    Resources::add_or_change(swapchain.clone());
+    Resources::add_or_change(SwapchainViews(swapchain_views));
+    Resources::add_or_change(DepthImage(depth_image));
+    Resources::add_or_change(DepthView(depth_view));
+    Resources::add_or_change(framebuffers);
 
     Ok(())
 }

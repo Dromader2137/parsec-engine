@@ -2,7 +2,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
     graphics::{
-        renderer::DefaultVertex,
+        renderer::{DefaultVertex, assets::mesh::Mesh},
         vulkan::{
             VulkanError,
             buffer::{Buffer, BufferUsage},
@@ -11,7 +11,8 @@ use crate::{
             graphics_pipeline::Vertex,
         },
     },
-    resources::{Rsc, RscMut},
+    resources::Resource,
+    system,
     utils::id_vec::IdVec,
 };
 
@@ -60,8 +61,17 @@ impl<V: Vertex> MeshData<V> {
     }
 }
 
-pub fn create_mesh_data(vertices: &[DefaultVertex], indices: &[u32]) -> Result<u32, VulkanError> {
-    let device = Rsc::<Arc<Device>>::get().unwrap();
-    let mut meshes = RscMut::<IdVec<MeshData<DefaultVertex>>>::get().unwrap();
-    Ok(meshes.push(MeshData::new(device.clone(), vertices, indices)?))
+#[system]
+fn add_mesh_data(
+    device: Resource<Arc<Device>>,
+    mut meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
+    mut meshes: Resource<IdVec<Mesh>>,
+) {
+    for mesh in meshes.iter_mut() {
+        if mesh.data_id.is_none() {
+            let mesh_data = MeshData::new(device.clone(), &mesh.vertices, &mesh.indices).unwrap();
+            let data_id = meshes_data.push(mesh_data);
+            mesh.data_id = Some(data_id);
+        }
+    }
 }

@@ -1,9 +1,9 @@
 pub struct MeshAndMaterial {
-    pub mesh_id: u32,
-    pub material_id: u32,
-    pub camera_id: u32,
-    pub camera_transform_id: u32,
-    pub transform_id: u32,
+    pub mesh: u32,
+    pub material: u32,
+    pub camera: u32,
+    pub camera_transform: u32,
+    pub transform: u32,
 }
 
 pub enum Draw {
