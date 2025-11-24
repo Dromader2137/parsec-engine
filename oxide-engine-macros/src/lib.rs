@@ -83,31 +83,31 @@ pub fn impl_fetch(input: TokenStream) -> TokenStream {
         return TokenStream::new();
     }
 
+    let t_one = types.get(0).unwrap();
     let mut impl_types = Vec::new();
     let mut bundle_types = Vec::new();
+    let mut state_types = Vec::new();
     let mut item_types = Vec::new();
-    let mut borrow = Vec::new();
+    let mut prepare = Vec::new();
     let mut release = Vec::new();
     let mut get = Vec::new();
     let mut id = Vec::new();
-    let mut archetype_adds = Vec::new();
-    let mut archetype_ids = Vec::new();
     for (i, t) in types.iter().enumerate() {
-        impl_types.push(quote! { #t: Fetch<'a> });
+        impl_types.push(quote! { #t: Fetch });
         bundle_types.push(quote! { #t });
-        item_types.push(quote! { #t::Item<'b> });
-        borrow.push(quote! { #t::borrow(archetype)? });
-        release.push(quote! { #t::release(archetype)? });
-        archetype_ids.push(quote! { std::any::TypeId::of::<#t>() });
+        item_types.push(quote! { #t::Item<'a> });
+        state_types.push(quote! { #t::State });
+        prepare.push(quote! { #t::prepare(archetype)? });
         id.push(quote! { ret = ret.merge_with(#t::archetype_id()?)?; });
         let i = syn::Index::from(i);
-        archetype_adds.push(quote! { archetype.add(self.#i.clone())?; });
-        get.push(quote! { self.#i.get(row) });
+        release.push(quote! { #t::release(state.#i)? });
+        get.push(quote! { #t::get(state.#i.clone(), row) });
     }
 
     let output = quote! {
-        impl<'a, #(#impl_types),*> Fetch<'a> for (#(#bundle_types),*) {
-            type Item<'b> = (#(#item_types),*) where 'a: 'b, Self: 'b;
+        impl<#(#impl_types),*> Fetch for (#(#bundle_types),*) {
+            type Item<'a> = (#(#item_types),*) where Self: 'a;
+            type State = (#(#state_types),*);
 
             fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
                 let mut ret = ArchetypeId::new(Vec::new())?;
@@ -115,21 +115,21 @@ pub fn impl_fetch(input: TokenStream) -> TokenStream {
                 Ok(ret)
             }
 
-            fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> {
-                Ok((#(#borrow),*))
+            fn prepare(archetype: &Archetype) -> Result<Self::State, ArchetypeError> {
+                Ok((#(#prepare),*))
             }
 
-            fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError> {
+            fn release(state: Self::State) -> Result<(), ArchetypeError> {
                 (#(#release),*);
                 Ok(())
             }
 
-            fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b> {
+            fn get<'a>(state: Self::State, row: usize) -> Self::Item<'a> {
                 (#(#get),*)
             }
 
-            fn count(&self) -> usize {
-                self.0.count()
+            fn len(state: &Self::State) -> usize {
+                #t_one::len(&state.0)
             }
         }
     };
@@ -218,11 +218,11 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             if mutability {
                 quote! {
-                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(world);
+                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
                 }
             } else {
                 quote! {
-                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(world);
+                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
                 }
             }
         },
@@ -257,7 +257,7 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         impl #engine_crate::ecs::system::System for #struct_name {
-            fn run(&mut self, world & #engine_crate::ecs::world::World) {
+            fn run(&mut self) {
                 #(#borrows)*
                 #fn_name( #(#argument_names),* );
             }

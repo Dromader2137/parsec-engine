@@ -1,4 +1,10 @@
-use std::{any::TypeId, marker::PhantomData, sync::{Arc, RwLock}};
+use std::{
+    any::TypeId,
+    marker::PhantomData,
+    sync::{Arc, RwLock},
+};
+
+use oxide_engine_macros::{impl_fetch, multiple_tuples};
 
 use crate::ecs::world::{
     archetype::{Archetype, ArchetypeError, ArchetypeId, BorrowingStats},
@@ -6,25 +12,29 @@ use crate::ecs::world::{
 };
 
 pub trait Fetch: Sized {
-    type Item<'a> where Self: 'a;
-    type Arr<'a> where Self: 'a;
+    type Item<'a>
+    where
+        Self: 'a;
     type State: Clone;
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError>;
     fn prepare(archetype: &Archetype) -> Result<Self::State, ArchetypeError>;
-    fn borrow<'a>(state: Self::State) -> Self::Arr<'a>;
     fn release(state: Self::State) -> Result<(), ArchetypeError>;
-    fn get<'a>(array: &mut Self::Arr<'a>, row: usize) -> Self::Item<'a>;
+    fn get<'a>(state: Self::State, row: usize) -> Self::Item<'a>;
+    fn len(state: &Self::State) -> usize;
 }
 
 #[derive(Debug, Clone)]
 pub struct FetchState<T> {
     ptr: *const [T],
-    access: Arc<RwLock<BorrowingStats>>
+    len: usize,
+    access: Arc<RwLock<BorrowingStats>>,
 }
 
 impl<T: Component> Fetch for T {
-    type Item<'a> = &'a T where Self: 'a;
-    type Arr<'a> = &'a [T] where Self: 'a;
+    type Item<'a>
+        = &'a T
+    where
+        Self: 'a;
     type State = FetchState<T>;
 
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
@@ -32,15 +42,8 @@ impl<T: Component> Fetch for T {
     }
 
     fn prepare(archetype: &Archetype) -> Result<Self::State, ArchetypeError> {
-        let (ptr, access) = archetype.get()?;
-        Ok(FetchState { ptr, access })
-    }
-
-    fn borrow<'a>(state: Self::State) -> Self::Arr<'a> {
-        let ptr = state.ptr;
-        unsafe {
-            &*ptr
-        }
+        let (ptr, access, len) = archetype.get()?;
+        Ok(FetchState { ptr, access, len })
     }
 
     fn release(state: Self::State) -> Result<(), ArchetypeError> {
@@ -49,24 +52,31 @@ impl<T: Component> Fetch for T {
         Ok(())
     }
 
-    fn get<'a>(array: &mut Self::Arr<'a>, row: usize) -> Self::Item<'a> {
+    fn get<'a>(state: Self::State, row: usize) -> Self::Item<'a> {
+        let ptr = state.ptr;
+        let array = unsafe { &*ptr };
         &array[row]
     }
+
+    fn len(state: &Self::State) -> usize { state.len }
 }
 
 pub struct Mut<T> {
-    _marker: PhantomData<T>
+    _marker: PhantomData<T>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FetchMutState<T> {
     ptr: *mut [T],
-    access: Arc<RwLock<BorrowingStats>>
+    len: usize,
+    access: Arc<RwLock<BorrowingStats>>,
 }
 
 impl<T: Component> Fetch for Mut<T> {
-    type Item<'a> = &'a mut T where Self: 'a;
-    type Arr<'a> = &'a mut [T] where Self: 'a;
+    type Item<'a>
+        = &'a mut T
+    where
+        Self: 'a;
     type State = FetchMutState<T>;
 
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
@@ -74,15 +84,8 @@ impl<T: Component> Fetch for Mut<T> {
     }
 
     fn prepare(archetype: &Archetype) -> Result<Self::State, ArchetypeError> {
-        let (ptr, access) = archetype.get_mut()?;
-        Ok(FetchMutState { ptr, access })
-    }
-
-    fn borrow<'a>(state: Self::State) -> Self::Arr<'a> {
-        let ptr = state.ptr;
-        unsafe {
-            &mut *ptr
-        }
+        let (ptr, access, len) = archetype.get_mut()?;
+        Ok(FetchMutState { ptr, access, len })
     }
 
     fn release(state: Self::State) -> Result<(), ArchetypeError> {
@@ -91,9 +94,13 @@ impl<T: Component> Fetch for Mut<T> {
         Ok(())
     }
 
-    fn get<'a>(array: Self::Arr<'a>, row: usize) -> Self::Item<'a> {
+    fn get<'a>(state: Self::State, row: usize) -> Self::Item<'a> {
+        let ptr = state.ptr;
+        let array = unsafe { &mut *ptr };
         &mut array[row]
     }
+
+    fn len(state: &Self::State) -> usize { state.len }
 }
 
-// multiple_tuples!(impl_fetch, 16);
+multiple_tuples!(impl_fetch, 16);

@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crate::ecs::world::{self, World, WORLD};
+use std::{collections::HashMap, thread::scope};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum SystemTrigger {
@@ -46,20 +44,31 @@ impl Systems {
 
     pub fn execute_type(&mut self, system_type: SystemTrigger) {
         if let Some(systems) = self.systems.get_mut(&system_type) {
-            for system in systems.iter_mut() {
-                let world = WORLD.read().unwrap();
-                system.run(&world);
+            if matches!(system_type, SystemTrigger::Update) {
+                scope(|x| {
+                    let mut handles = Vec::new();
+                    for system in systems.iter_mut() {
+                        handles.push(x.spawn(move || system.run()));
+                    }
+                    for handle in handles {
+                        handle.join().unwrap();
+                    }
+                });
+            } else {
+                for system in systems.iter_mut() {
+                    system.run();
+                }
             }
         }
     }
 }
 
 pub trait SystemInput {
-    fn borrow<'world>(world: &'world World) -> Self;
+    fn borrow() -> Self;
 }
 
-pub trait System {
-    fn run(&mut self, world: &World);
+pub trait System: Send + Sync {
+    fn run(&mut self);
 }
 
 pub trait SystemBundle {

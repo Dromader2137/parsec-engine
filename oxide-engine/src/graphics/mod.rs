@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use vulkan::VulkanError;
 use window::{WindowError, WindowWrapper};
@@ -7,12 +7,18 @@ use crate::{
     app::{self},
     ecs::{
         system::{System, SystemBundle, SystemTrigger},
-        world::{query::{OldQuery, OldQueryIter, Query}, World},
+        world::query::Query,
     },
     error::EngineError,
     graphics::{
         renderer::{
-            assets::mesh::Mesh, camera_data::{AddCameraData, UpdateCameraData}, components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform}, draw_queue::{Draw, MeshAndMaterial}, mesh_data::AddMeshData, transform_data::AddTransformData, InitRenderer, QueueClear, Render
+            InitRenderer, PrepareRender, QueueClear, Render,
+            assets::mesh::Mesh,
+            camera_data::{AddCameraData, UpdateCameraData},
+            components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
+            draw_queue::{Draw, MeshAndMaterial},
+            mesh_data::AddMeshData,
+            transform_data::AddTransformData,
         },
         vulkan::{context::InitVulkan, device::Device},
     },
@@ -46,6 +52,7 @@ impl SystemBundle for GraphicsBundle {
             (SystemTrigger::LateStart, InitRenderer::new()),
             (SystemTrigger::Render, UpdateCameraData::new()),
             (SystemTrigger::Render, AutoEnqueue::new()),
+            (SystemTrigger::Render, PrepareRender::new()),
             (SystemTrigger::Render, Render::new()),
             (SystemTrigger::Render, QueueClear::new()),
             (SystemTrigger::Update, RequestRedraw::new()),
@@ -77,11 +84,11 @@ fn init_window() {
 fn auto_enqueue(
     mut draw_queue: Resource<Vec<Draw>>,
     meshes: Resource<IdVec<Mesh>>,
-    mut cameras: Query<(&[Transform], &[Camera])>,
-    mut mesh_renderers: Query<(&[Transform], &[MeshRenderer])>,
+    cameras: Query<(Transform, Camera)>,
+    mesh_renderers: Query<(Transform, MeshRenderer)>,
 ) {
-    while let Some((_, (camera_transform, camera))) = cameras.next() {
-        while let Some((_, (transform, mesh_renderer))) = mesh_renderers.next() {
+    for (camera_transform, camera) in cameras.into_iter() {
+        for (transform, mesh_renderer) in mesh_renderers.into_iter() {
             let mesh_asset = meshes.get(mesh_renderer.mesh_id).unwrap();
             if mesh_asset.data_id.is_none()
                 || camera.data_id.is_none()
@@ -100,4 +107,4 @@ fn auto_enqueue(
             }));
         }
     }
-}    
+}

@@ -2,7 +2,8 @@ use std::{
     any::TypeId,
     collections::{HashMap, HashSet},
     fmt::Debug,
-    hash::{DefaultHasher, Hash, Hasher}, sync::{Arc, RwLock},
+    hash::{DefaultHasher, Hash, Hasher},
+    sync::{Arc, RwLock},
 };
 
 use oxide_engine_macros::{impl_spawn, multiple_tuples};
@@ -125,12 +126,15 @@ pub enum ArchetypeColumnAccess {
 #[derive(Debug)]
 pub struct BorrowingStats {
     access: ArchetypeColumnAccess,
-    count: usize
+    count: usize,
 }
 
 impl BorrowingStats {
     fn new() -> BorrowingStats {
-        BorrowingStats { access: ArchetypeColumnAccess::ReadWrite, count: 0 }
+        BorrowingStats {
+            access: ArchetypeColumnAccess::ReadWrite,
+            count: 0,
+        }
     }
 
     pub fn release_lock(&mut self) {
@@ -146,7 +150,6 @@ impl BorrowingStats {
             },
             _ => (),
         };
-   
     }
 }
 
@@ -407,19 +410,23 @@ impl Archetype {
         }
     }
 
-    pub fn get<T: Component>(&self) -> Result<(*const [T], Arc<RwLock<BorrowingStats>>), ArchetypeError> {
+    pub fn get<T: Component>(
+        &self,
+    ) -> Result<(*const [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_slice::<T>()?;
         column.borrow.write().unwrap().count += 1;
         column.borrow.write().unwrap().access = ArchetypeColumnAccess::Read;
-        Ok((slice, column.borrow.clone()))
+        Ok((slice, column.borrow.clone(), slice.len()))
     }
 
-    pub fn get_mut<T: Component>(&self) -> Result<(*mut [T], Arc<RwLock<BorrowingStats>>), ArchetypeError> {
+    pub fn get_mut<T: Component>(
+        &self,
+    ) -> Result<(*mut [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_mut_slice::<T>()?;
         column.borrow.write().unwrap().access = ArchetypeColumnAccess::None;
-        Ok((slice, column.borrow.clone()))
+        Ok((slice, column.borrow.clone(), slice.len()))
     }
 
     pub fn len(&self) -> usize { self.bundle_count }

@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use oxide_engine::{
     app::App,
-    ecs::{system::SystemTrigger, world::{WORLD, World}},
+    ecs::{system::SystemTrigger, world::World},
     graphics::{
         GraphicsBundle,
         renderer::{
@@ -86,34 +86,31 @@ fn test_system(
 
     let mesh = meshes.push(Mesh::new(vertices, indices));
 
-    world
-        .spawn((
-            Camera::new(40.0_f32.to_radians(), 1.0, 100.0),
-            Transform::new(Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
-        ))
-        .unwrap();
+    World::spawn((
+        Camera::new(40.0_f32.to_radians(), 1.0, 100.0),
+        Transform::new(Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
+    ))
+    .unwrap();
 
-    world
-        .spawn((
-            Transform::new(
-                Vec3f::FORWARD * 5.0 + Vec3f::new(0.5, -0.5, 0.0) * scale,
-                Vec3f::ZERO,
-                Vec3f::ZERO,
-            ),
-            MeshRenderer::new(mesh, material_id),
-        ))
-        .unwrap();
+    World::spawn((
+        Transform::new(
+            Vec3f::FORWARD * 5.0 + Vec3f::new(0.5, -0.5, 0.0) * scale,
+            Vec3f::ZERO,
+            Vec3f::ZERO,
+        ),
+        MeshRenderer::new(mesh, material_id),
+    ))
+    .unwrap();
 
-    world
-        .spawn((
-            Transform::new(
-                Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale,
-                Vec3f::ZERO,
-                Vec3f::ZERO,
-            ),
-            MeshRenderer::new(mesh, material_id),
-        ))
-        .unwrap();
+    World::spawn((
+        Transform::new(
+            Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale,
+            Vec3f::ZERO,
+            Vec3f::ZERO,
+        ),
+        MeshRenderer::new(mesh, material_id),
+    ))
+    .unwrap();
 }
 
 fn main() {

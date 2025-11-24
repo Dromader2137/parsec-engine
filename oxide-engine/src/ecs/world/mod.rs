@@ -128,9 +128,7 @@ impl World {
     }
 
     /// Remove components from an entity
-    pub fn remove_components<T: RemoveComponent>(
-        entity: Entity,
-    ) -> Result<(), WorldError> {
+    pub fn remove_components<T: RemoveComponent>(entity: Entity) -> Result<(), WorldError> {
         let mut world = WORLD.write().unwrap();
         let (archetype_id, old_archetype) = match world
             .archetypes

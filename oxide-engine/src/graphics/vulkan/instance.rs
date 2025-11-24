@@ -34,7 +34,7 @@ unsafe extern "system" fn vulkan_debug_callback(
         let message_id_number = callback_data.message_id_number;
 
         let message_id_name = if callback_data.p_message_id_name.is_null() {
-            Cow::from("")
+            std::borrow::Cow::from("")
         } else {
             std::ffi::CStr::from_ptr(callback_data.p_message_id_name).to_string_lossy()
         };
@@ -46,8 +46,8 @@ unsafe extern "system" fn vulkan_debug_callback(
         };
 
         println!(
-            "{message_severity:?}:\n{message_type:?} [{message_id_name} ({message_id_number})] : \
-             {message}\n",
+            "{message_severity:?}: {message_type:?} [{message_id_name} ({message_id_number})] : \
+             {message} ",
         );
 
         ash::vk::FALSE

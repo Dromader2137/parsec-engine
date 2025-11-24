@@ -7,7 +7,7 @@ use std::{
 
 use once_cell::sync::Lazy;
 
-use crate::{ecs::{system::SystemInput, world::World}, error::EngineError};
+use crate::{ecs::system::SystemInput, error::EngineError};
 
 pub trait ResourceMarker: Send + Sync + 'static {}
 impl<T: Send + Sync + 'static> ResourceMarker for T {}
@@ -38,8 +38,7 @@ impl<R: ResourceMarker> DerefMut for Resource<R> {
 }
 
 impl<T: ResourceMarker> SystemInput for Resource<T> {
-    fn borrow<'world>(world: &'world World) -> Self::Final {
-        let _ = world;
+    fn borrow() -> Self {
         let lock = Resources::get().unwrap();
         Resource { lock }
     }
