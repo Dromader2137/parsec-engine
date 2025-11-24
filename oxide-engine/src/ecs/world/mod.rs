@@ -1,9 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, sync::RwLock};
 
 use archetype::{Archetype, ArchetypeError, ArchetypeId};
-use fetch::Fetch;
 use once_cell::sync::Lazy;
-use query::OldQuery;
 use spawn::Spawn;
 
 use crate::{
@@ -36,7 +34,7 @@ pub static WORLD: Lazy<RwLock<World>> = Lazy::new(|| RwLock::new(World::new()));
 /// World holds all data about components and entities
 #[derive(Debug)]
 pub struct World {
-    archetypes: HashMap<ArchetypeId, Archetype>,
+    pub archetypes: HashMap<ArchetypeId, Archetype>,
     current_id: u32,
 }
 
@@ -44,7 +42,7 @@ impl World {
     pub fn new() -> World {
         World {
             archetypes: HashMap::new(),
-            current_id: 1,
+            current_id: 0,
         }
     }
 
@@ -74,11 +72,6 @@ impl World {
         archetype.bundle_count += 1;
         world.current_id += 1;
         Ok(())
-    }
-
-    /// Query all entities containing component specified inside T
-    fn query<'a, T: Fetch<'a>>(&'a self) -> Result<OldQuery<'a, T>, WorldError> {
-        Ok(OldQuery::new(&self.archetypes)?)
     }
 
     /// Delete an entity

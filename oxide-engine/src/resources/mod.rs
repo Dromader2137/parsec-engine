@@ -38,7 +38,8 @@ impl<R: ResourceMarker> DerefMut for Resource<R> {
 }
 
 impl<T: ResourceMarker> SystemInput for Resource<T> {
-    fn borrow() -> Self {
+    fn borrow<'world>(world: &'world World) -> Self::Final {
+        let _ = world;
         let lock = Resources::get().unwrap();
         Resource { lock }
     }

@@ -1,17 +1,14 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    ecs::world::{World, query::{OldQuery, OldQueryIter, Query}},
+    ecs::world::{fetch::Mut, query::{OldQuery, OldQueryIter, Query}, World},
     graphics::{
         renderer::components::transform::Transform,
         vulkan::{
-            VulkanError,
-            buffer::{Buffer, BufferUsage},
-            descriptor_set::{
+            buffer::{Buffer, BufferUsage}, descriptor_set::{
                 DescriptorPool, DescriptorSet, DescriptorSetBinding, DescriptorSetLayout,
                 DescriptorStage, DescriptorType,
-            },
-            device::Device,
+            }, device::Device, VulkanError
         },
     },
     math::{mat::Matrix4f, vec::Vec3f},
@@ -77,12 +74,12 @@ impl TransformData {
     }
 }
 
-#[system]
+// #[system]
 fn add_transform_data(
     device: Resource<Arc<Device>>,
     descriptor_pool: Resource<Arc<DescriptorPool>>,
     mut transforms_data: Resource<IdVec<TransformData>>,
-    mut transforms: Query<&mut [Transform]>)
+    mut transforms: Query<Mut<Transform>>)
 {
     while let Some((_, transform)) = transforms.next() {
         if transform.data_id.is_none() {

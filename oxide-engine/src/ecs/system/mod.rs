@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ecs::world::{WORLD, World};
+use crate::ecs::world::{self, World, WORLD};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum SystemTrigger {
@@ -47,18 +47,19 @@ impl Systems {
     pub fn execute_type(&mut self, system_type: SystemTrigger) {
         if let Some(systems) = self.systems.get_mut(&system_type) {
             for system in systems.iter_mut() {
-                system.run();
+                let world = WORLD.read().unwrap();
+                system.run(&world);
             }
         }
     }
 }
 
 pub trait SystemInput {
-    fn borrow() -> Self;
+    fn borrow<'world>(world: &'world World) -> Self;
 }
 
 pub trait System {
-    fn run(&mut self);
+    fn run(&mut self, world: &World);
 }
 
 pub trait SystemBundle {
