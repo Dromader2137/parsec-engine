@@ -8,6 +8,7 @@ ash = "0.38.0"
 winit = { version = "0.30.5", features = [ "rwh_05" ] }
 oxide-engine-macros = { path = "../oxide-engine-macros" }
 ash-window = "0.13.0"
+once_cell = "1.21.3"
 
 [build-dependencies]
 shaderc = "0.9.1"

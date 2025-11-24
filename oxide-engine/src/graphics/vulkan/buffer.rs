@@ -43,7 +43,7 @@ pub type BufferUsage = ash::vk::BufferUsageFlags;
 impl Buffer {
     pub fn from_vec<T: Clone + Copy>(
         device: Arc<Device>,
-        data: Vec<T>,
+        data: &[T],
         usage: BufferUsage,
     ) -> Result<Arc<Buffer>, BufferError> {
         let size = data.len() * size_of::<T>();
@@ -197,36 +197,4 @@ pub fn find_memorytype_index(
                 && memory_type.property_flags & flags == flags
         })
         .map(|(index, _memory_type)| index as _)
-}
-
-#[derive(Debug)]
-pub struct AutoSyncingBuffer<T: Clone + Copy + PartialEq> {
-    pub data: Vec<T>,
-    old_data: Vec<T>,
-    buffer: Arc<Buffer>,
-}
-
-impl<T: Clone + Copy + PartialEq> AutoSyncingBuffer<T> {
-    pub fn new(
-        device: Arc<Device>,
-        data: Vec<T>,
-        usage: BufferUsage,
-    ) -> Result<AutoSyncingBuffer<T>, BufferError> {
-        let buffer = Buffer::from_vec(device, data.clone(), usage)?;
-        Ok(AutoSyncingBuffer {
-            data: data.clone(),
-            old_data: data,
-            buffer,
-        })
-    }
-
-    pub fn update(&mut self) -> Result<(), BufferError> {
-        if self.data == self.old_data {
-            return Ok(());
-        }
-
-        self.buffer.update(self.data.clone())?;
-
-        Ok(())
-    }
 }

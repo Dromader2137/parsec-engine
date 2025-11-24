@@ -1,11 +1,19 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use crate::graphics::vulkan::{
-    VulkanError,
-    buffer::{Buffer, BufferUsage},
-    command_buffer::CommandBuffer,
-    device::Device,
-    graphics_pipeline::Vertex,
+use crate::{
+    graphics::{
+        renderer::{DefaultVertex, assets::mesh::Mesh},
+        vulkan::{
+            VulkanError,
+            buffer::{Buffer, BufferUsage},
+            command_buffer::CommandBuffer,
+            device::Device,
+            graphics_pipeline::Vertex,
+        },
+    },
+    resources::Resource,
+    system,
+    utils::id_vec::IdVec,
 };
 
 pub struct MeshBuffer<V: Vertex> {
@@ -17,8 +25,8 @@ pub struct MeshBuffer<V: Vertex> {
 impl<V: Vertex> MeshBuffer<V> {
     pub fn new(
         device: Arc<Device>,
-        vertices: Vec<V>,
-        indices: Vec<u32>,
+        vertices: &[V],
+        indices: &[u32],
     ) -> Result<MeshBuffer<V>, VulkanError> {
         Ok(MeshBuffer {
             vertex_buffer: Buffer::from_vec(device.clone(), vertices, BufferUsage::VERTEX_BUFFER)?,
@@ -35,14 +43,14 @@ impl<V: Vertex> MeshBuffer<V> {
 }
 
 pub struct MeshData<V: Vertex> {
-    buffer: MeshBuffer<V>,
+    pub buffer: MeshBuffer<V>,
 }
 
 impl<V: Vertex> MeshData<V> {
     pub fn new(
         device: Arc<Device>,
-        vertices: Vec<V>,
-        indices: Vec<u32>,
+        vertices: &[V],
+        indices: &[u32],
     ) -> Result<MeshData<V>, VulkanError> {
         let buffer = MeshBuffer::new(device, vertices, indices)?;
         Ok(MeshData { buffer })
@@ -50,5 +58,20 @@ impl<V: Vertex> MeshData<V> {
 
     pub fn record_commands(&self, command_buffer: Arc<CommandBuffer>) {
         self.buffer.record_draw_commands(command_buffer);
+    }
+}
+
+#[system]
+fn add_mesh_data(
+    device: Resource<Arc<Device>>,
+    mut meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
+    mut meshes: Resource<IdVec<Mesh>>,
+) {
+    for mesh in meshes.iter_mut() {
+        if mesh.data_id.is_none() {
+            let mesh_data = MeshData::new(device.clone(), &mesh.vertices, &mesh.indices).unwrap();
+            let data_id = meshes_data.push(mesh_data);
+            mesh.data_id = Some(data_id);
+        }
     }
 }

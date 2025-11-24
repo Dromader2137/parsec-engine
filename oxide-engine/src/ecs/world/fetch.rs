@@ -1,69 +1,106 @@
-use std::any::TypeId;
+use std::{
+    any::TypeId,
+    marker::PhantomData,
+    sync::{Arc, RwLock},
+};
 
 use oxide_engine_macros::{impl_fetch, multiple_tuples};
 
 use crate::ecs::world::{
-    archetype::{Archetype, ArchetypeError, ArchetypeId},
+    archetype::{Archetype, ArchetypeError, ArchetypeId, BorrowingStats},
     component::Component,
 };
 
-pub trait Fetch<'a>: Sized {
-    type Item<'b>
+pub trait Fetch: Sized {
+    type Item<'a>
     where
-        'a: 'b,
-        Self: 'b;
+        Self: 'a;
+    type State: Clone;
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError>;
-    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError>;
-    fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError>;
-    fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b>;
-    fn count(&self) -> usize;
+    fn prepare(archetype: &Archetype) -> Result<Self::State, ArchetypeError>;
+    fn release(state: Self::State) -> Result<(), ArchetypeError>;
+    fn get<'a>(state: Self::State, row: usize) -> Self::Item<'a>;
+    fn len(state: &Self::State) -> usize;
 }
 
-impl<'a, T: Component> Fetch<'a> for &'a [T] {
-    type Item<'b>
-        = &'b T
+#[derive(Debug, Clone)]
+pub struct FetchState<T> {
+    ptr: *const [T],
+    len: usize,
+    access: Arc<RwLock<BorrowingStats>>,
+}
+
+impl<T: Component> Fetch for T {
+    type Item<'a>
+        = &'a T
     where
-        'a: 'b,
-        Self: 'b;
+        Self: 'a;
+    type State = FetchState<T>;
 
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
         ArchetypeId::new(vec![TypeId::of::<T>()])
     }
 
-    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> { archetype.get::<T>() }
-
-    fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError> {
-        archetype.release_lock::<T>()
+    fn prepare(archetype: &Archetype) -> Result<Self::State, ArchetypeError> {
+        let (ptr, access, len) = archetype.get()?;
+        Ok(FetchState { ptr, access, len })
     }
 
-    fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b> { &self[row] }
+    fn release(state: Self::State) -> Result<(), ArchetypeError> {
+        let mut lock = state.access.write().unwrap();
+        lock.release_lock();
+        Ok(())
+    }
 
-    fn count(&self) -> usize { self.len() }
+    fn get<'a>(state: Self::State, row: usize) -> Self::Item<'a> {
+        let ptr = state.ptr;
+        let array = unsafe { &*ptr };
+        &array[row]
+    }
+
+    fn len(state: &Self::State) -> usize { state.len }
 }
 
-impl<'a, T: Component> Fetch<'a> for &'a mut [T] {
-    type Item<'b>
-        = &'b mut T
+pub struct Mut<T> {
+    _marker: PhantomData<T>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FetchMutState<T> {
+    ptr: *mut [T],
+    len: usize,
+    access: Arc<RwLock<BorrowingStats>>,
+}
+
+impl<T: Component> Fetch for Mut<T> {
+    type Item<'a>
+        = &'a mut T
     where
-        'a: 'b,
-        Self: 'b;
+        Self: 'a;
+    type State = FetchMutState<T>;
 
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
         ArchetypeId::new(vec![TypeId::of::<T>()])
     }
 
-    fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> { archetype.get_mut::<T>() }
-
-    fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError> {
-        archetype.release_lock::<T>()
+    fn prepare(archetype: &Archetype) -> Result<Self::State, ArchetypeError> {
+        let (ptr, access, len) = archetype.get_mut()?;
+        Ok(FetchMutState { ptr, access, len })
     }
 
-    fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b> {
-        let ptr = self.as_mut_ptr();
-        unsafe { &mut *ptr.add(row) }
+    fn release(state: Self::State) -> Result<(), ArchetypeError> {
+        let mut lock = state.access.write().unwrap();
+        lock.release_lock();
+        Ok(())
     }
 
-    fn count(&self) -> usize { self.len() }
+    fn get<'a>(state: Self::State, row: usize) -> Self::Item<'a> {
+        let ptr = state.ptr;
+        let array = unsafe { &mut *ptr };
+        &mut array[row]
+    }
+
+    fn len(state: &Self::State) -> usize { state.len }
 }
 
 multiple_tuples!(impl_fetch, 16);

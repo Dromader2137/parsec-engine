@@ -1,119 +1,83 @@
 use std::{
     any::{Any, TypeId},
-    cell::{Ref, RefCell, RefMut},
     collections::HashMap,
-    marker::PhantomData,
     ops::{Deref, DerefMut},
+    sync::{Arc, RwLock},
 };
 
-use crate::error::EngineError;
+use once_cell::sync::Lazy;
 
-pub trait Resource: 'static {}
-impl<T: 'static> Resource for T {}
+use crate::{ecs::system::SystemInput, error::EngineError};
 
-pub struct ResourceCollection {
-    resources: HashMap<TypeId, RefCell<Box<dyn Any>>>,
+pub trait ResourceMarker: Send + Sync + 'static {}
+impl<T: Send + Sync + 'static> ResourceMarker for T {}
+
+static RESOURCES: Lazy<RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync>>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
+
+pub struct Resource<R: ResourceMarker> {
+    lock: Arc<RwLock<R>>,
 }
 
-pub struct Rsc<'a, T: Resource> {
-    borrow: Ref<'a, Box<dyn Any>>,
-    _marker: PhantomData<T>,
-}
-
-impl<'a, T: Resource> Deref for Rsc<'a, T> {
-    type Target = T;
+impl<R: ResourceMarker> Deref for Resource<R> {
+    type Target = R;
     fn deref(&self) -> &Self::Target {
-        self.borrow
-            .downcast_ref::<T>()
-            .expect("Rsc downcast should never fail")
+        let guard = self.lock.read().unwrap();
+        let r = &*guard as *const Self::Target;
+        unsafe { &*r }
     }
 }
 
-pub struct RscMut<'a, T: Resource> {
-    borrow: RefMut<'a, Box<dyn Any>>,
-    _marker: PhantomData<T>,
-}
-
-impl<'a, T: Resource> Deref for RscMut<'a, T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        self.borrow
-            .downcast_ref::<T>()
-            .expect("RscMut downcast should never fail")
-    }
-}
-
-impl<'a, T: Resource> DerefMut for RscMut<'a, T> {
+impl<R: ResourceMarker> DerefMut for Resource<R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.borrow
-            .downcast_mut::<T>()
-            .expect("RscMut downcast should never fail")
+        let mut guard = self.lock.write().unwrap();
+        let x = guard.deref_mut();
+        let r = x as *mut Self::Target;
+        unsafe { &mut *r }
     }
 }
 
-impl ResourceCollection {
-    pub fn new() -> ResourceCollection {
-        ResourceCollection {
-            resources: HashMap::new(),
-        }
+impl<T: ResourceMarker> SystemInput for Resource<T> {
+    fn borrow() -> Self {
+        let lock = Resources::get().unwrap();
+        Resource { lock }
     }
+}
 
-    pub fn add<R: Resource>(&mut self, resource: R) -> Result<(), ResourceError> {
+pub struct Resources {}
+impl Resources {
+    pub fn add<R: ResourceMarker>(resource: R) -> Result<(), ResourceError> {
+        let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
-        if self.resources.contains_key(&type_id) {
+        if resources.contains_key(&type_id) {
             return Err(ResourceError::ResourceAlreadyExists);
         }
-        self.resources
-            .insert(type_id, RefCell::new(Box::new(resource)));
+        resources.insert(type_id, Box::new(Arc::new(RwLock::new(resource))));
         Ok(())
     }
 
-    pub fn add_or_change<R: Resource>(&mut self, resource: R) -> Result<(), ResourceError> {
+    pub fn add_or_change<R: ResourceMarker>(resource: R) {
+        let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
-        self.resources
-            .insert(type_id, RefCell::new(Box::new(resource)));
-        Ok(())
+        resources.insert(type_id, Box::new(Arc::new(RwLock::new(resource))));
     }
 
-    pub fn get<'a, 'b, R: Resource>(&'a self) -> Result<Rsc<'b, R>, ResourceError>
-    where
-        'a: 'b,
-    {
+    fn get<R: ResourceMarker>() -> Result<Arc<RwLock<R>>, ResourceError> {
+        let resources = RESOURCES.read().expect("Clean resources read");
         let type_id = TypeId::of::<R>();
-        if let Some(resource_cell) = self.resources.get(&type_id) {
-            let resource = match resource_cell.try_borrow() {
-                Ok(val) => val,
-                Err(_) => return Err(ResourceError::UnableToBorrow),
-            };
-            return Ok(Rsc {
-                borrow: resource,
-                _marker: PhantomData::default(),
-            });
-        }
-        Err(ResourceError::ResourceNotFound)
+        let lock = match resources.get(&type_id) {
+            Some(lock_any) => lock_any
+                .downcast_ref::<Arc<RwLock<R>>>()
+                .expect("This downcast can't fail"),
+            None => return Err(ResourceError::ResourceNotFound),
+        };
+        Ok(lock.clone())
     }
 
-    pub fn get_mut<'a, 'b, R: Resource>(&'a self) -> Result<RscMut<'b, R>, ResourceError>
-    where
-        'a: 'b,
-    {
+    pub fn remove<R: ResourceMarker>() -> Result<(), ResourceError> {
+        let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
-        if let Some(resource_cell) = self.resources.get(&type_id) {
-            let resource = match resource_cell.try_borrow_mut() {
-                Ok(val) => val,
-                Err(_) => return Err(ResourceError::UnableToBorrow),
-            };
-            return Ok(RscMut {
-                borrow: resource,
-                _marker: PhantomData::default(),
-            });
-        }
-        Err(ResourceError::ResourceNotFound)
-    }
-
-    pub fn remove<R: Resource>(&mut self) -> Result<(), ResourceError> {
-        let type_id = TypeId::of::<R>();
-        self.resources
+        resources
             .remove(&type_id)
             .map_or(Err(ResourceError::ResourceNotFound), |_| Ok(()))
     }

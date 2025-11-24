@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crate::{assets::library::AssetLibrary, ecs::world::World, resources::ResourceCollection};
+use std::{collections::HashMap, thread::scope};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum SystemTrigger {
@@ -15,7 +13,7 @@ pub enum SystemTrigger {
 }
 
 pub struct Systems {
-    systems: HashMap<SystemTrigger, Vec<System>>,
+    systems: HashMap<SystemTrigger, Vec<Box<dyn System>>>,
 }
 
 impl Systems {
@@ -25,56 +23,54 @@ impl Systems {
         }
     }
 
-    fn get_systems_by_trigger(&mut self, system_trigger: SystemTrigger) -> &mut Vec<System> {
+    fn get_systems_by_trigger(
+        &mut self,
+        system_trigger: SystemTrigger,
+    ) -> &mut Vec<Box<dyn System>> {
         self.systems.entry(system_trigger).or_insert(Vec::new())
     }
 
-    pub fn add(&mut self, system: System) {
-        let system_vec = self.get_systems_by_trigger(system.system_trigger);
+    pub fn add(&mut self, system_trigger: SystemTrigger, system: Box<dyn System>) {
+        let system_vec = self.get_systems_by_trigger(system_trigger);
         system_vec.push(system);
     }
 
     pub fn add_bundle(&mut self, bundle: impl SystemBundle) {
         for system in bundle.systems() {
-            let system_vec = self.get_systems_by_trigger(system.system_trigger);
-            system_vec.push(system);
+            let system_vec = self.get_systems_by_trigger(system.0);
+            system_vec.push(system.1);
         }
     }
 
-    pub fn execute_type(&self, system_type: SystemTrigger, mut system_input: SystemInput) {
-        if let Some(systems) = self.systems.get(&system_type) {
-            for system in systems.iter() {
-                system.execute(&mut system_input);
+    pub fn execute_type(&mut self, system_type: SystemTrigger) {
+        if let Some(systems) = self.systems.get_mut(&system_type) {
+            if matches!(system_type, SystemTrigger::Update) {
+                scope(|x| {
+                    let mut handles = Vec::new();
+                    for system in systems.iter_mut() {
+                        handles.push(x.spawn(move || system.run()));
+                    }
+                    for handle in handles {
+                        handle.join().unwrap();
+                    }
+                });
+            } else {
+                for system in systems.iter_mut() {
+                    system.run();
+                }
             }
         }
     }
 }
 
-pub struct SystemInput<'a> {
-    pub world: &'a mut World,
-    pub assets: &'a mut AssetLibrary,
-    pub resources: &'a mut ResourceCollection,
+pub trait SystemInput {
+    fn borrow() -> Self;
 }
 
-pub struct System {
-    system_trigger: SystemTrigger,
-    function: Box<dyn Fn(&mut SystemInput)>,
-}
-
-impl System {
-    pub fn new(
-        system_trigger: SystemTrigger,
-        function: impl Fn(&mut SystemInput) + 'static,
-    ) -> System {
-        System {
-            system_trigger,
-            function: Box::new(function),
-        }
-    }
-
-    pub fn execute(&self, system_input: &mut SystemInput) { (self.function)(system_input); }
+pub trait System: Send + Sync {
+    fn run(&mut self);
 }
 
 pub trait SystemBundle {
-    fn systems(self) -> Vec<System>;
+    fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)>;
 }

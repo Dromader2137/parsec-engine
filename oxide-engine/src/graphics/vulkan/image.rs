@@ -4,7 +4,7 @@ use crate::graphics::vulkan::{
     VulkanError, buffer::find_memorytype_index, device::Device, format_size::format_size,
 };
 
-pub trait Image: 'static {
+pub trait Image: Send + Sync + 'static {
     fn get_image_raw(&self) -> &ash::vk::Image;
     fn device(&self) -> Arc<Device>;
 }

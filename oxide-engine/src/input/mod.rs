@@ -1,8 +1,10 @@
 use keys::Keys;
 
 use crate::{
-    ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
+    ecs::system::{System, SystemBundle, SystemTrigger},
     input::key::{KeyCode, KeyState},
+    resources::{Resource, Resources},
+    system,
 };
 
 pub mod key;
@@ -27,36 +29,29 @@ impl InputEvent {
     pub fn new(key: KeyCode, state: KeyState) -> InputEvent { InputEvent { key, state } }
 }
 
+#[system]
+fn input_start() { Resources::add(Input::new()).unwrap(); }
+
+#[system]
+fn input_clear(mut input: Resource<Input>) { input.keys.clear(); }
+
+#[system]
+fn input_clear_all(mut input: Resource<Input>) { input.keys.clear_all(); }
+
+#[system]
+fn input_keyboard_event(mut input: Resource<Input>, input_event: Resource<InputEvent>) {
+    input.keys.process_input_event(*input_event);
+}
+
 #[derive(Default)]
 pub struct InputBundle {}
 impl SystemBundle for InputBundle {
-    fn systems(self) -> Vec<System> {
+    fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
         vec![
-            System::new(SystemTrigger::Start, |SystemInput { resources, .. }| {
-                resources.add(Input::new()).unwrap();
-            }),
-            System::new(
-                SystemTrigger::Render,
-                |SystemInput { resources, .. }| {
-                    let mut input = resources.get_mut::<Input>().unwrap();
-                    input.keys.clear();
-                },
-            ),
-            System::new(
-                SystemTrigger::WindowCursorLeft,
-                |SystemInput { resources, .. }| {
-                    let mut input = resources.get_mut::<Input>().unwrap();
-                    input.keys.clear_all();
-                },
-            ),
-            System::new(
-                SystemTrigger::KeyboardInput,
-                |SystemInput { resources, .. }| {
-                    let mut input = resources.get_mut::<Input>().unwrap();
-                    let event = resources.get::<InputEvent>().unwrap();
-                    input.keys.process_input_event(*event);
-                },
-            ),
+            (SystemTrigger::Start, InputStart::new()),
+            (SystemTrigger::Render, InputClear::new()),
+            (SystemTrigger::WindowCursorLeft, InputClearAll::new()),
+            (SystemTrigger::KeyboardInput, InputKeyboardEvent::new()),
         ]
     }
 }

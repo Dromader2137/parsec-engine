@@ -4,13 +4,27 @@ use vulkan::VulkanError;
 use window::{WindowError, WindowWrapper};
 
 use crate::{
-    app::ActiveEventLoopStore,
-    ecs::system::{System, SystemBundle, SystemInput, SystemTrigger},
+    app::{self},
+    ecs::{
+        system::{System, SystemBundle, SystemTrigger},
+        world::query::Query,
+    },
     error::EngineError,
     graphics::{
-        renderer::{camera_data::update_camera_data, init_renderer, queue_clear, render},
-        vulkan::context::init_vulkan,
+        renderer::{
+            InitRenderer, PrepareRender, QueueClear, Render,
+            assets::mesh::Mesh,
+            camera_data::{AddCameraData, UpdateCameraData},
+            components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
+            draw_queue::{Draw, MeshAndMaterial},
+            mesh_data::AddMeshData,
+            transform_data::AddTransformData,
+        },
+        vulkan::{context::InitVulkan, device::Device},
     },
+    resources::{Resource, Resources},
+    system,
+    utils::id_vec::IdVec,
 };
 
 pub mod renderer;
@@ -31,36 +45,66 @@ impl From<GraphicsError> for EngineError {
 #[derive(Default)]
 pub struct GraphicsBundle {}
 impl SystemBundle for GraphicsBundle {
-    fn systems(self) -> Vec<System> {
+    fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
         vec![
-            System::new(
-                SystemTrigger::LateStart,
-                |SystemInput { resources, .. }| {
-                    let window = {
-                        let event_loop = resources.get::<ActiveEventLoopStore>().unwrap();
-                        let event_loop_raw = event_loop.get_event_loop();
-                        WindowWrapper::new(event_loop_raw, "Oxide Engine test").unwrap()
-                    };
-                    resources.add(window).unwrap();
-                    init_vulkan(resources).unwrap();
-                    init_renderer(resources).unwrap();
-                },
-            ),
-            System::new(
-                SystemTrigger::Render,
-                |SystemInput { resources, .. }| {
-                    update_camera_data(resources, 40.0_f32.to_radians(), 1.0, 100.0).unwrap();
-                    render(resources).unwrap();
-                    queue_clear(resources);
-                },
-            ),
-            System::new(
-                SystemTrigger::Update,
-                |SystemInput { resources, .. }| {
-                    let window = resources.get_mut::<Arc<WindowWrapper>>().unwrap();
-                    window.request_redraw();
-                },
-            ),
+            (SystemTrigger::LateStart, InitWindow::new()),
+            (SystemTrigger::LateStart, InitVulkan::new()),
+            (SystemTrigger::LateStart, InitRenderer::new()),
+            (SystemTrigger::Render, UpdateCameraData::new()),
+            (SystemTrigger::Render, AutoEnqueue::new()),
+            (SystemTrigger::Render, PrepareRender::new()),
+            (SystemTrigger::Render, Render::new()),
+            (SystemTrigger::Render, QueueClear::new()),
+            (SystemTrigger::Update, RequestRedraw::new()),
+            (SystemTrigger::Update, AddCameraData::new()),
+            (SystemTrigger::Update, AddMeshData::new()),
+            (SystemTrigger::Update, AddTransformData::new()),
+            (SystemTrigger::End, EndWaitIdle::new()),
         ]
+    }
+}
+
+#[system]
+fn request_redraw(window: Resource<Arc<WindowWrapper>>) { window.request_redraw(); }
+
+#[system]
+fn end_wait_idle(device: Resource<Arc<Device>>) { device.wait_idle().unwrap() }
+
+#[system]
+fn init_window() {
+    let window = {
+        let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
+        let event_loop_raw = event_loop.get_event_loop();
+        WindowWrapper::new(event_loop_raw, "Oxide Engine test").unwrap()
+    };
+    Resources::add(window).unwrap();
+}
+
+#[system]
+fn auto_enqueue(
+    mut draw_queue: Resource<Vec<Draw>>,
+    meshes: Resource<IdVec<Mesh>>,
+    cameras: Query<(Transform, Camera)>,
+    mesh_renderers: Query<(Transform, MeshRenderer)>,
+) {
+    for (camera_transform, camera) in cameras.into_iter() {
+        for (transform, mesh_renderer) in mesh_renderers.into_iter() {
+            let mesh_asset = meshes.get(mesh_renderer.mesh_id).unwrap();
+            if mesh_asset.data_id.is_none()
+                || camera.data_id.is_none()
+                || camera_transform.data_id.is_none()
+                || transform.data_id.is_none()
+            {
+                continue;
+            }
+
+            draw_queue.push(Draw::MeshAndMaterial(MeshAndMaterial {
+                mesh: mesh_asset.data_id.unwrap(),
+                material: mesh_renderer.material_id,
+                camera: camera.data_id.unwrap(),
+                camera_transform: camera_transform.data_id.unwrap(),
+                transform: transform.data_id.unwrap(),
+            }));
+        }
     }
 }

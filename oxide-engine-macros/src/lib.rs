@@ -1,7 +1,10 @@
+use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
+use proc_macro_crate::{FoundCrate, crate_name};
+use proc_macro2::Span;
 use quote::{format_ident, quote};
 use syn::{
-    DeriveInput, Ident, LitInt, Token,
+    DeriveInput, FnArg, Ident, ItemFn, LitInt, Pat, PatType, Token,
     parse::{Parse, ParseStream, Result},
     parse_macro_input,
     punctuated::Punctuated,
@@ -80,31 +83,31 @@ pub fn impl_fetch(input: TokenStream) -> TokenStream {
         return TokenStream::new();
     }
 
+    let t_one = types.get(0).unwrap();
     let mut impl_types = Vec::new();
     let mut bundle_types = Vec::new();
+    let mut state_types = Vec::new();
     let mut item_types = Vec::new();
-    let mut borrow = Vec::new();
+    let mut prepare = Vec::new();
     let mut release = Vec::new();
     let mut get = Vec::new();
     let mut id = Vec::new();
-    let mut archetype_adds = Vec::new();
-    let mut archetype_ids = Vec::new();
     for (i, t) in types.iter().enumerate() {
-        impl_types.push(quote! { #t: Fetch<'a> });
+        impl_types.push(quote! { #t: Fetch });
         bundle_types.push(quote! { #t });
-        item_types.push(quote! { #t::Item<'b> });
-        borrow.push(quote! { #t::borrow(archetype)? });
-        release.push(quote! { #t::release(archetype)? });
-        archetype_ids.push(quote! { std::any::TypeId::of::<#t>() });
+        item_types.push(quote! { #t::Item<'a> });
+        state_types.push(quote! { #t::State });
+        prepare.push(quote! { #t::prepare(archetype)? });
         id.push(quote! { ret = ret.merge_with(#t::archetype_id()?)?; });
         let i = syn::Index::from(i);
-        archetype_adds.push(quote! { archetype.add(self.#i.clone())?; });
-        get.push(quote! { self.#i.get(row) });
+        release.push(quote! { #t::release(state.#i)? });
+        get.push(quote! { #t::get(state.#i.clone(), row) });
     }
 
     let output = quote! {
-        impl<'a, #(#impl_types),*> Fetch<'a> for (#(#bundle_types),*) {
-            type Item<'b> = (#(#item_types),*) where 'a: 'b, Self: 'b;
+        impl<#(#impl_types),*> Fetch for (#(#bundle_types),*) {
+            type Item<'a> = (#(#item_types),*) where Self: 'a;
+            type State = (#(#state_types),*);
 
             fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
                 let mut ret = ArchetypeId::new(Vec::new())?;
@@ -112,21 +115,21 @@ pub fn impl_fetch(input: TokenStream) -> TokenStream {
                 Ok(ret)
             }
 
-            fn borrow(archetype: &'a Archetype) -> Result<Self, ArchetypeError> {
-                Ok((#(#borrow),*))
+            fn prepare(archetype: &Archetype) -> Result<Self::State, ArchetypeError> {
+                Ok((#(#prepare),*))
             }
 
-            fn release(archetype: &'a Archetype) -> Result<(), ArchetypeError> {
+            fn release(state: Self::State) -> Result<(), ArchetypeError> {
                 (#(#release),*);
                 Ok(())
             }
 
-            fn get<'b>(&'b mut self, row: usize) -> Self::Item<'b> {
+            fn get<'a>(state: Self::State, row: usize) -> Self::Item<'a> {
                 (#(#get),*)
             }
 
-            fn count(&self) -> usize {
-                self.0.count()
+            fn len(state: &Self::State) -> usize {
+                #t_one::len(&state.0)
             }
         }
     };
@@ -170,8 +173,96 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     let ident = input.ident;
 
     let expanded = quote! {
+        impl Copy for #ident {}
+        impl Clone for #ident {
+            fn clone(&self) -> Self {
+                *self
+            }
+        }
         impl Component for #ident {}
     };
 
     TokenStream::from(expanded)
+}
+
+#[proc_macro_attribute]
+pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input_fn = parse_macro_input!(item as ItemFn);
+
+    let fn_name = &input_fn.sig.ident;
+    let struct_name = format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
+
+    let found_crate = crate_name("oxide-engine").expect("oxide-engine is present in `Cargo.toml`");
+
+    let engine_crate = match found_crate {
+        FoundCrate::Itself => quote!(crate),
+        FoundCrate::Name(name) => {
+            let ident = Ident::new(&name, Span::call_site());
+            quote!( ::#ident )
+        },
+    };
+
+    let borrows = input_fn.sig.inputs.iter().map(|arg| match arg {
+        FnArg::Typed(PatType { pat, ty, .. }) => {
+            let argument_type = ty;
+
+            let (argument_name, mutability) = match &**pat {
+                Pat::Ident(pat_ident) => {
+                    let is_mut = pat_ident.mutability.is_some();
+                    let ident = &pat_ident.ident;
+                    // is_mut == true for `mut b`
+                    (ident, is_mut)
+                },
+                _ => panic!("Only ident is supported inside systems"),
+            };
+
+            if mutability {
+                quote! {
+                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
+                }
+            } else {
+                quote! {
+                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
+                }
+            }
+        },
+        FnArg::Receiver(_) => {
+            panic!("Systems cannot take &self or &mut self");
+        },
+    });
+
+    let argument_names = input_fn.sig.inputs.iter().map(|arg| match arg {
+        FnArg::Typed(PatType { pat, .. }) => {
+            let argument_name = match &**pat {
+                Pat::Ident(pat_ident) => {
+                    let ident = &pat_ident.ident;
+                    ident
+                },
+                _ => panic!("Only ident is supported inside systems"),
+            };
+            quote! { #argument_name }
+        },
+        _ => unreachable!(),
+    });
+
+    let output = quote! {
+        #input_fn
+
+        pub struct #struct_name;
+
+        impl #struct_name {
+            pub fn new() -> Box<Self> {
+                Box::new(Self)
+            }
+        }
+
+        impl #engine_crate::ecs::system::System for #struct_name {
+            fn run(&mut self) {
+                #(#borrows)*
+                #fn_name( #(#argument_names),* );
+            }
+        }
+    };
+
+    output.into()
 }

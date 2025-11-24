@@ -1,9 +1,9 @@
 use std::{
     any::TypeId,
-    cell::RefCell,
     collections::{HashMap, HashSet},
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
+    sync::{Arc, RwLock},
 };
 
 use oxide_engine_macros::{impl_spawn, multiple_tuples};
@@ -117,17 +117,46 @@ impl ArchetypeId {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum ArchetypeColumnAccess {
+pub enum ArchetypeColumnAccess {
     ReadWrite,
     Read,
     None,
 }
 
 #[derive(Debug)]
+pub struct BorrowingStats {
+    access: ArchetypeColumnAccess,
+    count: usize,
+}
+
+impl BorrowingStats {
+    fn new() -> BorrowingStats {
+        BorrowingStats {
+            access: ArchetypeColumnAccess::ReadWrite,
+            count: 0,
+        }
+    }
+
+    pub fn release_lock(&mut self) {
+        match self.access {
+            ArchetypeColumnAccess::None => {
+                self.access = ArchetypeColumnAccess::ReadWrite;
+            },
+            ArchetypeColumnAccess::Read => {
+                self.count -= 1;
+                if self.count == 0 {
+                    self.access = ArchetypeColumnAccess::ReadWrite;
+                }
+            },
+            _ => (),
+        };
+    }
+}
+
+#[derive(Debug)]
 struct ArchetypeColumn {
     data: Vec<u8>,
-    access: RefCell<ArchetypeColumnAccess>,
-    borrow_count: RefCell<usize>,
+    borrow: Arc<RwLock<BorrowingStats>>,
     rows: usize,
     component_size: usize,
 }
@@ -136,8 +165,7 @@ impl ArchetypeColumn {
     fn new() -> ArchetypeColumn {
         ArchetypeColumn {
             data: Vec::new(),
-            access: RefCell::new(ArchetypeColumnAccess::ReadWrite),
-            borrow_count: RefCell::new(0),
+            borrow: Arc::new(RwLock::new(BorrowingStats::new())),
             rows: 0,
             component_size: 1,
         }
@@ -148,9 +176,9 @@ impl ArchetypeColumn {
     fn push<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
         self.set_component_size::<T>();
 
-        let access = self.access.borrow();
+        let access = self.borrow.read().unwrap().access;
 
-        if *access != ArchetypeColumnAccess::ReadWrite {
+        if access != ArchetypeColumnAccess::ReadWrite {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
         }
 
@@ -165,9 +193,9 @@ impl ArchetypeColumn {
     }
 
     fn push_raw(&mut self, data: Vec<u8>) -> Result<(), ArchetypeError> {
-        let access = self.access.borrow();
+        let access = self.borrow.read().unwrap().access;
 
-        if *access != ArchetypeColumnAccess::ReadWrite {
+        if access != ArchetypeColumnAccess::ReadWrite {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
         }
 
@@ -211,9 +239,9 @@ impl ArchetypeColumn {
     }
 
     fn get_slice<T: Component>(&self) -> Result<&[T], ArchetypeError> {
-        let access = self.access.borrow();
+        let access = self.borrow.read().unwrap().access;
 
-        if *access == ArchetypeColumnAccess::None {
+        if access == ArchetypeColumnAccess::None {
             return Err(ArchetypeError::ArchetypeColumnNotReadable);
         }
 
@@ -228,9 +256,9 @@ impl ArchetypeColumn {
     }
 
     fn get_mut_slice<T: Component>(&self) -> Result<&mut [T], ArchetypeError> {
-        let access = self.access.borrow();
+        let access = self.borrow.read().unwrap().access;
 
-        if *access != ArchetypeColumnAccess::ReadWrite {
+        if access != ArchetypeColumnAccess::ReadWrite {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
         }
 
@@ -382,39 +410,23 @@ impl Archetype {
         }
     }
 
-    pub fn get<T: Component>(&self) -> Result<&[T], ArchetypeError> {
+    pub fn get<T: Component>(
+        &self,
+    ) -> Result<(*const [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_slice::<T>()?;
-        *column.borrow_count.borrow_mut() += 1;
-        *column.access.borrow_mut() = ArchetypeColumnAccess::Read;
-        Ok(slice)
+        column.borrow.write().unwrap().count += 1;
+        column.borrow.write().unwrap().access = ArchetypeColumnAccess::Read;
+        Ok((slice, column.borrow.clone(), slice.len()))
     }
 
-    pub fn get_mut<T: Component>(&self) -> Result<&mut [T], ArchetypeError> {
+    pub fn get_mut<T: Component>(
+        &self,
+    ) -> Result<(*mut [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
         let column = self.get_column::<T>()?;
         let slice = column.get_mut_slice::<T>()?;
-        *column.access.borrow_mut() = ArchetypeColumnAccess::None;
-        Ok(slice)
-    }
-
-    pub fn release_lock<T: Component>(&self) -> Result<(), ArchetypeError> {
-        let column = self.get_column::<T>()?;
-        let column_access = *column.access.borrow();
-        match column_access {
-            ArchetypeColumnAccess::None => {
-                *column.access.borrow_mut() = ArchetypeColumnAccess::ReadWrite;
-            },
-            ArchetypeColumnAccess::Read => {
-                let mut borrow_count = column.borrow_count.borrow_mut();
-                *borrow_count -= 1;
-                if *borrow_count == 0 {
-                    *column.access.borrow_mut() = ArchetypeColumnAccess::ReadWrite;
-                }
-            },
-            _ => (),
-        };
-
-        Ok(())
+        column.borrow.write().unwrap().access = ArchetypeColumnAccess::None;
+        Ok((slice, column.borrow.clone(), slice.len()))
     }
 
     pub fn len(&self) -> usize { self.bundle_count }

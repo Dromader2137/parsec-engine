@@ -1,106 +1,82 @@
-use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use crate::ecs::{
-    entity::Entity,
-    world::{
-        archetype::{Archetype, ArchetypeError, ArchetypeId},
-        fetch::Fetch,
-    },
+    system::SystemInput,
+    world::{WORLD, fetch::Fetch},
 };
 
-#[derive(Debug)]
-pub struct Query<'a, T: Fetch<'a>> {
+pub struct Query<T: Fetch> {
+    fetches: Vec<T::State>,
+}
+
+impl<T: Fetch> SystemInput for Query<T> {
+    fn borrow() -> Self {
+        let world = WORLD.read().unwrap();
+        let archetype_id = T::archetype_id().unwrap();
+        let archetypes = world.archetypes.iter().filter_map(|(id, arch)| {
+            if id.contains(&archetype_id) {
+                Some(arch)
+            } else {
+                None
+            }
+        });
+        let fetches = archetypes.map(|arch| T::prepare(arch).unwrap()).collect();
+        Query { fetches }
+    }
+}
+
+impl<T: Fetch> Query<T> {
+    pub fn into_iter<'a>(&'a self) -> QueryIter<'a, T> {
+        let inside_len = match self.fetches.first() {
+            Some(first_fetch) => T::len(&first_fetch),
+            None => 0,
+        };
+        QueryIter {
+            outside_len: self.fetches.len(),
+            inside_len,
+            outside_idx: 0,
+            inside_idx: 0,
+            query: &self,
+            _marker: PhantomData::default(),
+        }
+    }
+}
+
+impl<T: Fetch> Drop for Query<T> {
+    fn drop(&mut self) {
+        for fetch in self.fetches.iter_mut() {
+            T::release(fetch.clone()).unwrap();
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct QueryIter<'a, T: Fetch + 'static> {
     outside_len: usize,
     inside_len: usize,
     outside_idx: usize,
     inside_idx: usize,
-    released: bool,
-    fetch: Vec<T>,
-    archetypes: Vec<&'a Archetype>,
+    query: &'a Query<T>,
+    _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T: Fetch<'a>> Query<'a, T> {
-    pub fn new(
-        archetype_map: &'a HashMap<ArchetypeId, Archetype>,
-    ) -> Result<Query<'a, T>, ArchetypeError> {
-        let mut fetch = Vec::new();
-        let mut archetypes = Vec::new();
-        let t_archetype_id = T::archetype_id()?;
-
-        for (archetype_id, archetype) in archetype_map.iter() {
-            if archetype_id.contains(&t_archetype_id) {
-                archetypes.push(archetype);
-                fetch.push(T::borrow(archetype)?);
-            }
-        }
-
-        let inside_len = match fetch.first() {
-            Some(val) => val.count(),
-            None => 0,
-        };
-
-        Ok(Query {
-            outside_len: fetch.len(),
-            inside_len,
-            outside_idx: 0,
-            inside_idx: 0,
-            released: false,
-            fetch,
-            archetypes,
-        })
-    }
-
-    fn release_lock(&mut self) -> Result<(), ArchetypeError> {
-        for archetype in self.archetypes.iter() {
-            T::release(archetype)?;
-        }
-        self.released = true;
-        Ok(())
-    }
-}
-
-impl<'a, T: Fetch<'a>> Drop for Query<'a, T> {
-    fn drop(&mut self) {
-        if !self.released {
-            self.release_lock().expect("Clean lock release");
-        }
-    }
-}
-
-pub trait QueryIter {
-    type Item<'b>
-    where
-        Self: 'b;
-    fn next<'b>(&'b mut self) -> Option<Self::Item<'b>>;
-}
-
-impl<'a, T: Fetch<'a>> QueryIter for Query<'a, T> {
-    type Item<'b>
-        = (Entity, T::Item<'b>)
-    where
-        Self: 'b;
-
-    fn next<'b>(&'b mut self) -> Option<Self::Item<'b>> {
-        if self.released {
-            return None;
-        }
-
-        if self.inside_idx >= self.inside_len {
-            self.inside_idx = 0;
-            self.outside_idx += 1;
-        }
-
+impl<'a, T: Fetch + 'static> Iterator for QueryIter<'a, T> {
+    type Item = T::Item<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
         if self.outside_idx >= self.outside_len {
             return None;
         }
-
-        self.inside_len = self.fetch[self.outside_idx].count();
-        let row = self.inside_idx;
+        if self.inside_idx >= self.inside_len {
+            self.outside_idx += 1;
+            if self.outside_idx >= self.outside_len {
+                return None;
+            }
+            self.inside_idx = 0;
+            self.inside_len = T::len(&self.query.fetches[self.outside_idx]);
+        }
+        let state = self.query.fetches[self.outside_idx].clone();
+        let inside_idx = self.inside_idx;
         self.inside_idx += 1;
-
-        Some((
-            self.archetypes[self.outside_idx].entities[row],
-            self.fetch[self.outside_idx].get(row),
-        ))
+        Some(T::get(state, inside_idx))
     }
 }
