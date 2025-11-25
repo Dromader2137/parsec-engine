@@ -1,3 +1,5 @@
+//! Types used to query entities from [`World`][crate::ecs::world::World].
+
 use std::marker::PhantomData;
 
 use crate::ecs::{
@@ -5,6 +7,7 @@ use crate::ecs::{
     world::{WORLD, fetch::Fetch},
 };
 
+/// Stores the data needed to query entities from [`World`][crate::ecs::world::World].
 pub struct Query<T: Fetch> {
     fetches: Vec<T::State>,
 }
@@ -26,6 +29,7 @@ impl<T: Fetch> SystemInput for Query<T> {
 }
 
 impl<T: Fetch> Query<T> {
+    /// Creates an iterator over [`self`].
     pub fn into_iter<'a>(&'a self) -> QueryIter<'a, T> {
         let inside_len = match self.fetches.first() {
             Some(first_fetch) => T::len(&first_fetch),
@@ -50,6 +54,7 @@ impl<T: Fetch> Drop for Query<T> {
     }
 }
 
+/// Iterator created from [`Query`]
 #[derive(Clone)]
 pub struct QueryIter<'a, T: Fetch + 'static> {
     outside_len: usize,

@@ -1,3 +1,5 @@
+//! Types responsible for handlin archetypes.
+
 use std::{
     any::TypeId,
     collections::{HashMap, HashSet},
@@ -28,6 +30,7 @@ impl From<ArchetypeError> for WorldError {
     fn from(value: ArchetypeError) -> Self { WorldError::ArchetypeError(value) }
 }
 
+/// Uniquely identifies an [`Archetype`]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArchetypeId {
     component_types: HashSet<TypeId>,
@@ -39,6 +42,10 @@ impl Hash for ArchetypeId {
 }
 
 impl ArchetypeId {
+    /// Creates a new [`ArchetypeId`] from a list of type ids.
+    ///
+    /// # Errors
+    /// []
     pub fn new(component_types: Vec<TypeId>) -> Result<ArchetypeId, ArchetypeError> {
         let mut set = HashSet::new();
         let mut hash = 0_u64;

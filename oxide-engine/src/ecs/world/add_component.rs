@@ -1,8 +1,12 @@
+//! Trait used in the process of adding components to entities.
+
 use crate::ecs::world::{
     archetype::{Archetype, ArchetypeError, ArchetypeId},
     spawn::Spawn,
 };
 
+/// Represents a type that can be used to add components to an entity.
+/// It is automatically implemented for all types implementing [`Spawn`].
 pub trait AddComponent {
     fn archetype_id() -> Result<ArchetypeId, ArchetypeError>;
     fn add_to(self, archetype: &mut Archetype) -> Result<(), ArchetypeError>;

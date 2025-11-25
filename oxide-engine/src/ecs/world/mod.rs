@@ -29,23 +29,26 @@ impl From<WorldError> for EngineError {
     fn from(value: WorldError) -> Self { EngineError::WorldError(value) }
 }
 
-pub static WORLD: Lazy<RwLock<World>> = Lazy::new(|| RwLock::new(World::new()));
+/// Global store containing the main instance of [`World`].
+pub static WORLD: Lazy<RwLock<World>> = Lazy::new(|| {
+    RwLock::new(World {
+        archetypes: HashMap::new(),
+        current_id: 0,
+    })
+});
 
-/// World holds all data about components and entities
+/// Holds all data about components and entities.
 #[derive(Debug)]
 pub struct World {
-    pub archetypes: HashMap<ArchetypeId, Archetype>,
+    /// Contains all archetypes indexed by their id.
+    archetypes: HashMap<ArchetypeId, Archetype>,
+    /// New entity id counter.
     current_id: u32,
 }
 
 impl World {
-    pub fn new() -> World {
-        World {
-            archetypes: HashMap::new(),
-            current_id: 0,
-        }
-    }
-
+    /// Returns a mutable reference to the archetype stored under `archetype_id`.
+    /// If there was no such archetype, it is created, added to `self` and a mutable reference is returned.
     fn get_archetype_mut(
         &mut self,
         archetype_id: &ArchetypeId,
@@ -59,7 +62,7 @@ impl World {
         Ok(self.archetypes.get_mut(archetype_id).unwrap())
     }
 
-    /// Spawn a new entity
+    /// Spawns a new entity.
     pub fn spawn<T: Spawn>(bundle: T) -> Result<(), WorldError> {
         let mut world = WORLD.write().unwrap();
         let archetype_id = T::archetype_id()?;
@@ -74,7 +77,7 @@ impl World {
         Ok(())
     }
 
-    /// Delete an entity
+    /// Deletes the given entity.
     pub fn delete(entity: Entity) -> Result<(), WorldError> {
         let mut world = WORLD.write().unwrap();
         for (_, archetype) in world.archetypes.iter_mut() {
@@ -90,7 +93,7 @@ impl World {
         Err(ArchetypeError::EntityNotFound.into())
     }
 
-    /// Add components to an already existing entity
+    /// Add components to an already existing entity.
     pub fn add_components<T: AddComponent>(
         entity: Entity,
         bundle_extension: T,
@@ -127,7 +130,7 @@ impl World {
         Ok(())
     }
 
-    /// Remove components from an entity
+    /// Removes components from an entity.
     pub fn remove_components<T: RemoveComponent>(entity: Entity) -> Result<(), WorldError> {
         let mut world = WORLD.write().unwrap();
         let (archetype_id, old_archetype) = match world
@@ -160,8 +163,4 @@ impl World {
 
         Ok(())
     }
-}
-
-impl Default for World {
-    fn default() -> Self { Self::new() }
 }

@@ -1,10 +1,7 @@
-use std::{cell::RefCell, ptr::NonNull, sync::Mutex};
+use std::{cell::RefCell, ptr::NonNull};
 
 use crate::{
-    ecs::{
-        system::{SystemTrigger, Systems},
-        world::World,
-    },
+    ecs::system::{SystemTrigger, Systems},
     input::InputEvent,
     resources::Resources,
 };
@@ -23,8 +20,6 @@ impl App {
 
     pub fn run(&mut self) {
         self.systems.execute_type(SystemTrigger::Start);
-
-        Resources::add(Mutex::new(World::new())).unwrap();
 
         let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
