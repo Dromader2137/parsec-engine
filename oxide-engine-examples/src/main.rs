@@ -86,11 +86,27 @@ fn test_system(
 
     let mesh = meshes.push(Mesh::new(vertices, indices));
 
-    World::spawn((
-        Camera::new(40.0_f32.to_radians(), 1.0, 100.0),
+    let entity = World::spawn(Camera::new(40.0_f32.to_radians(), 1.0, 100.0)).unwrap();
+
+    World::add_components(
+        entity,
         Transform::new(Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
-    ))
+    )
     .unwrap();
+
+    World::delete(entity).unwrap();
+
+    let entity = World::spawn(Camera::new(40.0_f32.to_radians(), 1.0, 100.0)).unwrap();
+
+    World::add_components(
+        entity,
+        Transform::new(Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
+    )
+    .unwrap();
+
+    World::add_components(entity, MeshRenderer::new(mesh, material_id)).unwrap();
+
+    World::remove_components::<MeshRenderer>(entity).unwrap();
 
     World::spawn((
         Transform::new(

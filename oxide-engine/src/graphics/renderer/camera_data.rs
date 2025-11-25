@@ -76,7 +76,7 @@ fn add_camera_data(
     mut cameras_data: Resource<IdVec<CameraData>>,
     cameras: Query<Mut<Camera>>,
 ) {
-    for camera in cameras.into_iter() {
+    for (_, camera) in cameras.into_iter() {
         if camera.data_id.is_none() {
             let camera_data = CameraData::new(
                 device.clone(),

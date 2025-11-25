@@ -87,8 +87,8 @@ fn auto_enqueue(
     cameras: Query<(Transform, Camera)>,
     mesh_renderers: Query<(Transform, MeshRenderer)>,
 ) {
-    for (camera_transform, camera) in cameras.into_iter() {
-        for (transform, mesh_renderer) in mesh_renderers.into_iter() {
+    for (_, (camera_transform, camera)) in cameras.into_iter() {
+        for (_, (transform, mesh_renderer)) in mesh_renderers.into_iter() {
             let mesh_asset = meshes.get(mesh_renderer.mesh_id).unwrap();
             if mesh_asset.data_id.is_none()
                 || camera.data_id.is_none()

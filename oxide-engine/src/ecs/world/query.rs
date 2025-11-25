@@ -3,6 +3,7 @@
 use std::marker::PhantomData;
 
 use crate::ecs::{
+    entity::Entity,
     system::SystemInput,
     world::{WORLD, fetch::Fetch},
 };
@@ -10,21 +11,33 @@ use crate::ecs::{
 /// Stores the data needed to query entities from [`World`][crate::ecs::world::World].
 pub struct Query<T: Fetch> {
     fetches: Vec<T::State>,
+    entities: Vec<Vec<Entity>>,
 }
 
 impl<T: Fetch> SystemInput for Query<T> {
     fn borrow() -> Self {
         let world = WORLD.read().unwrap();
         let archetype_id = T::archetype_id().unwrap();
-        let archetypes = world.archetypes.iter().filter_map(|(id, arch)| {
-            if id.contains(&archetype_id) {
-                Some(arch)
-            } else {
-                None
-            }
-        });
-        let fetches = archetypes.map(|arch| T::prepare(arch).unwrap()).collect();
-        Query { fetches }
+        let archetypes = world
+            .archetypes
+            .iter()
+            .filter_map(|(id, arch)| {
+                if id.contains(&archetype_id) {
+                    Some(arch)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        let fetches = archetypes
+            .iter()
+            .map(|arch| T::prepare(arch).unwrap())
+            .collect();
+        let entities = archetypes
+            .iter()
+            .map(|arch| arch.entities.clone())
+            .collect();
+        Query { fetches, entities }
     }
 }
 
@@ -66,12 +79,12 @@ pub struct QueryIter<'a, T: Fetch + 'static> {
 }
 
 impl<'a, T: Fetch + 'static> Iterator for QueryIter<'a, T> {
-    type Item = T::Item<'a>;
+    type Item = (Entity, T::Item<'a>);
     fn next(&mut self) -> Option<Self::Item> {
         if self.outside_idx >= self.outside_len {
             return None;
         }
-        if self.inside_idx >= self.inside_len {
+        while self.inside_idx >= self.inside_len {
             self.outside_idx += 1;
             if self.outside_idx >= self.outside_len {
                 return None;
@@ -82,6 +95,9 @@ impl<'a, T: Fetch + 'static> Iterator for QueryIter<'a, T> {
         let state = self.query.fetches[self.outside_idx].clone();
         let inside_idx = self.inside_idx;
         self.inside_idx += 1;
-        Some(T::get(state, inside_idx))
+        Some((
+            self.query.entities[self.outside_idx][inside_idx],
+            T::get(state, inside_idx),
+        ))
     }
 }

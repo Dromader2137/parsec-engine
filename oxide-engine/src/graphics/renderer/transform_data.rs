@@ -84,7 +84,7 @@ fn add_transform_data(
     mut transforms_data: Resource<IdVec<TransformData>>,
     transforms: Query<Mut<Transform>>,
 ) {
-    for transform in transforms.into_iter() {
+    for (_, transform) in transforms.into_iter() {
         if transform.data_id.is_none() {
             let transform_data = TransformData::new(
                 device.clone(),
