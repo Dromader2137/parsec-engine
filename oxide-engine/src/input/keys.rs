@@ -1,3 +1,5 @@
+//! Key storage.
+
 use std::collections::HashSet;
 
 use crate::input::{
@@ -5,6 +7,7 @@ use crate::input::{
     key::{KeyCode, KeyState},
 };
 
+/// Stores keys that currently are in different states.
 #[derive(Debug)]
 pub struct Keys {
     pressed: HashSet<KeyCode>,
@@ -21,6 +24,7 @@ impl Keys {
         }
     }
 
+    /// Takes an [InputEvent] and updated `self` accordingly.
     pub fn process_input_event(&mut self, event: InputEvent) {
         match event.state {
             KeyState::Pressed => self.press(event.key),
@@ -40,20 +44,25 @@ impl Keys {
         self.up.insert(key);
     }
 
+    /// Clears pressed and up state.
     pub fn clear(&mut self) {
         self.pressed.clear();
         self.up.clear();
     }
 
+    /// Clears all keys state.
     pub fn clear_all(&mut self) {
         self.pressed.clear();
         self.down.clear();
         self.up.clear();
     }
 
+    /// Checks if the `key` is pressed.
     pub fn is_pressed(&self, key: KeyCode) -> bool { self.pressed.contains(&key) }
 
+    /// Checks if the `key` is down.
     pub fn is_down(&self, key: KeyCode) -> bool { self.down.contains(&key) }
 
+    /// Checks if the `key` is up.
     pub fn is_up(&self, key: KeyCode) -> bool { self.up.contains(&key) }
 }

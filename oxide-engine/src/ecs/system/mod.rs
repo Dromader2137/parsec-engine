@@ -1,5 +1,8 @@
-use std::{collections::HashMap, thread::scope};
+//! Module responsible for creating, marking and running systems.
 
+use std::collections::HashMap;
+
+/// A list of possible actions a system can run on.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum SystemTrigger {
     Render,
@@ -44,20 +47,8 @@ impl Systems {
 
     pub fn execute_type(&mut self, system_type: SystemTrigger) {
         if let Some(systems) = self.systems.get_mut(&system_type) {
-            if matches!(system_type, SystemTrigger::Update) {
-                scope(|x| {
-                    let mut handles = Vec::new();
-                    for system in systems.iter_mut() {
-                        handles.push(x.spawn(move || system.run()));
-                    }
-                    for handle in handles {
-                        handle.join().unwrap();
-                    }
-                });
-            } else {
-                for system in systems.iter_mut() {
-                    system.run();
-                }
+            for system in systems.iter_mut() {
+                system.run();
             }
         }
     }

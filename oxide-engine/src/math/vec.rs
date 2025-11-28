@@ -1,3 +1,5 @@
+//! Vector types.
+
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]

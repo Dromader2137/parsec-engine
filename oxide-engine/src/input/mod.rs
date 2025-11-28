@@ -1,3 +1,5 @@
+//! Module responsible for handling user input.
+
 use keys::Keys;
 
 use crate::{
@@ -10,6 +12,7 @@ use crate::{
 pub mod key;
 pub mod keys;
 
+/// Contains all input data.
 #[derive(Debug)]
 pub struct Input {
     pub keys: Keys,
@@ -19,6 +22,7 @@ impl Input {
     pub fn new() -> Input { Input { keys: Keys::new() } }
 }
 
+/// A keybord input event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InputEvent {
     key: KeyCode,

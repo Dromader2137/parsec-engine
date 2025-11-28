@@ -1,3 +1,6 @@
+//! Entity data (id).
+
+/// Holds a unique id for an entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Entity {
     id: u32,

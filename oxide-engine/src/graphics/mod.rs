@@ -1,3 +1,5 @@
+//! Module containing all things related to graphics.
+
 use std::sync::Arc;
 
 use vulkan::VulkanError;

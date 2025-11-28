@@ -1,3 +1,5 @@
+//! Module responsible for storing and getting global state.
+
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
@@ -9,12 +11,15 @@ use once_cell::sync::Lazy;
 
 use crate::{ecs::system::SystemInput, error::EngineError};
 
+/// Marks a type as a resource that can be stored in a global storage.
 pub trait ResourceMarker: Send + Sync + 'static {}
 impl<T: Send + Sync + 'static> ResourceMarker for T {}
 
+/// Global [`resources`][ResourceMarker] store.
 static RESOURCES: Lazy<RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
+/// Stores the information necessary to use a global resource.
 pub struct Resource<R: ResourceMarker> {
     lock: Arc<RwLock<R>>,
 }
@@ -46,6 +51,11 @@ impl<T: ResourceMarker> SystemInput for Resource<T> {
 
 pub struct Resources {}
 impl Resources {
+    /// Adds `resource` to global storage.
+    ///
+    /// # Errors
+    ///
+    /// - If a resource of type `R` already exists.
     pub fn add<R: ResourceMarker>(resource: R) -> Result<(), ResourceError> {
         let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
@@ -56,12 +66,19 @@ impl Resources {
         Ok(())
     }
 
+    /// Adds `resource` to global storage. If a resource of type `R` already exists it is
+    /// replaced.
     pub fn add_or_change<R: ResourceMarker>(resource: R) {
         let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
         resources.insert(type_id, Box::new(Arc::new(RwLock::new(resource))));
     }
 
+    /// Gets the resource of type `R`.
+    ///
+    /// # Errors
+    ///
+    /// - If there is no resource of type `R`.
     fn get<R: ResourceMarker>() -> Result<Arc<RwLock<R>>, ResourceError> {
         let resources = RESOURCES.read().expect("Clean resources read");
         let type_id = TypeId::of::<R>();
@@ -74,6 +91,11 @@ impl Resources {
         Ok(lock.clone())
     }
 
+    /// Removes the resource of type `R`.
+    ///
+    /// # Errors
+    ///
+    /// - If there is no resource of type `R`.
     pub fn remove<R: ResourceMarker>() -> Result<(), ResourceError> {
         let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();

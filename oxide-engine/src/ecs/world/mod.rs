@@ -1,3 +1,5 @@
+//! Module responsible for storing and querying entities and their data.
+
 use std::{collections::HashMap, fmt::Debug, sync::RwLock};
 
 use archetype::{Archetype, ArchetypeError, ArchetypeId};
@@ -84,10 +86,15 @@ impl World {
     /// # Errors
     ///
     /// - If `entity` doesn't exist.
-    /// - If the [archetype][Archetype] is already borrowed in some way.
+    /// - If the [archetype][Archetype] containing `entity` is already borrowed in some way.
     pub fn delete(entity: Entity) -> Result<(), WorldError> {
         let mut world = WORLD.write().unwrap();
         for (_, archetype) in world.archetypes.iter_mut() {
+            if archetype.entities.contains(&entity) && !archetype.are_all_columns_mutable() {
+                return Err(WorldError::ArchetypeError(
+                    ArchetypeError::ArchetypeColumnNotWritable,
+                ));
+            }
             match archetype.delete_entity(entity) {
                 Ok(()) => {
                     archetype.bundle_count -= 1;
@@ -106,7 +113,7 @@ impl World {
     ///
     /// - If `T` can't produce a valid [`ArchetypeId`].
     /// - If `T` merged with the type of `entity` can't produce a valid [`ArchetypeId`].
-    /// - If the original or resulting [archetype][Archetype] is already borrowed in some way.
+    /// - If either the original [archetype][Archetype] containing `entity` or the destination [archetype][Archetype] is already borrowed in some way.
     pub fn add_components<T: AddComponent>(
         entity: Entity,
         bundle_extension: T,
@@ -159,7 +166,7 @@ impl World {
     ///
     /// - If `T` can't produce a valid [`ArchetypeId`].
     /// - If `T` subtracted from the type of `entity` can't produce a valid [`ArchetypeId`].
-    /// - If the original or resulting [archetype][Archetype] is already borrowed in some way.
+    /// - If either the original [archetype][Archetype] containing `entity` or the destination [archetype][Archetype] is already borrowed in some way.
     pub fn remove_components<T: RemoveComponent>(entity: Entity) -> Result<(), WorldError> {
         let mut world = WORLD.write().unwrap();
         let (archetype_id, old_archetype) = match world

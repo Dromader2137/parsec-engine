@@ -1,7 +1,10 @@
+//! Matrix types.
+
 use std::ops::Mul;
 
 use crate::math::vec::Vec3f;
 
+/// 4x4 matrix of floats.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 #[repr(C)]
 pub struct Matrix4f(pub [[f32; 4]; 4]);
@@ -33,6 +36,7 @@ impl Matrix4f {
         ])
     }
 
+    /// An identity matrix.
     pub fn indentity() -> Matrix4f {
         Matrix4f::new([
             [1.0, 0.0, 0.0, 0.0],
@@ -42,6 +46,7 @@ impl Matrix4f {
         ])
     }
 
+    /// A translation matrix.
     pub fn translation(vec: Vec3f) -> Matrix4f {
         Matrix4f::new([
             [1.0, 0.0, 0.0, vec.x],
@@ -51,6 +56,7 @@ impl Matrix4f {
         ])
     }
 
+    /// A scale matrix.
     pub fn scale(vec: Vec3f) -> Matrix4f {
         Matrix4f::new([
             [vec.x, 0.0, 0.0, 0.0],
@@ -60,6 +66,7 @@ impl Matrix4f {
         ])
     }
 
+    /// Rotation around x-axis matrix.
     pub fn rotation_x(angle: f32) -> Matrix4f {
         Matrix4f::new([
             [1.0, 0.0, 0.0, 0.0],
@@ -69,6 +76,7 @@ impl Matrix4f {
         ])
     }
 
+    /// Rotation around y-axis matrix.
     pub fn rotation_y(angle: f32) -> Matrix4f {
         Matrix4f::new([
             [angle.cos(), 0.0, -angle.sin(), 0.0],
@@ -78,6 +86,7 @@ impl Matrix4f {
         ])
     }
 
+    /// Rotation around z-axis matrix.
     pub fn rotation_z(angle: f32) -> Matrix4f {
         Matrix4f::new([
             [angle.cos(), -angle.sin(), 0.0, 0.0],
@@ -87,6 +96,7 @@ impl Matrix4f {
         ])
     }
 
+    /// Perspective matrix.
     pub fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> Matrix4f {
         let f = 1.0 / (fovy / 2.0).tan();
         let a = far / (far - near);
@@ -98,6 +108,7 @@ impl Matrix4f {
         ])
     }
 
+    /// Right-handed look-at matrix.
     pub fn look_at(mut eye: Vec3f, mut dir: Vec3f, mut up: Vec3f) -> Matrix4f {
         let mut f = dir.normalize();
         let mut u = f.cross(up.normalize()).normalize();

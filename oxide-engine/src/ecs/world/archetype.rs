@@ -1,4 +1,4 @@
-//! Types responsible for handlin archetypes.
+//! Types responsible for handling archetypes.
 
 use std::{
     any::TypeId,
@@ -474,6 +474,10 @@ impl Archetype {
     pub fn delete_entity(&mut self, entity: Entity) -> Result<(), ArchetypeError> {
         if !self.are_all_columns_mutable() {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
+        }
+
+        if self.entities.is_empty() {
+            return Err(ArchetypeError::EntityNotFound);
         }
 
         let last_pos = self.entities.len() - 1;

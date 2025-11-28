@@ -1,5 +1,8 @@
+//! A wrapper around a [`Vec`] that returns the element id on push.
+
 use std::slice::{Iter, IterMut};
 
+/// A wrapper around a [`Vec`] that returns the element id on push.
 pub struct IdVec<T> {
     vec: Vec<T>,
 }
@@ -12,19 +15,9 @@ impl<T> IdVec<T> {
         self.vec.len() as u32 - 1
     }
 
-    pub fn get(&self, id: u32) -> Option<&T> {
-        if self.vec.len() as u32 <= id {
-            return None;
-        }
-        self.vec.get(id as usize)
-    }
+    pub fn get(&self, id: u32) -> Option<&T> { self.vec.get(id as usize) }
 
-    pub fn get_mut(&mut self, id: u32) -> Option<&mut T> {
-        if self.vec.len() as u32 <= id {
-            return None;
-        }
-        self.vec.get_mut(id as usize)
-    }
+    pub fn get_mut(&mut self, id: u32) -> Option<&mut T> { self.vec.get_mut(id as usize) }
 
     pub fn iter(&self) -> Iter<'_, T> { self.vec.iter() }
 
