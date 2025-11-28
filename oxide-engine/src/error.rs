@@ -1,3 +1,5 @@
+//! Module responsible for top level error (TO BE DELETED).
+
 use crate::{ecs::world::WorldError, graphics::GraphicsError, resources::ResourceError};
 
 #[derive(Debug)]

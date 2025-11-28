@@ -1,4 +1,4 @@
-//! Module containing all things related to graphics.
+//! Module responsible for graphics.
 
 use std::sync::Arc;
 
@@ -8,7 +8,7 @@ use window::{WindowError, WindowWrapper};
 use crate::{
     app::{self},
     ecs::{
-        system::{System, SystemBundle, SystemTrigger},
+        system::{System, SystemBundle, SystemTrigger, system},
         world::query::Query,
     },
     error::EngineError,
@@ -25,7 +25,6 @@ use crate::{
         vulkan::{context::InitVulkan, device::Device},
     },
     resources::{Resource, Resources},
-    system,
     utils::id_vec::IdVec,
 };
 
@@ -86,8 +85,8 @@ fn init_window() {
 fn auto_enqueue(
     mut draw_queue: Resource<Vec<Draw>>,
     meshes: Resource<IdVec<Mesh>>,
-    cameras: Query<(Transform, Camera)>,
-    mesh_renderers: Query<(Transform, MeshRenderer)>,
+    mut cameras: Query<(Transform, Camera)>,
+    mut mesh_renderers: Query<(Transform, MeshRenderer)>,
 ) {
     for (_, (camera_transform, camera)) in cameras.into_iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.into_iter() {

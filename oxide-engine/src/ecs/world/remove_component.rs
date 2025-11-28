@@ -1,4 +1,4 @@
-//! Trait used in the process of deleting components from entites.
+//! Module responsible for deleting components from entites.
 
 use crate::ecs::world::{
     archetype::{ArchetypeError, ArchetypeId},

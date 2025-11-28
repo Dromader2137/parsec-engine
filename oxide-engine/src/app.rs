@@ -1,3 +1,5 @@
+//! Modele responsible managing the lifecycle of an application.
+
 use std::{cell::RefCell, ptr::NonNull};
 
 use crate::{

@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
+    ecs::system::system,
     graphics::{
         renderer::{DefaultVertex, assets::mesh::Mesh},
         vulkan::{
@@ -12,7 +13,6 @@ use crate::{
         },
     },
     resources::Resource,
-    system,
     utils::id_vec::IdVec,
 };
 

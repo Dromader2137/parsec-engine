@@ -1,4 +1,4 @@
-//! Types used to query entities from [`World`][crate::ecs::world::World].
+//! Module responsible for querying entities.
 
 use std::marker::PhantomData;
 
@@ -43,7 +43,7 @@ impl<T: Fetch> SystemInput for Query<T> {
 
 impl<T: Fetch> Query<T> {
     /// Creates an iterator over [`self`].
-    pub fn into_iter<'a>(&'a self) -> QueryIter<'a, T> {
+    pub fn into_iter<'a>(&'a mut self) -> QueryIter<'a, T> {
         let inside_len = match self.fetches.first() {
             Some(first_fetch) => T::len(&first_fetch),
             None => 0,
@@ -53,7 +53,7 @@ impl<T: Fetch> Query<T> {
             inside_len,
             outside_idx: 0,
             inside_idx: 0,
-            query: &self,
+            query: self,
             _marker: PhantomData::default(),
         }
     }
@@ -68,13 +68,12 @@ impl<T: Fetch> Drop for Query<T> {
 }
 
 /// Iterator created from [`Query`]
-#[derive(Clone)]
 pub struct QueryIter<'a, T: Fetch + 'static> {
     outside_len: usize,
     inside_len: usize,
     outside_idx: usize,
     inside_idx: usize,
-    query: &'a Query<T>,
+    query: &'a mut Query<T>,
     _marker: PhantomData<&'a T>,
 }
 

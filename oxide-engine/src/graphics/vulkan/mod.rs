@@ -1,3 +1,6 @@
+//! Module responsible for interaction with the Vulkan API. (Incomplete, undocumented and subject
+//! to change).
+
 use buffer::BufferError;
 use command_buffer::{CommandBufferError, CommandPoolError};
 use descriptor_set::DescriptorError;

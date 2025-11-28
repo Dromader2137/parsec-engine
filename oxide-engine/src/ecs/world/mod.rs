@@ -39,7 +39,7 @@ pub static WORLD: Lazy<RwLock<World>> = Lazy::new(|| {
     })
 });
 
-/// Holds all data about components and entities.
+/// Stores all data about components and entities.
 #[derive(Debug)]
 pub struct World {
     /// Contains all archetypes indexed by their id.

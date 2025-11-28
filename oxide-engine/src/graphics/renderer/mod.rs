@@ -1,3 +1,5 @@
+//! The built-in renderer.
+
 use std::sync::Arc;
 
 pub mod assets;
@@ -13,6 +15,7 @@ pub mod transform_data;
 use sync::{VulkanRendererFrameSync, VulkanRendererImageSync};
 
 use crate::{
+    ecs::system::system,
     graphics::{
         renderer::{
             assets::mesh::Mesh,
@@ -40,7 +43,6 @@ use crate::{
     },
     math::vec::Vec3f,
     resources::{Resource, Resources},
-    system,
     utils::id_vec::IdVec,
 };
 

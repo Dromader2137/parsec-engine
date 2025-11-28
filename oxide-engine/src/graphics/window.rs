@@ -1,3 +1,5 @@
+//! Module responsible for handling windows.
+
 use std::sync::Arc;
 
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};

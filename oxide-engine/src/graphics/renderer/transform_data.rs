@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    ecs::world::{fetch::Mut, query::Query},
+    ecs::{
+        system::system,
+        world::{fetch::Mut, query::Query},
+    },
     graphics::{
         renderer::components::transform::Transform,
         vulkan::{
@@ -16,7 +19,6 @@ use crate::{
     },
     math::{mat::Matrix4f, vec::Vec3f},
     resources::Resource,
-    system,
     utils::id_vec::IdVec,
 };
 
@@ -82,7 +84,7 @@ fn add_transform_data(
     device: Resource<Arc<Device>>,
     descriptor_pool: Resource<Arc<DescriptorPool>>,
     mut transforms_data: Resource<IdVec<TransformData>>,
-    transforms: Query<Mut<Transform>>,
+    mut transforms: Query<Mut<Transform>>,
 ) {
     for (_, transform) in transforms.into_iter() {
         if transform.data_id.is_none() {

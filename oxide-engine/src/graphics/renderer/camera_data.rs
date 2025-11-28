@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    ecs::world::{fetch::Mut, query::Query},
+    ecs::{
+        system::system,
+        world::{fetch::Mut, query::Query},
+    },
     graphics::{
         renderer::components::camera::Camera,
         vulkan::{
@@ -17,7 +20,6 @@ use crate::{
     },
     math::mat::Matrix4f,
     resources::Resource,
-    system,
     utils::id_vec::IdVec,
 };
 
@@ -74,7 +76,7 @@ fn add_camera_data(
     surface: Resource<Arc<Surface>>,
     descriptor_pool: Resource<Arc<DescriptorPool>>,
     mut cameras_data: Resource<IdVec<CameraData>>,
-    cameras: Query<Mut<Camera>>,
+    mut cameras: Query<Mut<Camera>>,
 ) {
     for (_, camera) in cameras.into_iter() {
         if camera.data_id.is_none() {

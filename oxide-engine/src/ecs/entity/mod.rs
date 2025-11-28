@@ -1,4 +1,4 @@
-//! Entity data (id).
+//! Module responsible for entity identification.
 
 /// Holds a unique id for an entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

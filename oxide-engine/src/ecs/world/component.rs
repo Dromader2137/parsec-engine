@@ -1,4 +1,4 @@
-//! Trait marking types as components.
+//! Module responsible for defining components.
 
 /// Marks a type as a component. Used for simple data types.
 pub trait Component: Copy + Clone + Send + Sync + Sized + 'static {}

@@ -1,4 +1,4 @@
-//! Trait used in the process of creating new entities.
+//! Module responsible for creating new entities.
 
 use crate::ecs::world::{
     archetype::{Archetype, ArchetypeError, ArchetypeId},

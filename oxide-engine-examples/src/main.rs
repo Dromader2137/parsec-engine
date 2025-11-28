@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use oxide_engine::{
     app::App,
-    ecs::{system::SystemTrigger, world::World},
+    ecs::{
+        system::{SystemTrigger, system},
+        world::World,
+    },
     graphics::{
         GraphicsBundle,
         renderer::{
@@ -20,7 +23,6 @@ use oxide_engine::{
     },
     math::vec::Vec3f,
     resources::Resource,
-    system,
     utils::id_vec::IdVec,
 };
 

@@ -1,4 +1,4 @@
-//! Trait used in the process of querying entities.
+//! Module responsible for querying entities.
 
 use std::{
     any::TypeId,

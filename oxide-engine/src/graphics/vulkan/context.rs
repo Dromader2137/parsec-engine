@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
+    ecs::system::system,
     graphics::{
         vulkan::{
             command_buffer::CommandPool,
@@ -12,7 +13,6 @@ use crate::{
         window::WindowWrapper,
     },
     resources::{Resource, Resources},
-    system,
 };
 
 #[system]

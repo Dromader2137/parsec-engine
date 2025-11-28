@@ -3,10 +3,9 @@
 use keys::Keys;
 
 use crate::{
-    ecs::system::{System, SystemBundle, SystemTrigger},
+    ecs::system::{System, SystemBundle, SystemTrigger, system},
     input::key::{KeyCode, KeyState},
     resources::{Resource, Resources},
-    system,
 };
 
 pub mod key;

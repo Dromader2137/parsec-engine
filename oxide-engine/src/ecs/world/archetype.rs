@@ -1,4 +1,4 @@
-//! Types responsible for handling archetypes.
+//! Module responsible for handling archetypes.
 
 use std::{
     any::TypeId,
