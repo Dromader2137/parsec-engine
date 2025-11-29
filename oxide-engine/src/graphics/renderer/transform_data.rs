@@ -17,7 +17,7 @@ use crate::{
             device::Device,
         },
     },
-    math::{mat::Matrix4f, vec::Vec3f},
+    math::{mat::Matrix4f, quat::Quat, vec::Vec3f},
     resources::Resource,
     utils::id_vec::IdVec,
 };
@@ -37,12 +37,12 @@ impl TransformData {
         descriptor_pool: Arc<DescriptorPool>,
         position: Vec3f,
         scale: Vec3f,
-        rotation: Vec3f,
+        rotation: Quat,
     ) -> Result<TransformData, VulkanError> {
-        let _ = rotation;
-        let _ = scale;
-        let model_matrix = Matrix4f::translation(position);
-        let look_at_matrix = Matrix4f::look_at(position, Vec3f::FORWARD, Vec3f::UP);
+        let model_matrix =
+            Matrix4f::translation(position) * Matrix4f::scale(scale) * rotation.into_matrix();
+        let look_at_matrix =
+            Matrix4f::look_at(position, Vec3f::FORWARD * rotation, Vec3f::UP * rotation);
         let model_buffer =
             Buffer::from_vec(device.clone(), &[model_matrix], BufferUsage::UNIFORM_BUFFER).unwrap();
         let look_at_buffer = Buffer::from_vec(
@@ -77,6 +77,12 @@ impl TransformData {
             look_at_set,
         })
     }
+
+    fn update_buffers_from_data(&mut self) -> Result<(), VulkanError> {
+        self.model_buffer.update(vec![self.model_matrix])?;
+        self.look_at_buffer.update(vec![self.look_at_matrix])?;
+        Ok(())
+    }
 }
 
 #[system]
@@ -86,19 +92,41 @@ fn add_transform_data(
     mut transforms_data: Resource<IdVec<TransformData>>,
     mut transforms: Query<Mut<Transform>>,
 ) {
-    for (_, transform) in transforms.into_iter() {
+    for (_, transform) in transforms.iter() {
         if transform.data_id.is_none() {
             let transform_data = TransformData::new(
                 device.clone(),
                 descriptor_pool.clone(),
                 transform.position,
-                Vec3f::ZERO,
-                Vec3f::ZERO,
+                transform.scale,
+                transform.rotation,
             )
             .unwrap();
 
             let data_id = transforms_data.push(transform_data);
             transform.data_id = Some(data_id);
         }
+    }
+}
+
+#[system]
+fn update_transform_data(
+    mut transforms_data: Resource<IdVec<TransformData>>,
+    mut transforms: Query<Transform>,
+) {
+    for (_, transform) in transforms.iter() {
+        if transform.data_id.is_none() {
+            continue;
+        }
+        let data = transforms_data.get_mut(transform.data_id.unwrap()).unwrap();
+        data.model_matrix = Matrix4f::translation(transform.position)
+            * Matrix4f::scale(transform.scale)
+            * transform.rotation.into_matrix();
+        data.look_at_matrix = Matrix4f::look_at(
+            transform.position,
+            Vec3f::FORWARD * transform.rotation,
+            Vec3f::UP * transform.rotation,
+        );
+        data.update_buffers_from_data().unwrap();
     }
 }

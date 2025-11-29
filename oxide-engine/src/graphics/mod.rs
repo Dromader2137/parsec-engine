@@ -20,7 +20,7 @@ use crate::{
             components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
             draw_queue::{Draw, MeshAndMaterial},
             mesh_data::AddMeshData,
-            transform_data::AddTransformData,
+            transform_data::{AddTransformData, UpdateTransformData},
         },
         vulkan::{context::InitVulkan, device::Device},
     },
@@ -51,6 +51,7 @@ impl SystemBundle for GraphicsBundle {
             (SystemTrigger::LateStart, InitVulkan::new()),
             (SystemTrigger::LateStart, InitRenderer::new()),
             (SystemTrigger::Render, UpdateCameraData::new()),
+            (SystemTrigger::Render, UpdateTransformData::new()),
             (SystemTrigger::Render, AutoEnqueue::new()),
             (SystemTrigger::Render, PrepareRender::new()),
             (SystemTrigger::Render, Render::new()),
@@ -87,8 +88,8 @@ fn auto_enqueue(
     mut cameras: Query<(Transform, Camera)>,
     mut mesh_renderers: Query<(Transform, MeshRenderer)>,
 ) {
-    for (_, (camera_transform, camera)) in cameras.into_iter() {
-        for (_, (transform, mesh_renderer)) in mesh_renderers.into_iter() {
+    for (_, (camera_transform, camera)) in cameras.iter() {
+        for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
             let mesh_asset = meshes.get(mesh_renderer.mesh_id).unwrap();
             if mesh_asset.data_id.is_none()
                 || camera.data_id.is_none()

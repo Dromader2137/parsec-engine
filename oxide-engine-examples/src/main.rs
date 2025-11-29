@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::SystemTime};
 
 use oxide_engine::{
     app::App,
     ecs::{
         system::{SystemTrigger, system},
-        world::World,
+        world::{World, fetch::Mut, query::Query},
     },
     graphics::{
         GraphicsBundle,
@@ -21,7 +21,7 @@ use oxide_engine::{
             shader::{ShaderModule, ShaderType, read_shader_code},
         },
     },
-    math::vec::Vec3f,
+    math::{quat::Quat, vec::Vec3f},
     resources::Resource,
     utils::id_vec::IdVec,
 };
@@ -33,7 +33,7 @@ fn test_system(
     mut materials: Resource<IdVec<MaterialData>>,
     mut meshes: Resource<IdVec<Mesh>>,
 ) {
-    let scale = 1.0;
+    let scale = 2.0;
 
     let vertex = ShaderModule::new(
         device.clone(),
@@ -78,33 +78,40 @@ fn test_system(
     let material_id = materials.push(material);
 
     let vertices = vec![
-        DefaultVertex::new(Vec3f::new(0.0, 0.0, 0.0) * scale, Vec3f::new(0.0, 0.0, 0.0)),
-        DefaultVertex::new(Vec3f::new(1.0, 1.0, 0.0) * scale, Vec3f::new(1.0, 1.0, 0.0)),
-        DefaultVertex::new(Vec3f::new(0.0, 1.0, 0.0) * scale, Vec3f::new(0.0, 1.0, 0.0)),
-        DefaultVertex::new(Vec3f::new(1.0, 0.0, 0.0) * scale, Vec3f::new(1.0, 0.0, 0.0)),
+        DefaultVertex::new(
+            Vec3f::new(-0.5, -0.5, 0.0) * scale,
+            Vec3f::new(0.0, 0.0, 0.0),
+        ),
+        DefaultVertex::new(Vec3f::new(0.5, 0.5, 0.0) * scale, Vec3f::new(1.0, 1.0, 0.0)),
+        DefaultVertex::new(
+            Vec3f::new(-0.5, 0.5, 0.0) * scale,
+            Vec3f::new(0.0, 1.0, 0.0),
+        ),
+        DefaultVertex::new(
+            Vec3f::new(0.5, -0.5, 0.0) * scale,
+            Vec3f::new(1.0, 0.0, 0.0),
+        ),
     ];
 
     let indices = vec![0, 2, 1, 0, 1, 3];
 
     let mesh = meshes.push(Mesh::new(vertices, indices));
 
-    let entity = World::spawn(Camera::new(40.0_f32.to_radians(), 1.0, 100.0)).unwrap();
-
-    World::add_components(
-        entity,
-        Transform::new(Vec3f::ZERO, Vec3f::ZERO, Vec3f::ZERO),
-    )
+    World::spawn((
+        Camera::new(60.0_f32.to_radians(), 0.1, 1000.0),
+        Transform::new(
+            Vec3f::ZERO,
+            Vec3f::ONE,
+            Quat::from_euler(Vec3f::new(0.3, 0.3, 0.0)),
+        ),
+    ))
     .unwrap();
-
-    World::add_components(entity, MeshRenderer::new(mesh, material_id)).unwrap();
-
-    World::remove_components::<MeshRenderer>(entity).unwrap();
 
     World::spawn((
         Transform::new(
-            Vec3f::FORWARD * 5.0 + Vec3f::new(0.5, -0.5, 0.0) * scale,
-            Vec3f::ZERO,
-            Vec3f::ZERO,
+            Vec3f::FORWARD * 5.0 + Vec3f::new(0.5, 0.0, 0.0) * scale,
+            Vec3f::ONE,
+            Quat::from_euler(Vec3f::new(0.0, -0.3, 0.0)),
         ),
         MeshRenderer::new(mesh, material_id),
     ))
@@ -112,18 +119,30 @@ fn test_system(
 
     World::spawn((
         Transform::new(
-            Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, -0.5, 0.0) * scale,
-            Vec3f::ZERO,
-            Vec3f::ZERO,
+            Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, 0.0, 0.0) * scale,
+            Vec3f::ONE,
+            Quat::from_euler(Vec3f::new(0.0, 0.3, 0.0)),
         ),
         MeshRenderer::new(mesh, material_id),
     ))
     .unwrap();
 }
 
+#[system]
+fn test_update(mut transforms_with_camera: Query<(Mut<Transform>, Camera)>) {
+    for (_, (transform, _)) in transforms_with_camera.iter() {
+        let time = SystemTime::now();
+        let duration = time.duration_since(SystemTime::UNIX_EPOCH).unwrap();
+        // transform.position.x += (duration.as_millis() as f64 / 100.0).cos() as f32 / 1000.0;
+        // transform.position.y = (duration.as_millis() as f64 / 100.0).sin() as f32;
+        transform.position.z = (duration.as_millis() as f64 / 600.0).sin() as f32;
+    }
+}
+
 fn main() {
     let mut app = App::new();
     app.systems.add_bundle(GraphicsBundle::default());
     app.systems.add(SystemTrigger::LateStart, TestSystem::new());
+    app.systems.add(SystemTrigger::Update, TestUpdate::new());
     app.run();
 }

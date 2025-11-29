@@ -114,7 +114,7 @@ impl Matrix4f {
         let mut u = f.cross(up.normalize()).normalize();
         let v = u.cross(f);
 
-        Matrix4f([
+        Matrix4f::new([
             [u.x, u.y, u.z, -eye.dot(u)],
             [v.x, v.y, v.z, -eye.dot(v)],
             [f.x, f.y, f.z, -eye.dot(f)],

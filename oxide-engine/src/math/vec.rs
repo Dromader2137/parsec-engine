@@ -353,6 +353,7 @@ impl SubAssign for Vec3d {
 
 impl Vec2f {
     pub const ZERO: Vec2f = Vec2f { x: 0.0, y: 0.0 };
+    pub const ONE: Vec2f = Vec2f { x: 1.0, y: 1.0 };
     pub const UP: Vec2f = Vec2f { x: 0.0, y: 1.0 };
     pub const DOWN: Vec2f = Vec2f { x: 0.0, y: -1.0 };
     pub const LEFT: Vec2f = Vec2f { x: 1.0, y: 0.0 };
@@ -384,6 +385,11 @@ impl Vec3f {
         x: 0.0,
         y: 0.0,
         z: 0.0,
+    };
+    pub const ONE: Vec3f = Vec3f {
+        x: 1.0,
+        y: 1.0,
+        z: 1.0,
     };
     pub const UP: Vec3f = Vec3f {
         x: 0.0,
@@ -460,6 +466,7 @@ impl Vec3f {
 
 impl Vec2d {
     pub const ZERO: Vec2d = Vec2d { x: 0.0, y: 0.0 };
+    pub const ONE: Vec2d = Vec2d { x: 1.0, y: 1.0 };
     pub const UP: Vec2d = Vec2d { x: 0.0, y: 1.0 };
     pub const DOWN: Vec2d = Vec2d { x: 0.0, y: -1.0 };
     pub const LEFT: Vec2d = Vec2d { x: 1.0, y: 0.0 };
@@ -491,6 +498,11 @@ impl Vec3d {
         x: 0.0,
         y: 0.0,
         z: 0.0,
+    };
+    pub const ONE: Vec3d = Vec3d {
+        x: 1.0,
+        y: 1.0,
+        z: 1.0,
     };
     pub const UP: Vec3d = Vec3d {
         x: 0.0,
@@ -575,6 +587,12 @@ impl Vec4f {
         y: 0.0,
         z: 0.0,
         w: 0.0,
+    };
+    pub const ONE: Vec4f = Vec4f {
+        x: 1.0,
+        y: 1.0,
+        z: 1.0,
+        w: 1.0,
     };
 
     pub fn new(x: f32, y: f32, z: f32, w: f32) -> Vec4f { Vec4f { x, y, z, w } }

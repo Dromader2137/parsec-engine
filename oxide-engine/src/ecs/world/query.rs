@@ -43,7 +43,7 @@ impl<T: Fetch> SystemInput for Query<T> {
 
 impl<T: Fetch> Query<T> {
     /// Creates an iterator over [`self`].
-    pub fn into_iter<'a>(&'a mut self) -> QueryIter<'a, T> {
+    pub fn iter<'a>(&'a mut self) -> QueryIter<'a, T> {
         let inside_len = match self.fetches.first() {
             Some(first_fetch) => T::len(&first_fetch),
             None => 0,
