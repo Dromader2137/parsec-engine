@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use thiserror::Error;
 use vulkan::VulkanError;
 use window::{WindowError, WindowWrapper};
 
@@ -11,7 +12,6 @@ use crate::{
         system::{System, SystemBundle, SystemTrigger, system},
         world::query::Query,
     },
-    error::EngineError,
     graphics::{
         renderer::{
             InitRenderer, PrepareRender, QueueClear, Render,
@@ -32,15 +32,14 @@ pub mod renderer;
 pub mod vulkan;
 pub mod window;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum GraphicsError {
+    #[error("Window error: {0:?}")]
     WindowError(WindowError),
+    #[error("Vulkan error: {0:?}")]
     VulkanError(VulkanError),
+    #[error("Graphics aren't initialized")]
     Uninitialized,
-}
-
-impl From<GraphicsError> for EngineError {
-    fn from(value: GraphicsError) -> Self { EngineError::GraphicsError(value) }
 }
 
 #[derive(Default)]

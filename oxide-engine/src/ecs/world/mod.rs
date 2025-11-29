@@ -5,30 +5,31 @@ use std::{collections::HashMap, fmt::Debug, sync::RwLock};
 use archetype::{Archetype, ArchetypeError, ArchetypeId};
 use once_cell::sync::Lazy;
 use spawn::Spawn;
+use thiserror::Error;
 
-use crate::{
-    ecs::{
-        entity::Entity,
-        world::{add_component::AddComponent, remove_component::RemoveComponent},
-    },
-    error::EngineError,
+use crate::ecs::{
+    entity::Entity,
+    world::{add_component::AddComponent, remove_component::RemoveComponent},
 };
 
-pub mod add_component;
-pub mod archetype;
+mod add_component;
+mod archetype;
 pub mod component;
 pub mod fetch;
 pub mod query;
-pub mod remove_component;
-pub mod spawn;
+mod remove_component;
+mod spawn;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorldError {
-    ArchetypeError(ArchetypeError),
-}
-
-impl From<WorldError> for EngineError {
-    fn from(value: WorldError) -> Self { EngineError::WorldError(value) }
+    #[error("Failed to spawn an entity because of: {kind}")]
+    SpawnError { kind: ArchetypeError },
+    #[error("Failed to delete an entity because of: {kind}")]
+    DeleteError { kind: ArchetypeError },
+    #[error("Failed to add components because of: {kind}")]
+    AddComponentError { kind: ArchetypeError },
+    #[error("Failed to delete components because of: {kind}")]
+    DeleteComponentError { kind: ArchetypeError },
 }
 
 /// Global store containing the main instance of [`World`].
@@ -69,13 +70,15 @@ impl World {
     /// - If the [archetype][Archetype] is already borrowed in some way.
     pub fn spawn<T: Spawn>(bundle: T) -> Result<Entity, WorldError> {
         let mut world = WORLD.write().unwrap();
-        let archetype_id = T::archetype_id()?;
+        let archetype_id = T::archetype_id().map_err(|e| WorldError::SpawnError { kind: e })?;
         let entity_id = world.current_id;
         let archetype = world.get_archetype_mut(&archetype_id);
-        let entity = archetype.new_entity(entity_id)?;
-        let result = bundle.spawn(archetype);
-        archetype.trim_columns();
-        result?;
+        let entity = archetype
+            .new_entity(entity_id)
+            .map_err(|e| WorldError::SpawnError { kind: e })?;
+        bundle
+            .spawn(archetype)
+            .map_err(|e| WorldError::SpawnError { kind: e })?;
         archetype.bundle_count += 1;
         world.current_id += 1;
         Ok(entity)
@@ -91,9 +94,9 @@ impl World {
         let mut world = WORLD.write().unwrap();
         for (_, archetype) in world.archetypes.iter_mut() {
             if archetype.entities.contains(&entity) && !archetype.are_all_columns_mutable() {
-                return Err(WorldError::ArchetypeError(
-                    ArchetypeError::ArchetypeColumnNotWritable,
-                ));
+                return Err(WorldError::DeleteError {
+                    kind: ArchetypeError::ArchetypeColumnNotWritable,
+                });
             }
             match archetype.delete_entity(entity) {
                 Ok(()) => {
@@ -101,10 +104,12 @@ impl World {
                     return Ok(());
                 },
                 Err(ArchetypeError::EntityNotFound) => (),
-                Err(err) => return Err(err.into()),
+                Err(err) => return Err(WorldError::DeleteError { kind: err }),
             };
         }
-        Err(ArchetypeError::EntityNotFound.into())
+        Err(WorldError::DeleteError {
+            kind: ArchetypeError::EntityNotFound,
+        })
     }
 
     /// Add components to an already existing entity.
@@ -125,11 +130,21 @@ impl World {
             .find(|(_, x)| x.check_entity(entity))
         {
             Some(val) => val,
-            None => return Err(ArchetypeError::EntityNotFound.into()),
+            None => {
+                return Err(WorldError::DeleteError {
+                    kind: ArchetypeError::EntityNotFound,
+                });
+            },
         };
-        let new_archetype_id = archetype_id.merge_with(T::archetype_id()?)?;
+        let t_archetype_id =
+            T::archetype_id().map_err(|e| WorldError::AddComponentError { kind: e })?;
+        let new_archetype_id = archetype_id
+            .merge_with(t_archetype_id)
+            .map_err(|e| WorldError::AddComponentError { kind: e })?;
 
-        let (old_entity, map) = old_archetype.cut_entity(entity)?;
+        let (old_entity, map) = old_archetype
+            .cut_entity(entity)
+            .map_err(|e| WorldError::AddComponentError { kind: e })?;
         old_archetype.bundle_count -= 1;
 
         let new_archetype = world.get_archetype_mut(&new_archetype_id);
@@ -141,19 +156,23 @@ impl World {
                 .find(|(_, x)| x.check_entity(entity))
                 .unwrap();
             for (type_id, (size, data)) in map.iter() {
-                old_archetype.add_raw(*size, *type_id, data.clone())?;
+                old_archetype
+                    .add_raw(*size, *type_id, data.clone())
+                    .map_err(|e| WorldError::AddComponentError { kind: e })?;
             }
-            return Err(WorldError::ArchetypeError(
-                ArchetypeError::ArchetypeColumnNotWritable,
-            ));
+            return Err(WorldError::AddComponentError {
+                kind: ArchetypeError::ArchetypeColumnNotWritable,
+            });
         }
 
         for (type_id, (size, data)) in map.iter() {
-            new_archetype.add_raw(*size, *type_id, data.clone())?;
+            new_archetype
+                .add_raw(*size, *type_id, data.clone())
+                .map_err(|e| WorldError::AddComponentError { kind: e })?;
         }
-        let result = bundle_extension.add_to(new_archetype);
-        new_archetype.trim_columns();
-        result?;
+        bundle_extension
+            .add_to(new_archetype)
+            .map_err(|e| WorldError::AddComponentError { kind: e })?;
         new_archetype.bundle_count += 1;
         new_archetype.moved_entity(old_entity);
 
@@ -175,11 +194,21 @@ impl World {
             .find(|(_, x)| x.check_entity(entity))
         {
             Some(val) => val,
-            None => return Err(ArchetypeError::EntityNotFound.into()),
+            None => {
+                return Err(WorldError::DeleteComponentError {
+                    kind: ArchetypeError::EntityNotFound,
+                });
+            },
         };
-        let new_archetype_id = archetype_id.remove_from(T::archetype_id()?)?;
+        let t_archetype_id =
+            T::archetype_id().map_err(|e| WorldError::DeleteComponentError { kind: e })?;
+        let new_archetype_id = archetype_id
+            .remove_from(t_archetype_id)
+            .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
 
-        let (old_entity, map) = old_archetype.cut_entity(entity)?;
+        let (old_entity, map) = old_archetype
+            .cut_entity(entity)
+            .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
         old_archetype.bundle_count -= 1;
 
         let new_archetype = world.get_archetype_mut(&new_archetype_id);
@@ -191,19 +220,22 @@ impl World {
                 .find(|(_, x)| x.check_entity(entity))
                 .unwrap();
             for (type_id, (size, data)) in map.iter() {
-                old_archetype.add_raw(*size, *type_id, data.clone())?;
+                old_archetype
+                    .add_raw(*size, *type_id, data.clone())
+                    .map_err(|e| WorldError::DeleteComponentError { kind: e })?
             }
-            return Err(WorldError::ArchetypeError(
-                ArchetypeError::ArchetypeColumnNotWritable,
-            ));
+            return Err(WorldError::DeleteComponentError {
+                kind: ArchetypeError::ArchetypeColumnNotWritable,
+            });
         }
 
         for (type_id, (size, data)) in map.iter() {
             if new_archetype_id.contains_single(type_id) {
-                new_archetype.add_raw(*size, *type_id, data.clone())?;
+                new_archetype
+                    .add_raw(*size, *type_id, data.clone())
+                    .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
             }
         }
-        new_archetype.trim_columns();
         new_archetype.bundle_count += 1;
         new_archetype.moved_entity(old_entity);
 

@@ -9,25 +9,29 @@ use std::{
 };
 
 use oxide_engine_macros::{impl_spawn, multiple_tuples};
+use thiserror::Error;
 
 use crate::ecs::{
     entity::Entity,
-    world::{WorldError, component::Component, spawn::Spawn},
+    world::{component::Component, spawn::Spawn},
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArchetypeError {
+    #[error("Archetype column is not writable")]
     ArchetypeColumnNotWritable,
+    #[error("Archetype column is not readable")]
     ArchetypeColumnNotReadable,
+    #[error("Type not found")]
     TypeNotFound,
+    #[error("Entity not found")]
     EntityNotFound,
+    #[error("Bundle can not contain multiple values of the same type")]
     BundleCannotContainManyValuesOfTheSameType,
+    #[error("Bundle can not contain multiple values of the same type")]
     BundleCannotContainManyValuesOfTheSameTypeMerge,
+    #[error("Archetype doesn't contain this type")]
     ArchetypeIdDoesntContainThisType,
-}
-
-impl From<ArchetypeError> for WorldError {
-    fn from(value: ArchetypeError) -> Self { WorldError::ArchetypeError(value) }
 }
 
 /// Unique identifier for an [`Archetype`].
@@ -561,11 +565,8 @@ impl Archetype {
     /// # Errors
     ///
     /// - If `self` doesn't store components of type `T`.
-    fn get_column<T: Component>(&self) -> Result<&ArchetypeColumn, ArchetypeError> {
-        match self.columns.get(&TypeId::of::<T>()) {
-            Some(val) => Ok(val),
-            None => Err(ArchetypeError::TypeNotFound),
-        }
+    fn get_column<T: Component>(&self) -> Option<&ArchetypeColumn> {
+        self.columns.get(&TypeId::of::<T>())
     }
 
     /// Gets column data needed to query this archetype's components.
@@ -577,7 +578,7 @@ impl Archetype {
     pub fn get<T: Component>(
         &self,
     ) -> Result<(*const [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
-        let column = self.get_column::<T>()?;
+        let column = self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
         let slice = column.get_slice::<T>()?;
         column.borrow.write().unwrap().count += 1;
         column.borrow.write().unwrap().access = ArchetypeColumnAccess::Read;
@@ -593,7 +594,7 @@ impl Archetype {
     pub fn get_mut<T: Component>(
         &self,
     ) -> Result<(*mut [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
-        let column = self.get_column::<T>()?;
+        let column = self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
         let slice = column.get_mut_slice::<T>()?;
         column.borrow.write().unwrap().access = ArchetypeColumnAccess::None;
         Ok((slice, column.borrow.clone(), slice.len()))

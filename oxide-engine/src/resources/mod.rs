@@ -8,8 +8,9 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
+use thiserror::Error;
 
-use crate::{ecs::system::SystemInput, error::EngineError};
+use crate::ecs::system::SystemInput;
 
 /// Marks a type as a resource that can be stored in a global storage.
 pub trait ResourceMarker: Send + Sync + 'static {}
@@ -105,14 +106,14 @@ impl Resources {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResourceError {
+    #[error("Failed to borrow this resourcs")]
     UnableToBorrow,
+    #[error("Failed to mutably borrow this resourcs")]
     UnableToBorrowMutably,
+    #[error("Failed to find a resource of a type")]
     ResourceNotFound,
+    #[error("Resource of this type already exists")]
     ResourceAlreadyExists,
-}
-
-impl From<ResourceError> for EngineError {
-    fn from(value: ResourceError) -> Self { EngineError::ResourceError(value) }
 }
