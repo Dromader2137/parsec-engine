@@ -23,8 +23,12 @@ use crate::{
 };
 
 pub struct TransformData {
-    pub model_matrix: Matrix4f,
-    pub model_buffer: Arc<Buffer>,
+    pub translation_matrix: Matrix4f,
+    pub scale_matrix: Matrix4f,
+    pub rotation_matrix: Matrix4f,
+    pub translation_buffer: Arc<Buffer>,
+    pub scale_buffer: Arc<Buffer>,
+    pub rotation_buffer: Arc<Buffer>,
     pub model_set: Arc<DescriptorSet>,
     pub look_at_matrix: Matrix4f,
     pub look_at_buffer: Arc<Buffer>,
@@ -39,25 +43,37 @@ impl TransformData {
         scale: Vec3f,
         rotation: Quat,
     ) -> Result<TransformData, VulkanError> {
-        let model_matrix =
-            Matrix4f::translation(position) * Matrix4f::scale(scale) * rotation.into_matrix();
+        let translation_matrix = Matrix4f::translation(position);
+        let translation_buffer = Buffer::from_vec(
+            device.clone(),
+            &[translation_matrix],
+            BufferUsage::UNIFORM_BUFFER,
+        )
+        .unwrap();
+        let scale_matrix = Matrix4f::scale(scale);
+        let scale_buffer =
+            Buffer::from_vec(device.clone(), &[scale_matrix], BufferUsage::UNIFORM_BUFFER).unwrap();
+        let rotation_matrix = rotation.into_matrix();
+        let rotation_buffer = Buffer::from_vec(
+            device.clone(),
+            &[rotation_matrix],
+            BufferUsage::UNIFORM_BUFFER,
+        )
+        .unwrap();
         let look_at_matrix =
             Matrix4f::look_at(position, Vec3f::FORWARD * rotation, Vec3f::UP * rotation);
-        let model_buffer =
-            Buffer::from_vec(device.clone(), &[model_matrix], BufferUsage::UNIFORM_BUFFER).unwrap();
         let look_at_buffer = Buffer::from_vec(
             device.clone(),
             &[look_at_matrix],
             BufferUsage::UNIFORM_BUFFER,
         )
         .unwrap();
-        let model_set_layout =
-            DescriptorSetLayout::new(device.clone(), vec![DescriptorSetBinding::new(
-                0,
-                DescriptorType::UNIFORM_BUFFER,
-                DescriptorStage::VERTEX,
-            )])
-            .unwrap();
+        let model_set_layout = DescriptorSetLayout::new(device.clone(), vec![
+            DescriptorSetBinding::new(0, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
+            DescriptorSetBinding::new(1, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
+            DescriptorSetBinding::new(2, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
+        ])
+        .unwrap();
         let look_at_set_layout = DescriptorSetLayout::new(device, vec![DescriptorSetBinding::new(
             0,
             DescriptorType::UNIFORM_BUFFER,
@@ -66,11 +82,19 @@ impl TransformData {
         .unwrap();
         let model_set = DescriptorSet::new(model_set_layout, descriptor_pool.clone()).unwrap();
         let look_at_set = DescriptorSet::new(look_at_set_layout, descriptor_pool).unwrap();
-        model_set.bind_buffer(model_buffer.clone(), 0).unwrap();
+        model_set
+            .bind_buffer(translation_buffer.clone(), 0)
+            .unwrap();
+        model_set.bind_buffer(scale_buffer.clone(), 1).unwrap();
+        model_set.bind_buffer(rotation_buffer.clone(), 2).unwrap();
         look_at_set.bind_buffer(look_at_buffer.clone(), 0).unwrap();
         Ok(TransformData {
-            model_matrix,
-            model_buffer,
+            translation_matrix,
+            scale_matrix,
+            rotation_matrix,
+            translation_buffer,
+            scale_buffer,
+            rotation_buffer,
             model_set,
             look_at_matrix,
             look_at_buffer,
@@ -79,7 +103,10 @@ impl TransformData {
     }
 
     fn update_buffers_from_data(&mut self) -> Result<(), VulkanError> {
-        self.model_buffer.update(vec![self.model_matrix])?;
+        self.translation_buffer
+            .update(vec![self.translation_matrix])?;
+        self.scale_buffer.update(vec![self.scale_matrix])?;
+        self.rotation_buffer.update(vec![self.rotation_matrix])?;
         self.look_at_buffer.update(vec![self.look_at_matrix])?;
         Ok(())
     }
@@ -119,9 +146,9 @@ fn update_transform_data(
             continue;
         }
         let data = transforms_data.get_mut(transform.data_id.unwrap()).unwrap();
-        data.model_matrix = Matrix4f::translation(transform.position)
-            * Matrix4f::scale(transform.scale)
-            * transform.rotation.into_matrix();
+        data.translation_matrix = Matrix4f::translation(transform.position);
+        data.scale_matrix = Matrix4f::scale(transform.scale);
+        data.rotation_matrix = transform.rotation.into_matrix();
         data.look_at_matrix = Matrix4f::look_at(
             transform.position,
             Vec3f::FORWARD * transform.rotation,

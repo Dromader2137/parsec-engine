@@ -3,9 +3,7 @@
 use std::{cell::RefCell, ptr::NonNull};
 
 use crate::{
-    ecs::system::{SystemTrigger, Systems},
-    input::InputEvent,
-    resources::Resources,
+    ecs::system::{SystemTrigger, Systems}, input::{KeyboardInputEvent, MouseMovementEvent}, math::vec::Vec2f, resources::Resources
 };
 
 #[allow(unused)]
@@ -75,13 +73,13 @@ impl winit::application::ApplicationHandler for App {
                 ..
             } => {
                 if let winit::keyboard::PhysicalKey::Code(key_code) = physical_key {
-                    Resources::add(InputEvent::new(key_code.into(), state.into())).unwrap();
+                    Resources::add(KeyboardInputEvent::new(key_code.into(), state.into())).unwrap();
                 }
 
                 self.systems.execute_type(SystemTrigger::KeyboardInput);
 
                 if let winit::keyboard::PhysicalKey::Code(_) = physical_key {
-                    Resources::remove::<InputEvent>().unwrap();
+                    Resources::remove::<KeyboardInputEvent>().unwrap();
                 }
             },
             winit::event::WindowEvent::CursorLeft { device_id: _ } => {
@@ -89,6 +87,13 @@ impl winit::application::ApplicationHandler for App {
             },
             winit::event::WindowEvent::Resized(_) => {
                 self.systems.execute_type(SystemTrigger::WindowResized);
+            },
+            winit::event::WindowEvent::CursorMoved { device_id: _, position } => {
+                Resources::add(MouseMovementEvent::new(Vec2f::new(position.x as f32, position.y as f32))).unwrap();
+
+                self.systems.execute_type(SystemTrigger::MouseMovement);
+
+                Resources::remove::<MouseMovementEvent>().unwrap();
             },
             winit::event::WindowEvent::CloseRequested => {
                 ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);
@@ -104,5 +109,6 @@ impl winit::application::ApplicationHandler for App {
 
     fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
         self.systems.execute_type(SystemTrigger::Update);
+        self.systems.execute_type(SystemTrigger::LateUpdate);
     }
 }

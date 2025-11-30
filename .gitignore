@@ -2,3 +2,4 @@ target/
 Cargo.lock
 shaders/*.spv
 renderdoc/
+*.obj

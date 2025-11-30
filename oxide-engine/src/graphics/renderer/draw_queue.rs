@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct MeshAndMaterial {
     pub mesh: u32,
     pub material: u32,
@@ -6,6 +7,7 @@ pub struct MeshAndMaterial {
     pub transform: u32,
 }
 
+#[derive(Debug)]
 pub enum Draw {
     MeshAndMaterial(MeshAndMaterial),
 }

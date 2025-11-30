@@ -41,7 +41,7 @@ use crate::{
             swapchain::Swapchain,
         },
     },
-    math::vec::Vec3f,
+    math::vec::{Vec2f, Vec3f},
     resources::{Resource, Resources},
     utils::id_vec::IdVec,
 };
@@ -88,12 +88,12 @@ impl Vertex for DefaultVertex {
 }
 
 impl DefaultVertex {
-    pub fn new(pos: Vec3f, nor: Vec3f) -> DefaultVertex {
+    pub fn new(pos: Vec3f, nor: Vec3f, uv: Vec2f) -> DefaultVertex {
         DefaultVertex {
             position: [pos.x, pos.y, pos.z],
             normal: [nor.x, nor.y, nor.z],
             tangent: [0.0, 1.0, 0.0],
-            uv: [0.0, 0.0],
+            uv: [uv.x, uv.y],
         }
     }
 }

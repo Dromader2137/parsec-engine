@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use crate::input::{
-    InputEvent,
+    KeyboardInputEvent,
     key::{KeyCode, KeyState},
 };
 
@@ -25,7 +25,7 @@ impl Keys {
     }
 
     /// Takes an [InputEvent] and updated `self` accordingly.
-    pub fn process_input_event(&mut self, event: InputEvent) {
+    pub fn process_input_event(&mut self, event: KeyboardInputEvent) {
         match event.state {
             KeyState::Pressed => self.press(event.key),
             KeyState::Released => self.lift(event.key),

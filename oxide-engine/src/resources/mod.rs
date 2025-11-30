@@ -29,7 +29,7 @@ impl<R: ResourceMarker> Deref for Resource<R> {
     type Target = R;
     fn deref(&self) -> &Self::Target {
         let guard = self.lock.read().unwrap();
-        let r = &*guard as *const Self::Target;
+        let r = guard.deref() as *const Self::Target;
         unsafe { &*r }
     }
 }

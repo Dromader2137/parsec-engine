@@ -1,5 +1,7 @@
 use crate::graphics::renderer::DefaultVertex;
 
+pub mod obj;
+
 pub struct Mesh {
     pub vertices: Vec<DefaultVertex>,
     pub indices: Vec<u32>,

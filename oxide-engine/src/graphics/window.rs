@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use winit::{raw_window_handle::{HasDisplayHandle, HasWindowHandle}, window::CursorGrabMode};
 
 use crate::graphics::GraphicsError;
 
@@ -54,6 +54,10 @@ impl WindowWrapper {
     pub fn height(&self) -> u32 { self.size().1 }
 
     pub fn physical_size(&self) -> winit::dpi::PhysicalSize<u32> { self.window.inner_size() }
+
+    pub fn set_cursor_center(&mut self) {
+        self.window.set_cursor_grab(CursorGrabMode::Le)
+    }
 
     pub fn raw_display_handle(
         &self,

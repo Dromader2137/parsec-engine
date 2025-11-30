@@ -24,9 +24,6 @@ use crate::{
 };
 
 pub struct CameraData {
-    vfov: f32,
-    near: f32,
-    far: f32,
     pub projection_matrix: Matrix4f,
     pub projection_buffer: Arc<Buffer>,
     pub projection_set: Arc<DescriptorSet>,
@@ -60,9 +57,6 @@ impl CameraData {
             .bind_buffer(projection_buffer.clone(), 0)
             .unwrap();
         Ok(CameraData {
-            vfov,
-            near,
-            far,
             projection_matrix,
             projection_buffer,
             projection_set,
@@ -97,14 +91,26 @@ fn add_camera_data(
 }
 
 #[system]
-fn update_camera_data(surface: Resource<Arc<Surface>>, mut cameras: Resource<IdVec<CameraData>>) {
+fn update_camera_data(
+    surface: Resource<Arc<Surface>>,
+    mut cameras_data: Resource<IdVec<CameraData>>,
+    mut cameras: Query<Camera>,
+) {
     let aspect_ratio = surface.aspect_ratio();
-    for camera in cameras.iter_mut() {
-        camera.projection_matrix =
-            Matrix4f::perspective(camera.vfov, aspect_ratio, camera.near, camera.far);
-        camera
+    for (_, camera) in cameras.iter() {
+        if camera.data_id.is_none() {
+            continue;
+        }
+        let camera_data = cameras_data.get_mut(camera.data_id.unwrap()).unwrap();
+        camera_data.projection_matrix = Matrix4f::perspective(
+            camera.vertical_fov,
+            aspect_ratio,
+            camera.near_clipping_plane,
+            camera.far_clipping_plane,
+        );
+        camera_data
             .projection_buffer
-            .update(vec![camera.projection_matrix])
+            .update(vec![camera_data.projection_matrix])
             .unwrap();
     }
 }

@@ -13,6 +13,8 @@ pub enum SystemTrigger {
     LateStart,
     /// Runs every frame.
     Update,
+    /// Runs every frame after `Update`.
+    LateUpdate,
     /// Runs when app closes.
     End,
     /// Runs when a window is resized.
@@ -21,6 +23,8 @@ pub enum SystemTrigger {
     WindowCursorLeft,
     /// Runs when there is a new keyboard input.
     KeyboardInput,
+    /// Runs when there is a new mouse movement.
+    MouseMovement,
 }
 
 /// Stores all systems groped by [`SystemTrigger`].

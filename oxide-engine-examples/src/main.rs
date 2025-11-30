@@ -1,16 +1,15 @@
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
 use oxide_engine::{
     app::App,
     ecs::{
         system::{SystemTrigger, system},
-        world::{World, fetch::Mut, query::Query},
+        world::{World, component::Component, fetch::Mut, query::Query},
     },
     graphics::{
         GraphicsBundle,
         renderer::{
-            DefaultVertex,
-            assets::mesh::Mesh,
+            assets::mesh::{Mesh, obj::load_obj},
             components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
             material_data::{MaterialBase, MaterialData, MaterialDescriptorSets},
         },
@@ -21,6 +20,7 @@ use oxide_engine::{
             shader::{ShaderModule, ShaderType, read_shader_code},
         },
     },
+    input::{Input, InputBundle, key::KeyCode},
     math::{quat::Quat, vec::Vec3f},
     resources::Resource,
     utils::id_vec::IdVec,
@@ -33,7 +33,7 @@ fn test_system(
     mut materials: Resource<IdVec<MaterialData>>,
     mut meshes: Resource<IdVec<Mesh>>,
 ) {
-    let scale = 2.0;
+    let scale = 0.01;
 
     let vertex = ShaderModule::new(
         device.clone(),
@@ -50,11 +50,11 @@ fn test_system(
     .unwrap();
 
     let material_base = MaterialBase::new(framebuffers.to_vec(), vertex, fragment, vec![
-        vec![DescriptorSetBinding::new(
-            0,
-            DescriptorType::UNIFORM_BUFFER,
-            DescriptorStage::VERTEX,
-        )],
+        vec![
+            DescriptorSetBinding::new(0, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
+            DescriptorSetBinding::new(1, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
+            DescriptorSetBinding::new(2, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
+        ],
         vec![DescriptorSetBinding::new(
             0,
             DescriptorType::UNIFORM_BUFFER,
@@ -77,72 +77,80 @@ fn test_system(
 
     let material_id = materials.push(material);
 
-    let vertices = vec![
-        DefaultVertex::new(
-            Vec3f::new(-0.5, -0.5, 0.0) * scale,
-            Vec3f::new(0.0, 0.0, 0.0),
-        ),
-        DefaultVertex::new(Vec3f::new(0.5, 0.5, 0.0) * scale, Vec3f::new(1.0, 1.0, 0.0)),
-        DefaultVertex::new(
-            Vec3f::new(-0.5, 0.5, 0.0) * scale,
-            Vec3f::new(0.0, 1.0, 0.0),
-        ),
-        DefaultVertex::new(
-            Vec3f::new(0.5, -0.5, 0.0) * scale,
-            Vec3f::new(1.0, 0.0, 0.0),
-        ),
-    ];
-
-    let indices = vec![0, 2, 1, 0, 1, 3];
-
-    let mesh = meshes.push(Mesh::new(vertices, indices));
+    let mesh = meshes.push(load_obj("sponza.obj").unwrap());
 
     World::spawn((
-        Camera::new(60.0_f32.to_radians(), 0.1, 1000.0),
+        Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
+        Transform::new(
+            Vec3f::UP * 2.5,
+            Vec3f::ZERO,
+            Quat::from_euler(Vec3f::new(0.3, 0.0, 0.0)),
+        ),
+        CameraController {
+            yaw: 0.0,
+            pitch: 0.0,
+        },
+    ))
+    .unwrap();
+
+    World::spawn((
         Transform::new(
             Vec3f::ZERO,
-            Vec3f::ONE,
-            Quat::from_euler(Vec3f::new(0.3, 0.3, 0.0)),
-        ),
-    ))
-    .unwrap();
-
-    World::spawn((
-        Transform::new(
-            Vec3f::FORWARD * 5.0 + Vec3f::new(0.5, 0.0, 0.0) * scale,
-            Vec3f::ONE,
-            Quat::from_euler(Vec3f::new(0.0, -0.3, 0.0)),
-        ),
-        MeshRenderer::new(mesh, material_id),
-    ))
-    .unwrap();
-
-    World::spawn((
-        Transform::new(
-            Vec3f::FORWARD * 5.0 + Vec3f::new(-0.5, 0.0, 0.0) * scale,
-            Vec3f::ONE,
-            Quat::from_euler(Vec3f::new(0.0, 0.3, 0.0)),
+            Vec3f::ONE * scale,
+            Quat::from_euler(Vec3f::new(0.0, 3.14, 0.0)),
         ),
         MeshRenderer::new(mesh, material_id),
     ))
     .unwrap();
 }
 
+#[derive(Debug, Component)]
+pub struct CameraController {
+    yaw: f32,
+    pitch: f32,
+}
+
 #[system]
-fn test_update(mut transforms_with_camera: Query<(Mut<Transform>, Camera)>) {
-    for (_, (transform, _)) in transforms_with_camera.iter() {
-        let time = SystemTime::now();
-        let duration = time.duration_since(SystemTime::UNIX_EPOCH).unwrap();
-        // transform.position.x += (duration.as_millis() as f64 / 100.0).cos() as f32 / 1000.0;
-        // transform.position.y = (duration.as_millis() as f64 / 100.0).sin() as f32;
-        transform.position.z = (duration.as_millis() as f64 / 600.0).sin() as f32;
+fn camera_movement(
+    mut cameras: Query<(Mut<Transform>, Camera, Mut<CameraController>)>,
+    input: Resource<Input>,
+) {
+    for (_, (transform, _, camera_controller)) in cameras.iter() {
+        if input.keys.is_down(KeyCode::KeyD) {
+            transform.position += Vec3f::FORWARD * transform.rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::KeyS) {
+            transform.position += Vec3f::BACK * transform.rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::KeyA) {
+            transform.position += Vec3f::LEFT * transform.rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::KeyH) {
+            transform.position += Vec3f::RIGHT * transform.rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::Space) {
+            transform.position += Vec3f::UP * transform.rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::ShiftLeft) {
+            transform.position += Vec3f::DOWN * transform.rotation / 100.0;
+        }
+        let delta = input.mouse.delta();
+        camera_controller.yaw += -delta.x / 100.0;
+        camera_controller.pitch += delta.y / 100.0;
+        transform.rotation = Quat::from_euler(Vec3f::new(
+            camera_controller.pitch,
+            camera_controller.yaw,
+            0.0,
+        ));
     }
 }
 
 fn main() {
     let mut app = App::new();
     app.systems.add_bundle(GraphicsBundle::default());
+    app.systems.add_bundle(InputBundle::default());
     app.systems.add(SystemTrigger::LateStart, TestSystem::new());
-    app.systems.add(SystemTrigger::Update, TestUpdate::new());
+    app.systems
+        .add(SystemTrigger::Update, CameraMovement::new());
     app.run();
 }
