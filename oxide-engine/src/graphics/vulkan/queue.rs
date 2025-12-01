@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::graphics::vulkan::{
-    VulkanError, command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore,
+    VulkanError, command_buffer::CommandBuffer, device::Device, fence::Fence,
+    semaphore::Semaphore,
 };
 
 pub struct Queue {
@@ -20,7 +21,9 @@ impl From<QueueError> for VulkanError {
 
 impl Queue {
     pub fn present(device: Arc<Device>, family_index: u32) -> Arc<Queue> {
-        let raw_queue = unsafe { device.get_device_raw().get_device_queue(family_index, 0) };
+        let raw_queue = unsafe {
+            device.get_device_raw().get_device_queue(family_index, 0)
+        };
         Arc::new(Queue {
             device,
             queue: raw_queue,
@@ -49,7 +52,9 @@ impl Queue {
 
         let submit_info = ash::vk::SubmitInfo::default()
             .wait_semaphores(&wait_semaphores)
-            .wait_dst_stage_mask(&[ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+            .wait_dst_stage_mask(&[
+                ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            ])
             .command_buffers(&command_buffers)
             .signal_semaphores(&signal_semaphores);
 

@@ -1,6 +1,8 @@
 //! Vector types.
 
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 #[repr(C)]
@@ -43,7 +45,9 @@ pub struct Vec3d {
 
 impl Add for Vec2f {
     type Output = Vec2f;
-    fn add(self, rhs: Self) -> Self::Output { Vec2f::new(self.x + rhs.x, self.y + rhs.y) }
+    fn add(self, rhs: Self) -> Self::Output {
+        Vec2f::new(self.x + rhs.x, self.y + rhs.y)
+    }
 }
 
 impl AddAssign for Vec2f {
@@ -70,7 +74,9 @@ impl AddAssign for Vec3f {
 
 impl Add for Vec2d {
     type Output = Vec2d;
-    fn add(self, rhs: Self) -> Self::Output { Vec2d::new(self.x + rhs.x, self.y + rhs.y) }
+    fn add(self, rhs: Self) -> Self::Output {
+        Vec2d::new(self.x + rhs.x, self.y + rhs.y)
+    }
 }
 
 impl AddAssign for Vec2d {
@@ -97,12 +103,16 @@ impl AddAssign for Vec3d {
 
 impl Div for Vec2f {
     type Output = Vec2f;
-    fn div(self, rhs: Self) -> Self::Output { Vec2f::new(self.x / rhs.x, self.y / rhs.y) }
+    fn div(self, rhs: Self) -> Self::Output {
+        Vec2f::new(self.x / rhs.x, self.y / rhs.y)
+    }
 }
 
 impl Div<f32> for Vec2f {
     type Output = Vec2f;
-    fn div(self, rhs: f32) -> Self::Output { Vec2f::new(self.x / rhs, self.y / rhs) }
+    fn div(self, rhs: f32) -> Self::Output {
+        Vec2f::new(self.x / rhs, self.y / rhs)
+    }
 }
 
 impl DivAssign for Vec2f {
@@ -128,7 +138,9 @@ impl Div for Vec3f {
 
 impl Div<f32> for Vec3f {
     type Output = Vec3f;
-    fn div(self, rhs: f32) -> Self::Output { Vec3f::new(self.x / rhs, self.y / rhs, self.z / rhs) }
+    fn div(self, rhs: f32) -> Self::Output {
+        Vec3f::new(self.x / rhs, self.y / rhs, self.z / rhs)
+    }
 }
 
 impl DivAssign for Vec3f {
@@ -149,12 +161,16 @@ impl DivAssign<f32> for Vec3f {
 
 impl Div for Vec2d {
     type Output = Vec2d;
-    fn div(self, rhs: Self) -> Self::Output { Vec2d::new(self.x / rhs.x, self.y / rhs.y) }
+    fn div(self, rhs: Self) -> Self::Output {
+        Vec2d::new(self.x / rhs.x, self.y / rhs.y)
+    }
 }
 
 impl Div<f64> for Vec2d {
     type Output = Vec2d;
-    fn div(self, rhs: f64) -> Self::Output { Vec2d::new(self.x / rhs, self.y / rhs) }
+    fn div(self, rhs: f64) -> Self::Output {
+        Vec2d::new(self.x / rhs, self.y / rhs)
+    }
 }
 
 impl DivAssign for Vec2d {
@@ -180,7 +196,9 @@ impl Div for Vec3d {
 
 impl Div<f64> for Vec3d {
     type Output = Vec3d;
-    fn div(self, rhs: f64) -> Self::Output { Vec3d::new(self.x / rhs, self.y / rhs, self.z / rhs) }
+    fn div(self, rhs: f64) -> Self::Output {
+        Vec3d::new(self.x / rhs, self.y / rhs, self.z / rhs)
+    }
 }
 
 impl DivAssign for Vec3d {
@@ -201,7 +219,9 @@ impl DivAssign<f64> for Vec3d {
 
 impl Mul<f32> for Vec2f {
     type Output = Vec2f;
-    fn mul(self, rhs: f32) -> Self::Output { Vec2f::new(self.x * rhs, self.y * rhs) }
+    fn mul(self, rhs: f32) -> Self::Output {
+        Vec2f::new(self.x * rhs, self.y * rhs)
+    }
 }
 
 impl MulAssign for Vec2f {
@@ -227,7 +247,9 @@ impl Mul for Vec3f {
 
 impl Mul<f32> for Vec3f {
     type Output = Vec3f;
-    fn mul(self, rhs: f32) -> Self::Output { Vec3f::new(self.x * rhs, self.y * rhs, self.z * rhs) }
+    fn mul(self, rhs: f32) -> Self::Output {
+        Vec3f::new(self.x * rhs, self.y * rhs, self.z * rhs)
+    }
 }
 
 impl MulAssign for Vec3f {
@@ -248,12 +270,16 @@ impl MulAssign<f32> for Vec3f {
 
 impl Mul for Vec2d {
     type Output = Vec2d;
-    fn mul(self, rhs: Self) -> Self::Output { Vec2d::new(self.x * rhs.x, self.y * rhs.y) }
+    fn mul(self, rhs: Self) -> Self::Output {
+        Vec2d::new(self.x * rhs.x, self.y * rhs.y)
+    }
 }
 
 impl Mul<f64> for Vec2d {
     type Output = Vec2d;
-    fn mul(self, rhs: f64) -> Self::Output { Vec2d::new(self.x * rhs, self.y * rhs) }
+    fn mul(self, rhs: f64) -> Self::Output {
+        Vec2d::new(self.x * rhs, self.y * rhs)
+    }
 }
 
 impl MulAssign for Vec2d {
@@ -279,7 +305,9 @@ impl Mul for Vec3d {
 
 impl Mul<f64> for Vec3d {
     type Output = Vec3d;
-    fn mul(self, rhs: f64) -> Self::Output { Vec3d::new(self.x * rhs, self.y * rhs, self.z * rhs) }
+    fn mul(self, rhs: f64) -> Self::Output {
+        Vec3d::new(self.x * rhs, self.y * rhs, self.z * rhs)
+    }
 }
 
 impl MulAssign for Vec3d {
@@ -300,7 +328,9 @@ impl MulAssign<f64> for Vec3d {
 
 impl Sub for Vec2f {
     type Output = Vec2f;
-    fn sub(self, rhs: Self) -> Self::Output { Vec2f::new(self.x - rhs.x, self.y - rhs.y) }
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vec2f::new(self.x - rhs.x, self.y - rhs.y)
+    }
 }
 
 impl SubAssign for Vec2f {
@@ -327,7 +357,9 @@ impl SubAssign for Vec3f {
 
 impl Sub for Vec2d {
     type Output = Vec2d;
-    fn sub(self, rhs: Self) -> Self::Output { Vec2d::new(self.x - rhs.x, self.y - rhs.y) }
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vec2d::new(self.x - rhs.x, self.y - rhs.y)
+    }
 }
 
 impl SubAssign for Vec2d {
@@ -377,7 +409,9 @@ impl Vec2f {
 
     pub fn dot(&mut self, vec: Vec2f) -> f32 { self.x * vec.x + self.y * vec.y }
 
-    pub fn cross(&mut self, vec: Vec2f) -> f32 { (self.x * vec.y) - (self.y * vec.x) }
+    pub fn cross(&mut self, vec: Vec2f) -> f32 {
+        (self.x * vec.y) - (self.y * vec.x)
+    }
 }
 
 impl Vec3f {
@@ -440,7 +474,9 @@ impl Vec3f {
         }
     }
 
-    pub fn dot(&mut self, vec: Vec3f) -> f32 { self.x * vec.x + self.y * vec.y + self.z * vec.z }
+    pub fn dot(&mut self, vec: Vec3f) -> f32 {
+        self.x * vec.x + self.y * vec.y + self.z * vec.z
+    }
 
     pub fn cross(&mut self, vec: Vec3f) -> Vec3f {
         Vec3f {
@@ -450,7 +486,9 @@ impl Vec3f {
         }
     }
 
-    pub fn length_sqr(&mut self) -> f32 { self.x * self.x + self.y * self.y + self.z * self.z }
+    pub fn length_sqr(&mut self) -> f32 {
+        self.x * self.x + self.y * self.y + self.z * self.z
+    }
 
     pub fn length(&mut self) -> f32 { self.length_sqr().sqrt() }
 
@@ -490,7 +528,9 @@ impl Vec2d {
 
     pub fn dot(&mut self, vec: Vec2d) -> f64 { self.x * vec.x + self.y * vec.y }
 
-    pub fn cross(&mut self, vec: Vec2d) -> f64 { (self.x * vec.y) - (self.y * vec.x) }
+    pub fn cross(&mut self, vec: Vec2d) -> f64 {
+        (self.x * vec.y) - (self.y * vec.x)
+    }
 }
 
 impl Vec3d {
@@ -553,7 +593,9 @@ impl Vec3d {
         }
     }
 
-    pub fn dot(&mut self, vec: Vec3d) -> f64 { self.x * vec.x + self.y * vec.y + self.z * vec.z }
+    pub fn dot(&mut self, vec: Vec3d) -> f64 {
+        self.x * vec.x + self.y * vec.y + self.z * vec.z
+    }
 
     pub fn cross(&mut self, vec: Vec3d) -> Vec3d {
         Vec3d {
@@ -563,7 +605,9 @@ impl Vec3d {
         }
     }
 
-    pub fn length_sqr(&mut self) -> f64 { self.x * self.x + self.y * self.y + self.z * self.z }
+    pub fn length_sqr(&mut self) -> f64 {
+        self.x * self.x + self.y * self.y + self.z * self.z
+    }
 
     pub fn length(&mut self) -> f64 { self.length_sqr().sqrt() }
 
@@ -597,7 +641,9 @@ impl Vec4f {
 
     pub fn new(x: f32, y: f32, z: f32, w: f32) -> Vec4f { Vec4f { x, y, z, w } }
 
-    pub fn length_sqr_xyz(&mut self) -> f32 { self.x * self.x + self.y * self.y + self.z * self.z }
+    pub fn length_sqr_xyz(&mut self) -> f32 {
+        self.x * self.x + self.y * self.y + self.z * self.z
+    }
 
     pub fn length_xyz(&mut self) -> f32 { self.length_sqr_xyz().sqrt() }
 

@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::graphics::{
-    vulkan::{VulkanError, instance::Instance, physical_device::PhysicalDevice},
+    vulkan::{
+        VulkanError, instance::Instance, physical_device::PhysicalDevice,
+    },
     window::WindowWrapper,
 };
 
@@ -65,8 +67,10 @@ impl InitialSurface {
             Err(err) => return Err(SurfaceError::CreationError(err)),
         };
 
-        let surface_loader =
-            ash::khr::surface::Instance::new(instance.get_entry_raw(), instance.get_instance_raw());
+        let surface_loader = ash::khr::surface::Instance::new(
+            instance.get_entry_raw(),
+            instance.get_instance_raw(),
+        );
 
         Ok(Arc::new(InitialSurface {
             window,
@@ -93,7 +97,9 @@ impl InitialSurface {
         }
     }
 
-    pub fn get_surface_loader(&self) -> &ash::khr::surface::Instance { &self.surface_loader }
+    pub fn get_surface_loader(&self) -> &ash::khr::surface::Instance {
+        &self.surface_loader
+    }
 
     pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 }
@@ -105,7 +111,9 @@ impl Surface {
     ) -> Result<Arc<Surface>, SurfaceError> {
         let initial_surface = match Arc::into_inner(initial_surface_arc) {
             Some(val) => val,
-            None => return Err(SurfaceError::InitialSurfaceBorrowedMoreThanOnce),
+            None => {
+                return Err(SurfaceError::InitialSurfaceBorrowedMoreThanOnce);
+            },
         };
 
         let surface_formats = match unsafe {
@@ -153,13 +161,19 @@ impl Surface {
         }))
     }
 
-    pub fn get_surface_loader_raw(&self) -> &ash::khr::surface::Instance { &self.surface_loader }
+    pub fn get_surface_loader_raw(&self) -> &ash::khr::surface::Instance {
+        &self.surface_loader
+    }
 
     pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 
-    pub fn min_image_count(&self) -> u32 { self.surface_capabilities.min_image_count }
+    pub fn min_image_count(&self) -> u32 {
+        self.surface_capabilities.min_image_count
+    }
 
-    pub fn max_image_count(&self) -> u32 { self.surface_capabilities.max_image_count }
+    pub fn max_image_count(&self) -> u32 {
+        self.surface_capabilities.max_image_count
+    }
 
     pub fn current_extent(&self) -> ash::vk::Extent2D {
         match self.surface_capabilities.current_extent.width {
@@ -192,9 +206,13 @@ impl Surface {
 
     pub fn format(&self) -> ash::vk::Format { self.surface_format.format }
 
-    pub fn color_space(&self) -> ash::vk::ColorSpaceKHR { self.surface_format.color_space }
+    pub fn color_space(&self) -> ash::vk::ColorSpaceKHR {
+        self.surface_format.color_space
+    }
 }
 
 impl Drop for Surface {
-    fn drop(&mut self) { unsafe { self.surface_loader.destroy_surface(self.surface, None) }; }
+    fn drop(&mut self) {
+        unsafe { self.surface_loader.destroy_surface(self.surface, None) };
+    }
 }

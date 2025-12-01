@@ -15,12 +15,19 @@ pub struct Quat {
 impl Mul for Quat {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
-        let magnitude = self.r * self.r + self.i * self.i + self.j * self.j + self.k * self.k;
+        let magnitude = self.r * self.r
+            + self.i * self.i
+            + self.j * self.j
+            + self.k * self.k;
         Quat::new(
-            (self.r * rhs.r - self.i * rhs.i - self.j * rhs.j - self.k * rhs.k) / magnitude,
-            (self.r * rhs.i + self.i * rhs.r - self.j * rhs.k + self.k * rhs.j) / magnitude,
-            (self.r * rhs.j + self.j * rhs.r + self.i * rhs.k - self.k * rhs.i) / magnitude,
-            (self.r * rhs.k + self.k * rhs.r - self.i * rhs.j + self.j * rhs.i) / magnitude,
+            (self.r * rhs.r - self.i * rhs.i - self.j * rhs.j - self.k * rhs.k)
+                / magnitude,
+            (self.r * rhs.i + self.i * rhs.r - self.j * rhs.k + self.k * rhs.j)
+                / magnitude,
+            (self.r * rhs.j + self.j * rhs.r + self.i * rhs.k - self.k * rhs.i)
+                / magnitude,
+            (self.r * rhs.k + self.k * rhs.r - self.i * rhs.j + self.j * rhs.i)
+                / magnitude,
         )
     }
 }

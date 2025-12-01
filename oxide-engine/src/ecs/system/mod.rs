@@ -47,7 +47,11 @@ impl Systems {
     }
 
     /// Registers a new system to be executed on `system_trigger`.
-    pub fn add(&mut self, system_trigger: SystemTrigger, system: Box<dyn System>) {
+    pub fn add(
+        &mut self,
+        system_trigger: SystemTrigger,
+        system: Box<dyn System>,
+    ) {
         let system_vec = self.get_systems_by_trigger(system_trigger);
         system_vec.push(system);
     }

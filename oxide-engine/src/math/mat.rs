@@ -97,7 +97,12 @@ impl Matrix4f {
     }
 
     /// Perspective matrix.
-    pub fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> Matrix4f {
+    pub fn perspective(
+        fovy: f32,
+        aspect: f32,
+        near: f32,
+        far: f32,
+    ) -> Matrix4f {
         let f = 1.0 / (fovy / 2.0).tan();
         let a = far / (far - near);
         Matrix4f::new([

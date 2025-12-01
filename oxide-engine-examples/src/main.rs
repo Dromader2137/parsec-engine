@@ -3,24 +3,26 @@ use std::sync::Arc;
 use oxide_engine::{
     app::App,
     ecs::{
-        system::{SystemTrigger, system},
-        world::{World, component::Component, fetch::Mut, query::Query},
+        system::{system, SystemTrigger},
+        world::{component::Component, fetch::Mut, query::Query, World},
     },
     graphics::{
-        GraphicsBundle,
         renderer::{
-            assets::mesh::{Mesh, obj::load_obj},
-            components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
-            material_data::{MaterialBase, MaterialData, MaterialDescriptorSets},
-        },
-        vulkan::{
-            descriptor_set::{DescriptorSetBinding, DescriptorStage, DescriptorType},
-            device::Device,
-            framebuffer::Framebuffer,
-            shader::{ShaderModule, ShaderType, read_shader_code},
-        },
+            assets::mesh::{obj::load_obj, Mesh},
+            components::{
+                camera::Camera, mesh_renderer::MeshRenderer,
+                transform::Transform,
+            },
+            material_data::{
+                MaterialBase, MaterialData, MaterialDescriptorSets,
+            },
+        }, vulkan::{
+            descriptor_set::{
+                DescriptorSetBinding, DescriptorStage, DescriptorType,
+            }, device::Device, framebuffer::Framebuffer, shader::{read_shader_code, ShaderModule, ShaderType}
+        }, GraphicsBundle
     },
-    input::{Input, InputBundle, key::KeyCode},
+    input::{key::{KeyCode, Noncharacter}, Input, InputBundle},
     math::{quat::Quat, vec::Vec3f},
     resources::Resource,
     utils::id_vec::IdVec,
@@ -49,24 +51,37 @@ fn test_system(
     )
     .unwrap();
 
-    let material_base = MaterialBase::new(framebuffers.to_vec(), vertex, fragment, vec![
-        vec![
-            DescriptorSetBinding::new(0, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
-            DescriptorSetBinding::new(1, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
-            DescriptorSetBinding::new(2, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
-        ],
-        vec![DescriptorSetBinding::new(
-            0,
-            DescriptorType::UNIFORM_BUFFER,
-            DescriptorStage::VERTEX,
-        )],
-        vec![DescriptorSetBinding::new(
-            0,
-            DescriptorType::UNIFORM_BUFFER,
-            DescriptorStage::VERTEX,
-        )],
-    ])
-    .unwrap();
+    let material_base =
+        MaterialBase::new(framebuffers.to_vec(), vertex, fragment, vec![
+            vec![
+                DescriptorSetBinding::new(
+                    0,
+                    DescriptorType::UNIFORM_BUFFER,
+                    DescriptorStage::VERTEX,
+                ),
+                DescriptorSetBinding::new(
+                    1,
+                    DescriptorType::UNIFORM_BUFFER,
+                    DescriptorStage::VERTEX,
+                ),
+                DescriptorSetBinding::new(
+                    2,
+                    DescriptorType::UNIFORM_BUFFER,
+                    DescriptorStage::VERTEX,
+                ),
+            ],
+            vec![DescriptorSetBinding::new(
+                0,
+                DescriptorType::UNIFORM_BUFFER,
+                DescriptorStage::VERTEX,
+            )],
+            vec![DescriptorSetBinding::new(
+                0,
+                DescriptorType::UNIFORM_BUFFER,
+                DescriptorStage::VERTEX,
+            )],
+        ])
+        .unwrap();
 
     let material = MaterialData::new(material_base, vec![
         MaterialDescriptorSets::ModelMatrixSet,
@@ -116,24 +131,6 @@ fn camera_movement(
     input: Resource<Input>,
 ) {
     for (_, (transform, _, camera_controller)) in cameras.iter() {
-        if input.keys.is_down(KeyCode::KeyD) {
-            transform.position += Vec3f::FORWARD * transform.rotation / 100.0;
-        }
-        if input.keys.is_down(KeyCode::KeyS) {
-            transform.position += Vec3f::BACK * transform.rotation / 100.0;
-        }
-        if input.keys.is_down(KeyCode::KeyA) {
-            transform.position += Vec3f::LEFT * transform.rotation / 100.0;
-        }
-        if input.keys.is_down(KeyCode::KeyH) {
-            transform.position += Vec3f::RIGHT * transform.rotation / 100.0;
-        }
-        if input.keys.is_down(KeyCode::Space) {
-            transform.position += Vec3f::UP * transform.rotation / 100.0;
-        }
-        if input.keys.is_down(KeyCode::ShiftLeft) {
-            transform.position += Vec3f::DOWN * transform.rotation / 100.0;
-        }
         let delta = input.mouse.delta();
         camera_controller.yaw += -delta.x / 100.0;
         camera_controller.pitch += delta.y / 100.0;
@@ -142,6 +139,25 @@ fn camera_movement(
             camera_controller.yaw,
             0.0,
         ));
+        let rotation = Quat::from_euler(Vec3f::new(0.0, camera_controller.yaw, 0.0));
+        if input.keys.is_down(KeyCode::Character("d")) {
+            transform.position += Vec3f::FORWARD * rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::Character("s")) {
+            transform.position += Vec3f::BACK * rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::Character("a")) {
+            transform.position += Vec3f::LEFT * rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::Character("h")) {
+            transform.position += Vec3f::RIGHT * rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::Noncharacter(Noncharacter::Space)) {
+            transform.position += Vec3f::UP * rotation / 100.0;
+        }
+        if input.keys.is_down(KeyCode::Noncharacter(Noncharacter::Shift)) {
+            transform.position += Vec3f::DOWN * rotation / 100.0;
+        }
     }
 }
 

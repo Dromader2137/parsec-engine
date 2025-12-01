@@ -36,7 +36,8 @@ unsafe extern "system" fn vulkan_debug_callback(
         let message_id_name = if callback_data.p_message_id_name.is_null() {
             std::borrow::Cow::from("")
         } else {
-            std::ffi::CStr::from_ptr(callback_data.p_message_id_name).to_string_lossy()
+            std::ffi::CStr::from_ptr(callback_data.p_message_id_name)
+                .to_string_lossy()
         };
 
         let message = if callback_data.p_message.is_null() {
@@ -46,8 +47,8 @@ unsafe extern "system" fn vulkan_debug_callback(
         };
 
         println!(
-            "{message_severity:?}: {message_type:?} [{message_id_name} ({message_id_number})] : \
-             {message} ",
+            "{message_severity:?}: {message_type:?} [{message_id_name} \
+             ({message_id_number})] : {message} ",
         );
 
         ash::vk::FALSE
@@ -55,14 +56,16 @@ unsafe extern "system" fn vulkan_debug_callback(
 }
 
 impl Instance {
-    pub fn new(window: Arc<WindowWrapper>) -> Result<Arc<Instance>, InstanceError> {
+    pub fn new(
+        window: Arc<WindowWrapper>,
+    ) -> Result<Arc<Instance>, InstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
             Ok(val) => val,
             Err(err) => return Err(InstanceError::EntryError(err)),
         };
 
-        let app_info =
-            ash::vk::ApplicationInfo::default().api_version(ash::vk::make_api_version(0, 1, 0, 0));
+        let app_info = ash::vk::ApplicationInfo::default()
+            .api_version(ash::vk::make_api_version(0, 1, 0, 0));
 
         let display_handle = match window.raw_display_handle() {
             Ok(val) => val,
@@ -70,9 +73,13 @@ impl Instance {
         };
 
         let mut extension_names =
-            match ash_window::enumerate_required_extensions(display_handle.as_raw()) {
+            match ash_window::enumerate_required_extensions(
+                display_handle.as_raw(),
+            ) {
                 Ok(val) => val,
-                Err(err) => return Err(InstanceError::ExtensionEnumerationError(err)),
+                Err(err) => {
+                    return Err(InstanceError::ExtensionEnumerationError(err));
+                },
             }
             .to_vec();
         extension_names.push(ash::ext::debug_utils::NAME.as_ptr());
@@ -91,12 +98,15 @@ impl Instance {
             .enabled_layer_names(&layers_names_raw)
             .enabled_extension_names(&extension_names);
 
-        let instance = match unsafe { entry.create_instance(&create_info, None) } {
+        let instance = match unsafe {
+            entry.create_instance(&create_info, None)
+        } {
             Ok(val) => val,
             Err(err) => return Err(InstanceError::InstanceCreationError(err)),
         };
 
-        let debug_utils_loader = ash::ext::debug_utils::Instance::new(&entry, &instance);
+        let debug_utils_loader =
+            ash::ext::debug_utils::Instance::new(&entry, &instance);
         let debug_call_back = match cfg!(debug_assertions) && false {
             true => {
                 let debug_info = ash::vk::DebugUtilsMessengerCreateInfoEXT::default()
@@ -112,10 +122,14 @@ impl Instance {
                     )
                     .pfn_user_callback(Some(vulkan_debug_callback));
 
-                match unsafe { debug_utils_loader.create_debug_utils_messenger(&debug_info, None) }
-                {
+                match unsafe {
+                    debug_utils_loader
+                        .create_debug_utils_messenger(&debug_info, None)
+                } {
                     Ok(val) => Some(val),
-                    Err(err) => return Err(InstanceError::DebugCreationError(err)),
+                    Err(err) => {
+                        return Err(InstanceError::DebugCreationError(err));
+                    },
                 }
             },
             false => None,

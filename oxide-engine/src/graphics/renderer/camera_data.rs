@@ -11,8 +11,8 @@ use crate::{
             VulkanError,
             buffer::{Buffer, BufferUsage},
             descriptor_set::{
-                DescriptorPool, DescriptorSet, DescriptorSetBinding, DescriptorSetLayout,
-                DescriptorStage, DescriptorType,
+                DescriptorPool, DescriptorSet, DescriptorSetBinding,
+                DescriptorSetLayout, DescriptorStage, DescriptorType,
             },
             device::Device,
             surface::Surface,
@@ -38,7 +38,8 @@ impl CameraData {
         near: f32,
         far: f32,
     ) -> Result<CameraData, VulkanError> {
-        let projection_matrix = Matrix4f::perspective(vfov, surface.aspect_ratio(), near, far);
+        let projection_matrix =
+            Matrix4f::perspective(vfov, surface.aspect_ratio(), near, far);
         let projection_buffer = Buffer::from_vec(
             device.clone(),
             &[projection_matrix],
@@ -52,7 +53,8 @@ impl CameraData {
                 DescriptorStage::VERTEX,
             )])
             .unwrap();
-        let projection_set = DescriptorSet::new(projection_set_layout, descriptor_pool).unwrap();
+        let projection_set =
+            DescriptorSet::new(projection_set_layout, descriptor_pool).unwrap();
         projection_set
             .bind_buffer(projection_buffer.clone(), 0)
             .unwrap();
@@ -101,7 +103,8 @@ fn update_camera_data(
         if camera.data_id.is_none() {
             continue;
         }
-        let camera_data = cameras_data.get_mut(camera.data_id.unwrap()).unwrap();
+        let camera_data =
+            cameras_data.get_mut(camera.data_id.unwrap()).unwrap();
         camera_data.projection_matrix = Matrix4f::perspective(
             camera.vertical_fov,
             aspect_ratio,

@@ -4,7 +4,10 @@ use crate::{
     graphics::vulkan::{
         VulkanError,
         framebuffer::Framebuffer,
-        image::{ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView, OwnedImage},
+        image::{
+            ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView,
+            OwnedImage,
+        },
         renderpass::Renderpass,
         swapchain::Swapchain,
     },
@@ -18,8 +21,14 @@ pub struct DepthImage(Arc<OwnedImage>);
 #[allow(unused)]
 pub struct DepthView(Arc<ImageView>);
 
-pub fn init_renderer_images(renderpass: Arc<Renderpass>) -> Result<Arc<Swapchain>, VulkanError> {
-    let swapchain = Swapchain::new(renderpass.surface.clone(), renderpass.device.clone(), None)?;
+pub fn init_renderer_images(
+    renderpass: Arc<Renderpass>,
+) -> Result<Arc<Swapchain>, VulkanError> {
+    let swapchain = Swapchain::new(
+        renderpass.surface.clone(),
+        renderpass.device.clone(),
+        None,
+    )?;
 
     let swapchain_images = &swapchain.swapchain_images;
     let swapchain_format = renderpass.surface.format().into();

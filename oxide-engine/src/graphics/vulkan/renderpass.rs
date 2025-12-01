@@ -14,7 +14,9 @@ pub enum RenderpassError {
 }
 
 impl From<RenderpassError> for VulkanError {
-    fn from(value: RenderpassError) -> Self { VulkanError::RenderpassError(value) }
+    fn from(value: RenderpassError) -> Self {
+        VulkanError::RenderpassError(value)
+    }
 }
 
 impl Renderpass {
@@ -36,7 +38,8 @@ impl Renderpass {
                 samples: ash::vk::SampleCountFlags::TYPE_1,
                 load_op: ash::vk::AttachmentLoadOp::CLEAR,
                 store_op: ash::vk::AttachmentStoreOp::DONT_CARE,
-                final_layout: ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                final_layout:
+                    ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 ..Default::default()
             },
         ];
@@ -50,10 +53,12 @@ impl Renderpass {
         };
         let dependencies = [ash::vk::SubpassDependency {
             src_subpass: ash::vk::SUBPASS_EXTERNAL,
-            src_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            src_stage_mask:
+                ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             dst_access_mask: ash::vk::AccessFlags::COLOR_ATTACHMENT_READ
                 | ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            dst_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            dst_stage_mask:
+                ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             ..Default::default()
         }];
 
@@ -83,7 +88,9 @@ impl Renderpass {
         }))
     }
 
-    pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass { &self.renderpass }
+    pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass {
+        &self.renderpass
+    }
 }
 
 impl Drop for Renderpass {

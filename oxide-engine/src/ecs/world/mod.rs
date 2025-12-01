@@ -52,7 +52,10 @@ pub struct World {
 impl World {
     /// Returns a mutable reference to the archetype stored under `archetype_id`.
     /// If there was no such archetype, it is created, added to `self` and a mutable reference is returned.
-    fn get_archetype_mut(&mut self, archetype_id: &ArchetypeId) -> &mut Archetype {
+    fn get_archetype_mut(
+        &mut self,
+        archetype_id: &ArchetypeId,
+    ) -> &mut Archetype {
         if !self.archetypes.contains_key(archetype_id) {
             let mut archetype = Archetype::new();
             archetype.create_empty(archetype_id);
@@ -70,7 +73,8 @@ impl World {
     /// - If the [archetype][Archetype] is already borrowed in some way.
     pub fn spawn<T: Spawn>(bundle: T) -> Result<Entity, WorldError> {
         let mut world = WORLD.write().unwrap();
-        let archetype_id = T::archetype_id().map_err(|e| WorldError::SpawnError { kind: e })?;
+        let archetype_id = T::archetype_id()
+            .map_err(|e| WorldError::SpawnError { kind: e })?;
         let entity_id = world.current_id;
         let archetype = world.get_archetype_mut(&archetype_id);
         let entity = archetype
@@ -93,7 +97,9 @@ impl World {
     pub fn delete(entity: Entity) -> Result<(), WorldError> {
         let mut world = WORLD.write().unwrap();
         for (_, archetype) in world.archetypes.iter_mut() {
-            if archetype.entities.contains(&entity) && !archetype.are_all_columns_mutable() {
+            if archetype.entities.contains(&entity)
+                && !archetype.are_all_columns_mutable()
+            {
                 return Err(WorldError::DeleteError {
                     kind: ArchetypeError::ArchetypeColumnNotWritable,
                 });
@@ -136,8 +142,8 @@ impl World {
                 });
             },
         };
-        let t_archetype_id =
-            T::archetype_id().map_err(|e| WorldError::AddComponentError { kind: e })?;
+        let t_archetype_id = T::archetype_id()
+            .map_err(|e| WorldError::AddComponentError { kind: e })?;
         let new_archetype_id = archetype_id
             .merge_with(t_archetype_id)
             .map_err(|e| WorldError::AddComponentError { kind: e })?;
@@ -186,7 +192,9 @@ impl World {
     /// - If `T` can't produce a valid [`ArchetypeId`].
     /// - If `T` subtracted from the type of `entity` can't produce a valid [`ArchetypeId`].
     /// - If either the original [archetype][Archetype] containing `entity` or the destination [archetype][Archetype] is already borrowed in some way.
-    pub fn remove_components<T: RemoveComponent>(entity: Entity) -> Result<(), WorldError> {
+    pub fn remove_components<T: RemoveComponent>(
+        entity: Entity,
+    ) -> Result<(), WorldError> {
         let mut world = WORLD.write().unwrap();
         let (archetype_id, old_archetype) = match world
             .archetypes
@@ -200,8 +208,8 @@ impl World {
                 });
             },
         };
-        let t_archetype_id =
-            T::archetype_id().map_err(|e| WorldError::DeleteComponentError { kind: e })?;
+        let t_archetype_id = T::archetype_id()
+            .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
         let new_archetype_id = archetype_id
             .remove_from(t_archetype_id)
             .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
@@ -233,7 +241,9 @@ impl World {
             if new_archetype_id.contains_single(type_id) {
                 new_archetype
                     .add_raw(*size, *type_id, data.clone())
-                    .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
+                    .map_err(|e| WorldError::DeleteComponentError {
+                        kind: e,
+                    })?;
             }
         }
         new_archetype.bundle_count += 1;

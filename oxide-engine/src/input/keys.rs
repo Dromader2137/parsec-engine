@@ -3,16 +3,15 @@
 use std::collections::HashSet;
 
 use crate::input::{
-    KeyboardInputEvent,
-    key::{KeyCode, KeyState},
+    key::{KeyCode, KeyState, StorageKeyCode}, KeyboardInputEvent
 };
 
 /// Stores keys that currently are in different states.
 #[derive(Debug)]
 pub struct Keys {
-    pressed: HashSet<KeyCode>,
-    down: HashSet<KeyCode>,
-    up: HashSet<KeyCode>,
+    pressed: HashSet<StorageKeyCode>,
+    down: HashSet<StorageKeyCode>,
+    up: HashSet<StorageKeyCode>,
 }
 
 impl Keys {
@@ -32,14 +31,14 @@ impl Keys {
         }
     }
 
-    fn press(&mut self, key: KeyCode) {
+    fn press(&mut self, key: StorageKeyCode) {
         if !self.down.contains(&key) {
-            self.pressed.insert(key);
+            self.pressed.insert(key.clone());
         }
         self.down.insert(key);
     }
 
-    fn lift(&mut self, key: KeyCode) {
+    fn lift(&mut self, key: StorageKeyCode) {
         self.down.remove(&key);
         self.up.insert(key);
     }
@@ -58,11 +57,13 @@ impl Keys {
     }
 
     /// Checks if the `key` is pressed.
-    pub fn is_pressed(&self, key: KeyCode) -> bool { self.pressed.contains(&key) }
+    pub fn is_pressed(&self, key: KeyCode) -> bool {
+        self.pressed.contains(&key.into())
+    }
 
     /// Checks if the `key` is down.
-    pub fn is_down(&self, key: KeyCode) -> bool { self.down.contains(&key) }
+    pub fn is_down(&self, key: KeyCode) -> bool { self.down.contains(&key.into()) }
 
     /// Checks if the `key` is up.
-    pub fn is_up(&self, key: KeyCode) -> bool { self.up.contains(&key) }
+    pub fn is_up(&self, key: KeyCode) -> bool { self.up.contains(&key.into()) }
 }

@@ -21,13 +21,19 @@ impl From<FenceError> for VulkanError {
 }
 
 impl Fence {
-    pub fn new(device: Arc<Device>, signaled: bool) -> Result<Arc<Fence>, FenceError> {
+    pub fn new(
+        device: Arc<Device>,
+        signaled: bool,
+    ) -> Result<Arc<Fence>, FenceError> {
         let mut create_info = ash::vk::FenceCreateInfo::default();
         if signaled {
-            create_info = create_info.flags(ash::vk::FenceCreateFlags::SIGNALED);
+            create_info =
+                create_info.flags(ash::vk::FenceCreateFlags::SIGNALED);
         }
 
-        let fence = match unsafe { device.get_device_raw().create_fence(&create_info, None) } {
+        let fence = match unsafe {
+            device.get_device_raw().create_fence(&create_info, None)
+        } {
             Ok(val) => val,
             Err(err) => return Err(FenceError::CreationError(err)),
         };
@@ -37,9 +43,11 @@ impl Fence {
 
     pub fn wait(&self) -> Result<(), FenceError> {
         if let Err(err) = unsafe {
-            self.device
-                .get_device_raw()
-                .wait_for_fences(&[self.fence], true, u64::MAX)
+            self.device.get_device_raw().wait_for_fences(
+                &[self.fence],
+                true,
+                u64::MAX,
+            )
         } {
             return Err(FenceError::WaitError(err));
         }
@@ -47,14 +55,18 @@ impl Fence {
     }
 
     pub fn reset(&self) -> Result<(), FenceError> {
-        if let Err(err) = unsafe { self.device.get_device_raw().reset_fences(&[self.fence]) } {
+        if let Err(err) =
+            unsafe { self.device.get_device_raw().reset_fences(&[self.fence]) }
+        {
             return Err(FenceError::ResetError(err));
         }
         Ok(())
     }
 
     pub fn get_state(&self) -> Result<bool, FenceError> {
-        match unsafe { self.device.get_device_raw().get_fence_status(self.fence) } {
+        match unsafe {
+            self.device.get_device_raw().get_fence_status(self.fence)
+        } {
             Ok(val) => Ok(val),
             Err(err) => Err(FenceError::StatusError(err)),
         }
@@ -71,5 +83,7 @@ impl Fence {
 }
 
 impl Drop for Fence {
-    fn drop(&mut self) { unsafe { self.device.get_device_raw().destroy_fence(self.fence, None) }; }
+    fn drop(&mut self) {
+        unsafe { self.device.get_device_raw().destroy_fence(self.fence, None) };
+    }
 }

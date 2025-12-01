@@ -17,7 +17,10 @@ use crate::{
             InitRenderer, PrepareRender, QueueClear, Render,
             assets::mesh::Mesh,
             camera_data::{AddCameraData, UpdateCameraData},
-            components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
+            components::{
+                camera::Camera, mesh_renderer::MeshRenderer,
+                transform::Transform,
+            },
             draw_queue::{Draw, MeshAndMaterial},
             mesh_data::AddMeshData,
             transform_data::{AddTransformData, UpdateTransformData},
@@ -66,7 +69,9 @@ impl SystemBundle for GraphicsBundle {
 }
 
 #[system]
-fn request_redraw(window: Resource<Arc<WindowWrapper>>) { window.request_redraw(); }
+fn request_redraw(window: Resource<Arc<WindowWrapper>>) {
+    window.request_redraw();
+}
 
 #[system]
 fn end_wait_idle(device: Resource<Arc<Device>>) { device.wait_idle().unwrap() }

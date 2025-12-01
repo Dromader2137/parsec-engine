@@ -3,7 +3,10 @@
 use std::{cell::RefCell, ptr::NonNull};
 
 use crate::{
-    ecs::system::{SystemTrigger, Systems}, input::{KeyboardInputEvent, MouseMovementEvent}, math::vec::Vec2f, resources::Resources
+    ecs::system::{SystemTrigger, Systems},
+    input::{key::StorageKeyCode, KeyboardInputEvent, MouseMovementEvent},
+    math::vec::Vec2f,
+    resources::Resources,
 };
 
 #[allow(unused)]
@@ -21,7 +24,8 @@ impl App {
     pub fn run(&mut self) {
         self.systems.execute_type(SystemTrigger::Start);
 
-        let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
+        let event_loop =
+            winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
         event_loop
             .run_app(self)
@@ -38,7 +42,9 @@ pub static ACTIVE_EVENT_LOOP: RefCell<Option<ActiveEventLoopStore>> = RefCell::n
 }
 
 impl ActiveEventLoopStore {
-    fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> ActiveEventLoopStore {
+    fn new(
+        event_loop: &winit::event_loop::ActiveEventLoop,
+    ) -> ActiveEventLoopStore {
         ActiveEventLoopStore {
             event_loop: NonNull::from_ref(event_loop),
         }
@@ -51,7 +57,9 @@ impl ActiveEventLoopStore {
 
 impl winit::application::ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = Some(ActiveEventLoopStore::new(event_loop)));
+        ACTIVE_EVENT_LOOP.with_borrow_mut(|x| {
+            *x = Some(ActiveEventLoopStore::new(event_loop))
+        });
 
         self.systems.execute_type(SystemTrigger::LateStart);
     }
@@ -66,21 +74,29 @@ impl winit::application::ApplicationHandler for App {
             winit::event::WindowEvent::KeyboardInput {
                 event:
                     winit::event::KeyEvent {
-                        physical_key,
-                        state,
-                        ..
+                        state, logical_key, ..
                     },
                 ..
             } => {
-                if let winit::keyboard::PhysicalKey::Code(key_code) = physical_key {
-                    Resources::add(KeyboardInputEvent::new(key_code.into(), state.into())).unwrap();
-                }
+                let key_code = match logical_key {
+                    winit::keyboard::Key::Named(named) => {
+                        StorageKeyCode::Noncharacter(named)
+                    },
+                    winit::keyboard::Key::Character(char) => {
+                        StorageKeyCode::Character(char.to_lowercase().into())
+                    },
+                    _ => return,
+                };
+
+                Resources::add(KeyboardInputEvent::new(
+                    key_code.into(),
+                    state.into(),
+                ))
+                .unwrap();
 
                 self.systems.execute_type(SystemTrigger::KeyboardInput);
 
-                if let winit::keyboard::PhysicalKey::Code(_) = physical_key {
-                    Resources::remove::<KeyboardInputEvent>().unwrap();
-                }
+                Resources::remove::<KeyboardInputEvent>().unwrap();
             },
             winit::event::WindowEvent::CursorLeft { device_id: _ } => {
                 self.systems.execute_type(SystemTrigger::WindowCursorLeft);
@@ -88,8 +104,15 @@ impl winit::application::ApplicationHandler for App {
             winit::event::WindowEvent::Resized(_) => {
                 self.systems.execute_type(SystemTrigger::WindowResized);
             },
-            winit::event::WindowEvent::CursorMoved { device_id: _, position } => {
-                Resources::add(MouseMovementEvent::new(Vec2f::new(position.x as f32, position.y as f32))).unwrap();
+            winit::event::WindowEvent::CursorMoved {
+                device_id: _,
+                position,
+            } => {
+                Resources::add(MouseMovementEvent::new(Vec2f::new(
+                    position.x as f32,
+                    position.y as f32,
+                )))
+                .unwrap();
 
                 self.systems.execute_type(SystemTrigger::MouseMovement);
 
@@ -107,7 +130,10 @@ impl winit::application::ApplicationHandler for App {
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+    fn about_to_wait(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+    ) {
         self.systems.execute_type(SystemTrigger::Update);
         self.systems.execute_type(SystemTrigger::LateUpdate);
     }

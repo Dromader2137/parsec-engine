@@ -60,7 +60,9 @@ impl ShaderModule {
         }))
     }
 
-    pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule { &self.shader_module }
+    pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule {
+        &self.shader_module
+    }
 }
 
 impl Drop for ShaderModule {

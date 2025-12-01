@@ -2,18 +2,19 @@
 
 use std::sync::Arc;
 
-use winit::{raw_window_handle::{HasDisplayHandle, HasWindowHandle}, window::CursorGrabMode};
+use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-use crate::graphics::GraphicsError;
+use crate::{graphics::GraphicsError, math::vec::Vec2f};
 
 #[derive(Debug)]
 pub struct WindowWrapper {
-    window: Arc<winit::window::Window>,
+    window: winit::window::Window,
 }
 
 #[derive(Debug)]
 pub enum WindowError {
     CreationError(winit::error::OsError),
+    SetCursorPositionError(winit::error::ExternalError),
 }
 
 impl From<WindowError> for GraphicsError {
@@ -37,9 +38,7 @@ impl WindowWrapper {
             },
         };
 
-        Ok(Arc::new(WindowWrapper {
-            window: Arc::new(window),
-        }))
+        Ok(Arc::new(WindowWrapper { window }))
     }
 
     pub fn request_redraw(&self) { self.window.request_redraw(); }
@@ -53,23 +52,44 @@ impl WindowWrapper {
 
     pub fn height(&self) -> u32 { self.size().1 }
 
-    pub fn physical_size(&self) -> winit::dpi::PhysicalSize<u32> { self.window.inner_size() }
+    pub fn aspect_ratio(&self) -> f32 {
+        if self.height() == 0 {
+            return 1.0;
+        }
+        self.width() as f32 / self.height() as f32
+    }
 
-    pub fn set_cursor_center(&mut self) {
-        self.window.set_cursor_grab(CursorGrabMode::Le)
+    pub fn physical_size(&self) -> winit::dpi::PhysicalSize<u32> {
+        self.window.inner_size()
+    }
+
+    pub fn set_cursor_position(
+        &self,
+        position: Vec2f,
+    ) -> Result<(), WindowError> {
+        self.window
+            .set_cursor_position(winit::dpi::LogicalPosition::new(
+                position.x, position.y,
+            ))
+            .map_err(|r| WindowError::SetCursorPositionError(r))?;
+        Ok(())
     }
 
     pub fn raw_display_handle(
         &self,
-    ) -> Result<winit::raw_window_handle::DisplayHandle<'_>, winit::raw_window_handle::HandleError>
-    {
+    ) -> Result<
+        winit::raw_window_handle::DisplayHandle<'_>,
+        winit::raw_window_handle::HandleError,
+    > {
         self.window.display_handle()
     }
 
     pub fn raw_window_handle(
         &self,
-    ) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError>
-    {
+    ) -> Result<
+        winit::raw_window_handle::WindowHandle<'_>,
+        winit::raw_window_handle::HandleError,
+    > {
         self.window.window_handle()
     }
 

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::graphics::vulkan::{VulkanError, buffer::Buffer, device::Device, image::ImageView};
+use crate::graphics::vulkan::{
+    VulkanError, buffer::Buffer, device::Device, image::ImageView,
+};
 
 pub struct DescriptorPool {
     pub device: Arc<Device>,
@@ -40,7 +42,9 @@ pub enum DescriptorError {
 }
 
 impl From<DescriptorError> for VulkanError {
-    fn from(value: DescriptorError) -> Self { VulkanError::DescriptorError(value) }
+    fn from(value: DescriptorError) -> Self {
+        VulkanError::DescriptorError(value)
+    }
 }
 
 pub type DescriptorType = ash::vk::DescriptorType;
@@ -66,7 +70,10 @@ impl<'a> DescriptorSetBinding {
 }
 
 impl DescriptorPoolSize {
-    pub fn new(descriptor_count: u32, descriptor_type: DescriptorType) -> DescriptorPoolSize {
+    pub fn new(
+        descriptor_count: u32,
+        descriptor_type: DescriptorType,
+    ) -> DescriptorPoolSize {
         let size = ash::vk::DescriptorPoolSize::default()
             .descriptor_count(descriptor_count)
             .ty(descriptor_type);
@@ -80,7 +87,8 @@ impl DescriptorPool {
         descriptor_max_count: u32,
         descriptor_sizes: &[DescriptorPoolSize],
     ) -> Result<Arc<DescriptorPool>, DescriptorError> {
-        let pool_sizes: Vec<_> = descriptor_sizes.iter().map(|x| x.size).collect();
+        let pool_sizes: Vec<_> =
+            descriptor_sizes.iter().map(|x| x.size).collect();
 
         let create_info = ash::vk::DescriptorPoolCreateInfo::default()
             .flags(ash::vk::DescriptorPoolCreateFlags::FREE_DESCRIPTOR_SET)
@@ -119,7 +127,8 @@ impl<'a> DescriptorSetLayout {
     ) -> Result<Arc<DescriptorSetLayout>, DescriptorError> {
         let bindings_raw: Vec<_> = bindings.iter().map(|x| x.binding).collect();
 
-        let create_info = ash::vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings_raw);
+        let create_info = ash::vk::DescriptorSetLayoutCreateInfo::default()
+            .bindings(&bindings_raw);
 
         let layout = match unsafe {
             device
@@ -127,7 +136,9 @@ impl<'a> DescriptorSetLayout {
                 .create_descriptor_set_layout(&create_info, None)
         } {
             Ok(val) => val,
-            Err(err) => return Err(DescriptorError::SetLayoutCreationError(err)),
+            Err(err) => {
+                return Err(DescriptorError::SetLayoutCreationError(err));
+            },
         };
 
         Ok(Arc::new(DescriptorSetLayout {
@@ -137,7 +148,9 @@ impl<'a> DescriptorSetLayout {
         }))
     }
 
-    pub fn get_layout_raw(&self) -> &ash::vk::DescriptorSetLayout { &self.layout }
+    pub fn get_layout_raw(&self) -> &ash::vk::DescriptorSetLayout {
+        &self.layout
+    }
 }
 
 impl Drop for DescriptorSetLayout {
@@ -188,10 +201,11 @@ impl DescriptorSet {
             .offset(0)
             .range(buffer.size)];
 
-        let binding_type = match self.descriptor_layout.bindings.get(dst_binding as usize) {
-            Some(val) => val.binding_type,
-            None => return Err(DescriptorError::BindingDoesntExist),
-        };
+        let binding_type =
+            match self.descriptor_layout.bindings.get(dst_binding as usize) {
+                Some(val) => val.binding_type,
+                None => return Err(DescriptorError::BindingDoesntExist),
+            };
 
         let write_info = ash::vk::WriteDescriptorSet::default()
             .descriptor_type(binding_type)
@@ -216,13 +230,14 @@ impl DescriptorSet {
         view: Arc<ImageView>,
         dst_binding: u32,
     ) -> Result<(), DescriptorError> {
-        let image_info =
-            [ash::vk::DescriptorImageInfo::default().image_view(*view.get_image_view_raw())];
+        let image_info = [ash::vk::DescriptorImageInfo::default()
+            .image_view(*view.get_image_view_raw())];
 
-        let binding_type = match self.descriptor_layout.bindings.get(dst_binding as usize) {
-            Some(val) => val.binding_type,
-            None => return Err(DescriptorError::BindingDoesntExist),
-        };
+        let binding_type =
+            match self.descriptor_layout.bindings.get(dst_binding as usize) {
+                Some(val) => val.binding_type,
+                None => return Err(DescriptorError::BindingDoesntExist),
+            };
 
         let write_info = ash::vk::WriteDescriptorSet::default()
             .descriptor_type(binding_type)
@@ -251,7 +266,9 @@ impl Drop for DescriptorSet {
             self.descriptor_pool
                 .device
                 .get_device_raw()
-                .free_descriptor_sets(*self.descriptor_pool.get_pool_raw(), &[self.set])
+                .free_descriptor_sets(*self.descriptor_pool.get_pool_raw(), &[
+                    self.set,
+                ])
                 .unwrap_or(())
         }
     }

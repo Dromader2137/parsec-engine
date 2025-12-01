@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::graphics::vulkan::{VulkanError, image::ImageView, renderpass::Renderpass};
+use crate::graphics::vulkan::{
+    VulkanError, image::ImageView, renderpass::Renderpass,
+};
 
 pub struct Framebuffer {
     pub renderpass: Arc<Renderpass>,
@@ -16,7 +18,9 @@ pub enum FramebufferError {
 }
 
 impl From<FramebufferError> for VulkanError {
-    fn from(value: FramebufferError) -> Self { VulkanError::FramebufferError(value) }
+    fn from(value: FramebufferError) -> Self {
+        VulkanError::FramebufferError(value)
+    }
 }
 
 impl Framebuffer {
@@ -30,12 +34,13 @@ impl Framebuffer {
             *image_view.get_image_view_raw(),
             *depth_view.get_image_view_raw(),
         ];
-        let frame_buffer_create_info = ash::vk::FramebufferCreateInfo::default()
-            .render_pass(*renderpass.get_renderpass_raw())
-            .attachments(&framebuffer_attachments)
-            .width(extent.width)
-            .height(extent.height)
-            .layers(1);
+        let frame_buffer_create_info =
+            ash::vk::FramebufferCreateInfo::default()
+                .render_pass(*renderpass.get_renderpass_raw())
+                .attachments(&framebuffer_attachments)
+                .width(extent.width)
+                .height(extent.height)
+                .layers(1);
 
         let framebuffer = match unsafe {
             renderpass
@@ -55,7 +60,9 @@ impl Framebuffer {
         }))
     }
 
-    pub fn get_framebuffer_raw(&self) -> &ash::vk::Framebuffer { &self.framebuffer }
+    pub fn get_framebuffer_raw(&self) -> &ash::vk::Framebuffer {
+        &self.framebuffer
+    }
 
     pub fn get_extent_raw(&self) -> ash::vk::Extent2D { self.extent }
 }

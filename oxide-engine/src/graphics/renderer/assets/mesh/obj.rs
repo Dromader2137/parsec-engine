@@ -96,7 +96,9 @@ pub fn load_obj(file_path: &str) -> Result<Mesh, LoadOBJError> {
                     };
                     let uv_id = index.next().map(|x| x.parse::<u32>());
                     let uv = match uv_id {
-                        Some(val) => *uvs.get(val? as usize - 1).ok_or(LoadOBJError::UvNotFound)?,
+                        Some(val) => *uvs
+                            .get(val? as usize - 1)
+                            .ok_or(LoadOBJError::UvNotFound)?,
                         None => Vec2f::ZERO,
                     };
                     let normal_id = index.next().map(|x| x.parse::<u32>());

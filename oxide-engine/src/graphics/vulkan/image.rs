@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::graphics::vulkan::{
-    VulkanError, buffer::find_memorytype_index, device::Device, format_size::format_size,
+    VulkanError, buffer::find_memorytype_index, device::Device,
+    format_size::format_size,
 };
 
 pub trait Image: Send + Sync + 'static {
@@ -111,7 +112,10 @@ impl From<ImageInfo> for ash::vk::ImageCreateInfo<'_> {
 }
 
 impl SwapchainImage {
-    pub fn from_raw_image(device: Arc<Device>, raw_image: ash::vk::Image) -> Arc<SwapchainImage> {
+    pub fn from_raw_image(
+        device: Arc<Device>,
+        raw_image: ash::vk::Image,
+    ) -> Arc<SwapchainImage> {
         Arc::new(SwapchainImage {
             device,
             image: raw_image,
@@ -120,7 +124,10 @@ impl SwapchainImage {
 }
 
 impl OwnedImage {
-    pub fn new(device: Arc<Device>, create_info: ImageInfo) -> Result<Arc<OwnedImage>, ImageError> {
+    pub fn new(
+        device: Arc<Device>,
+        create_info: ImageInfo,
+    ) -> Result<Arc<OwnedImage>, ImageError> {
         let size = create_info.size;
         let format = create_info.format;
 
@@ -132,7 +139,9 @@ impl OwnedImage {
             Ok(val) => val,
             Err(err) => return Err(ImageError::CreationError(err)),
         };
-        let memory_req = unsafe { device.get_device_raw().get_image_memory_requirements(image) };
+        let memory_req = unsafe {
+            device.get_device_raw().get_image_memory_requirements(image)
+        };
         let memory_index = match find_memorytype_index(
             &memory_req,
             ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,

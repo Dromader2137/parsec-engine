@@ -1,7 +1,8 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::graphics::vulkan::{
-    VulkanError, device::Device, instance::Instance, physical_device::PhysicalDevice,
+    VulkanError, device::Device, instance::Instance,
+    physical_device::PhysicalDevice,
 };
 
 pub struct Buffer {
@@ -104,8 +105,13 @@ impl Buffer {
             Err(err) => return Err(BufferError::MapError(err)),
         };
 
-        let mut slice =
-            unsafe { ash::util::Align::new(memory_ptr, align_of::<u32>() as u64, memory_req.size) };
+        let mut slice = unsafe {
+            ash::util::Align::new(
+                memory_ptr,
+                align_of::<u32>() as u64,
+                memory_req.size,
+            )
+        };
 
         slice.copy_from_slice(&data);
         unsafe { device.get_device_raw().unmap_memory(memory) };
@@ -127,7 +133,10 @@ impl Buffer {
         }))
     }
 
-    pub fn update<T: Clone + Copy>(&self, data: Vec<T>) -> Result<(), BufferError> {
+    pub fn update<T: Clone + Copy>(
+        &self,
+        data: Vec<T>,
+    ) -> Result<(), BufferError> {
         let size = (data.len() * size_of::<T>()) as u64;
 
         if data.len() as u32 != self.len {
@@ -151,7 +160,11 @@ impl Buffer {
         };
 
         let mut slice = unsafe {
-            ash::util::Align::<T>::new(memory_ptr, align_of::<u32>() as u64, self.memory_size)
+            ash::util::Align::<T>::new(
+                memory_ptr,
+                align_of::<u32>() as u64,
+                self.memory_size,
+            )
         };
 
         slice.copy_from_slice(&data);
@@ -186,7 +199,9 @@ pub fn find_memorytype_index(
     let memory_prop = unsafe {
         instance
             .get_instance_raw()
-            .get_physical_device_memory_properties(*physical_device.get_physical_device_raw())
+            .get_physical_device_memory_properties(
+                *physical_device.get_physical_device_raw(),
+            )
     };
 
     memory_prop.memory_types[..memory_prop.memory_type_count as _]

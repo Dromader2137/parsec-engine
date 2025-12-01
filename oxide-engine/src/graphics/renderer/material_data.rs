@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::graphics::{
-    renderer::{DefaultVertex, camera_data::CameraData, transform_data::TransformData},
+    renderer::{
+        DefaultVertex, camera_data::CameraData, transform_data::TransformData,
+    },
     vulkan::{
         VulkanError,
         command_buffer::CommandBuffer,
@@ -78,12 +80,19 @@ impl MaterialData {
         camera_transform: &TransformData,
         transform: &TransformData,
     ) {
-        command_buffer.bind_graphics_pipeline(self.material_base.pipeline.clone());
+        command_buffer
+            .bind_graphics_pipeline(self.material_base.pipeline.clone());
         for (set_index, set) in self.descriptor_sets.iter().enumerate() {
             let descriptor_set = match set {
-                MaterialDescriptorSets::ViewMatrixSet => camera_transform.look_at_set.clone(),
-                MaterialDescriptorSets::ProjectionMatrixSet => camera.projection_set.clone(),
-                MaterialDescriptorSets::ModelMatrixSet => transform.model_set.clone(),
+                MaterialDescriptorSets::ViewMatrixSet => {
+                    camera_transform.look_at_set.clone()
+                },
+                MaterialDescriptorSets::ProjectionMatrixSet => {
+                    camera.projection_set.clone()
+                },
+                MaterialDescriptorSets::ModelMatrixSet => {
+                    transform.model_set.clone()
+                },
                 _ => unreachable!(),
             };
             command_buffer.bind_descriptor_set(

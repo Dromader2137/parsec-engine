@@ -16,7 +16,8 @@ struct ImplSpawnInput {
 
 impl Parse for ImplSpawnInput {
     fn parse(input: ParseStream) -> Result<Self> {
-        let types: Punctuated<Ident, Token![,]> = Punctuated::parse_terminated(input)?;
+        let types: Punctuated<Ident, Token![,]> =
+            Punctuated::parse_terminated(input)?;
         Ok(ImplSpawnInput { types })
     }
 }
@@ -70,7 +71,8 @@ struct ImplFetchInput {
 
 impl Parse for ImplFetchInput {
     fn parse(input: ParseStream) -> Result<Self> {
-        let types: Punctuated<Ident, Token![,]> = Punctuated::parse_terminated(input)?;
+        let types: Punctuated<Ident, Token![,]> =
+            Punctuated::parse_terminated(input)?;
         Ok(ImplFetchInput { types })
     }
 }
@@ -153,7 +155,8 @@ impl Parse for MultipleTuplesInput {
 
 #[proc_macro]
 pub fn multiple_tuples(input: TokenStream) -> TokenStream {
-    let MultipleTuplesInput { mac, size } = parse_macro_input!(input as MultipleTuplesInput);
+    let MultipleTuplesInput { mac, size } =
+        parse_macro_input!(input as MultipleTuplesInput);
     let size = size.base10_parse::<u8>().unwrap();
 
     let mut names = Vec::new();
@@ -190,9 +193,11 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(item as ItemFn);
 
     let fn_name = &input_fn.sig.ident;
-    let struct_name = format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
+    let struct_name =
+        format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
 
-    let found_crate = crate_name("oxide-engine").expect("oxide-engine is present in `Cargo.toml`");
+    let found_crate = crate_name("oxide-engine")
+        .expect("oxide-engine is present in `Cargo.toml`");
 
     let engine_crate = match found_crate {
         FoundCrate::Itself => quote!(crate),

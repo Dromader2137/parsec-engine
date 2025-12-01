@@ -17,7 +17,9 @@ impl<T> IdVec<T> {
 
     pub fn get(&self, id: u32) -> Option<&T> { self.vec.get(id as usize) }
 
-    pub fn get_mut(&mut self, id: u32) -> Option<&mut T> { self.vec.get_mut(id as usize) }
+    pub fn get_mut(&mut self, id: u32) -> Option<&mut T> {
+        self.vec.get_mut(id as usize)
+    }
 
     pub fn iter(&self) -> Iter<'_, T> { self.vec.iter() }
 

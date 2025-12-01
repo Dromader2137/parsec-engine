@@ -42,7 +42,9 @@ pub struct ArchetypeId {
 }
 
 impl Hash for ArchetypeId {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) { state.write_u64(self.hash); }
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u64(self.hash);
+    }
 }
 
 impl ArchetypeId {
@@ -51,7 +53,9 @@ impl ArchetypeId {
     /// # Errors
     ///
     /// - If `component_types` contains multiple instances of the same [`TypeId`].
-    pub fn new(component_types: Vec<TypeId>) -> Result<ArchetypeId, ArchetypeError> {
+    pub fn new(
+        component_types: Vec<TypeId>,
+    ) -> Result<ArchetypeId, ArchetypeError> {
         let mut set = HashSet::new();
         let mut hash = 0_u64;
 
@@ -60,7 +64,9 @@ impl ArchetypeId {
             id.hash(&mut s);
             hash ^= s.finish();
             if !set.insert(*id) {
-                return Err(ArchetypeError::BundleCannotContainManyValuesOfTheSameType);
+                return Err(
+                    ArchetypeError::BundleCannotContainManyValuesOfTheSameType,
+                );
             }
         }
 
@@ -75,7 +81,10 @@ impl ArchetypeId {
     /// # Errors
     ///
     /// - If the resulting id has duplicate components.
-    pub fn merge_with(&self, other: ArchetypeId) -> Result<ArchetypeId, ArchetypeError> {
+    pub fn merge_with(
+        &self,
+        other: ArchetypeId,
+    ) -> Result<ArchetypeId, ArchetypeError> {
         let mut set = self.component_types.clone();
         let mut hash = self.hash;
 
@@ -99,7 +108,10 @@ impl ArchetypeId {
     /// # Errors
     ///
     /// - If `self` doesn't contain some component types present in `other`.
-    pub fn remove_from(&self, other: ArchetypeId) -> Result<ArchetypeId, ArchetypeError> {
+    pub fn remove_from(
+        &self,
+        other: ArchetypeId,
+    ) -> Result<ArchetypeId, ArchetypeError> {
         let mut set = self.component_types.clone();
         let mut hash = self.hash;
 
@@ -216,11 +228,14 @@ impl ArchetypeColumn {
 
     fn is_readable(&self) -> bool {
         let access = self.borrow.read().unwrap().access;
-        access == ArchetypeColumnAccess::Read || access == ArchetypeColumnAccess::ReadWrite
+        access == ArchetypeColumnAccess::Read
+            || access == ArchetypeColumnAccess::ReadWrite
     }
 
     /// Sets component size to the size of `T`.
-    fn set_component_size<T: Component>(&mut self) { self.component_size = size_of::<T>(); }
+    fn set_component_size<T: Component>(&mut self) {
+        self.component_size = size_of::<T>();
+    }
 
     /// Adds a component to `self`.
     ///
@@ -235,7 +250,10 @@ impl ArchetypeColumn {
         }
 
         let bytes = unsafe {
-            std::slice::from_raw_parts(&value as *const T as *const u8, self.component_size)
+            std::slice::from_raw_parts(
+                &value as *const T as *const u8,
+                self.component_size,
+            )
         };
 
         self.data.extend_from_slice(bytes);
@@ -305,7 +323,8 @@ impl ArchetypeColumn {
             return Err(ArchetypeError::EntityNotFound);
         }
 
-        let copy_from = from * self.component_size..(from + 1) * self.component_size;
+        let copy_from =
+            from * self.component_size..(from + 1) * self.component_size;
         let copy_to = to * self.component_size;
 
         self.data.copy_within(copy_from, copy_to);
@@ -328,7 +347,8 @@ impl ArchetypeColumn {
             return Err(ArchetypeError::EntityNotFound);
         }
 
-        Ok(&self.data[self.component_size * idx..self.component_size * (idx + 1)])
+        Ok(&self.data
+            [self.component_size * idx..self.component_size * (idx + 1)])
     }
 
     /// Gets a slice of stored components.
@@ -403,7 +423,10 @@ impl Archetype {
     ///
     /// - If `self` doesn't store components of type `T`.
     /// - If column storing components of type `T` is not writable.
-    pub fn add<T: Component>(&mut self, value: T) -> Result<(), ArchetypeError> {
+    pub fn add<T: Component>(
+        &mut self,
+        value: T,
+    ) -> Result<(), ArchetypeError> {
         let type_id = TypeId::of::<T>();
 
         let column = match self.columns.get_mut(&type_id) {
@@ -449,7 +472,9 @@ impl Archetype {
     }
 
     /// Adds a moved entity.
-    pub fn moved_entity(&mut self, entity: Entity) { self.entities.push(entity); }
+    pub fn moved_entity(&mut self, entity: Entity) {
+        self.entities.push(entity);
+    }
 
     /// Checks if `entity` is stored in `self`.
     pub fn check_entity(&self, entity: Entity) -> bool {
@@ -475,7 +500,10 @@ impl Archetype {
     ///
     /// - If `self` doesn`t store `entity`.
     /// - If any column is not writable.
-    pub fn delete_entity(&mut self, entity: Entity) -> Result<(), ArchetypeError> {
+    pub fn delete_entity(
+        &mut self,
+        entity: Entity,
+    ) -> Result<(), ArchetypeError> {
         if !self.are_all_columns_mutable() {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
         }
@@ -514,7 +542,8 @@ impl Archetype {
     pub fn cut_entity(
         &mut self,
         entity: Entity,
-    ) -> Result<(Entity, HashMap<TypeId, (usize, Vec<u8>)>), ArchetypeError> {
+    ) -> Result<(Entity, HashMap<TypeId, (usize, Vec<u8>)>), ArchetypeError>
+    {
         if !self.are_all_columns_mutable() {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
         }
@@ -547,7 +576,8 @@ impl Archetype {
     /// Makes all columns the same lenght (deletes the excess). Used only after a failed spawn or
     /// component add/remove.
     pub fn trim_columns(&mut self) {
-        let desired_len = self.columns.iter().map(|x| x.1.rows).min().unwrap_or(0);
+        let desired_len =
+            self.columns.iter().map(|x| x.1.rows).min().unwrap_or(0);
 
         for (_, column) in self.columns.iter_mut() {
             while column.rows < desired_len {
@@ -577,8 +607,10 @@ impl Archetype {
     /// - If column storing `T` components is not readable.
     pub fn get<T: Component>(
         &self,
-    ) -> Result<(*const [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
-        let column = self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
+    ) -> Result<(*const [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError>
+    {
+        let column =
+            self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
         let slice = column.get_slice::<T>()?;
         column.borrow.write().unwrap().count += 1;
         column.borrow.write().unwrap().access = ArchetypeColumnAccess::Read;
@@ -593,8 +625,10 @@ impl Archetype {
     /// - If column storing `T` components is not writable.
     pub fn get_mut<T: Component>(
         &self,
-    ) -> Result<(*mut [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
-        let column = self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
+    ) -> Result<(*mut [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError>
+    {
+        let column =
+            self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
         let slice = column.get_mut_slice::<T>()?;
         column.borrow.write().unwrap().access = ArchetypeColumnAccess::None;
         Ok((slice, column.borrow.clone(), slice.len()))

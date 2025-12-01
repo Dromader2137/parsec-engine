@@ -26,7 +26,9 @@ pub enum CommandBufferError {
 }
 
 impl From<CommandBufferError> for VulkanError {
-    fn from(value: CommandBufferError) -> Self { VulkanError::CommandBufferError(value) }
+    fn from(value: CommandBufferError) -> Self {
+        VulkanError::CommandBufferError(value)
+    }
 }
 
 #[derive(Debug)]
@@ -35,14 +37,20 @@ pub enum CommandPoolError {
 }
 
 impl From<CommandPoolError> for VulkanError {
-    fn from(value: CommandPoolError) -> Self { VulkanError::CommandPoolError(value) }
+    fn from(value: CommandPoolError) -> Self {
+        VulkanError::CommandPoolError(value)
+    }
 }
 
 impl CommandPool {
-    pub fn new(device: Arc<Device>) -> Result<Arc<CommandPool>, CommandPoolError> {
+    pub fn new(
+        device: Arc<Device>,
+    ) -> Result<Arc<CommandPool>, CommandPoolError> {
         let pool_info = ash::vk::CommandPoolCreateInfo::default()
             .flags(ash::vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(device.physical_device.get_queue_family_index());
+            .queue_family_index(
+                device.physical_device.get_queue_family_index(),
+            );
 
         let command_pool = match unsafe {
             device
@@ -59,7 +67,9 @@ impl CommandPool {
         }))
     }
 
-    pub fn get_command_pool_raw(&self) -> &ash::vk::CommandPool { &self.command_pool }
+    pub fn get_command_pool_raw(&self) -> &ash::vk::CommandPool {
+        &self.command_pool
+    }
 }
 
 impl Drop for CommandPool {
@@ -73,7 +83,9 @@ impl Drop for CommandPool {
 }
 
 impl CommandBuffer {
-    pub fn new(command_pool: Arc<CommandPool>) -> Result<Arc<CommandBuffer>, CommandBufferError> {
+    pub fn new(
+        command_pool: Arc<CommandPool>,
+    ) -> Result<Arc<CommandBuffer>, CommandBufferError> {
         let create_info = ash::vk::CommandBufferAllocateInfo::default()
             .command_buffer_count(1)
             .command_pool(*command_pool.get_command_pool_raw())
@@ -249,7 +261,12 @@ impl CommandBuffer {
             self.command_pool
                 .device
                 .get_device_raw()
-                .cmd_bind_vertex_buffers(self.command_buffer, 0, &[*buffer.get_buffer_raw()], &[0])
+                .cmd_bind_vertex_buffers(
+                    self.command_buffer,
+                    0,
+                    &[*buffer.get_buffer_raw()],
+                    &[0],
+                )
         };
     }
 
@@ -304,5 +321,7 @@ impl CommandBuffer {
         Ok(())
     }
 
-    pub fn get_command_buffer_raw(&self) -> &ash::vk::CommandBuffer { &self.command_buffer }
+    pub fn get_command_buffer_raw(&self) -> &ash::vk::CommandBuffer {
+        &self.command_buffer
+    }
 }

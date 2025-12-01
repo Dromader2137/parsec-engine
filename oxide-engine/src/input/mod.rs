@@ -1,14 +1,15 @@
 //! Module responsible for handling user input.
 
-use std::sync::Arc;
-
 use keys::Keys;
 
 use crate::{
-    ecs::system::{System, SystemBundle, SystemTrigger, system}, graphics::window::WindowWrapper, input::{
-        key::{KeyCode, KeyState},
+    ecs::system::{system, System, SystemBundle, SystemTrigger},
+    input::{
+        key::{KeyState, StorageKeyCode},
         mouse::Mouse,
-    }, math::vec::Vec2f, resources::{Resource, Resources}
+    },
+    math::vec::Vec2f,
+    resources::{Resource, Resources},
 };
 
 pub mod key;
@@ -32,14 +33,14 @@ impl Input {
 }
 
 /// A keybord input event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyboardInputEvent {
-    key: KeyCode,
+    key: StorageKeyCode,
     state: KeyState,
 }
 
 impl KeyboardInputEvent {
-    pub fn new(key: KeyCode, state: KeyState) -> KeyboardInputEvent {
+    pub fn new(key: StorageKeyCode, state: KeyState) -> KeyboardInputEvent {
         KeyboardInputEvent { key, state }
     }
 }
@@ -51,7 +52,9 @@ pub struct MouseMovementEvent {
 }
 
 impl MouseMovementEvent {
-    pub fn new(position: Vec2f) -> MouseMovementEvent { MouseMovementEvent { position } }
+    pub fn new(position: Vec2f) -> MouseMovementEvent {
+        MouseMovementEvent { position }
+    }
 }
 
 #[system]
@@ -70,14 +73,19 @@ fn input_clear_all(mut input: Resource<Input>) {
 }
 
 #[system]
-fn input_keyboard_event(mut input: Resource<Input>, input_event: Resource<KeyboardInputEvent>) {
-    input.keys.process_input_event(*input_event);
+fn input_keyboard_event(
+    mut input: Resource<Input>,
+    input_event: Resource<KeyboardInputEvent>,
+) {
+    input.keys.process_input_event(input_event.clone());
 }
 
 #[system]
-fn input_mouse_movement(mut input: Resource<Input>, mut window: Resource<Arc<WindowWrapper>>, movement_event: Resource<MouseMovementEvent>) {
+fn input_mouse_movement(
+    mut input: Resource<Input>,
+    movement_event: Resource<MouseMovementEvent>,
+) {
     input.mouse.set_position(movement_event.position);
-    window.
 }
 
 #[derive(Default)]

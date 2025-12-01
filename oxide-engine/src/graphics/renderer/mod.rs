@@ -29,7 +29,10 @@ use crate::{
         vulkan::{
             VulkanError,
             command_buffer::{CommandBuffer, CommandPool},
-            descriptor_set::{DescriptorPool, DescriptorPoolSize, DescriptorSet, DescriptorType},
+            descriptor_set::{
+                DescriptorPool, DescriptorPoolSize, DescriptorSet,
+                DescriptorType,
+            },
             device::Device,
             fence::Fence,
             framebuffer::Framebuffer,
@@ -143,17 +146,25 @@ pub fn init_renderer(
     let swapchain = init_renderer_images(renderpass.clone()).unwrap();
     let frames_in_flight = 2.min(swapchain.swapchain_images.len()).max(1);
 
-    let frame_sync = create_frame_sync(device.clone(), frames_in_flight).unwrap();
-    let image_sync = create_image_sync(device.clone(), swapchain.swapchain_images.len()).unwrap();
-    let command_buffers = create_commad_buffers(command_pool.clone(), frames_in_flight).unwrap();
+    let frame_sync =
+        create_frame_sync(device.clone(), frames_in_flight).unwrap();
+    let image_sync =
+        create_image_sync(device.clone(), swapchain.swapchain_images.len())
+            .unwrap();
+    let command_buffers =
+        create_commad_buffers(command_pool.clone(), frames_in_flight).unwrap();
 
-    let descriptor_pool = DescriptorPool::new(device.clone(), 32, &[DescriptorPoolSize::new(
-        16,
-        DescriptorType::UNIFORM_BUFFER,
-    )])
-    .unwrap();
+    let descriptor_pool =
+        DescriptorPool::new(device.clone(), 32, &[DescriptorPoolSize::new(
+            16,
+            DescriptorType::UNIFORM_BUFFER,
+        )])
+        .unwrap();
 
-    let graphics_queue = Queue::present(device.clone(), physical_device.get_queue_family_index());
+    let graphics_queue = Queue::present(
+        device.clone(),
+        physical_device.get_queue_family_index(),
+    );
 
     Resources::add(frame_sync).unwrap();
     Resources::add(image_sync).unwrap();
@@ -204,8 +215,12 @@ pub fn prepare_render(
     }
 
     if resize.0 {
-        recreate_size_dependent_components(device.clone(), renderpass.clone(), swapchain.clone())
-            .unwrap();
+        recreate_size_dependent_components(
+            device.clone(),
+            renderpass.clone(),
+            swapchain.clone(),
+        )
+        .unwrap();
         *resize = RendererResizeFlag(false)
     }
 }
@@ -265,9 +280,15 @@ pub fn render(
                 let material = materials_data.get(*material).unwrap();
                 let mesh = meshes_data.get(*mesh).unwrap();
                 let camera = cameras_data.get(*camera).unwrap();
-                let camera_transform = transforms_data.get(*camera_transform).unwrap();
+                let camera_transform =
+                    transforms_data.get(*camera_transform).unwrap();
                 let transform = transforms_data.get(*transform).unwrap();
-                material.bind(command_buffer.clone(), camera, camera_transform, transform);
+                material.bind(
+                    command_buffer.clone(),
+                    camera,
+                    camera_transform,
+                    transform,
+                );
                 mesh.record_commands(command_buffer.clone());
             },
         }

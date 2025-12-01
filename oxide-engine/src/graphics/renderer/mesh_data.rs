@@ -29,8 +29,16 @@ impl<V: Vertex> MeshBuffer<V> {
         indices: &[u32],
     ) -> Result<MeshBuffer<V>, VulkanError> {
         Ok(MeshBuffer {
-            vertex_buffer: Buffer::from_vec(device.clone(), vertices, BufferUsage::VERTEX_BUFFER)?,
-            index_buffer: Buffer::from_vec(device, indices, BufferUsage::INDEX_BUFFER)?,
+            vertex_buffer: Buffer::from_vec(
+                device.clone(),
+                vertices,
+                BufferUsage::VERTEX_BUFFER,
+            )?,
+            index_buffer: Buffer::from_vec(
+                device,
+                indices,
+                BufferUsage::INDEX_BUFFER,
+            )?,
             _marker: PhantomData::default(),
         })
     }
@@ -69,7 +77,9 @@ fn add_mesh_data(
 ) {
     for mesh in meshes.iter_mut() {
         if mesh.data_id.is_none() {
-            let mesh_data = MeshData::new(device.clone(), &mesh.vertices, &mesh.indices).unwrap();
+            let mesh_data =
+                MeshData::new(device.clone(), &mesh.vertices, &mesh.indices)
+                    .unwrap();
             let data_id = meshes_data.push(mesh_data);
             mesh.data_id = Some(data_id);
         }

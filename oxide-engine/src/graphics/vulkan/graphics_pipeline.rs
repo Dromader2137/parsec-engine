@@ -21,7 +21,9 @@ pub enum GraphicsPipelineError {
 }
 
 impl From<GraphicsPipelineError> for VulkanError {
-    fn from(value: GraphicsPipelineError) -> Self { VulkanError::GrphicsPipelineError(value) }
+    fn from(value: GraphicsPipelineError) -> Self {
+        VulkanError::GrphicsPipelineError(value)
+    }
 }
 
 pub type VertexFieldFormat = ash::vk::Format;
@@ -48,8 +50,8 @@ impl GraphicsPipeline {
             .map(|x| *x.get_layout_raw())
             .collect();
 
-        let layout_create_info =
-            ash::vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
+        let layout_create_info = ash::vk::PipelineLayoutCreateInfo::default()
+            .set_layouts(&set_layouts);
 
         let pipeline_layout = match unsafe {
             framebuffer
@@ -88,46 +90,54 @@ impl GraphicsPipeline {
         }];
 
         let scissors = [framebuffer.get_extent_raw().into()];
-        let viewport_state_info = ash::vk::PipelineViewportStateCreateInfo::default()
-            .scissors(&scissors)
-            .viewports(&viewports);
+        let viewport_state_info =
+            ash::vk::PipelineViewportStateCreateInfo::default()
+                .scissors(&scissors)
+                .viewports(&viewports);
 
-        let rasterization_info = ash::vk::PipelineRasterizationStateCreateInfo {
-            front_face: ash::vk::FrontFace::COUNTER_CLOCKWISE,
-            line_width: 1.0,
-            polygon_mode: ash::vk::PolygonMode::FILL,
-            ..Default::default()
-        };
-        let multisample_state_info = ash::vk::PipelineMultisampleStateCreateInfo {
-            rasterization_samples: ash::vk::SampleCountFlags::TYPE_1,
-            ..Default::default()
-        };
-        let color_blend_attachment_states = [ash::vk::PipelineColorBlendAttachmentState {
-            blend_enable: 0,
-            src_color_blend_factor: ash::vk::BlendFactor::SRC_COLOR,
-            dst_color_blend_factor: ash::vk::BlendFactor::ONE_MINUS_DST_COLOR,
-            color_blend_op: ash::vk::BlendOp::ADD,
-            src_alpha_blend_factor: ash::vk::BlendFactor::ZERO,
-            dst_alpha_blend_factor: ash::vk::BlendFactor::ZERO,
-            alpha_blend_op: ash::vk::BlendOp::ADD,
-            color_write_mask: ash::vk::ColorComponentFlags::RGBA,
-        }];
-        let color_blend_state = ash::vk::PipelineColorBlendStateCreateInfo::default()
-            .logic_op(ash::vk::LogicOp::CLEAR)
-            .attachments(&color_blend_attachment_states);
+        let rasterization_info =
+            ash::vk::PipelineRasterizationStateCreateInfo {
+                front_face: ash::vk::FrontFace::COUNTER_CLOCKWISE,
+                line_width: 1.0,
+                polygon_mode: ash::vk::PolygonMode::FILL,
+                ..Default::default()
+            };
+        let multisample_state_info =
+            ash::vk::PipelineMultisampleStateCreateInfo {
+                rasterization_samples: ash::vk::SampleCountFlags::TYPE_1,
+                ..Default::default()
+            };
+        let color_blend_attachment_states =
+            [ash::vk::PipelineColorBlendAttachmentState {
+                blend_enable: 0,
+                src_color_blend_factor: ash::vk::BlendFactor::SRC_COLOR,
+                dst_color_blend_factor:
+                    ash::vk::BlendFactor::ONE_MINUS_DST_COLOR,
+                color_blend_op: ash::vk::BlendOp::ADD,
+                src_alpha_blend_factor: ash::vk::BlendFactor::ZERO,
+                dst_alpha_blend_factor: ash::vk::BlendFactor::ZERO,
+                alpha_blend_op: ash::vk::BlendOp::ADD,
+                color_write_mask: ash::vk::ColorComponentFlags::RGBA,
+            }];
+        let color_blend_state =
+            ash::vk::PipelineColorBlendStateCreateInfo::default()
+                .logic_op(ash::vk::LogicOp::CLEAR)
+                .attachments(&color_blend_attachment_states);
 
         let dynamic_state = [
             ash::vk::DynamicState::VIEWPORT,
             ash::vk::DynamicState::SCISSOR,
         ];
         let dynamic_state_info =
-            ash::vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&dynamic_state);
+            ash::vk::PipelineDynamicStateCreateInfo::default()
+                .dynamic_states(&dynamic_state);
 
-        let vertex_input_binding_descriptions = [ash::vk::VertexInputBindingDescription {
-            binding: 0,
-            stride: V::size(),
-            input_rate: ash::vk::VertexInputRate::VERTEX,
-        }];
+        let vertex_input_binding_descriptions =
+            [ash::vk::VertexInputBindingDescription {
+                binding: 0,
+                stride: V::size(),
+                input_rate: ash::vk::VertexInputRate::VERTEX,
+            }];
         let vertex_input_attribute_descriptions = V::description()
             .iter()
             .enumerate()
@@ -139,14 +149,20 @@ impl GraphicsPipeline {
             })
             .collect::<Vec<_>>();
 
-        let vertex_input_state_info = ash::vk::PipelineVertexInputStateCreateInfo::default()
-            .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
-            .vertex_binding_descriptions(&vertex_input_binding_descriptions);
+        let vertex_input_state_info =
+            ash::vk::PipelineVertexInputStateCreateInfo::default()
+                .vertex_attribute_descriptions(
+                    &vertex_input_attribute_descriptions,
+                )
+                .vertex_binding_descriptions(
+                    &vertex_input_binding_descriptions,
+                );
 
-        let vertex_input_assembly_state_info = ash::vk::PipelineInputAssemblyStateCreateInfo {
-            topology: ash::vk::PrimitiveTopology::TRIANGLE_LIST,
-            ..Default::default()
-        };
+        let vertex_input_assembly_state_info =
+            ash::vk::PipelineInputAssemblyStateCreateInfo {
+                topology: ash::vk::PrimitiveTopology::TRIANGLE_LIST,
+                ..Default::default()
+            };
 
         let noop_stencil_state = ash::vk::StencilOpState {
             fail_op: ash::vk::StencilOp::KEEP,
@@ -166,18 +182,19 @@ impl GraphicsPipeline {
             ..Default::default()
         };
 
-        let graphic_pipeline_info = ash::vk::GraphicsPipelineCreateInfo::default()
-            .stages(&shader_stage_create_infos)
-            .vertex_input_state(&vertex_input_state_info)
-            .input_assembly_state(&vertex_input_assembly_state_info)
-            .viewport_state(&viewport_state_info)
-            .rasterization_state(&rasterization_info)
-            .multisample_state(&multisample_state_info)
-            .color_blend_state(&color_blend_state)
-            .dynamic_state(&dynamic_state_info)
-            .layout(pipeline_layout)
-            .depth_stencil_state(&depth_state_info)
-            .render_pass(*framebuffer.renderpass.get_renderpass_raw());
+        let graphic_pipeline_info =
+            ash::vk::GraphicsPipelineCreateInfo::default()
+                .stages(&shader_stage_create_infos)
+                .vertex_input_state(&vertex_input_state_info)
+                .input_assembly_state(&vertex_input_assembly_state_info)
+                .viewport_state(&viewport_state_info)
+                .rasterization_state(&rasterization_info)
+                .multisample_state(&multisample_state_info)
+                .color_blend_state(&color_blend_state)
+                .dynamic_state(&dynamic_state_info)
+                .layout(pipeline_layout)
+                .depth_stencil_state(&depth_state_info)
+                .render_pass(*framebuffer.renderpass.get_renderpass_raw());
 
         let pipeline = match unsafe {
             framebuffer
@@ -191,7 +208,9 @@ impl GraphicsPipeline {
                 )
         } {
             Ok(val) => val,
-            Err(err) => return Err(GraphicsPipelineError::CreationError(err.1)),
+            Err(err) => {
+                return Err(GraphicsPipelineError::CreationError(err.1));
+            },
         }[0];
 
         Ok(Arc::new(GraphicsPipeline {
@@ -204,9 +223,13 @@ impl GraphicsPipeline {
         }))
     }
 
-    pub fn get_pipeline_raw(&self) -> &ash::vk::Pipeline { &self.graphics_pipeline }
+    pub fn get_pipeline_raw(&self) -> &ash::vk::Pipeline {
+        &self.graphics_pipeline
+    }
 
-    pub fn get_layout_raw(&self) -> &ash::vk::PipelineLayout { &self.graphics_pipeline_layout }
+    pub fn get_layout_raw(&self) -> &ash::vk::PipelineLayout {
+        &self.graphics_pipeline_layout
+    }
 }
 
 impl Drop for GraphicsPipeline {

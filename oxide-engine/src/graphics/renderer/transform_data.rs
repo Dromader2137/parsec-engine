@@ -11,8 +11,8 @@ use crate::{
             VulkanError,
             buffer::{Buffer, BufferUsage},
             descriptor_set::{
-                DescriptorPool, DescriptorSet, DescriptorSetBinding, DescriptorSetLayout,
-                DescriptorStage, DescriptorType,
+                DescriptorPool, DescriptorSet, DescriptorSetBinding,
+                DescriptorSetLayout, DescriptorStage, DescriptorType,
             },
             device::Device,
         },
@@ -51,8 +51,12 @@ impl TransformData {
         )
         .unwrap();
         let scale_matrix = Matrix4f::scale(scale);
-        let scale_buffer =
-            Buffer::from_vec(device.clone(), &[scale_matrix], BufferUsage::UNIFORM_BUFFER).unwrap();
+        let scale_buffer = Buffer::from_vec(
+            device.clone(),
+            &[scale_matrix],
+            BufferUsage::UNIFORM_BUFFER,
+        )
+        .unwrap();
         let rotation_matrix = rotation.into_matrix();
         let rotation_buffer = Buffer::from_vec(
             device.clone(),
@@ -60,8 +64,11 @@ impl TransformData {
             BufferUsage::UNIFORM_BUFFER,
         )
         .unwrap();
-        let look_at_matrix =
-            Matrix4f::look_at(position, Vec3f::FORWARD * rotation, Vec3f::UP * rotation);
+        let look_at_matrix = Matrix4f::look_at(
+            position,
+            Vec3f::FORWARD * rotation,
+            Vec3f::UP * rotation,
+        );
         let look_at_buffer = Buffer::from_vec(
             device.clone(),
             &[look_at_matrix],
@@ -69,19 +76,35 @@ impl TransformData {
         )
         .unwrap();
         let model_set_layout = DescriptorSetLayout::new(device.clone(), vec![
-            DescriptorSetBinding::new(0, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
-            DescriptorSetBinding::new(1, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
-            DescriptorSetBinding::new(2, DescriptorType::UNIFORM_BUFFER, DescriptorStage::VERTEX),
+            DescriptorSetBinding::new(
+                0,
+                DescriptorType::UNIFORM_BUFFER,
+                DescriptorStage::VERTEX,
+            ),
+            DescriptorSetBinding::new(
+                1,
+                DescriptorType::UNIFORM_BUFFER,
+                DescriptorStage::VERTEX,
+            ),
+            DescriptorSetBinding::new(
+                2,
+                DescriptorType::UNIFORM_BUFFER,
+                DescriptorStage::VERTEX,
+            ),
         ])
         .unwrap();
-        let look_at_set_layout = DescriptorSetLayout::new(device, vec![DescriptorSetBinding::new(
-            0,
-            DescriptorType::UNIFORM_BUFFER,
-            DescriptorStage::VERTEX,
-        )])
-        .unwrap();
-        let model_set = DescriptorSet::new(model_set_layout, descriptor_pool.clone()).unwrap();
-        let look_at_set = DescriptorSet::new(look_at_set_layout, descriptor_pool).unwrap();
+        let look_at_set_layout =
+            DescriptorSetLayout::new(device, vec![DescriptorSetBinding::new(
+                0,
+                DescriptorType::UNIFORM_BUFFER,
+                DescriptorStage::VERTEX,
+            )])
+            .unwrap();
+        let model_set =
+            DescriptorSet::new(model_set_layout, descriptor_pool.clone())
+                .unwrap();
+        let look_at_set =
+            DescriptorSet::new(look_at_set_layout, descriptor_pool).unwrap();
         model_set
             .bind_buffer(translation_buffer.clone(), 0)
             .unwrap();
