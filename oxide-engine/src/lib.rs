@@ -5,3 +5,4 @@ pub mod input;
 pub mod math;
 pub mod resources;
 pub mod utils;
+pub mod time;

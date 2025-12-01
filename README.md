@@ -21,7 +21,7 @@ Simple, modular, ergonomic and high-performance game engine tailored for space s
 
 ## TODO
 
-- [ ] Timing resource (delta time, uptime, etc)
+- [x] Timing resource (delta time, uptime, etc)
 - [ ] ECS&Resources integration tests
 - [ ] Textures
 - [ ] Better OBJ loader (mesh splitting, auto material generation, etc)

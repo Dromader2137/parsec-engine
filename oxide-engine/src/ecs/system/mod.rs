@@ -11,6 +11,8 @@ pub enum SystemTrigger {
     Start,
     /// Runs after initializing the event loop.
     LateStart,
+    /// Runs every frame before `Update`.
+    EarlyUpdate,
     /// Runs every frame.
     Update,
     /// Runs every frame after `Update`.

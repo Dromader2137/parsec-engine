@@ -168,6 +168,7 @@ impl winit::application::ApplicationHandler for App {
         &mut self,
         _event_loop: &winit::event_loop::ActiveEventLoop,
     ) {
+        self.systems.execute_type(SystemTrigger::EarlyUpdate);
         self.systems.execute_type(SystemTrigger::Update);
         self.systems.execute_type(SystemTrigger::LateUpdate);
     }
