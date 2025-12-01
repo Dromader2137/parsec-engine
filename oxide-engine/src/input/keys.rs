@@ -3,8 +3,21 @@
 use std::collections::HashSet;
 
 use crate::input::{
-    key::{KeyCode, KeyState, StorageKeyCode}, KeyboardInputEvent
+    key::{KeyCode, KeyState, StorageKeyCode},
 };
+
+/// A keybord input event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeyboardInputEvent {
+    key: StorageKeyCode,
+    state: KeyState,
+}
+
+impl KeyboardInputEvent {
+    pub fn new(key: StorageKeyCode, state: KeyState) -> KeyboardInputEvent {
+        KeyboardInputEvent { key, state }
+    }
+}
 
 /// Stores keys that currently are in different states.
 #[derive(Debug)]
@@ -57,13 +70,17 @@ impl Keys {
     }
 
     /// Checks if the `key` is pressed.
-    pub fn is_pressed(&self, key: KeyCode) -> bool {
-        self.pressed.contains(&key.into())
+    pub fn is_pressed<T: KeyCode>(&self, key: T) -> bool {
+        self.pressed.contains(&key.into_storage_key_code())
     }
 
     /// Checks if the `key` is down.
-    pub fn is_down(&self, key: KeyCode) -> bool { self.down.contains(&key.into()) }
+    pub fn is_down<T: KeyCode>(&self, key: T) -> bool {
+        self.down.contains(&key.into_storage_key_code())
+    }
 
     /// Checks if the `key` is up.
-    pub fn is_up(&self, key: KeyCode) -> bool { self.up.contains(&key.into()) }
+    pub fn is_up<T: KeyCode>(&self, key: T) -> bool {
+        self.up.contains(&key.into_storage_key_code())
+    }
 }

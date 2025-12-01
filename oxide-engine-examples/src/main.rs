@@ -3,12 +3,13 @@ use std::sync::Arc;
 use oxide_engine::{
     app::App,
     ecs::{
-        system::{system, SystemTrigger},
-        world::{component::Component, fetch::Mut, query::Query, World},
+        system::{SystemTrigger, system},
+        world::{World, component::Component, fetch::Mut, query::Query},
     },
     graphics::{
+        GraphicsBundle,
         renderer::{
-            assets::mesh::{obj::load_obj, Mesh},
+            assets::mesh::{Mesh, obj::load_obj},
             components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
@@ -16,13 +17,20 @@ use oxide_engine::{
             material_data::{
                 MaterialBase, MaterialData, MaterialDescriptorSets,
             },
-        }, vulkan::{
+        },
+        vulkan::{
             descriptor_set::{
                 DescriptorSetBinding, DescriptorStage, DescriptorType,
-            }, device::Device, framebuffer::Framebuffer, shader::{read_shader_code, ShaderModule, ShaderType}
-        }, GraphicsBundle
+            },
+            device::Device,
+            framebuffer::Framebuffer,
+            shader::{ShaderModule, ShaderType, read_shader_code},
+        },
     },
-    input::{key::{KeyCode, Noncharacter}, Input, InputBundle},
+    input::{
+        Input, InputBundle,
+        key::Noncharacter,
+    },
     math::{quat::Quat, vec::Vec3f},
     resources::Resource,
     utils::id_vec::IdVec,
@@ -104,6 +112,7 @@ fn test_system(
         CameraController {
             yaw: 0.0,
             pitch: 0.0,
+            fov: 40.0
         },
     ))
     .unwrap();
@@ -123,39 +132,45 @@ fn test_system(
 pub struct CameraController {
     yaw: f32,
     pitch: f32,
+    fov: f32
 }
 
 #[system]
 fn camera_movement(
-    mut cameras: Query<(Mut<Transform>, Camera, Mut<CameraController>)>,
+    mut cameras: Query<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>,
     input: Resource<Input>,
 ) {
-    for (_, (transform, _, camera_controller)) in cameras.iter() {
-        let delta = input.mouse.delta();
+    for (_, (transform, camera, camera_controller)) in cameras.iter() {
+        let delta = input.mouse.positon_delta();
         camera_controller.yaw += -delta.x / 100.0;
         camera_controller.pitch += delta.y / 100.0;
+        camera_controller.pitch = camera_controller.pitch.clamp(-1.57, 1.57);
         transform.rotation = Quat::from_euler(Vec3f::new(
             camera_controller.pitch,
             camera_controller.yaw,
             0.0,
         ));
-        let rotation = Quat::from_euler(Vec3f::new(0.0, camera_controller.yaw, 0.0));
-        if input.keys.is_down(KeyCode::Character("d")) {
+        camera_controller.fov -= input.mouse.wheel_delta().y / 10.0;
+        camera_controller.fov = camera_controller.fov.clamp(30.0, 60.0);
+        camera.vertical_fov = camera_controller.fov.to_radians();
+        let rotation =
+            Quat::from_euler(Vec3f::new(0.0, camera_controller.yaw, 0.0));
+        if input.keys.is_down("d") {
             transform.position += Vec3f::FORWARD * rotation / 100.0;
         }
-        if input.keys.is_down(KeyCode::Character("s")) {
+        if input.keys.is_down("s") {
             transform.position += Vec3f::BACK * rotation / 100.0;
         }
-        if input.keys.is_down(KeyCode::Character("a")) {
+        if input.keys.is_down("a") {
             transform.position += Vec3f::LEFT * rotation / 100.0;
         }
-        if input.keys.is_down(KeyCode::Character("h")) {
+        if input.keys.is_down("h") {
             transform.position += Vec3f::RIGHT * rotation / 100.0;
         }
-        if input.keys.is_down(KeyCode::Noncharacter(Noncharacter::Space)) {
+        if input.keys.is_down(Noncharacter::Space) {
             transform.position += Vec3f::UP * rotation / 100.0;
         }
-        if input.keys.is_down(KeyCode::Noncharacter(Noncharacter::Shift)) {
+        if input.keys.is_down(Noncharacter::Shift) {
             transform.position += Vec3f::DOWN * rotation / 100.0;
         }
     }

@@ -1,24 +1,26 @@
 //! Key related types.
 
 pub type Noncharacter = winit::keyboard::NamedKey;
-type Character = winit::keyboard::SmolStr;
+pub type KeyState = winit::event::ElementState;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum StorageKeyCode {
     Noncharacter(Noncharacter),
-    Character(Character)
+    Character(winit::keyboard::SmolStr),
 }
-impl From<KeyCode> for StorageKeyCode {
-    fn from(value: KeyCode) -> Self {
-        match value {
-            KeyCode::Noncharacter(special) => StorageKeyCode::Noncharacter(special),
-            KeyCode::Character(char) => StorageKeyCode::Character(char.into())
-        }
+
+pub trait KeyCode {
+    fn into_storage_key_code(&self) -> StorageKeyCode;
+}
+
+impl KeyCode for Noncharacter {
+    fn into_storage_key_code(&self) -> StorageKeyCode {
+        StorageKeyCode::Noncharacter(*self)
     }
 }
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum KeyCode {
-    Noncharacter(Noncharacter),
-    Character(&'static str)
+
+impl KeyCode for &'static str {
+    fn into_storage_key_code(&self) -> StorageKeyCode {
+        StorageKeyCode::Character((*self).into())
+    }
 }
-pub type KeyState = winit::event::ElementState;

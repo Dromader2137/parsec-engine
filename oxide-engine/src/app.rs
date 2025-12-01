@@ -4,7 +4,11 @@ use std::{cell::RefCell, ptr::NonNull};
 
 use crate::{
     ecs::system::{SystemTrigger, Systems},
-    input::{key::StorageKeyCode, KeyboardInputEvent, MouseMovementEvent},
+    input::{
+        key::StorageKeyCode,
+        keys::KeyboardInputEvent,
+        mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
+    },
     math::vec::Vec2f,
     resources::Resources,
 };
@@ -117,6 +121,36 @@ impl winit::application::ApplicationHandler for App {
                 self.systems.execute_type(SystemTrigger::MouseMovement);
 
                 Resources::remove::<MouseMovementEvent>().unwrap();
+            },
+            winit::event::WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
+            } => {
+                Resources::add(MouseButtonEvent::new(button, state)).unwrap();
+
+                self.systems.execute_type(SystemTrigger::MouseButton);
+
+                Resources::remove::<MouseButtonEvent>().unwrap();
+            },
+            winit::event::WindowEvent::MouseWheel {
+                device_id: _,
+                delta,
+                phase: _,
+            } => {
+                if let winit::event::MouseScrollDelta::PixelDelta(
+                    winit::dpi::PhysicalPosition { x, y },
+                ) = delta
+                {
+                    Resources::add(MouseWheelEvent::new(Vec2f::new(
+                        x as f32, y as f32,
+                    )))
+                    .unwrap();
+
+                    self.systems.execute_type(SystemTrigger::MouseWheel);
+
+                    Resources::remove::<MouseWheelEvent>().unwrap();
+                }
             },
             winit::event::WindowEvent::CloseRequested => {
                 ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);

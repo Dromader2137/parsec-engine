@@ -5,10 +5,8 @@ use keys::Keys;
 use crate::{
     ecs::system::{system, System, SystemBundle, SystemTrigger},
     input::{
-        key::{KeyState, StorageKeyCode},
-        mouse::Mouse,
+    keys::KeyboardInputEvent, mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent}
     },
-    math::vec::Vec2f,
     resources::{Resource, Resources},
 };
 
@@ -29,31 +27,6 @@ impl Input {
             keys: Keys::new(),
             mouse: Mouse::new(),
         }
-    }
-}
-
-/// A keybord input event.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct KeyboardInputEvent {
-    key: StorageKeyCode,
-    state: KeyState,
-}
-
-impl KeyboardInputEvent {
-    pub fn new(key: StorageKeyCode, state: KeyState) -> KeyboardInputEvent {
-        KeyboardInputEvent { key, state }
-    }
-}
-
-/// A mouse movement event.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MouseMovementEvent {
-    position: Vec2f,
-}
-
-impl MouseMovementEvent {
-    pub fn new(position: Vec2f) -> MouseMovementEvent {
-        MouseMovementEvent { position }
     }
 }
 
@@ -85,7 +58,23 @@ fn input_mouse_movement(
     mut input: Resource<Input>,
     movement_event: Resource<MouseMovementEvent>,
 ) {
-    input.mouse.set_position(movement_event.position);
+    input.mouse.process_movement(*movement_event);
+}
+
+#[system]
+fn input_mouse_button(
+    mut input: Resource<Input>,
+    button_event: Resource<MouseButtonEvent>,
+) {
+    input.mouse.process_button_event(*button_event);
+}
+
+#[system]
+fn input_mouse_wheel(
+    mut input: Resource<Input>,
+    wheel_event: Resource<MouseWheelEvent>,
+) {
+    input.mouse.process_wheel_event(*wheel_event);
 }
 
 #[derive(Default)]
@@ -98,6 +87,8 @@ impl SystemBundle for InputBundle {
             (SystemTrigger::WindowCursorLeft, InputClearAll::new()),
             (SystemTrigger::KeyboardInput, InputKeyboardEvent::new()),
             (SystemTrigger::MouseMovement, InputMouseMovement::new()),
+            (SystemTrigger::MouseButton, InputMouseButton::new()),
+            (SystemTrigger::MouseWheel, InputMouseWheel::new()),
         ]
     }
 }

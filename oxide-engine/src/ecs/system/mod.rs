@@ -25,6 +25,10 @@ pub enum SystemTrigger {
     KeyboardInput,
     /// Runs when there is a new mouse movement.
     MouseMovement,
+    /// Runs when there is a new mouse button event.
+    MouseButton,
+    /// Runs on mouse scroll.
+    MouseWheel,
 }
 
 /// Stores all systems groped by [`SystemTrigger`].
