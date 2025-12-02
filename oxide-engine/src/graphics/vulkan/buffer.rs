@@ -71,7 +71,7 @@ impl Buffer {
         let memory_index = match find_memorytype_index(
             &memory_req,
             ash::vk::MemoryPropertyFlags::HOST_VISIBLE
-                | ash::vk::MemoryPropertyFlags::HOST_COHERENT,
+                | ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
             device.physical_device.instance.clone(),
             device.physical_device.clone(),
         ) {
