@@ -138,19 +138,22 @@ impl winit::application::ApplicationHandler for App {
                 delta,
                 phase: _,
             } => {
-                if let winit::event::MouseScrollDelta::PixelDelta(
-                    winit::dpi::PhysicalPosition { x, y },
-                ) = delta
-                {
-                    Resources::add(MouseWheelEvent::new(Vec2f::new(
-                        x as f32, y as f32,
-                    )))
-                    .unwrap();
+                let processed_delta = match delta {
+                    winit::event::MouseScrollDelta::PixelDelta(
+                        winit::dpi::PhysicalPosition { x, y },
+                    ) => {
+                        Vec2f::new(x as f32, y as f32)
+                    },
+                    winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                        Vec2f::new(x, y)
+                    },
+                };
 
-                    self.systems.execute_type(SystemTrigger::MouseWheel);
+                Resources::add(MouseWheelEvent::new(processed_delta)).unwrap();
 
-                    Resources::remove::<MouseWheelEvent>().unwrap();
-                }
+                self.systems.execute_type(SystemTrigger::MouseWheel);
+
+                Resources::remove::<MouseWheelEvent>().unwrap();
             },
             winit::event::WindowEvent::CloseRequested => {
                 ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);
