@@ -142,7 +142,7 @@ fn camera_movement(
             camera_controller.yaw,
             0.0,
         ));
-        camera_controller.fov -= input.mouse.wheel_delta().y * time.delta_time();
+        camera_controller.fov -= input.mouse.wheel_delta().y * time.delta_time() * 10.0;
         camera_controller.fov = camera_controller.fov.clamp(30.0, 60.0);
         camera.vertical_fov = camera_controller.fov.to_radians();
         let rotation =
