@@ -4,7 +4,7 @@ use std::{
     any::{Any, TypeId},
     collections::HashMap,
     ops::{Deref, DerefMut},
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use once_cell::sync::Lazy;
@@ -22,13 +22,13 @@ static RESOURCES: Lazy<RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync>>>> =
 
 /// Stores the information necessary to use a global resource.
 pub struct Resource<R: ResourceMarker> {
-    lock: Arc<RwLock<R>>,
+    lock: Arc<Mutex<R>>,
 }
 
 impl<R: ResourceMarker> Deref for Resource<R> {
     type Target = R;
     fn deref(&self) -> &Self::Target {
-        let guard = self.lock.read().unwrap();
+        let guard = self.lock.lock().expect("Mutex should not be poisoned");
         let r = guard.deref() as *const Self::Target;
         unsafe { &*r }
     }
@@ -36,9 +36,8 @@ impl<R: ResourceMarker> Deref for Resource<R> {
 
 impl<R: ResourceMarker> DerefMut for Resource<R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let mut guard = self.lock.write().unwrap();
-        let x = guard.deref_mut();
-        let r = x as *mut Self::Target;
+        let mut guard = self.lock.lock().expect("Mutex should not be poisoned");
+        let r = guard.deref_mut() as *mut Self::Target;
         unsafe { &mut *r }
     }
 }
@@ -57,14 +56,15 @@ impl Resources {
     /// # Errors
     ///
     /// - If a resource of type `R` already exists.
-    pub fn add<R: ResourceMarker>(resource: R) -> Result<(), ResourceError> {
+    pub fn add<R: ResourceMarker>(resource: R) -> Result<Resource<R>, ResourceError> {
         let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
         if resources.contains_key(&type_id) {
             return Err(ResourceError::ResourceAlreadyExists);
         }
-        resources.insert(type_id, Box::new(Arc::new(RwLock::new(resource))));
-        Ok(())
+        let resource = Arc::new(Mutex::new(resource));
+        resources.insert(type_id, Box::new(resource.clone()));
+        Ok(Resource { lock: resource })
     }
 
     /// Adds `resource` to global storage. If a resource of type `R` already exists it is
@@ -72,7 +72,7 @@ impl Resources {
     pub fn add_or_change<R: ResourceMarker>(resource: R) {
         let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
-        resources.insert(type_id, Box::new(Arc::new(RwLock::new(resource))));
+        resources.insert(type_id, Box::new(Arc::new(Mutex::new(resource))));
     }
 
     /// Gets the resource of type `R`.
@@ -80,12 +80,12 @@ impl Resources {
     /// # Errors
     ///
     /// - If there is no resource of type `R`.
-    fn get<R: ResourceMarker>() -> Result<Arc<RwLock<R>>, ResourceError> {
+    fn get<R: ResourceMarker>() -> Result<Arc<Mutex<R>>, ResourceError> {
         let resources = RESOURCES.read().expect("Clean resources read");
         let type_id = TypeId::of::<R>();
         let lock = match resources.get(&type_id) {
             Some(lock_any) => lock_any
-                .downcast_ref::<Arc<RwLock<R>>>()
+                .downcast_ref::<Arc<Mutex<R>>>()
                 .expect("This downcast can't fail"),
             None => return Err(ResourceError::ResourceNotFound),
         };

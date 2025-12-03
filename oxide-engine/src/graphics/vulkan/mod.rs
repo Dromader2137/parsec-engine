@@ -20,6 +20,8 @@ use swapchain::SwapchainError;
 
 use crate::graphics::{GraphicsError, renderer::RendererError};
 
+pub mod allocation;
+pub mod allocator;
 pub mod buffer;
 pub mod command_buffer;
 pub mod context;

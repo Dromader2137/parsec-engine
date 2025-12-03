@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use crate::graphics::vulkan::{
-    VulkanError, instance::Instance, surface::InitialSurface,
-};
+use crate::{graphics::vulkan::{
+    instance::Instance, surface::InitialSurface, VulkanError
+}, resources::Resource};
 
 pub struct PhysicalDevice {
-    pub instance: Arc<Instance>,
+    pub instance: Resource<Instance>,
     physical_device: ash::vk::PhysicalDevice,
     queue_family_index: u32,
 }
@@ -24,9 +24,9 @@ impl From<PhysicalDeviceError> for VulkanError {
 
 impl PhysicalDevice {
     pub fn new(
-        instance: Arc<Instance>,
+        instance: Resource<Instance>,
         initial_surface: Arc<InitialSurface>,
-    ) -> Result<Arc<PhysicalDevice>, PhysicalDeviceError> {
+    ) -> Result<Arc<Mutex<PhysicalDevice>>, PhysicalDeviceError> {
         let physical_devices = match unsafe {
             instance.get_instance_raw().enumerate_physical_devices()
         } {
@@ -63,11 +63,11 @@ impl PhysicalDevice {
             None => return Err(PhysicalDeviceError::SuitableDeviceNotFound),
         };
 
-        Ok(Arc::new(PhysicalDevice {
+        Ok(Arc::new(Mutex::new(PhysicalDevice {
             instance,
             physical_device,
             queue_family_index,
-        }))
+        })))
     }
 
     pub fn get_physical_device_raw(&self) -> &ash::vk::PhysicalDevice {

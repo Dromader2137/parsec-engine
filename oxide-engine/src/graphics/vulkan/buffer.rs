@@ -1,15 +1,14 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::graphics::vulkan::{
-    VulkanError, device::Device, instance::Instance,
-    physical_device::PhysicalDevice,
+    allocation::Allocation, device::Device, instance::Instance, physical_device::PhysicalDevice, VulkanError
 };
 
 pub struct Buffer {
-    pub device: Arc<Device>,
+    pub allocation: Arc<Allocation>,
+    buffer_id: u64,
     buffer: ash::vk::Buffer,
-    memory: ash::vk::DeviceMemory,
-    memory_size: u64,
+    pub offset: u64,
     pub size: u64,
     pub len: u32,
 }

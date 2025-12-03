@@ -1,22 +1,21 @@
 use std::sync::Arc;
 
-use crate::graphics::{
+use crate::{graphics::{
     vulkan::{
-        VulkanError, instance::Instance, physical_device::PhysicalDevice,
+        instance::Instance, physical_device::PhysicalDevice, VulkanError
     },
     window::WindowWrapper,
-};
+}, resources::Resource};
 
 pub struct InitialSurface {
-    pub window: Arc<WindowWrapper>,
-    pub instance: Arc<Instance>,
+    pub window: Resource<WindowWrapper>,
+    pub instance: Resource<Instance>,
     surface: ash::vk::SurfaceKHR,
-    surface_loader: ash::khr::surface::Instance,
 }
 
 pub struct Surface {
-    pub window: Arc<WindowWrapper>,
-    pub instance: Arc<Instance>,
+    pub window: Resource<WindowWrapper>,
+    pub instance: Resource<Instance>,
     surface: ash::vk::SurfaceKHR,
     surface_loader: ash::khr::surface::Instance,
     surface_format: ash::vk::SurfaceFormatKHR,
@@ -41,9 +40,9 @@ impl From<SurfaceError> for VulkanError {
 
 impl InitialSurface {
     pub fn new(
-        instance: Arc<Instance>,
-        window: Arc<WindowWrapper>,
-    ) -> Result<Arc<InitialSurface>, SurfaceError> {
+        instance: Resource<Instance>,
+        window: Resource<WindowWrapper>
+    ) -> Result<InitialSurface, SurfaceError> {
         let display_handle = match window.raw_display_handle() {
             Ok(val) => val,
             Err(err) => return Err(SurfaceError::DisplayHandleError(err)),
@@ -72,12 +71,11 @@ impl InitialSurface {
             instance.get_instance_raw(),
         );
 
-        Ok(Arc::new(InitialSurface {
+        Ok(InitialSurface {
             window,
             instance,
             surface,
-            surface_loader,
-        }))
+        })
     }
 
     pub fn check_surface_support(
@@ -106,16 +104,9 @@ impl InitialSurface {
 
 impl Surface {
     pub fn from_initial_surface(
-        initial_surface_arc: Arc<InitialSurface>,
-        physical_device: Arc<PhysicalDevice>,
-    ) -> Result<Arc<Surface>, SurfaceError> {
-        let initial_surface = match Arc::into_inner(initial_surface_arc) {
-            Some(val) => val,
-            None => {
-                return Err(SurfaceError::InitialSurfaceBorrowedMoreThanOnce);
-            },
-        };
-
+        initial_surface: Resource<InitialSurface>,
+        physical_device: Resource<PhysicalDevice>,
+    ) -> Result<Surface, SurfaceError> {
         let surface_formats = match unsafe {
             initial_surface
                 .surface_loader
@@ -149,16 +140,16 @@ impl Surface {
             instance,
             surface,
             surface_loader,
-        } = initial_surface;
+        } = *initial_surface;
 
-        Ok(Arc::new(Surface {
+        Ok(Surface {
             window,
             instance,
             surface,
             surface_loader,
             surface_format: surface_formats[0],
             surface_capabilities,
-        }))
+        })
     }
 
     pub fn get_surface_loader_raw(&self) -> &ash::khr::surface::Instance {
