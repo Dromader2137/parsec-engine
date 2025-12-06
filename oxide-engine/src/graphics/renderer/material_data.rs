@@ -95,7 +95,9 @@ impl MaterialData {
         camera_transform: &TransformData,
         transform: &TransformData,
     ) {
-        command_buffer.bind_graphics_pipeline(device, &material_base.pipeline);
+        command_buffer
+            .bind_graphics_pipeline(device, &material_base.pipeline)
+            .unwrap();
         for (set_index, set) in self.descriptor_sets.iter().enumerate() {
             let descriptor_set = match set {
                 MaterialDescriptorSets::ViewMatrixSet => {
@@ -107,12 +109,14 @@ impl MaterialData {
                 MaterialDescriptorSets::ModelMatrixSet => &transform.model_set,
                 _ => unreachable!(),
             };
-            command_buffer.bind_descriptor_set(
-                device,
-                descriptor_set,
-                &material_base.pipeline,
-                set_index as u32,
-            );
+            command_buffer
+                .bind_descriptor_set(
+                    device,
+                    descriptor_set,
+                    &material_base.pipeline,
+                    set_index as u32,
+                )
+                .unwrap();
         }
     }
 

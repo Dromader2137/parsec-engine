@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use crate::{
     ecs::system::system,
@@ -52,16 +52,15 @@ impl<V: Vertex> MeshBuffer<V> {
         device: &Device,
         command_buffer: &CommandBuffer,
     ) {
-        command_buffer.bind_vertex_buffer(device, &self.vertex_buffer);
-        command_buffer.bind_index_buffer(device, &self.index_buffer);
-        command_buffer.draw_indexed(
-            device,
-            self.index_buffer.len as u32,
-            1,
-            0,
-            0,
-            1,
-        );
+        command_buffer
+            .bind_vertex_buffer(device, &self.vertex_buffer)
+            .unwrap();
+        command_buffer
+            .bind_index_buffer(device, &self.index_buffer)
+            .unwrap();
+        command_buffer
+            .draw_indexed(device, self.index_buffer.len as u32, 1, 0, 0, 1)
+            .unwrap();
     }
 }
 

@@ -1,13 +1,7 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::{
-    graphics::vulkan::{
-        VulkanError, buffer::Buffer, device::Device, image::ImageView,
-    },
-    resources::Resource,
+use crate::graphics::vulkan::{
+    VulkanError, buffer::Buffer, device::Device, image::ImageView,
 };
 
 pub struct DescriptorPool {
@@ -293,4 +287,8 @@ impl DescriptorSet {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn device_id(&self) -> u32 { self.device_id }
+
+    pub fn descriptor_pool_id(&self) -> u32 { self.descriptor_pool_id }
+
+    pub fn descriptor_layout_id(&self) -> u32 { self.descriptor_layout_id }
 }

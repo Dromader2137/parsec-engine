@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     graphics::{
         vulkan::{
@@ -112,8 +110,6 @@ pub fn recreate_renderer_images(
         Some(old_swapchain),
     )?;
 
-    drop(old_swapchain);
-
     let swapchain_format = surface.format().into();
     let swapchain_views = {
         let mut out = Vec::new();
@@ -130,7 +126,7 @@ pub fn recreate_renderer_images(
     };
 
     let depth_image = OwnedImage::new(physical_device, device, ImageInfo {
-        format: ImageFormat::D16_UNORM,
+        format: ImageFormat::D32_SFLOAT,
         size: (window.width(), window.height()),
         usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
     })?;

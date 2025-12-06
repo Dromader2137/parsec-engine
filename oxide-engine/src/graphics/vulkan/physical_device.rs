@@ -1,13 +1,7 @@
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::{
-    graphics::vulkan::{
-        VulkanError, instance::Instance, surface::InitialSurface,
-    },
-    resources::Resource,
+use crate::graphics::vulkan::{
+    VulkanError, instance::Instance, surface::InitialSurface,
 };
 
 pub struct PhysicalDevice {

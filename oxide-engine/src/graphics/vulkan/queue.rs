@@ -1,11 +1,6 @@
-use std::sync::Arc;
-
-use crate::{
-    graphics::vulkan::{
-        VulkanError, command_buffer::CommandBuffer, device::Device,
-        fence::Fence, semaphore::Semaphore,
-    },
-    resources::Resource,
+use crate::graphics::vulkan::{
+    VulkanError, command_buffer::CommandBuffer, device::Device, fence::Fence,
+    semaphore::Semaphore,
 };
 
 pub struct Queue {

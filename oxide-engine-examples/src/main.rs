@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use oxide_engine::{
     app::App,
     ecs::{
@@ -111,7 +109,7 @@ fn test_system(
     let mesh = meshes.push(load_obj("sponza.obj").unwrap());
 
     World::spawn((
-        Camera::new(40.0_f32.to_radians(), 0.1, 20.0),
+        Camera::new(40.0_f32.to_radians(), 0.5, 30.0),
         Transform::new(
             Vec3f::UP * 2.5,
             Vec3f::ZERO,

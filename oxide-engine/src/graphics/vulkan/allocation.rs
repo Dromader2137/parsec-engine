@@ -1,4 +1,4 @@
-use crate::graphics::vulkan::{allocator::Allocator, buffer::Buffer};
+use crate::graphics::vulkan::allocator::Allocator;
 
 pub enum AllocationError {}
 
@@ -9,6 +9,7 @@ pub enum MemoryLocation {
     GpuSide,
 }
 
+#[allow(unused)]
 pub struct Allocation {
     allocator: Allocator,
     // buffers: Vec<Arc<RwL>>,

@@ -1,9 +1,6 @@
 use std::{
     fs::File,
-    sync::{
-        Arc,
-        atomic::{AtomicU32, Ordering},
-    },
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use crate::graphics::vulkan::{VulkanError, device::Device};
@@ -80,4 +77,6 @@ impl ShaderModule {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn device_id(&self) -> u32 { self.device_id }
+
+    pub fn shader_type(&self) -> ShaderType { self.shader_type }
 }

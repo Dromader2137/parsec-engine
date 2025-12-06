@@ -1,9 +1,6 @@
 //! Module responsible for handling windows.
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 

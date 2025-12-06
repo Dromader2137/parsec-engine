@@ -1,7 +1,4 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{VulkanError, device::Device};
 
@@ -96,4 +93,6 @@ impl Fence {
     pub fn get_fence_raw(&self) -> &ash::vk::Fence { &self.fence }
 
     pub fn device_id(&self) -> u32 { self.device_id }
+
+    pub fn id(&self) -> u32 { self.id }
 }

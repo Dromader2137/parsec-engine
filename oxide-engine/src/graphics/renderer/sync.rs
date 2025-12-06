@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::graphics::vulkan::{
     VulkanError, device::Device, fence::Fence, semaphore::Semaphore,
 };

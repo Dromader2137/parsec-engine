@@ -1,14 +1,8 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::{
-    graphics::vulkan::{
-        VulkanError, instance::Instance, physical_device::PhysicalDevice,
-        surface::Surface,
-    },
-    resources::Resource,
+use crate::graphics::vulkan::{
+    VulkanError, instance::Instance, physical_device::PhysicalDevice,
+    surface::Surface,
 };
 
 pub struct Device {

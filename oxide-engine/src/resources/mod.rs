@@ -120,9 +120,9 @@ impl Resources {
                 .expect("This downcast can't fail"),
             None => return Err(ResourceError::ResourceNotFound),
         };
-        // if Arc::weak_count(lock) + Arc::strong_count(lock) > 0 {
-        //     return Err(ResourceError::ResourceNotUnique);
-        // }
+        if Arc::weak_count(lock) + Arc::strong_count(lock) > 1 {
+            return Err(ResourceError::ResourceNotUnique);
+        }
         resources
             .remove(&type_id)
             .map_or(Err(ResourceError::ResourceNotFound), |_| Ok(()))

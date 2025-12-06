@@ -1,7 +1,4 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{VulkanError, device::Device};
 
@@ -62,4 +59,6 @@ impl Semaphore {
     pub fn get_semaphore_raw(&self) -> &ash::vk::Semaphore { &self.semaphore }
 
     pub fn device_id(&self) -> u32 { self.device_id }
+
+    pub fn id(&self) -> u32 { self.id }
 }

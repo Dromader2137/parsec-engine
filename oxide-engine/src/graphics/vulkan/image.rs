@@ -1,7 +1,4 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{
     VulkanError, buffer::find_memorytype_index, device::Device,
@@ -248,4 +245,6 @@ impl ImageView {
     pub fn get_image_view_raw(&self) -> &ash::vk::ImageView { &self.view }
 
     pub fn id(&self) -> u32 { self.id }
+
+    pub fn image_id(&self) -> u32 { self.image_id }
 }

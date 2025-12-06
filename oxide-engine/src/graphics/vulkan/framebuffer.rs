@@ -1,14 +1,10 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use ash::vk::Extent2D;
 
 use crate::graphics::{
     vulkan::{
         VulkanError, device::Device, image::ImageView, renderpass::Renderpass,
-        surface::Surface,
     },
     window::WindowWrapper,
 };
@@ -91,4 +87,6 @@ impl Framebuffer {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn renderpass_id(&self) -> u32 { self.renderpass_id }
+
+    pub fn image_view_ids(&self) -> &[u32] { &self.image_view_ids }
 }

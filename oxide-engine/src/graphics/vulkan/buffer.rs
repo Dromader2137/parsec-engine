@@ -1,16 +1,13 @@
 use std::{
     fmt::Debug,
-    sync::{
-        Arc,
-        atomic::{AtomicU32, Ordering},
-    },
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use crate::graphics::vulkan::{
-    VulkanError, allocation::Allocation, device::Device, instance::Instance,
-    physical_device::PhysicalDevice,
+    VulkanError, device::Device, physical_device::PhysicalDevice,
 };
 
+#[allow(unused)]
 pub struct Buffer {
     id: u32,
     device_id: u32,

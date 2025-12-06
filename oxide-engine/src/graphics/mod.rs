@@ -1,7 +1,5 @@
 //! Module responsible for graphics.
 
-use std::sync::Arc;
-
 use thiserror::Error;
 use vulkan::VulkanError;
 use window::{WindowError, WindowWrapper};

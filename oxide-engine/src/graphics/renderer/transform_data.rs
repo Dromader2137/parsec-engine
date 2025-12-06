@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     ecs::{
         system::system,
@@ -81,7 +79,7 @@ impl TransformData {
             BufferUsage::UNIFORM_BUFFER,
         )
         .unwrap();
-        let model_set_layout = DescriptorSetLayout::new(device.clone(), vec![
+        let model_set_layout = DescriptorSetLayout::new(device, vec![
             DescriptorSetBinding::new(
                 0,
                 DescriptorType::UNIFORM_BUFFER,

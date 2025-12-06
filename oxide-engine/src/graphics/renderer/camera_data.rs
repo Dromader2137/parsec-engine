@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     ecs::{
         system::system,
@@ -16,7 +14,6 @@ use crate::{
             },
             device::Device,
             physical_device::PhysicalDevice,
-            surface::Surface,
         },
         window::WindowWrapper,
     },

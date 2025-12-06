@@ -1,7 +1,4 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{
     VulkanError, descriptor_set::DescriptorSetLayout, device::Device,

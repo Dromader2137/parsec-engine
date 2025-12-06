@@ -1,7 +1,4 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use ash::vk::Extent2D;
 
@@ -160,7 +157,7 @@ impl Swapchain {
         } {
             Ok(val) => val
                 .into_iter()
-                .map(|x| SwapchainImage::from_raw_image(device.clone(), x))
+                .map(|x| SwapchainImage::from_raw_image(device, x))
                 .collect::<Vec<_>>(),
             Err(err) => return Err(SwapchainError::ImageAcquisitionError(err)),
         };
@@ -254,4 +251,8 @@ impl Swapchain {
     }
 
     pub fn device_id(&self) -> u32 { self.device_id }
+
+    pub fn id(&self) -> u32 { self.id }
+
+    pub fn swapchain_image_ids(&self) -> &[u32] { &self.swapchain_image_ids }
 }

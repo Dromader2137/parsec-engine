@@ -1,9 +1,6 @@
 use std::{
     borrow::Cow,
-    sync::{
-        Arc,
-        atomic::{AtomicU32, Ordering},
-    },
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use crate::graphics::{vulkan::VulkanError, window::WindowWrapper};

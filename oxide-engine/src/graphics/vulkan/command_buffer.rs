@@ -1,7 +1,4 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{
     VulkanError, buffer::Buffer, descriptor_set::DescriptorSet, device::Device,
@@ -459,4 +456,6 @@ impl CommandBuffer {
     }
 
     pub fn id(&self) -> u32 { self.id }
+
+    pub fn command_pool_id(&self) -> u32 { self.command_pool_id }
 }

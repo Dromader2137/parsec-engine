@@ -310,9 +310,15 @@ pub fn render(
 
     command_buffer.reset(&device).unwrap();
     command_buffer.begin(&device).unwrap();
-    command_buffer.begin_renderpass(&device, framebuffer, &renderpass);
-    command_buffer.set_viewports(&device, framebuffer, &renderpass);
-    command_buffer.set_scissor(&device, framebuffer, &renderpass);
+    command_buffer
+        .begin_renderpass(&device, framebuffer, &renderpass)
+        .unwrap();
+    command_buffer
+        .set_viewports(&device, framebuffer, &renderpass)
+        .unwrap();
+    command_buffer
+        .set_scissor(&device, framebuffer, &renderpass)
+        .unwrap();
 
     for draw in draw_queue.iter() {
         match draw {
@@ -343,7 +349,7 @@ pub fn render(
             },
         }
     }
-    command_buffer.end_renderpass(&device);
+    command_buffer.end_renderpass(&device).unwrap();
     command_buffer.end(&device).unwrap();
 
     graphics_queue
