@@ -1,8 +1,15 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{
+    borrow::Cow,
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
+};
 
 use crate::graphics::{vulkan::VulkanError, window::WindowWrapper};
 
 pub struct Instance {
+    id: u32,
     entry: ash::Entry,
     instance: ash::Instance,
     _debug_utils_loader: ash::ext::debug_utils::Instance,
@@ -56,9 +63,9 @@ unsafe extern "system" fn vulkan_debug_callback(
 }
 
 impl Instance {
-    pub fn new(
-        window: Arc<WindowWrapper>,
-    ) -> Result<Arc<Instance>, InstanceError> {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    pub fn new(window: &WindowWrapper) -> Result<Instance, InstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
             Ok(val) => val,
             Err(err) => return Err(InstanceError::EntryError(err)),
@@ -135,17 +142,23 @@ impl Instance {
             false => None,
         };
 
-        Ok(Arc::new(Instance {
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(Instance {
+            id,
             entry,
             instance,
             _debug_utils_loader: debug_utils_loader,
             _debug_call_back: debug_call_back,
-        }))
+        })
     }
 
     pub fn get_instance_raw(&self) -> &ash::Instance { &self.instance }
 
     pub fn get_entry_raw(&self) -> &ash::Entry { &self.entry }
+
+    pub fn id(&self) -> u32 { self.id }
 }
 
 impl Drop for Instance {

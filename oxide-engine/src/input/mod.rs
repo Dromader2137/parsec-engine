@@ -3,9 +3,10 @@
 use keys::Keys;
 
 use crate::{
-    ecs::system::{system, System, SystemBundle, SystemTrigger},
+    ecs::system::{System, SystemBundle, SystemTrigger, system},
     input::{
-    keys::KeyboardInputEvent, mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent}
+        keys::KeyboardInputEvent,
+        mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
     },
     resources::{Resource, Resources},
 };
@@ -50,7 +51,7 @@ fn input_keyboard_event(
     mut input: Resource<Input>,
     input_event: Resource<KeyboardInputEvent>,
 ) {
-    input.keys.process_input_event(input_event.clone());
+    input.keys.process_input_event((*input_event).clone());
 }
 
 #[system]

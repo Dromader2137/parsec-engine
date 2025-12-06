@@ -1,12 +1,20 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicU32, Ordering},
+};
 
-use crate::{graphics::vulkan::{
-    instance::Instance, surface::InitialSurface, VulkanError
-}, resources::Resource};
+use crate::{
+    graphics::vulkan::{
+        VulkanError, instance::Instance, surface::InitialSurface,
+    },
+    resources::Resource,
+};
 
 pub struct PhysicalDevice {
-    pub instance: Resource<Instance>,
+    id: u32,
+    instance_id: u32,
     physical_device: ash::vk::PhysicalDevice,
+    physical_memory_properties: ash::vk::PhysicalDeviceMemoryProperties,
     queue_family_index: u32,
 }
 
@@ -23,15 +31,17 @@ impl From<PhysicalDeviceError> for VulkanError {
 }
 
 impl PhysicalDevice {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn new(
-        instance: Resource<Instance>,
-        initial_surface: Arc<InitialSurface>,
-    ) -> Result<Arc<Mutex<PhysicalDevice>>, PhysicalDeviceError> {
-        let physical_devices = match unsafe {
-            instance.get_instance_raw().enumerate_physical_devices()
-        } {
-            Ok(val) => val,
-            Err(err) => return Err(PhysicalDeviceError::CreationError(err)),
+        instance: &Instance,
+        initial_surface: &InitialSurface,
+    ) -> Result<PhysicalDevice, PhysicalDeviceError> {
+        let physical_devices = unsafe {
+            instance
+                .get_instance_raw()
+                .enumerate_physical_devices()
+                .map_err(|err| PhysicalDeviceError::CreationError(err))?
         };
 
         let (physical_device, queue_family_index) = match physical_devices
@@ -63,11 +73,22 @@ impl PhysicalDevice {
             None => return Err(PhysicalDeviceError::SuitableDeviceNotFound),
         };
 
-        Ok(Arc::new(Mutex::new(PhysicalDevice {
-            instance,
+        let memory_prop = unsafe {
+            instance
+                .get_instance_raw()
+                .get_physical_device_memory_properties(physical_device)
+        };
+
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(PhysicalDevice {
+            id,
+            instance_id: instance.id(),
             physical_device,
+            physical_memory_properties: memory_prop,
             queue_family_index,
-        })))
+        })
     }
 
     pub fn get_physical_device_raw(&self) -> &ash::vk::PhysicalDevice {
@@ -75,4 +96,14 @@ impl PhysicalDevice {
     }
 
     pub fn get_queue_family_index(&self) -> u32 { self.queue_family_index }
+
+    pub fn id(&self) -> u32 { self.id }
+
+    pub fn physical_memory_properties(
+        &self,
+    ) -> ash::vk::PhysicalDeviceMemoryProperties {
+        self.physical_memory_properties
+    }
+
+    pub fn instance_id(&self) -> u32 { self.instance_id }
 }

@@ -22,24 +22,25 @@ impl MouseMovementEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MouseButtonEvent {
     button: MouseButton,
-    state: MouseButtonState
+    state: MouseButtonState,
 }
 
 impl MouseButtonEvent {
-    pub fn new(button: MouseButton, state: MouseButtonState) -> MouseButtonEvent {
+    pub fn new(
+        button: MouseButton,
+        state: MouseButtonState,
+    ) -> MouseButtonEvent {
         MouseButtonEvent { button, state }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MouseWheelEvent {
-    delta: Vec2f
+    delta: Vec2f,
 }
 
 impl MouseWheelEvent {
-    pub fn new(delta: Vec2f) -> MouseWheelEvent {
-        MouseWheelEvent { delta }
-    }
+    pub fn new(delta: Vec2f) -> MouseWheelEvent { MouseWheelEvent { delta } }
 }
 
 /// Stores mouse information.
@@ -68,7 +69,7 @@ impl Mouse {
     }
 
     pub fn positon_delta(&self) -> Vec2f { self.position_delta }
-    
+
     pub fn wheel_delta(&self) -> Vec2f { self.wheel_delta }
 
     pub fn position(&self) -> Vec2f { self.position }
@@ -79,17 +80,17 @@ impl Mouse {
         self.position_delta = self.position - self.prev_position;
     }
 
-    pub fn clear(&mut self) { 
-        self.position_delta = Vec2f::ZERO; 
-        self.wheel_delta = Vec2f::ZERO; 
+    pub fn clear(&mut self) {
+        self.position_delta = Vec2f::ZERO;
+        self.wheel_delta = Vec2f::ZERO;
         self.pressed.clear();
         self.up.clear();
     }
-    
+
     /// Clears all buttons state.
     pub fn clear_all(&mut self) {
-        self.position_delta = Vec2f::ZERO; 
-        self.wheel_delta = Vec2f::ZERO; 
+        self.position_delta = Vec2f::ZERO;
+        self.wheel_delta = Vec2f::ZERO;
         self.pressed.clear();
         self.down.clear();
         self.up.clear();
@@ -98,7 +99,7 @@ impl Mouse {
     pub fn process_movement(&mut self, event: MouseMovementEvent) {
         self.set_position(event.position);
     }
-    
+
     /// Takes an [InputEvent] and updated `self` accordingly.
     pub fn process_button_event(&mut self, event: MouseButtonEvent) {
         match event.state {
@@ -106,10 +107,10 @@ impl Mouse {
             MouseButtonState::Released => self.lift(event.button),
         }
     }
-    
+
     pub fn process_wheel_event(&mut self, event: MouseWheelEvent) {
         self.wheel_delta = event.delta;
-    }   
+    }
 
     fn press(&mut self, button: MouseButton) {
         if !self.down.contains(&button) {

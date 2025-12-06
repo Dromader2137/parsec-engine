@@ -1,14 +1,22 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{
+    fmt::Debug,
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
+};
 
 use crate::graphics::vulkan::{
-    allocation::Allocation, device::Device, instance::Instance, physical_device::PhysicalDevice, VulkanError
+    VulkanError, allocation::Allocation, device::Device, instance::Instance,
+    physical_device::PhysicalDevice,
 };
 
 pub struct Buffer {
-    pub allocation: Arc<Allocation>,
-    buffer_id: u64,
+    id: u32,
+    device_id: u32,
     buffer: ash::vk::Buffer,
-    pub offset: u64,
+    memory: ash::vk::DeviceMemory,
+    memory_size: ash::vk::DeviceSize,
     pub size: u64,
     pub len: u32,
 }
@@ -16,7 +24,6 @@ pub struct Buffer {
 impl Debug for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Buffer")
-            .field("memory_size", &self.memory_size)
             .field("size", &self.size)
             .field("len", &self.len)
             .finish()
@@ -32,6 +39,8 @@ pub enum BufferError {
     MapError(ash::vk::Result),
     SizaMismatch,
     LenMismatch,
+    PhysicalDeviceMismatch,
+    DeviceMismatch,
 }
 
 impl From<BufferError> for VulkanError {
@@ -41,11 +50,18 @@ impl From<BufferError> for VulkanError {
 pub type BufferUsage = ash::vk::BufferUsageFlags;
 
 impl Buffer {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn from_vec<T: Clone + Copy>(
-        device: Arc<Device>,
+        physical_device: &PhysicalDevice,
+        device: &Device,
         data: &[T],
         usage: BufferUsage,
-    ) -> Result<Arc<Buffer>, BufferError> {
+    ) -> Result<Buffer, BufferError> {
+        if physical_device.id() != device.physical_device_id() {
+            return Err(BufferError::PhysicalDeviceMismatch);
+        }
+
         let size = data.len() * size_of::<T>();
 
         let index_buffer_info = ash::vk::BufferCreateInfo::default()
@@ -71,8 +87,7 @@ impl Buffer {
             &memory_req,
             ash::vk::MemoryPropertyFlags::HOST_VISIBLE
                 | ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            device.physical_device.instance.clone(),
-            device.physical_device.clone(),
+            physical_device,
         ) {
             Some(val) => val,
             None => return Err(BufferError::UnableToFindSuitableMemory),
@@ -122,20 +137,29 @@ impl Buffer {
             return Err(BufferError::BindError(err));
         }
 
-        Ok(Arc::new(Buffer {
-            device,
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(Buffer {
+            id,
+            device_id: device.id(),
             buffer,
             memory,
             memory_size: memory_req.size,
             size: size as u64,
             len: data.len() as u32,
-        }))
+        })
     }
 
     pub fn update<T: Clone + Copy>(
         &self,
-        data: Vec<T>,
+        device: &Device,
+        data: &[T],
     ) -> Result<(), BufferError> {
+        if self.device_id != device.id() {
+            return Err(BufferError::DeviceMismatch);
+        }
+
         let size = (data.len() * size_of::<T>()) as u64;
 
         if data.len() as u32 != self.len {
@@ -147,7 +171,7 @@ impl Buffer {
         }
 
         let memory_ptr = match unsafe {
-            self.device.get_device_raw().map_memory(
+            device.get_device_raw().map_memory(
                 self.memory,
                 0,
                 self.memory_size,
@@ -168,7 +192,7 @@ impl Buffer {
 
         slice.copy_from_slice(&data);
 
-        unsafe { self.device.get_device_raw().unmap_memory(self.memory) };
+        unsafe { device.get_device_raw().unmap_memory(self.memory) };
 
         Ok(())
     }
@@ -176,33 +200,16 @@ impl Buffer {
     pub fn get_buffer_raw(&self) -> &ash::vk::Buffer { &self.buffer }
 
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory { &self.memory }
-}
 
-impl Drop for Buffer {
-    fn drop(&mut self) {
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_buffer(self.buffer, None)
-        };
-        unsafe { self.device.get_device_raw().free_memory(self.memory, None) };
-    }
+    pub fn device_id(&self) -> u32 { self.device_id }
 }
 
 pub fn find_memorytype_index(
     memory_req: &ash::vk::MemoryRequirements,
     flags: ash::vk::MemoryPropertyFlags,
-    instance: Arc<Instance>,
-    physical_device: Arc<PhysicalDevice>,
+    physical_device: &PhysicalDevice,
 ) -> Option<u32> {
-    let memory_prop = unsafe {
-        instance
-            .get_instance_raw()
-            .get_physical_device_memory_properties(
-                *physical_device.get_physical_device_raw(),
-            )
-    };
-
+    let memory_prop = physical_device.physical_memory_properties();
     memory_prop.memory_types[..memory_prop.memory_type_count as _]
         .iter()
         .enumerate()

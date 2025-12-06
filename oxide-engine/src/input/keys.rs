@@ -2,9 +2,7 @@
 
 use std::collections::HashSet;
 
-use crate::input::{
-    key::{KeyCode, KeyState, StorageKeyCode},
-};
+use crate::input::key::{KeyCode, KeyState, StorageKeyCode};
 
 /// A keybord input event.
 #[derive(Debug, Clone, PartialEq, Eq)]

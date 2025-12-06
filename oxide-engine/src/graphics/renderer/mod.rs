@@ -22,7 +22,7 @@ use crate::{
             camera_data::CameraData,
             draw_queue::{Draw, MeshAndMaterial},
             image_data::{init_renderer_images, recreate_renderer_images},
-            material_data::MaterialData,
+            material_data::{MaterialBase, MaterialData},
             mesh_data::MeshData,
             transform_data::TransformData,
         },
@@ -37,12 +37,14 @@ use crate::{
             fence::Fence,
             framebuffer::Framebuffer,
             graphics_pipeline::{Vertex, VertexField, VertexFieldFormat},
+            instance::Instance,
             physical_device::PhysicalDevice,
             queue::Queue,
             renderpass::Renderpass,
             surface::Surface,
             swapchain::Swapchain,
         },
+        window::WindowWrapper,
     },
     math::vec::{Vec2f, Vec3f},
     resources::{Resource, Resources},
@@ -102,123 +104,164 @@ impl DefaultVertex {
 }
 
 fn create_frame_sync(
-    device: Arc<Device>,
+    device: &Device,
     frames_in_flight: usize,
 ) -> Result<Vec<VulkanRendererFrameSync>, VulkanError> {
     let mut ret = Vec::new();
     for _ in 0..frames_in_flight {
-        ret.push(VulkanRendererFrameSync::new(device.clone())?);
+        ret.push(VulkanRendererFrameSync::new(device)?);
     }
     Ok(ret)
 }
 
 fn create_image_sync(
-    device: Arc<Device>,
+    device: &Device,
     image_count: usize,
 ) -> Result<Vec<VulkanRendererImageSync>, VulkanError> {
     let mut ret = Vec::new();
     for _ in 0..image_count {
-        ret.push(VulkanRendererImageSync::new(device.clone())?);
+        ret.push(VulkanRendererImageSync::new(device)?);
     }
     Ok(ret)
 }
 
 fn create_commad_buffers(
-    command_pool: Arc<CommandPool>,
+    device: &Device,
+    command_pool: &CommandPool,
     frames_in_flight: usize,
-) -> Result<Vec<Arc<CommandBuffer>>, VulkanError> {
+) -> Result<Vec<CommandBuffer>, VulkanError> {
     let mut ret = Vec::new();
     for _ in 0..frames_in_flight {
-        ret.push(CommandBuffer::new(command_pool.clone())?);
+        ret.push(CommandBuffer::new(device, command_pool)?);
     }
     Ok(ret)
 }
 
 #[system]
 pub fn init_renderer(
-    surface: Resource<Arc<Surface>>,
-    device: Resource<Arc<Device>>,
-    physical_device: Resource<Arc<PhysicalDevice>>,
-    command_pool: Resource<Arc<CommandPool>>,
+    instance: Resource<Instance>,
+    surface: Resource<Surface>,
+    device: Resource<Device>,
+    physical_device: Resource<PhysicalDevice>,
+    command_pool: Resource<CommandPool>,
+    window: Resource<WindowWrapper>,
 ) {
-    let renderpass = Renderpass::new(surface.clone(), device.clone()).unwrap();
-    Resources::add(renderpass.clone()).unwrap();
-    let swapchain = init_renderer_images(renderpass.clone()).unwrap();
-    let frames_in_flight = 2.min(swapchain.swapchain_images.len()).max(1);
+    let renderpass = Renderpass::new(&surface, &device).unwrap();
+    let renderpass = Resources::add(renderpass).unwrap();
 
-    let frame_sync =
-        create_frame_sync(device.clone(), frames_in_flight).unwrap();
+    let (swapchain, swapchain_images) = init_renderer_images(
+        &instance,
+        &physical_device,
+        &window,
+        &surface,
+        &device,
+        &renderpass,
+    )
+    .unwrap();
+
+    Resources::add(swapchain).unwrap();
+    let swapchain_images = Resources::add(swapchain_images).unwrap();
+
+    let frames_in_flight = 2.min(swapchain_images.len()).max(1);
+    let frames_in_flight =
+        Resources::add(FramesInFlight(frames_in_flight)).unwrap();
+
+    let frame_sync = create_frame_sync(&device, frames_in_flight.0).unwrap();
+    Resources::add(frame_sync).unwrap();
+
     let image_sync =
-        create_image_sync(device.clone(), swapchain.swapchain_images.len())
-            .unwrap();
+        create_image_sync(&device, swapchain_images.len()).unwrap();
+    Resources::add(image_sync).unwrap();
+
     let command_buffers =
-        create_commad_buffers(command_pool.clone(), frames_in_flight).unwrap();
+        create_commad_buffers(&device, &command_pool, frames_in_flight.0)
+            .unwrap();
+    Resources::add(command_buffers).unwrap();
 
     let descriptor_pool =
-        DescriptorPool::new(device.clone(), 32, &[DescriptorPoolSize::new(
+        DescriptorPool::new(&device, 32, &[DescriptorPoolSize::new(
             16,
             DescriptorType::UNIFORM_BUFFER,
         )])
         .unwrap();
-
-    let graphics_queue = Queue::present(
-        device.clone(),
-        physical_device.get_queue_family_index(),
-    );
-
-    Resources::add(frame_sync).unwrap();
-    Resources::add(image_sync).unwrap();
-    Resources::add(command_buffers).unwrap();
     Resources::add(descriptor_pool).unwrap();
+
+    let graphics_queue =
+        Queue::present(&device, physical_device.get_queue_family_index());
     Resources::add(graphics_queue).unwrap();
-    Resources::add(FramesInFlight(frames_in_flight)).unwrap();
+
     Resources::add(RendererCurrentFrame(0)).unwrap();
     Resources::add(RendererResizeFlag(false)).unwrap();
     Resources::add(Vec::<Draw>::new()).unwrap();
     Resources::add(IdVec::<MeshData<DefaultVertex>>::new()).unwrap();
     Resources::add(IdVec::<Mesh>::new()).unwrap();
     Resources::add(IdVec::<MaterialData>::new()).unwrap();
+    Resources::add(IdVec::<MaterialBase>::new()).unwrap();
     Resources::add(IdVec::<TransformData>::new()).unwrap();
     Resources::add(IdVec::<CameraData>::new()).unwrap();
     Resources::add(IdVec::<Arc<DescriptorSet>>::new()).unwrap();
 }
 
 fn recreate_size_dependent_components(
-    device: Arc<Device>,
-    renderpass: Arc<Renderpass>,
-    old_swapchain: Arc<Swapchain>,
+    instance: &Instance,
+    surface: &Surface,
+    device: &Device,
+    physical_device: &PhysicalDevice,
+    window: &WindowWrapper,
+    renderpass: &Renderpass,
+    swapchain: &Swapchain,
 ) -> Result<(), VulkanError> {
     device.wait_idle()?;
-    recreate_renderer_images(renderpass, old_swapchain)
+    let (swapchain, swapchain_images) = recreate_renderer_images(
+        instance,
+        physical_device,
+        window,
+        surface,
+        device,
+        renderpass,
+        swapchain,
+    )?;
+
+    Resources::add_or_change(swapchain);
+    Resources::add_or_change(swapchain_images);
+
+    Ok(())
 }
 
 #[system]
 pub fn prepare_render(
+    instance: Resource<Instance>,
+    surface: Resource<Surface>,
+    device: Resource<Device>,
+    physical_device: Resource<PhysicalDevice>,
+    window: Resource<WindowWrapper>,
+    renderpass: Resource<Renderpass>,
+    swapchain: Resource<Swapchain>,
     mut current_frame: Resource<RendererCurrentFrame>,
     frame_sync: Resource<Vec<VulkanRendererFrameSync>>,
     mut resize: Resource<RendererResizeFlag>,
-    surface: Resource<Arc<Surface>>,
-    device: Resource<Arc<Device>>,
-    swapchain: Resource<Arc<Swapchain>>,
-    renderpass: Resource<Arc<Renderpass>>,
 ) {
     *current_frame = {
         frame_sync[current_frame.0]
             .command_buffer_fence
-            .wait()
+            .wait(&device)
             .unwrap();
         *current_frame
     };
 
-    if surface.window.minimized() {
+    if window.minimized() {
         return;
     }
 
     if resize.0 {
         recreate_size_dependent_components(
-            device.clone(),
-            renderpass.clone(),
-            swapchain.clone(),
+            &instance,
+            &surface,
+            &device,
+            &physical_device,
+            &window,
+            &renderpass,
+            &swapchain,
         )
         .unwrap();
         *resize = RendererResizeFlag(false)
@@ -231,42 +274,45 @@ pub fn render(
     frame_sync: Resource<Vec<VulkanRendererFrameSync>>,
     image_sync: Resource<Vec<VulkanRendererImageSync>>,
     mut resize: Resource<RendererResizeFlag>,
-    swapchain: Resource<Arc<Swapchain>>,
-    command_buffers: Resource<Vec<Arc<CommandBuffer>>>,
-    framebuffers: Resource<Vec<Arc<Framebuffer>>>,
+    swapchain: Resource<Swapchain>,
+    command_buffers: Resource<Vec<CommandBuffer>>,
+    framebuffers: Resource<Vec<Framebuffer>>,
     draw_queue: Resource<Vec<Draw>>,
-    graphics_queue: Resource<Arc<Queue>>,
+    graphics_queue: Resource<Queue>,
     frames_in_flight: Resource<FramesInFlight>,
     meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
     materials_data: Resource<IdVec<MaterialData>>,
+    materials_base: Resource<IdVec<MaterialBase>>,
     transforms_data: Resource<IdVec<TransformData>>,
     cameras_data: Resource<IdVec<CameraData>>,
+    device: Resource<Device>,
+    renderpass: Resource<Renderpass>,
 ) {
     let present_index = {
         let (present_index, suboptimal) = swapchain
             .acquire_next_image(
-                frame_sync[current_frame.0]
+                &frame_sync[current_frame.0]
                     .image_available_semaphore
                     .clone(),
-                Fence::null(swapchain.device.clone()),
+                &Fence::null(&device),
             )
             .unwrap();
         resize.0 |= suboptimal;
         frame_sync[current_frame.0]
             .command_buffer_fence
-            .reset()
+            .reset(&device)
             .unwrap();
         present_index as usize
     };
 
-    let command_buffer = command_buffers[current_frame.0].clone();
-    let framebuffer = framebuffers[present_index].clone();
+    let command_buffer = &command_buffers[current_frame.0];
+    let framebuffer = &framebuffers[present_index];
 
-    command_buffer.reset().unwrap();
-    command_buffer.begin().unwrap();
-    command_buffer.begin_renderpass(framebuffer.clone());
-    command_buffer.set_viewports(framebuffer.clone());
-    command_buffer.set_scissor(framebuffer);
+    command_buffer.reset(&device).unwrap();
+    command_buffer.begin(&device).unwrap();
+    command_buffer.begin_renderpass(&device, framebuffer, &renderpass);
+    command_buffer.set_viewports(&device, framebuffer, &renderpass);
+    command_buffer.set_scissor(&device, framebuffer, &renderpass);
 
     for draw in draw_queue.iter() {
         match draw {
@@ -278,43 +324,42 @@ pub fn render(
                 transform,
             }) => {
                 let material = materials_data.get(*material).unwrap();
+                let material_base =
+                    materials_base.get(material.material_base_id()).unwrap();
                 let mesh = meshes_data.get(*mesh).unwrap();
                 let camera = cameras_data.get(*camera).unwrap();
                 let camera_transform =
                     transforms_data.get(*camera_transform).unwrap();
                 let transform = transforms_data.get(*transform).unwrap();
                 material.bind(
-                    command_buffer.clone(),
+                    &device,
+                    material_base,
+                    command_buffer,
                     camera,
                     camera_transform,
                     transform,
                 );
-                mesh.record_commands(command_buffer.clone());
+                mesh.record_commands(&device, command_buffer);
             },
         }
     }
-    command_buffer.end_renderpass();
-    command_buffer.end().unwrap();
+    command_buffer.end_renderpass(&device);
+    command_buffer.end(&device).unwrap();
 
     graphics_queue
         .submit(
-            &[frame_sync[current_frame.0]
-                .image_available_semaphore
-                .clone()],
-            &[image_sync[present_index]
-                .rendering_complete_semaphore
-                .clone()],
+            &device,
+            &[&frame_sync[current_frame.0].image_available_semaphore],
+            &[&image_sync[present_index].rendering_complete_semaphore],
             &[command_buffer],
-            frame_sync[current_frame.0].command_buffer_fence.clone(),
+            &frame_sync[current_frame.0].command_buffer_fence,
         )
         .unwrap();
 
     swapchain
         .present(
-            graphics_queue.clone(),
-            &[image_sync[present_index]
-                .rendering_complete_semaphore
-                .clone()],
+            &graphics_queue,
+            &[&image_sync[present_index].rendering_complete_semaphore],
             present_index as u32,
         )
         .unwrap();

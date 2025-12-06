@@ -1,43 +1,50 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
 use crate::graphics::vulkan::{
     VulkanError, buffer::find_memorytype_index, device::Device,
-    format_size::format_size,
+    format_size::format_size, physical_device::PhysicalDevice,
 };
 
 pub trait Image: Send + Sync + 'static {
     fn get_image_raw(&self) -> &ash::vk::Image;
-    fn device(&self) -> Arc<Device>;
+    fn id(&self) -> u32;
+    fn device_id(&self) -> u32;
 }
 
 pub struct SwapchainImage {
-    pub device: Arc<Device>,
+    id: u32,
+    device_id: u32,
     image: ash::vk::Image,
 }
 
 #[allow(unused)]
 pub struct OwnedImage {
-    pub device: Arc<Device>,
+    id: u32,
+    device_id: u32,
     image: ash::vk::Image,
     memory: ash::vk::DeviceMemory,
     size: u64,
 }
 
 pub struct ImageView {
-    pub image: Arc<dyn Image>,
+    id: u32,
+    image_id: u32,
     view: ash::vk::ImageView,
 }
 
 impl Image for SwapchainImage {
     fn get_image_raw(&self) -> &ash::vk::Image { &self.image }
-
-    fn device(&self) -> Arc<Device> { self.device.clone() }
+    fn id(&self) -> u32 { self.id }
+    fn device_id(&self) -> u32 { self.device_id }
 }
 
 impl Image for OwnedImage {
     fn get_image_raw(&self) -> &ash::vk::Image { &self.image }
-
-    fn device(&self) -> Arc<Device> { self.device.clone() }
+    fn id(&self) -> u32 { self.id }
+    fn device_id(&self) -> u32 { self.device_id }
 }
 
 #[derive(Debug)]
@@ -48,6 +55,8 @@ pub enum ImageError {
     AllocationError(ash::vk::Result),
     BindError(ash::vk::Result),
     FormatNotSupported,
+    PhysicalDeviceMismatch,
+    DeviceMismatch,
 }
 
 impl From<ImageError> for VulkanError {
@@ -58,8 +67,8 @@ pub type ImageFormat = ash::vk::Format;
 pub type ImageUsage = ash::vk::ImageUsageFlags;
 pub type ImageAspectFlags = ash::vk::ImageAspectFlags;
 
-pub struct ImageViewInfo {
-    image: Arc<dyn Image>,
+pub struct ImageViewInfo<'a> {
+    image: &'a dyn Image,
     format: ImageFormat,
     aspect_flags: ImageAspectFlags,
 }
@@ -70,7 +79,7 @@ pub struct ImageInfo {
     pub usage: ImageUsage,
 }
 
-impl From<ImageViewInfo> for ash::vk::ImageViewCreateInfo<'_> {
+impl<'a> From<ImageViewInfo<'a>> for ash::vk::ImageViewCreateInfo<'_> {
     fn from(value: ImageViewInfo) -> Self {
         ash::vk::ImageViewCreateInfo::default()
             .view_type(ash::vk::ImageViewType::TYPE_2D)
@@ -111,23 +120,34 @@ impl From<ImageInfo> for ash::vk::ImageCreateInfo<'_> {
     }
 }
 
+const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
 impl SwapchainImage {
     pub fn from_raw_image(
-        device: Arc<Device>,
+        device: &Device,
         raw_image: ash::vk::Image,
-    ) -> Arc<SwapchainImage> {
-        Arc::new(SwapchainImage {
-            device,
+    ) -> SwapchainImage {
+        let id = ID_COUNTER.load(Ordering::Acquire);
+        ID_COUNTER.store(id + 1, Ordering::Release);
+
+        SwapchainImage {
+            id,
+            device_id: device.id(),
             image: raw_image,
-        })
+        }
     }
 }
 
 impl OwnedImage {
     pub fn new(
-        device: Arc<Device>,
+        physical_device: &PhysicalDevice,
+        device: &Device,
         create_info: ImageInfo,
-    ) -> Result<Arc<OwnedImage>, ImageError> {
+    ) -> Result<OwnedImage, ImageError> {
+        if physical_device.id() != device.physical_device_id() {
+            return Err(ImageError::PhysicalDeviceMismatch);
+        }
+
         let size = create_info.size;
         let format = create_info.format;
 
@@ -145,8 +165,7 @@ impl OwnedImage {
         let memory_index = match find_memorytype_index(
             &memory_req,
             ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            device.physical_device.instance.clone(),
-            device.physical_device.clone(),
+            physical_device,
         ) {
             Some(val) => val,
             None => return Err(ImageError::UnableToFindSuitableMemory),
@@ -178,57 +197,55 @@ impl OwnedImage {
             None => return Err(ImageError::FormatNotSupported),
         };
 
-        Ok(Arc::new(OwnedImage {
-            device,
+        let id = ID_COUNTER.load(Ordering::Acquire);
+        ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(OwnedImage {
+            id,
+            device_id: device.id(),
             image,
             memory: image_memory,
             size: format_size * size.0 as u64 * size.1 as u64,
-        }))
+        })
     }
 
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory { &self.memory }
 }
 
-impl Drop for OwnedImage {
-    fn drop(&mut self) {
-        unsafe { self.device.get_device_raw().free_memory(self.memory, None) };
-        unsafe { self.device.get_device_raw().destroy_image(self.image, None) };
-    }
-}
-
 impl ImageView {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn from_image(
-        device: Arc<Device>,
-        image: Arc<impl Image>,
+        device: &Device,
+        image: &impl Image,
         image_format: ImageFormat,
         aspect_flags: ImageAspectFlags,
-    ) -> Result<Arc<ImageView>, ImageError> {
+    ) -> Result<ImageView, ImageError> {
+        let image_id = image.id();
         let view_info = ImageViewInfo {
-            image: image.clone(),
+            image,
             format: image_format,
             aspect_flags,
         };
+
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
         match unsafe {
             device
                 .get_device_raw()
                 .create_image_view(&view_info.into(), None)
         } {
-            Ok(val) => Ok(Arc::new(ImageView { image, view: val })),
+            Ok(val) => Ok(ImageView {
+                id,
+                image_id,
+                view: val,
+            }),
             Err(err) => Err(ImageError::ViewCreationError(err)),
         }
     }
 
     pub fn get_image_view_raw(&self) -> &ash::vk::ImageView { &self.view }
-}
 
-impl Drop for ImageView {
-    fn drop(&mut self) {
-        unsafe {
-            self.image
-                .device()
-                .get_device_raw()
-                .destroy_image_view(self.view, None)
-        };
-    }
+    pub fn id(&self) -> u32 { self.id }
 }

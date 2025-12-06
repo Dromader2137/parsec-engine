@@ -1,15 +1,20 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
 use crate::graphics::vulkan::{
-    VulkanError, descriptor_set::DescriptorSetLayout, framebuffer::Framebuffer,
-    shader::ShaderModule,
+    VulkanError, descriptor_set::DescriptorSetLayout, device::Device,
+    framebuffer::Framebuffer, renderpass::Renderpass, shader::ShaderModule,
 };
 
 pub struct GraphicsPipeline {
-    pub framebuffer: Arc<Framebuffer>,
-    pub vertex_shader: Arc<ShaderModule>,
-    pub fragment_shader: Arc<ShaderModule>,
-    pub descriptor_set_layouts: Vec<Arc<DescriptorSetLayout>>,
+    id: u32,
+    device_id: u32,
+    framebuffer_id: u32,
+    vertex_shader_id: u32,
+    fragment_shader_id: u32,
+    descriptor_set_layout_ids: Vec<u32>,
     graphics_pipeline: ash::vk::Pipeline,
     graphics_pipeline_layout: ash::vk::PipelineLayout,
 }
@@ -18,6 +23,8 @@ pub struct GraphicsPipeline {
 pub enum GraphicsPipelineError {
     LayoutError(ash::vk::Result),
     CreationError(ash::vk::Result),
+    DeviceMismatch,
+    RenderpassMismatch,
 }
 
 impl From<GraphicsPipelineError> for VulkanError {
@@ -39,12 +46,33 @@ pub trait Vertex: Clone + Copy {
 }
 
 impl GraphicsPipeline {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn new<V: Vertex>(
-        framebuffer: Arc<Framebuffer>,
-        vertex_shader: Arc<ShaderModule>,
-        fragment_shader: Arc<ShaderModule>,
-        descriptor_set_layouts: Vec<Arc<DescriptorSetLayout>>,
-    ) -> Result<Arc<GraphicsPipeline>, GraphicsPipelineError> {
+        device: &Device,
+        renderpass: &Renderpass,
+        framebuffer: &Framebuffer,
+        vertex_shader: &ShaderModule,
+        fragment_shader: &ShaderModule,
+        descriptor_set_layouts: &Vec<DescriptorSetLayout>,
+    ) -> Result<GraphicsPipeline, GraphicsPipelineError> {
+        if device.id() != renderpass.device_id()
+            || device.id() != vertex_shader.device_id()
+            || device.id() != fragment_shader.device_id()
+        {
+            return Err(GraphicsPipelineError::DeviceMismatch);
+        }
+
+        for layout in descriptor_set_layouts.iter() {
+            if layout.device_id() != device.id() {
+                return Err(GraphicsPipelineError::DeviceMismatch);
+            }
+        }
+
+        if renderpass.id() != framebuffer.renderpass_id() {
+            return Err(GraphicsPipelineError::RenderpassMismatch);
+        }
+
         let set_layouts: Vec<_> = descriptor_set_layouts
             .iter()
             .map(|x| *x.get_layout_raw())
@@ -54,9 +82,7 @@ impl GraphicsPipeline {
             .set_layouts(&set_layouts);
 
         let pipeline_layout = match unsafe {
-            framebuffer
-                .renderpass
-                .device
+            device
                 .get_device_raw()
                 .create_pipeline_layout(&layout_create_info, None)
         } {
@@ -194,18 +220,14 @@ impl GraphicsPipeline {
                 .dynamic_state(&dynamic_state_info)
                 .layout(pipeline_layout)
                 .depth_stencil_state(&depth_state_info)
-                .render_pass(*framebuffer.renderpass.get_renderpass_raw());
+                .render_pass(*renderpass.get_renderpass_raw());
 
         let pipeline = match unsafe {
-            framebuffer
-                .renderpass
-                .device
-                .get_device_raw()
-                .create_graphics_pipelines(
-                    ash::vk::PipelineCache::null(),
-                    &[graphic_pipeline_info],
-                    None,
-                )
+            device.get_device_raw().create_graphics_pipelines(
+                ash::vk::PipelineCache::null(),
+                &[graphic_pipeline_info],
+                None,
+            )
         } {
             Ok(val) => val,
             Err(err) => {
@@ -213,14 +235,22 @@ impl GraphicsPipeline {
             },
         }[0];
 
-        Ok(Arc::new(GraphicsPipeline {
-            framebuffer,
-            vertex_shader,
-            fragment_shader,
-            descriptor_set_layouts,
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(GraphicsPipeline {
+            id,
+            device_id: device.id(),
+            framebuffer_id: framebuffer.id(),
+            vertex_shader_id: vertex_shader.id(),
+            fragment_shader_id: fragment_shader.id(),
+            descriptor_set_layout_ids: descriptor_set_layouts
+                .iter()
+                .map(|x| x.id())
+                .collect(),
             graphics_pipeline: pipeline,
             graphics_pipeline_layout: pipeline_layout,
-        }))
+        })
     }
 
     pub fn get_pipeline_raw(&self) -> &ash::vk::Pipeline {
@@ -230,21 +260,18 @@ impl GraphicsPipeline {
     pub fn get_layout_raw(&self) -> &ash::vk::PipelineLayout {
         &self.graphics_pipeline_layout
     }
-}
 
-impl Drop for GraphicsPipeline {
-    fn drop(&mut self) {
-        unsafe {
-            self.framebuffer
-                .renderpass
-                .device
-                .get_device_raw()
-                .destroy_pipeline_layout(self.graphics_pipeline_layout, None);
-            self.framebuffer
-                .renderpass
-                .device
-                .get_device_raw()
-                .destroy_pipeline(self.graphics_pipeline, None);
-        };
+    pub fn id(&self) -> u32 { self.id }
+
+    pub fn framebuffer_id(&self) -> u32 { self.framebuffer_id }
+
+    pub fn vertex_shader_id(&self) -> u32 { self.vertex_shader_id }
+
+    pub fn fragment_shader_id(&self) -> u32 { self.fragment_shader_id }
+
+    pub fn descriptor_set_layout_ids(&self) -> &[u32] {
+        &self.descriptor_set_layout_ids
     }
+
+    pub fn device_id(&self) -> u32 { self.device_id }
 }

@@ -2,7 +2,10 @@
 
 use std::time::SystemTime;
 
-use crate::{ecs::system::{system, System, SystemBundle, SystemTrigger}, resources::{Resource, Resources}};
+use crate::{
+    ecs::system::{System, SystemBundle, SystemTrigger, system},
+    resources::{Resource, Resources},
+};
 
 /// Stores timing information like delta_time and current_time.
 pub struct Time {
@@ -35,32 +38,20 @@ impl Time {
     }
 
     /// Gets frame duration in seconds.
-    pub fn delta_time(&self) -> f32 {
-        self.delta_time
-    }
-    
+    pub fn delta_time(&self) -> f32 { self.delta_time }
+
     /// Gets application start time.
-    pub fn start_time(&self) -> SystemTime {
-        self.start_time
-    }
+    pub fn start_time(&self) -> SystemTime { self.start_time }
 
     /// Gets current frame time. May differ slightly from [`SystemTime::now()`].
-    pub fn current_time(&self) -> SystemTime {
-        self.current_time
-    }
+    pub fn current_time(&self) -> SystemTime { self.current_time }
 }
 
 #[system]
-fn time_init() {
-    Resources::add(Time::new()).unwrap();
-}
+fn time_init() { Resources::add(Time::new()).unwrap(); }
 
 #[system]
-fn time_update(
-    mut time: Resource<Time>
-) {
-    time.update_time();
-}
+fn time_update(mut time: Resource<Time>) { time.update_time(); }
 
 /// Bundle containing systems responsible for time calculations.
 #[derive(Default)]

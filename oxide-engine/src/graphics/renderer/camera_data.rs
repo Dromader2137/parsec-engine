@@ -15,8 +15,10 @@ use crate::{
                 DescriptorSetLayout, DescriptorStage, DescriptorType,
             },
             device::Device,
+            physical_device::PhysicalDevice,
             surface::Surface,
         },
+        window::WindowWrapper,
     },
     math::mat::Matrix4f,
     resources::Resource,
@@ -25,23 +27,25 @@ use crate::{
 
 pub struct CameraData {
     pub projection_matrix: Matrix4f,
-    pub projection_buffer: Arc<Buffer>,
-    pub projection_set: Arc<DescriptorSet>,
+    pub projection_buffer: Buffer,
+    pub projection_set: DescriptorSet,
 }
 
 impl CameraData {
     pub fn new(
-        device: Arc<Device>,
-        surface: Arc<Surface>,
-        descriptor_pool: Arc<DescriptorPool>,
+        window: &WindowWrapper,
+        physical_device: &PhysicalDevice,
+        device: &Device,
+        descriptor_pool: &DescriptorPool,
         vfov: f32,
         near: f32,
         far: f32,
     ) -> Result<CameraData, VulkanError> {
         let projection_matrix =
-            Matrix4f::perspective(vfov, surface.aspect_ratio(), near, far);
+            Matrix4f::perspective(vfov, window.aspect_ratio(), near, far);
         let projection_buffer = Buffer::from_vec(
-            device.clone(),
+            physical_device,
+            device,
             &[projection_matrix],
             BufferUsage::UNIFORM_BUFFER,
         )
@@ -54,9 +58,10 @@ impl CameraData {
             )])
             .unwrap();
         let projection_set =
-            DescriptorSet::new(projection_set_layout, descriptor_pool).unwrap();
+            DescriptorSet::new(device, &projection_set_layout, descriptor_pool)
+                .unwrap();
         projection_set
-            .bind_buffer(projection_buffer.clone(), 0)
+            .bind_buffer(&projection_buffer, device, &projection_set_layout, 0)
             .unwrap();
         Ok(CameraData {
             projection_matrix,
@@ -68,18 +73,20 @@ impl CameraData {
 
 #[system]
 fn add_camera_data(
-    device: Resource<Arc<Device>>,
-    surface: Resource<Arc<Surface>>,
-    descriptor_pool: Resource<Arc<DescriptorPool>>,
+    window: Resource<WindowWrapper>,
+    physical_device: Resource<PhysicalDevice>,
+    device: Resource<Device>,
+    descriptor_pool: Resource<DescriptorPool>,
     mut cameras_data: Resource<IdVec<CameraData>>,
     mut cameras: Query<Mut<Camera>>,
 ) {
     for (_, camera) in cameras.iter() {
         if camera.data_id.is_none() {
             let camera_data = CameraData::new(
-                device.clone(),
-                surface.clone(),
-                descriptor_pool.clone(),
+                &window,
+                &physical_device,
+                &device,
+                &descriptor_pool,
                 camera.vertical_fov,
                 camera.near_clipping_plane,
                 camera.far_clipping_plane,
@@ -94,11 +101,12 @@ fn add_camera_data(
 
 #[system]
 fn update_camera_data(
-    surface: Resource<Arc<Surface>>,
+    window: Resource<WindowWrapper>,
+    device: Resource<Device>,
     mut cameras_data: Resource<IdVec<CameraData>>,
     mut cameras: Query<Camera>,
 ) {
-    let aspect_ratio = surface.aspect_ratio();
+    let aspect_ratio = window.aspect_ratio();
     for (_, camera) in cameras.iter() {
         if camera.data_id.is_none() {
             continue;
@@ -113,7 +121,7 @@ fn update_camera_data(
         );
         camera_data
             .projection_buffer
-            .update(vec![camera_data.projection_matrix])
+            .update(&device, &[camera_data.projection_matrix])
             .unwrap();
     }
 }

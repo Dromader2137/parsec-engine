@@ -1,43 +1,57 @@
 use std::sync::Arc;
 
 use crate::{
-    graphics::vulkan::{
-        VulkanError,
-        framebuffer::Framebuffer,
-        image::{
-            ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage, ImageView,
-            OwnedImage,
+    graphics::{
+        vulkan::{
+            VulkanError,
+            device::Device,
+            framebuffer::Framebuffer,
+            image::{
+                ImageAspectFlags, ImageFormat, ImageInfo, ImageUsage,
+                ImageView, OwnedImage, SwapchainImage,
+            },
+            instance::Instance,
+            physical_device::PhysicalDevice,
+            renderpass::Renderpass,
+            surface::Surface,
+            swapchain::Swapchain,
         },
-        renderpass::Renderpass,
-        swapchain::Swapchain,
+        window::WindowWrapper,
     },
     resources::Resources,
 };
 
 #[allow(unused)]
-pub struct SwapchainViews(Vec<Arc<ImageView>>);
+pub struct SwapchainViews(Vec<ImageView>);
 #[allow(unused)]
-pub struct DepthImage(Arc<OwnedImage>);
+pub struct DepthImage(OwnedImage);
 #[allow(unused)]
-pub struct DepthView(Arc<ImageView>);
+pub struct DepthView(ImageView);
 
 pub fn init_renderer_images(
-    renderpass: Arc<Renderpass>,
-) -> Result<Arc<Swapchain>, VulkanError> {
-    let swapchain = Swapchain::new(
-        renderpass.surface.clone(),
-        renderpass.device.clone(),
+    instance: &Instance,
+    physical_device: &PhysicalDevice,
+    window: &WindowWrapper,
+    surface: &Surface,
+    device: &Device,
+    renderpass: &Renderpass,
+) -> Result<(Swapchain, Vec<SwapchainImage>), VulkanError> {
+    let (swapchain, swapchain_images) = Swapchain::new(
+        instance,
+        physical_device,
+        window,
+        surface,
+        device,
         None,
     )?;
 
-    let swapchain_images = &swapchain.swapchain_images;
-    let swapchain_format = renderpass.surface.format().into();
+    let swapchain_format = surface.format().into();
     let swapchain_views = {
         let mut out = Vec::new();
         for image in swapchain_images.iter() {
             let view = ImageView::from_image(
-                renderpass.device.clone(),
-                image.clone(),
+                device,
+                image,
                 swapchain_format,
                 ImageAspectFlags::COLOR,
             )?;
@@ -46,17 +60,14 @@ pub fn init_renderer_images(
         out
     };
 
-    let depth_image = OwnedImage::new(renderpass.device.clone(), ImageInfo {
+    let depth_image = OwnedImage::new(physical_device, device, ImageInfo {
         format: ImageFormat::D16_UNORM,
-        size: (
-            renderpass.surface.window.width(),
-            renderpass.surface.window.height(),
-        ),
+        size: (window.width(), window.height()),
         usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
     })?;
     let depth_view = ImageView::from_image(
-        renderpass.device.clone(),
-        depth_image.clone(),
+        device,
+        &depth_image,
         ImageFormat::D16_UNORM,
         ImageAspectFlags::DEPTH,
     )?;
@@ -65,45 +76,51 @@ pub fn init_renderer_images(
         let mut out = Vec::new();
         for image_view in swapchain_views.iter() {
             out.push(Framebuffer::new(
-                image_view.clone(),
-                depth_view.clone(),
-                renderpass.clone(),
+                window,
+                device,
+                image_view,
+                &depth_view,
+                renderpass,
             )?);
         }
         out
     };
 
-    drop(renderpass);
-
-    Resources::add(swapchain.clone()).unwrap();
     Resources::add(SwapchainViews(swapchain_views)).unwrap();
     Resources::add(DepthImage(depth_image)).unwrap();
     Resources::add(DepthView(depth_view)).unwrap();
     Resources::add(framebuffers).unwrap();
 
-    Ok(swapchain)
+    Ok((swapchain, swapchain_images))
 }
 
 pub fn recreate_renderer_images(
-    renderpass: Arc<Renderpass>,
-    old_swapchain: Arc<Swapchain>,
-) -> Result<(), VulkanError> {
-    let swapchain = Swapchain::new(
-        renderpass.surface.clone(),
-        renderpass.device.clone(),
-        Some(old_swapchain.clone()),
+    instance: &Instance,
+    physical_device: &PhysicalDevice,
+    window: &WindowWrapper,
+    surface: &Surface,
+    device: &Device,
+    renderpass: &Renderpass,
+    old_swapchain: &Swapchain,
+) -> Result<(Swapchain, Vec<SwapchainImage>), VulkanError> {
+    let (swapchain, swapchain_images) = Swapchain::new(
+        instance,
+        physical_device,
+        window,
+        surface,
+        device,
+        Some(old_swapchain),
     )?;
 
     drop(old_swapchain);
 
-    let swapchain_images = &swapchain.swapchain_images;
-    let swapchain_format = renderpass.surface.format().into();
+    let swapchain_format = surface.format().into();
     let swapchain_views = {
         let mut out = Vec::new();
         for image in swapchain_images.iter() {
             let view = ImageView::from_image(
-                renderpass.device.clone(),
-                image.clone(),
+                device,
+                image,
                 swapchain_format,
                 ImageAspectFlags::COLOR,
             )?;
@@ -112,17 +129,14 @@ pub fn recreate_renderer_images(
         out
     };
 
-    let depth_image = OwnedImage::new(renderpass.device.clone(), ImageInfo {
+    let depth_image = OwnedImage::new(physical_device, device, ImageInfo {
         format: ImageFormat::D16_UNORM,
-        size: (
-            renderpass.surface.window.width(),
-            renderpass.surface.window.height(),
-        ),
+        size: (window.width(), window.height()),
         usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
     })?;
     let depth_view = ImageView::from_image(
-        renderpass.device.clone(),
-        depth_image.clone(),
+        device,
+        &depth_image,
         ImageFormat::D16_UNORM,
         ImageAspectFlags::DEPTH,
     )?;
@@ -131,21 +145,20 @@ pub fn recreate_renderer_images(
         let mut out = Vec::new();
         for image_view in swapchain_views.iter() {
             out.push(Framebuffer::new(
-                image_view.clone(),
-                depth_view.clone(),
-                renderpass.clone(),
+                window,
+                device,
+                image_view,
+                &depth_view,
+                renderpass,
             )?);
         }
         out
     };
 
-    drop(renderpass);
-
-    Resources::add_or_change(swapchain.clone());
     Resources::add_or_change(SwapchainViews(swapchain_views));
     Resources::add_or_change(DepthImage(depth_image));
     Resources::add_or_change(DepthView(depth_view));
     Resources::add_or_change(framebuffers);
 
-    Ok(())
+    Ok((swapchain, swapchain_images))
 }

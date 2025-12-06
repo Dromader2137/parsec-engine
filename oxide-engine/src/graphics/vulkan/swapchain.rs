@@ -1,14 +1,29 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
-use crate::graphics::vulkan::{
-    VulkanError, device::Device, fence::Fence, image::SwapchainImage,
-    queue::Queue, semaphore::Semaphore, surface::Surface,
+use ash::vk::Extent2D;
+
+use crate::graphics::{
+    vulkan::{
+        VulkanError,
+        device::Device,
+        fence::Fence,
+        image::{Image, SwapchainImage},
+        instance::Instance,
+        physical_device::PhysicalDevice,
+        queue::Queue,
+        semaphore::Semaphore,
+        surface::Surface,
+    },
+    window::WindowWrapper,
 };
 
 pub struct Swapchain {
-    pub device: Arc<Device>,
-    pub surface: Arc<Surface>,
-    pub swapchain_images: Vec<Arc<SwapchainImage>>,
+    id: u32,
+    device_id: u32,
+    swapchain_image_ids: Vec<u32>,
     swapchain: ash::vk::SwapchainKHR,
     swapchain_loader: ash::khr::swapchain::Device,
 }
@@ -20,6 +35,11 @@ pub enum SwapchainError {
     ImageAcquisitionError(ash::vk::Result),
     NextImageError(ash::vk::Result),
     PresentError(ash::vk::Result),
+    InstanceMismatch,
+    WindowMismatch,
+    PhysicalDeviceMismatch,
+    SurfaceMismatch,
+    DeviceMismatch,
 }
 
 impl From<SwapchainError> for VulkanError {
@@ -29,11 +49,38 @@ impl From<SwapchainError> for VulkanError {
 }
 
 impl Swapchain {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn new(
-        surface: Arc<Surface>,
-        device: Arc<Device>,
-        old_swapchain: Option<Arc<Swapchain>>,
-    ) -> Result<Arc<Swapchain>, SwapchainError> {
+        instance: &Instance,
+        physical_device: &PhysicalDevice,
+        window: &WindowWrapper,
+        surface: &Surface,
+        device: &Device,
+        old_swapchain: Option<&Swapchain>,
+    ) -> Result<(Swapchain, Vec<SwapchainImage>), SwapchainError> {
+        if physical_device.instance_id() != instance.id() {
+            return Err(SwapchainError::InstanceMismatch);
+        }
+
+        if surface.window_id() != window.id() {
+            return Err(SwapchainError::WindowMismatch);
+        }
+
+        if device.physical_device_id() != physical_device.id() {
+            return Err(SwapchainError::PhysicalDeviceMismatch);
+        }
+
+        if device.surface_id() != surface.id() {
+            return Err(SwapchainError::SurfaceMismatch);
+        }
+
+        if let Some(swapchain) = old_swapchain {
+            if swapchain.device_id() != device.id() {
+                return Err(SwapchainError::DeviceMismatch);
+            }
+        }
+
         let mut desired_image_count = surface.min_image_count() + 1;
         if surface.max_image_count() > 0
             && desired_image_count > surface.max_image_count()
@@ -41,7 +88,13 @@ impl Swapchain {
             desired_image_count = surface.max_image_count()
         }
 
-        let surface_resolution = surface.current_extent();
+        let surface_resolution = {
+            let size = window.size();
+            Extent2D {
+                width: size.0,
+                height: size.1,
+            }
+        };
 
         let pre_transform = if surface
             .supported_transforms()
@@ -56,7 +109,7 @@ impl Swapchain {
             surface
                 .get_surface_loader_raw()
                 .get_physical_device_surface_present_modes(
-                    *device.physical_device.get_physical_device_raw(),
+                    *physical_device.get_physical_device_raw(),
                     *surface.get_surface_raw(),
                 )
         } {
@@ -71,7 +124,7 @@ impl Swapchain {
             .unwrap_or(ash::vk::PresentModeKHR::FIFO);
 
         let swapchain_loader = ash::khr::swapchain::Device::new(
-            device.physical_device.instance.get_instance_raw(),
+            instance.get_instance_raw(),
             device.get_device_raw(),
         );
 
@@ -112,20 +165,35 @@ impl Swapchain {
             Err(err) => return Err(SwapchainError::ImageAcquisitionError(err)),
         };
 
-        Ok(Arc::new(Swapchain {
-            device,
-            surface,
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok((
+            Swapchain {
+                id,
+                device_id: device.id(),
+                swapchain,
+                swapchain_image_ids: swapchain_images
+                    .iter()
+                    .map(|x| x.id())
+                    .collect(),
+                swapchain_loader,
+            },
             swapchain_images,
-            swapchain,
-            swapchain_loader,
-        }))
+        ))
     }
 
     pub fn acquire_next_image(
         &self,
-        semaphore: Arc<Semaphore>,
-        fence: Arc<Fence>,
+        semaphore: &Semaphore,
+        fence: &Fence,
     ) -> Result<(u32, bool), SwapchainError> {
+        if semaphore.device_id() != self.device_id
+            || fence.device_id() != self.device_id
+        {
+            return Err(SwapchainError::DeviceMismatch);
+        }
+
         match unsafe {
             self.swapchain_loader.acquire_next_image(
                 self.swapchain,
@@ -141,10 +209,20 @@ impl Swapchain {
 
     pub fn present(
         &self,
-        present_queue: Arc<Queue>,
-        wait_semaphores: &[Arc<Semaphore>],
+        present_queue: &Queue,
+        wait_semaphores: &[&Semaphore],
         image_index: u32,
     ) -> Result<(), SwapchainError> {
+        if present_queue.device_id() != self.device_id {
+            return Err(SwapchainError::DeviceMismatch);
+        }
+
+        for semaphore in wait_semaphores.iter() {
+            if semaphore.device_id() != self.device_id {
+                return Err(SwapchainError::DeviceMismatch);
+            }
+        }
+
         let wait_semaphores = wait_semaphores
             .iter()
             .map(|x| *x.get_semaphore_raw())
@@ -174,13 +252,6 @@ impl Swapchain {
     pub fn get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
         &self.swapchain_loader
     }
-}
 
-impl Drop for Swapchain {
-    fn drop(&mut self) {
-        unsafe {
-            self.swapchain_loader
-                .destroy_swapchain(self.swapchain, None)
-        };
-    }
+    pub fn device_id(&self) -> u32 { self.device_id }
 }

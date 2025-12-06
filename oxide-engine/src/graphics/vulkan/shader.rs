@@ -1,10 +1,17 @@
-use std::{fs::File, sync::Arc};
+use std::{
+    fs::File,
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
+};
 
 use crate::graphics::vulkan::{VulkanError, device::Device};
 
 pub struct ShaderModule {
-    pub device: Arc<Device>,
-    pub shader_type: ShaderType,
+    id: u32,
+    device_id: u32,
+    shader_type: ShaderType,
     shader_module: ash::vk::ShaderModule,
 }
 
@@ -37,11 +44,13 @@ pub fn read_shader_code(path: &str) -> Result<Vec<u32>, ShaderError> {
 }
 
 impl ShaderModule {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn new(
-        device: Arc<Device>,
+        device: &Device,
         code: &[u32],
         shader_type: ShaderType,
-    ) -> Result<Arc<ShaderModule>, ShaderError> {
+    ) -> Result<ShaderModule, ShaderError> {
         let create_info = ash::vk::ShaderModuleCreateInfo::default().code(code);
 
         let shader_module = match unsafe {
@@ -53,24 +62,22 @@ impl ShaderModule {
             Err(err) => return Err(ShaderError::CreationError(err)),
         };
 
-        Ok(Arc::new(ShaderModule {
-            device,
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(ShaderModule {
+            id,
+            device_id: device.id(),
             shader_module,
             shader_type,
-        }))
+        })
     }
 
     pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule {
         &self.shader_module
     }
-}
 
-impl Drop for ShaderModule {
-    fn drop(&mut self) {
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_shader_module(self.shader_module, None)
-        };
-    }
+    pub fn id(&self) -> u32 { self.id }
+
+    pub fn device_id(&self) -> u32 { self.device_id }
 }

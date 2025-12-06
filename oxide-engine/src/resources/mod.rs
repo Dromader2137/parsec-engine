@@ -1,7 +1,7 @@
 //! Module responsible for storing and getting global state.
 
 use std::{
-    any::{Any, TypeId},
+    any::{Any, TypeId, type_name},
     collections::HashMap,
     ops::{Deref, DerefMut},
     sync::{Arc, Mutex, RwLock},
@@ -23,6 +23,14 @@ static RESOURCES: Lazy<RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync>>>> =
 /// Stores the information necessary to use a global resource.
 pub struct Resource<R: ResourceMarker> {
     lock: Arc<Mutex<R>>,
+}
+
+impl<R: ResourceMarker> Clone for Resource<R> {
+    fn clone(&self) -> Self {
+        Self {
+            lock: self.lock.clone(),
+        }
+    }
 }
 
 impl<R: ResourceMarker> Deref for Resource<R> {
@@ -56,7 +64,9 @@ impl Resources {
     /// # Errors
     ///
     /// - If a resource of type `R` already exists.
-    pub fn add<R: ResourceMarker>(resource: R) -> Result<Resource<R>, ResourceError> {
+    pub fn add<R: ResourceMarker>(
+        resource: R,
+    ) -> Result<Resource<R>, ResourceError> {
         let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
         if resources.contains_key(&type_id) {
@@ -87,7 +97,11 @@ impl Resources {
             Some(lock_any) => lock_any
                 .downcast_ref::<Arc<Mutex<R>>>()
                 .expect("This downcast can't fail"),
-            None => return Err(ResourceError::ResourceNotFound),
+            None => {
+                return Err(ResourceError::ResourceNotFoundExact(
+                    type_name::<R>(),
+                ));
+            },
         };
         Ok(lock.clone())
     }
@@ -100,6 +114,15 @@ impl Resources {
     pub fn remove<R: ResourceMarker>() -> Result<(), ResourceError> {
         let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
+        let lock = match resources.get(&type_id) {
+            Some(lock_any) => lock_any
+                .downcast_ref::<Arc<Mutex<R>>>()
+                .expect("This downcast can't fail"),
+            None => return Err(ResourceError::ResourceNotFound),
+        };
+        // if Arc::weak_count(lock) + Arc::strong_count(lock) > 0 {
+        //     return Err(ResourceError::ResourceNotUnique);
+        // }
         resources
             .remove(&type_id)
             .map_or(Err(ResourceError::ResourceNotFound), |_| Ok(()))
@@ -116,4 +139,8 @@ pub enum ResourceError {
     ResourceNotFound,
     #[error("Resource of this type already exists")]
     ResourceAlreadyExists,
+    #[error("Resource of this type is also stored somewhere else")]
+    ResourceNotUnique,
+    #[error("Failed to find a resource of a type")]
+    ResourceNotFoundExact(&'static str),
 }

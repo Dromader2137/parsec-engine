@@ -1,16 +1,20 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
 use crate::graphics::vulkan::{VulkanError, device::Device, surface::Surface};
 
 pub struct Renderpass {
-    pub device: Arc<Device>,
-    pub surface: Arc<Surface>,
+    id: u32,
+    device_id: u32,
     renderpass: ash::vk::RenderPass,
 }
 
 #[derive(Debug)]
 pub enum RenderpassError {
     CreationError(ash::vk::Result),
+    SurfaceMismatch,
 }
 
 impl From<RenderpassError> for VulkanError {
@@ -20,10 +24,16 @@ impl From<RenderpassError> for VulkanError {
 }
 
 impl Renderpass {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn new(
-        surface: Arc<Surface>,
-        device: Arc<Device>,
-    ) -> Result<Arc<Renderpass>, RenderpassError> {
+        surface: &Surface,
+        device: &Device,
+    ) -> Result<Renderpass, RenderpassError> {
+        if device.surface_id() != surface.id() {
+            return Err(RenderpassError::SurfaceMismatch);
+        }
+
         let renderpass_attachments = [
             ash::vk::AttachmentDescription {
                 format: surface.format(),
@@ -81,24 +91,21 @@ impl Renderpass {
             Err(err) => return Err(RenderpassError::CreationError(err)),
         };
 
-        Ok(Arc::new(Renderpass {
-            device,
-            surface,
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(Renderpass {
+            id,
+            device_id: device.id(),
             renderpass,
-        }))
+        })
     }
 
     pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass {
         &self.renderpass
     }
-}
 
-impl Drop for Renderpass {
-    fn drop(&mut self) {
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_render_pass(self.renderpass, None)
-        };
-    }
+    pub fn device_id(&self) -> u32 { self.device_id }
+
+    pub fn id(&self) -> u32 { self.id }
 }

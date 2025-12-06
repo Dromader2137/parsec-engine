@@ -1,12 +1,22 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
-use crate::graphics::vulkan::{
-    VulkanError, image::ImageView, renderpass::Renderpass,
+use ash::vk::Extent2D;
+
+use crate::graphics::{
+    vulkan::{
+        VulkanError, device::Device, image::ImageView, renderpass::Renderpass,
+        surface::Surface,
+    },
+    window::WindowWrapper,
 };
 
 pub struct Framebuffer {
-    pub renderpass: Arc<Renderpass>,
-    pub image_views: Vec<Arc<ImageView>>,
+    id: u32,
+    renderpass_id: u32,
+    image_view_ids: Vec<u32>,
     framebuffer: ash::vk::Framebuffer,
     extent: ash::vk::Extent2D,
 }
@@ -24,12 +34,21 @@ impl From<FramebufferError> for VulkanError {
 }
 
 impl Framebuffer {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn new(
-        image_view: Arc<ImageView>,
-        depth_view: Arc<ImageView>,
-        renderpass: Arc<Renderpass>,
-    ) -> Result<Arc<Framebuffer>, FramebufferError> {
-        let extent = renderpass.surface.current_extent();
+        window: &WindowWrapper,
+        device: &Device,
+        image_view: &ImageView,
+        depth_view: &ImageView,
+        renderpass: &Renderpass,
+    ) -> Result<Framebuffer, FramebufferError> {
+        let extent = window.size();
+        let extent = Extent2D {
+            width: extent.0,
+            height: extent.1,
+        };
+
         let framebuffer_attachments = [
             *image_view.get_image_view_raw(),
             *depth_view.get_image_view_raw(),
@@ -43,8 +62,7 @@ impl Framebuffer {
                 .layers(1);
 
         let framebuffer = match unsafe {
-            renderpass
-                .device
+            device
                 .get_device_raw()
                 .create_framebuffer(&frame_buffer_create_info, None)
         } {
@@ -52,12 +70,16 @@ impl Framebuffer {
             Err(err) => return Err(FramebufferError::CreationError(err)),
         };
 
-        Ok(Arc::new(Framebuffer {
-            renderpass,
-            image_views: vec![image_view, depth_view],
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(Framebuffer {
+            id,
+            renderpass_id: renderpass.id(),
+            image_view_ids: vec![image_view.id(), depth_view.id()],
             framebuffer,
             extent,
-        }))
+        })
     }
 
     pub fn get_framebuffer_raw(&self) -> &ash::vk::Framebuffer {
@@ -65,15 +87,8 @@ impl Framebuffer {
     }
 
     pub fn get_extent_raw(&self) -> ash::vk::Extent2D { self.extent }
-}
 
-impl Drop for Framebuffer {
-    fn drop(&mut self) {
-        unsafe {
-            self.renderpass
-                .device
-                .get_device_raw()
-                .destroy_framebuffer(self.framebuffer, None)
-        };
-    }
+    pub fn id(&self) -> u32 { self.id }
+
+    pub fn renderpass_id(&self) -> u32 { self.renderpass_id }
 }

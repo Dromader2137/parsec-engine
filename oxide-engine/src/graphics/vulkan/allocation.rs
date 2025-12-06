@@ -1,21 +1,17 @@
-use std::sync::{nonpoison::Mutex, Arc};
-
 use crate::graphics::vulkan::{allocator::Allocator, buffer::Buffer};
 
-pub enum AllocationError {
-    
-}
+pub enum AllocationError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MemoryLocation {
     CpuSide,
     MappableGpuSide,
-    GpuSide
+    GpuSide,
 }
 
 pub struct Allocation {
     allocator: Allocator,
-    buffers: Vec<Arc<RwL>>,
+    // buffers: Vec<Arc<RwL>>,
     memory: ash::vk::DeviceMemory,
     memory_location: u64,
     memory_size: u64,
@@ -23,6 +19,6 @@ pub struct Allocation {
 }
 
 impl Allocation {
-    pub fn create_buffer(&mut self) -> Result<Arc<Buffer>, AllocationError> {
-    }
+    // pub fn create_buffer(&mut self) -> Result<Arc<Buffer>, AllocationError> {
+    // }
 }

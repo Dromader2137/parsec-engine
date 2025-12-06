@@ -1,10 +1,14 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
 use crate::graphics::vulkan::{VulkanError, device::Device};
 
 #[derive(Clone)]
 pub struct Semaphore {
-    pub device: Arc<Device>,
+    id: u32,
+    device_id: u32,
     semaphore: ash::vk::Semaphore,
 }
 
@@ -12,6 +16,7 @@ pub struct Semaphore {
 pub enum SemaphoreError {
     CreationError(ash::vk::Result),
     WaitError(ash::vk::Result),
+    DeviceMismatch,
 }
 
 impl From<SemaphoreError> for VulkanError {
@@ -21,7 +26,9 @@ impl From<SemaphoreError> for VulkanError {
 }
 
 impl Semaphore {
-    pub fn new(device: Arc<Device>) -> Result<Arc<Semaphore>, SemaphoreError> {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    pub fn new(device: &Device) -> Result<Semaphore, SemaphoreError> {
         let create_info = ash::vk::SemaphoreCreateInfo::default();
 
         let semaphore = match unsafe {
@@ -31,25 +38,28 @@ impl Semaphore {
             Err(err) => return Err(SemaphoreError::CreationError(err)),
         };
 
-        Ok(Arc::new(Semaphore { device, semaphore }))
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(Semaphore {
+            id,
+            device_id: device.id(),
+            semaphore,
+        })
     }
 
-    pub fn null(device: Arc<Device>) -> Semaphore {
+    pub fn null(device: &Device) -> Semaphore {
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
         Semaphore {
-            device,
+            id,
+            device_id: device.id(),
             semaphore: ash::vk::Semaphore::null(),
         }
     }
 
     pub fn get_semaphore_raw(&self) -> &ash::vk::Semaphore { &self.semaphore }
-}
 
-impl Drop for Semaphore {
-    fn drop(&mut self) {
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_semaphore(self.semaphore, None)
-        };
-    }
+    pub fn device_id(&self) -> u32 { self.device_id }
 }

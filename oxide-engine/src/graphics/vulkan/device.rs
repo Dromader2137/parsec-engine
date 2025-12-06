@@ -1,9 +1,20 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
-use crate::graphics::vulkan::{VulkanError, physical_device::PhysicalDevice};
+use crate::{
+    graphics::vulkan::{
+        VulkanError, instance::Instance, physical_device::PhysicalDevice,
+        surface::Surface,
+    },
+    resources::Resource,
+};
 
 pub struct Device {
-    pub physical_device: Arc<PhysicalDevice>,
+    id: u32,
+    physical_device_id: u32,
+    surface_id: u32,
     device: ash::Device,
 }
 
@@ -11,6 +22,7 @@ pub struct Device {
 pub enum DeviceError {
     DeviceCreationError(ash::vk::Result),
     WaitIdleError(ash::vk::Result),
+    PhysicalDeviceMismatch,
 }
 
 impl From<DeviceError> for VulkanError {
@@ -18,9 +30,17 @@ impl From<DeviceError> for VulkanError {
 }
 
 impl Device {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn new(
-        physical_device: Arc<PhysicalDevice>,
-    ) -> Result<Arc<Device>, DeviceError> {
+        instance: &Instance,
+        physical_device: &PhysicalDevice,
+        surface: &Surface,
+    ) -> Result<Device, DeviceError> {
+        if surface.physical_device_id() != physical_device.id() {
+            return Err(DeviceError::PhysicalDeviceMismatch);
+        }
+
         let device_extension_names_raw = [ash::khr::swapchain::NAME.as_ptr()];
 
         let features = ash::vk::PhysicalDeviceFeatures {
@@ -39,21 +59,26 @@ impl Device {
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&features);
 
-        let device = match unsafe {
-            physical_device.instance.get_instance_raw().create_device(
-                *physical_device.get_physical_device_raw(),
-                &device_create_info,
-                None,
-            )
-        } {
-            Ok(val) => val,
-            Err(err) => return Err(DeviceError::DeviceCreationError(err)),
+        let device = unsafe {
+            instance
+                .get_instance_raw()
+                .create_device(
+                    *physical_device.get_physical_device_raw(),
+                    &device_create_info,
+                    None,
+                )
+                .map_err(|err| DeviceError::DeviceCreationError(err))?
         };
 
-        Ok(Arc::new(Device {
-            physical_device,
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(Device {
+            id,
+            physical_device_id: physical_device.id(),
+            surface_id: surface.id(),
             device,
-        }))
+        })
     }
 
     pub fn wait_idle(&self) -> Result<(), DeviceError> {
@@ -64,11 +89,10 @@ impl Device {
     }
 
     pub fn get_device_raw(&self) -> &ash::Device { &self.device }
-}
 
-impl Drop for Device {
-    fn drop(&mut self) {
-        self.wait_idle().unwrap();
-        unsafe { self.get_device_raw().destroy_device(None) };
-    }
+    pub fn id(&self) -> u32 { self.id }
+
+    pub fn physical_device_id(&self) -> u32 { self.physical_device_id }
+
+    pub fn surface_id(&self) -> u32 { self.surface_id }
 }

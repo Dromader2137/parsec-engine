@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     ecs::system::system,
     graphics::{
@@ -16,17 +14,16 @@ use crate::{
 };
 
 #[system]
-pub fn init_vulkan(window: Resource<Arc<WindowWrapper>>) {
-    let instance = Instance::new(window.clone()).unwrap();
-    let initial_surface =
-        InitialSurface::new(instance.clone(), window.clone()).unwrap();
+pub fn init_vulkan(window: Resource<WindowWrapper>) {
+    let instance = Instance::new(&window).unwrap();
+    let initial_surface = InitialSurface::new(&instance, &window).unwrap();
     let physical_device =
-        PhysicalDevice::new(instance.clone(), initial_surface.clone()).unwrap();
+        PhysicalDevice::new(&instance, &initial_surface).unwrap();
     let surface =
-        Surface::from_initial_surface(initial_surface, physical_device.clone())
+        Surface::from_initial_surface(initial_surface, &physical_device)
             .unwrap();
-    let device = Device::new(physical_device.clone()).unwrap();
-    let command_pool = CommandPool::new(device.clone()).unwrap();
+    let device = Device::new(&instance, &physical_device, &surface).unwrap();
+    let command_pool = CommandPool::new(&physical_device, &device).unwrap();
     Resources::add(instance).unwrap();
     Resources::add(surface).unwrap();
     Resources::add(device).unwrap();

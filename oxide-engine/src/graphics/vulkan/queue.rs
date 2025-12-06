@@ -1,18 +1,22 @@
 use std::sync::Arc;
 
-use crate::graphics::vulkan::{
-    VulkanError, command_buffer::CommandBuffer, device::Device, fence::Fence,
-    semaphore::Semaphore,
+use crate::{
+    graphics::vulkan::{
+        VulkanError, command_buffer::CommandBuffer, device::Device,
+        fence::Fence, semaphore::Semaphore,
+    },
+    resources::Resource,
 };
 
 pub struct Queue {
-    pub device: Arc<Device>,
+    device_id: u32,
     queue: ash::vk::Queue,
 }
 
 #[derive(Debug)]
 pub enum QueueError {
     SubmitError(ash::vk::Result),
+    DeviceMismatch,
 }
 
 impl From<QueueError> for VulkanError {
@@ -20,23 +24,28 @@ impl From<QueueError> for VulkanError {
 }
 
 impl Queue {
-    pub fn present(device: Arc<Device>, family_index: u32) -> Arc<Queue> {
+    pub fn present(device: &Device, family_index: u32) -> Queue {
         let raw_queue = unsafe {
             device.get_device_raw().get_device_queue(family_index, 0)
         };
-        Arc::new(Queue {
-            device,
+        Queue {
+            device_id: device.id(),
             queue: raw_queue,
-        })
+        }
     }
 
     pub fn submit(
         &self,
-        wait_semaphores: &[Arc<Semaphore>],
-        signal_semaphores: &[Arc<Semaphore>],
-        command_buffers: &[Arc<CommandBuffer>],
-        submit_fence: Arc<Fence>,
+        device: &Device,
+        wait_semaphores: &[&Semaphore],
+        signal_semaphores: &[&Semaphore],
+        command_buffers: &[&CommandBuffer],
+        submit_fence: &Fence,
     ) -> Result<(), QueueError> {
+        if device.id() != self.device_id {
+            return Err(QueueError::DeviceMismatch);
+        }
+
         let command_buffers = command_buffers
             .iter()
             .map(|x| *x.get_command_buffer_raw())
@@ -58,18 +67,19 @@ impl Queue {
             .command_buffers(&command_buffers)
             .signal_semaphores(&signal_semaphores);
 
-        if let Err(err) = unsafe {
-            self.device.get_device_raw().queue_submit(
-                self.queue,
-                &[submit_info],
-                *submit_fence.get_fence_raw(),
-            )
-        } {
-            return Err(QueueError::SubmitError(err));
+        unsafe {
+            device
+                .get_device_raw()
+                .queue_submit(
+                    self.queue,
+                    &[submit_info],
+                    *submit_fence.get_fence_raw(),
+                )
+                .map_err(|err| QueueError::SubmitError(err))
         }
-
-        Ok(())
     }
 
     pub fn get_queue_raw(&self) -> &ash::vk::Queue { &self.queue }
+
+    pub fn device_id(&self) -> u32 { self.device_id }
 }

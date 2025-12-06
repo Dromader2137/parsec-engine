@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
 use oxide_engine::{
-    app::App, ecs::{
-        system::{system, SystemTrigger},
-        world::{component::Component, fetch::Mut, query::Query, World},
-    }, graphics::{
+    app::App,
+    ecs::{
+        system::{SystemTrigger, system},
+        world::{World, component::Component, fetch::Mut, query::Query},
+    },
+    graphics::{
+        GraphicsBundle,
         renderer::{
-            assets::mesh::{obj::load_obj, Mesh},
+            assets::mesh::{Mesh, obj::load_obj},
             components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
@@ -14,44 +17,56 @@ use oxide_engine::{
             material_data::{
                 MaterialBase, MaterialData, MaterialDescriptorSets,
             },
-        }, vulkan::{
+        },
+        vulkan::{
             descriptor_set::{
                 DescriptorSetBinding, DescriptorStage, DescriptorType,
             },
             device::Device,
             framebuffer::Framebuffer,
-            shader::{read_shader_code, ShaderModule, ShaderType},
-        }, GraphicsBundle
-    }, input::{
-        key::Noncharacter, Input, InputBundle
-    }, math::{quat::Quat, vec::Vec3f}, resources::Resource, time::{Time, TimeBundle}, utils::id_vec::IdVec
+            renderpass::Renderpass,
+            shader::{ShaderModule, ShaderType, read_shader_code},
+        },
+    },
+    input::{Input, InputBundle, key::Noncharacter},
+    math::{quat::Quat, vec::Vec3f},
+    resources::Resource,
+    time::{Time, TimeBundle},
+    utils::id_vec::IdVec,
 };
 
 #[system]
 fn test_system(
-    device: Resource<Arc<Device>>,
-    framebuffers: Resource<Vec<Arc<Framebuffer>>>,
+    device: Resource<Device>,
+    framebuffers: Resource<Vec<Framebuffer>>,
+    renderpass: Resource<Renderpass>,
     mut materials: Resource<IdVec<MaterialData>>,
+    mut material_bases: Resource<IdVec<MaterialBase>>,
     mut meshes: Resource<IdVec<Mesh>>,
 ) {
     let scale = 0.01;
 
     let vertex = ShaderModule::new(
-        device.clone(),
+        &device,
         &read_shader_code("shaders/simple.spv").unwrap(),
         ShaderType::Vertex,
     )
     .unwrap();
 
     let fragment = ShaderModule::new(
-        device.clone(),
+        &device,
         &read_shader_code("shaders/flat.spv").unwrap(),
         ShaderType::Fragment,
     )
     .unwrap();
 
-    let material_base =
-        MaterialBase::new(framebuffers.to_vec(), vertex, fragment, vec![
+    let material_base = MaterialBase::new(
+        &device,
+        &renderpass,
+        framebuffers.iter().collect(),
+        &vertex,
+        &fragment,
+        vec![
             vec![
                 DescriptorSetBinding::new(
                     0,
@@ -79,22 +94,24 @@ fn test_system(
                 DescriptorType::UNIFORM_BUFFER,
                 DescriptorStage::VERTEX,
             )],
-        ])
-        .unwrap();
+        ],
+    )
+    .unwrap();
 
-    let material = MaterialData::new(material_base, vec![
+    let material = MaterialData::new(&material_base, vec![
         MaterialDescriptorSets::ModelMatrixSet,
         MaterialDescriptorSets::ViewMatrixSet,
         MaterialDescriptorSets::ProjectionMatrixSet,
     ])
     .unwrap();
 
+    material_bases.push(material_base);
     let material_id = materials.push(material);
 
     let mesh = meshes.push(load_obj("sponza.obj").unwrap());
 
     World::spawn((
-        Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
+        Camera::new(40.0_f32.to_radians(), 0.1, 20.0),
         Transform::new(
             Vec3f::UP * 2.5,
             Vec3f::ZERO,
@@ -103,7 +120,7 @@ fn test_system(
         CameraController {
             yaw: 0.0,
             pitch: 0.0,
-            fov: 40.0
+            fov: 40.0,
         },
     ))
     .unwrap();
@@ -123,14 +140,14 @@ fn test_system(
 pub struct CameraController {
     yaw: f32,
     pitch: f32,
-    fov: f32
+    fov: f32,
 }
 
 #[system]
 fn camera_movement(
     mut cameras: Query<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>,
     input: Resource<Input>,
-    time: Resource<Time>
+    time: Resource<Time>,
 ) {
     for (_, (transform, camera, camera_controller)) in cameras.iter() {
         let delta = input.mouse.positon_delta();
@@ -149,22 +166,28 @@ fn camera_movement(
             Quat::from_euler(Vec3f::new(0.0, camera_controller.yaw, 0.0));
         let movement_speed = 5.0;
         if input.keys.is_down("d") {
-            transform.position += Vec3f::FORWARD * rotation * time.delta_time() * movement_speed;
+            transform.position +=
+                Vec3f::FORWARD * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down("s") {
-            transform.position += Vec3f::BACK * rotation * time.delta_time() * movement_speed;
+            transform.position +=
+                Vec3f::BACK * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down("a") {
-            transform.position += Vec3f::LEFT * rotation * time.delta_time() * movement_speed;
+            transform.position +=
+                Vec3f::LEFT * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down("h") {
-            transform.position += Vec3f::RIGHT * rotation * time.delta_time() * movement_speed;
+            transform.position +=
+                Vec3f::RIGHT * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down(Noncharacter::Space) {
-            transform.position += Vec3f::UP * rotation * time.delta_time() * movement_speed;
+            transform.position +=
+                Vec3f::UP * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down(Noncharacter::Shift) {
-            transform.position += Vec3f::DOWN * rotation * time.delta_time() * movement_speed;
+            transform.position +=
+                Vec3f::DOWN * rotation * time.delta_time() * movement_speed;
         }
     }
 }

@@ -141,9 +141,7 @@ impl winit::application::ApplicationHandler for App {
                 let processed_delta = match delta {
                     winit::event::MouseScrollDelta::PixelDelta(
                         winit::dpi::PhysicalPosition { x, y },
-                    ) => {
-                        Vec2f::new(x as f32, y as f32)
-                    },
+                    ) => Vec2f::new(x as f32, y as f32),
                     winit::event::MouseScrollDelta::LineDelta(x, y) => {
                         Vec2f::new(x, y)
                     },

@@ -1,6 +1,9 @@
 //! Module responsible for handling windows.
 
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
@@ -8,6 +11,7 @@ use crate::{graphics::GraphicsError, math::vec::Vec2f};
 
 #[derive(Debug)]
 pub struct WindowWrapper {
+    id: u32,
     window: winit::window::Window,
 }
 
@@ -22,10 +26,12 @@ impl From<WindowError> for GraphicsError {
 }
 
 impl WindowWrapper {
+    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     pub fn new(
         event_loop: &winit::event_loop::ActiveEventLoop,
         name: &str,
-    ) -> Result<Arc<WindowWrapper>, WindowError> {
+    ) -> Result<WindowWrapper, WindowError> {
         let attributes = winit::window::Window::default_attributes()
             .with_transparent(false)
             .with_visible(true)
@@ -38,7 +44,10 @@ impl WindowWrapper {
             },
         };
 
-        Ok(Arc::new(WindowWrapper { window }))
+        let id = Self::ID_COUNTER.load(Ordering::Acquire);
+        Self::ID_COUNTER.store(id + 1, Ordering::Release);
+
+        Ok(WindowWrapper { id, window })
     }
 
     pub fn request_redraw(&self) { self.window.request_redraw(); }
@@ -94,4 +103,6 @@ impl WindowWrapper {
     }
 
     pub fn minimized(&self) -> bool { self.width() <= 0 || self.height() <= 0 }
+
+    pub fn id(&self) -> u32 { self.id }
 }

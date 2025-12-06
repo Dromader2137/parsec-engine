@@ -15,6 +15,7 @@ use crate::{
                 DescriptorSetLayout, DescriptorStage, DescriptorType,
             },
             device::Device,
+            physical_device::PhysicalDevice,
         },
     },
     math::{mat::Matrix4f, quat::Quat, vec::Vec3f},
@@ -26,40 +27,44 @@ pub struct TransformData {
     pub translation_matrix: Matrix4f,
     pub scale_matrix: Matrix4f,
     pub rotation_matrix: Matrix4f,
-    pub translation_buffer: Arc<Buffer>,
-    pub scale_buffer: Arc<Buffer>,
-    pub rotation_buffer: Arc<Buffer>,
-    pub model_set: Arc<DescriptorSet>,
+    pub translation_buffer: Buffer,
+    pub scale_buffer: Buffer,
+    pub rotation_buffer: Buffer,
+    pub model_set: DescriptorSet,
     pub look_at_matrix: Matrix4f,
-    pub look_at_buffer: Arc<Buffer>,
-    pub look_at_set: Arc<DescriptorSet>,
+    pub look_at_buffer: Buffer,
+    pub look_at_set: DescriptorSet,
 }
 
 impl TransformData {
     pub fn new(
-        device: Arc<Device>,
-        descriptor_pool: Arc<DescriptorPool>,
+        physical_device: &PhysicalDevice,
+        device: &Device,
+        descriptor_pool: &DescriptorPool,
         position: Vec3f,
         scale: Vec3f,
         rotation: Quat,
     ) -> Result<TransformData, VulkanError> {
         let translation_matrix = Matrix4f::translation(position);
         let translation_buffer = Buffer::from_vec(
-            device.clone(),
+            physical_device,
+            device,
             &[translation_matrix],
             BufferUsage::UNIFORM_BUFFER,
         )
         .unwrap();
         let scale_matrix = Matrix4f::scale(scale);
         let scale_buffer = Buffer::from_vec(
-            device.clone(),
+            physical_device,
+            device,
             &[scale_matrix],
             BufferUsage::UNIFORM_BUFFER,
         )
         .unwrap();
         let rotation_matrix = rotation.into_matrix();
         let rotation_buffer = Buffer::from_vec(
-            device.clone(),
+            physical_device,
+            device,
             &[rotation_matrix],
             BufferUsage::UNIFORM_BUFFER,
         )
@@ -70,7 +75,8 @@ impl TransformData {
             Vec3f::UP * rotation,
         );
         let look_at_buffer = Buffer::from_vec(
-            device.clone(),
+            physical_device,
+            device,
             &[look_at_matrix],
             BufferUsage::UNIFORM_BUFFER,
         )
@@ -101,16 +107,23 @@ impl TransformData {
             )])
             .unwrap();
         let model_set =
-            DescriptorSet::new(model_set_layout, descriptor_pool.clone())
+            DescriptorSet::new(device, &model_set_layout, descriptor_pool)
                 .unwrap();
         let look_at_set =
-            DescriptorSet::new(look_at_set_layout, descriptor_pool).unwrap();
+            DescriptorSet::new(device, &look_at_set_layout, descriptor_pool)
+                .unwrap();
         model_set
-            .bind_buffer(translation_buffer.clone(), 0)
+            .bind_buffer(&translation_buffer, device, &model_set_layout, 0)
             .unwrap();
-        model_set.bind_buffer(scale_buffer.clone(), 1).unwrap();
-        model_set.bind_buffer(rotation_buffer.clone(), 2).unwrap();
-        look_at_set.bind_buffer(look_at_buffer.clone(), 0).unwrap();
+        model_set
+            .bind_buffer(&scale_buffer, device, &model_set_layout, 1)
+            .unwrap();
+        model_set
+            .bind_buffer(&rotation_buffer, device, &model_set_layout, 2)
+            .unwrap();
+        look_at_set
+            .bind_buffer(&look_at_buffer, device, &model_set_layout, 0)
+            .unwrap();
         Ok(TransformData {
             translation_matrix,
             scale_matrix,
@@ -125,28 +138,34 @@ impl TransformData {
         })
     }
 
-    fn update_buffers_from_data(&mut self) -> Result<(), VulkanError> {
+    fn update_buffers_from_data(
+        &mut self,
+        device: &Device,
+    ) -> Result<(), VulkanError> {
         self.translation_buffer
-            .update(vec![self.translation_matrix])?;
-        self.scale_buffer.update(vec![self.scale_matrix])?;
-        self.rotation_buffer.update(vec![self.rotation_matrix])?;
-        self.look_at_buffer.update(vec![self.look_at_matrix])?;
+            .update(device, &[self.translation_matrix])?;
+        self.scale_buffer.update(device, &[self.scale_matrix])?;
+        self.rotation_buffer
+            .update(device, &[self.rotation_matrix])?;
+        self.look_at_buffer.update(device, &[self.look_at_matrix])?;
         Ok(())
     }
 }
 
 #[system]
 fn add_transform_data(
-    device: Resource<Arc<Device>>,
-    descriptor_pool: Resource<Arc<DescriptorPool>>,
+    physical_device: Resource<PhysicalDevice>,
+    device: Resource<Device>,
+    descriptor_pool: Resource<DescriptorPool>,
     mut transforms_data: Resource<IdVec<TransformData>>,
     mut transforms: Query<Mut<Transform>>,
 ) {
     for (_, transform) in transforms.iter() {
         if transform.data_id.is_none() {
             let transform_data = TransformData::new(
-                device.clone(),
-                descriptor_pool.clone(),
+                &physical_device,
+                &device,
+                &descriptor_pool,
                 transform.position,
                 transform.scale,
                 transform.rotation,
@@ -161,6 +180,7 @@ fn add_transform_data(
 
 #[system]
 fn update_transform_data(
+    device: Resource<Device>,
     mut transforms_data: Resource<IdVec<TransformData>>,
     mut transforms: Query<Transform>,
 ) {
@@ -177,6 +197,6 @@ fn update_transform_data(
             Vec3f::FORWARD * transform.rotation,
             Vec3f::UP * transform.rotation,
         );
-        data.update_buffers_from_data().unwrap();
+        data.update_buffers_from_data(&device).unwrap();
     }
 }

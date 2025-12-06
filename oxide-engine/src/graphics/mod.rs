@@ -69,12 +69,10 @@ impl SystemBundle for GraphicsBundle {
 }
 
 #[system]
-fn request_redraw(window: Resource<Arc<WindowWrapper>>) {
-    window.request_redraw();
-}
+fn request_redraw(window: Resource<WindowWrapper>) { window.request_redraw(); }
 
 #[system]
-fn end_wait_idle(device: Resource<Arc<Device>>) { device.wait_idle().unwrap() }
+fn end_wait_idle(device: Resource<Device>) { device.wait_idle().unwrap() }
 
 #[system]
 fn init_window() {
