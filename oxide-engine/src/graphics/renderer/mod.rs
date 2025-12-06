@@ -1,6 +1,6 @@
 //! The built-in renderer.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::{Duration, SystemTime}};
 
 pub mod assets;
 pub mod camera_data;
@@ -163,6 +163,7 @@ pub fn init_renderer(
     let swapchain_images = Resources::add(swapchain_images).unwrap();
 
     let frames_in_flight = 2.min(swapchain_images.len()).max(1);
+    let frames_in_flight = 1;
     let frames_in_flight =
         Resources::add(FramesInFlight(frames_in_flight)).unwrap();
 
@@ -229,17 +230,28 @@ fn recreate_size_dependent_components(
 }
 
 #[system]
-pub fn prepare_render(
+pub fn render(
     instance: Resource<Instance>,
     surface: Resource<Surface>,
-    device: Resource<Device>,
     physical_device: Resource<PhysicalDevice>,
     window: Resource<WindowWrapper>,
-    renderpass: Resource<Renderpass>,
-    swapchain: Resource<Swapchain>,
     mut current_frame: Resource<RendererCurrentFrame>,
     frame_sync: Resource<Vec<VulkanRendererFrameSync>>,
+    image_sync: Resource<Vec<VulkanRendererImageSync>>,
     mut resize: Resource<RendererResizeFlag>,
+    swapchain: Resource<Swapchain>,
+    command_buffers: Resource<Vec<CommandBuffer>>,
+    framebuffers: Resource<Vec<Framebuffer>>,
+    draw_queue: Resource<Vec<Draw>>,
+    graphics_queue: Resource<Queue>,
+    frames_in_flight: Resource<FramesInFlight>,
+    meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
+    materials_data: Resource<IdVec<MaterialData>>,
+    materials_base: Resource<IdVec<MaterialBase>>,
+    transforms_data: Resource<IdVec<TransformData>>,
+    cameras_data: Resource<IdVec<CameraData>>,
+    device: Resource<Device>,
+    renderpass: Resource<Renderpass>,
 ) {
     *current_frame = {
         frame_sync[current_frame.0]
@@ -266,28 +278,7 @@ pub fn prepare_render(
         .unwrap();
         *resize = RendererResizeFlag(false)
     }
-}
 
-#[system]
-pub fn render(
-    mut current_frame: Resource<RendererCurrentFrame>,
-    frame_sync: Resource<Vec<VulkanRendererFrameSync>>,
-    image_sync: Resource<Vec<VulkanRendererImageSync>>,
-    mut resize: Resource<RendererResizeFlag>,
-    swapchain: Resource<Swapchain>,
-    command_buffers: Resource<Vec<CommandBuffer>>,
-    framebuffers: Resource<Vec<Framebuffer>>,
-    draw_queue: Resource<Vec<Draw>>,
-    graphics_queue: Resource<Queue>,
-    frames_in_flight: Resource<FramesInFlight>,
-    meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
-    materials_data: Resource<IdVec<MaterialData>>,
-    materials_base: Resource<IdVec<MaterialBase>>,
-    transforms_data: Resource<IdVec<TransformData>>,
-    cameras_data: Resource<IdVec<CameraData>>,
-    device: Resource<Device>,
-    renderpass: Resource<Renderpass>,
-) {
     let present_index = {
         let (present_index, suboptimal) = swapchain
             .acquire_next_image(

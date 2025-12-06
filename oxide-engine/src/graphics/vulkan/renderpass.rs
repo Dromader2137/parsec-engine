@@ -41,7 +41,7 @@ impl Renderpass {
                 ..Default::default()
             },
             ash::vk::AttachmentDescription {
-                format: ash::vk::Format::D16_UNORM,
+                format: ash::vk::Format::D32_SFLOAT,
                 samples: ash::vk::SampleCountFlags::TYPE_1,
                 load_op: ash::vk::AttachmentLoadOp::CLEAR,
                 store_op: ash::vk::AttachmentStoreOp::DONT_CARE,

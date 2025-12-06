@@ -12,7 +12,7 @@ use crate::{
     },
     graphics::{
         renderer::{
-            InitRenderer, PrepareRender, QueueClear, Render,
+            InitRenderer, QueueClear, Render,
             assets::mesh::Mesh,
             camera_data::{AddCameraData, UpdateCameraData},
             components::{
@@ -54,7 +54,6 @@ impl SystemBundle for GraphicsBundle {
             (SystemTrigger::Render, UpdateCameraData::new()),
             (SystemTrigger::Render, UpdateTransformData::new()),
             (SystemTrigger::Render, AutoEnqueue::new()),
-            (SystemTrigger::Render, PrepareRender::new()),
             (SystemTrigger::Render, Render::new()),
             (SystemTrigger::Render, QueueClear::new()),
             (SystemTrigger::Update, RequestRedraw::new()),

@@ -59,14 +59,14 @@ pub fn init_renderer_images(
     };
 
     let depth_image = OwnedImage::new(physical_device, device, ImageInfo {
-        format: ImageFormat::D16_UNORM,
+        format: ImageFormat::D32_SFLOAT,
         size: (window.width(), window.height()),
         usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
     })?;
     let depth_view = ImageView::from_image(
         device,
         &depth_image,
-        ImageFormat::D16_UNORM,
+        ImageFormat::D32_SFLOAT,
         ImageAspectFlags::DEPTH,
     )?;
 
@@ -133,7 +133,7 @@ pub fn recreate_renderer_images(
     let depth_view = ImageView::from_image(
         device,
         &depth_image,
-        ImageFormat::D16_UNORM,
+        ImageFormat::D32_SFLOAT,
         ImageAspectFlags::DEPTH,
     )?;
 
