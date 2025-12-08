@@ -118,7 +118,7 @@ impl Swapchain {
             .cloned()
             .find(|&mode| mode == ash::vk::PresentModeKHR::MAILBOX)
             .unwrap_or(ash::vk::PresentModeKHR::FIFO);
-
+        
         let swapchain_loader = ash::khr::swapchain::Device::new(
             instance.get_instance_raw(),
             device.get_device_raw(),

@@ -279,14 +279,27 @@ pub fn render(
     }
 
     let present_index = {
-        let (present_index, suboptimal) = swapchain
-            .acquire_next_image(
-                &frame_sync[current_frame.0]
-                    .image_available_semaphore
-                    .clone(),
-                &Fence::null(&device),
-            )
-            .unwrap();
+        let (present_index, suboptimal) = match swapchain.acquire_next_image(
+            &frame_sync[current_frame.0]
+                .image_available_semaphore
+                .clone(),
+            &Fence::null(&device),
+        ) {
+            Ok(val) => val,
+            Err(_) => {
+                recreate_size_dependent_components(
+                    &instance,
+                    &surface,
+                    &device,
+                    &physical_device,
+                    &window,
+                    &renderpass,
+                    &swapchain,
+                )
+                .unwrap();
+                return;
+            },
+        };
         resize.0 |= suboptimal;
         frame_sync[current_frame.0]
             .command_buffer_fence
@@ -359,7 +372,7 @@ pub fn render(
             present_index as u32,
         )
         .unwrap();
-    
+
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
 }
 
