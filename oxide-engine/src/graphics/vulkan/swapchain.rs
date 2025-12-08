@@ -78,12 +78,11 @@ impl Swapchain {
             }
         }
 
-        let mut desired_image_count = surface.min_image_count() + 1;
-        if surface.max_image_count() > 0
-            && desired_image_count > surface.max_image_count()
-        {
-            desired_image_count = surface.max_image_count()
+        let mut desired_image_count = surface.max_image_count();
+        if surface.max_image_count() == 0 {
+            desired_image_count = surface.min_image_count()
         }
+        println!("{}", desired_image_count);
 
         let surface_resolution = {
             let size = window.size();
