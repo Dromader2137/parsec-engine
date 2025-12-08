@@ -1,6 +1,6 @@
 //! The built-in renderer.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::SystemTime};
 
 pub mod assets;
 pub mod camera_data;
@@ -162,7 +162,7 @@ pub fn init_renderer(
     Resources::add(swapchain).unwrap();
     let swapchain_images = Resources::add(swapchain_images).unwrap();
 
-    let frames_in_flight = swapchain_images.len().max(1);
+    let frames_in_flight = 2.min(swapchain_images.len()).max(1);
     let frames_in_flight =
         Resources::add(FramesInFlight(frames_in_flight)).unwrap();
 
@@ -359,7 +359,7 @@ pub fn render(
             present_index as u32,
         )
         .unwrap();
-
+    
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
 }
 

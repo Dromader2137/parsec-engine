@@ -1,6 +1,6 @@
 //! Module responsible for systems management.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug, time::SystemTime};
 
 /// List of possible actions a system can run on.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -35,7 +35,38 @@ pub enum SystemTrigger {
 
 /// Stores all systems groped by [`SystemTrigger`].
 pub struct Systems {
-    systems: HashMap<SystemTrigger, Vec<Box<dyn System>>>,
+    systems: HashMap<SystemTrigger, Vec<(Box<dyn System>, SystemStats)>>,
+}
+
+impl Debug for Systems {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut builder = f
+            .debug_struct("Systems");
+        
+        for systems_by_trig in self.systems.iter() {
+            for system in systems_by_trig.1.iter() {
+                builder
+                    .field(system.0.name(), &system.1);
+            }
+        }
+
+        builder.finish()
+    }
+}
+
+#[derive(Debug)]
+pub struct SystemStats {
+    pub times_called: u32,
+    pub total_time: f64,
+    pub min_time: f64,
+    pub max_time: f64,
+    pub avg_time: f64,
+}
+
+impl Default for SystemStats {
+    fn default() -> Self {
+        SystemStats { times_called: 0, total_time: 0.0, min_time: 1000.0, max_time: 0.0, avg_time: 0.0 }
+    }
 }
 
 impl Systems {
@@ -48,7 +79,7 @@ impl Systems {
     fn get_systems_by_trigger(
         &mut self,
         system_trigger: SystemTrigger,
-    ) -> &mut Vec<Box<dyn System>> {
+    ) -> &mut Vec<(Box<dyn System>, SystemStats)> {
         self.systems.entry(system_trigger).or_insert(Vec::new())
     }
 
@@ -59,22 +90,36 @@ impl Systems {
         system: Box<dyn System>,
     ) {
         let system_vec = self.get_systems_by_trigger(system_trigger);
-        system_vec.push(system);
+        system_vec.push((system, SystemStats::default()));
     }
 
     /// Registers an entire [SystemBundle].
     pub fn add_bundle(&mut self, bundle: impl SystemBundle) {
         for system in bundle.systems() {
             let system_vec = self.get_systems_by_trigger(system.0);
-            system_vec.push(system.1);
+            system_vec.push((system.1, SystemStats::default()));
         }
     }
 
     /// Executes all the systems registered for trigger `system_type`.
     pub fn execute_type(&mut self, system_type: SystemTrigger) {
         if let Some(systems) = self.systems.get_mut(&system_type) {
-            for system in systems.iter_mut() {
+            for (system, stats) in systems.iter_mut() {
+                // let timer = SystemTime::now();
                 system.run();
+                // let duration = (SystemTime::now()
+                //     .duration_since(timer)
+                //     .unwrap()
+                //     .as_micros() as f64)
+                //     / 1000.0;
+                stats.times_called += 1;
+                if stats.times_called < 25 {
+                    continue;
+                }
+                // stats.total_time += duration;
+                // stats.min_time = stats.min_time.min(duration);
+                // stats.max_time = stats.max_time.max(duration);
+                // stats.avg_time = stats.total_time / stats.times_called as f64;
             }
         }
     }
@@ -92,6 +137,7 @@ pub trait SystemInput {
 
 /// Marks a type that is a system. Implemented using the [`system`] macro.
 pub trait System: Send + Sync {
+    fn name(&self) -> &'static str;
     fn run(&mut self);
 }
 

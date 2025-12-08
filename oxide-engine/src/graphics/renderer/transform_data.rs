@@ -13,7 +13,6 @@ use crate::{
                 DescriptorSetLayout, DescriptorStage, DescriptorType,
             },
             device::Device,
-            physical_device::PhysicalDevice,
         },
     },
     math::{mat::Matrix4f, quat::Quat, vec::Vec3f},

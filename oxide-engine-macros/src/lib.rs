@@ -2,7 +2,7 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::Span;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use syn::{
     DeriveInput, FnArg, Ident, ItemFn, LitInt, Pat, PatType, Token,
     parse::{Parse, ParseStream, Result},
@@ -195,6 +195,7 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let fn_name = &input_fn.sig.ident;
     let struct_name =
         format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
+    let struct_name_str = struct_name.to_token_stream().to_string();
 
     let found_crate = crate_name("oxide-engine")
         .expect("oxide-engine is present in `Cargo.toml`");
@@ -262,6 +263,10 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         impl #engine_crate::ecs::system::System for #struct_name {
+            fn name(&self) -> &'static str {
+                #struct_name_str
+            }
+
             fn run(&mut self) {
                 #(#borrows)*
                 #fn_name( #(#argument_names),* );
