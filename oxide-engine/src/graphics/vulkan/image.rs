@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{
     VulkanError, buffer::find_memorytype_index, device::Device,
-    format_size::format_size, physical_device::PhysicalDevice,
+    format_size::format_size,
 };
 
 pub trait Image: Send + Sync + 'static {
@@ -137,14 +137,9 @@ impl SwapchainImage {
 
 impl OwnedImage {
     pub fn new(
-        physical_device: &PhysicalDevice,
         device: &Device,
         create_info: ImageInfo,
     ) -> Result<OwnedImage, ImageError> {
-        if physical_device.id() != device.physical_device_id() {
-            return Err(ImageError::PhysicalDeviceMismatch);
-        }
-
         let size = create_info.size;
         let format = create_info.format;
 
@@ -162,7 +157,7 @@ impl OwnedImage {
         let memory_index = match find_memorytype_index(
             &memory_req,
             ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            physical_device,
+            device,
         ) {
             Some(val) => val,
             None => return Err(ImageError::UnableToFindSuitableMemory),

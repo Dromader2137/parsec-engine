@@ -10,7 +10,6 @@ use crate::{
             command_buffer::CommandBuffer,
             device::Device,
             graphics_pipeline::Vertex,
-            physical_device::PhysicalDevice,
         },
     },
     resources::Resource,
@@ -25,20 +24,17 @@ pub struct MeshBuffer<V: Vertex> {
 
 impl<V: Vertex> MeshBuffer<V> {
     pub fn new(
-        physical_device: &PhysicalDevice,
         device: &Device,
         vertices: &[V],
         indices: &[u32],
     ) -> Result<MeshBuffer<V>, VulkanError> {
         Ok(MeshBuffer {
             vertex_buffer: Buffer::from_vec(
-                physical_device,
                 device,
                 vertices,
                 BufferUsage::VERTEX_BUFFER,
             )?,
             index_buffer: Buffer::from_vec(
-                physical_device,
                 device,
                 indices,
                 BufferUsage::INDEX_BUFFER,
@@ -70,13 +66,12 @@ pub struct MeshData<V: Vertex> {
 
 impl<V: Vertex> MeshData<V> {
     pub fn new(
-        physical_device: &PhysicalDevice,
         device: &Device,
         vertices: &[V],
         indices: &[u32],
     ) -> Result<MeshData<V>, VulkanError> {
         let buffer =
-            MeshBuffer::new(physical_device, device, vertices, indices)?;
+            MeshBuffer::new(device, vertices, indices)?;
         Ok(MeshData { buffer })
     }
 
@@ -91,7 +86,6 @@ impl<V: Vertex> MeshData<V> {
 
 #[system]
 fn add_mesh_data(
-    physical_device: Resource<PhysicalDevice>,
     device: Resource<Device>,
     mut meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
     mut meshes: Resource<IdVec<Mesh>>,
@@ -99,7 +93,6 @@ fn add_mesh_data(
     for mesh in meshes.iter_mut() {
         if mesh.data_id.is_none() {
             let mesh_data = MeshData::new(
-                &physical_device,
                 &device,
                 &mesh.vertices,
                 &mesh.indices,

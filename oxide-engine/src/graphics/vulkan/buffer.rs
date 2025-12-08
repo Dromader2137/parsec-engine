@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::graphics::vulkan::{
-    VulkanError, device::Device, physical_device::PhysicalDevice,
+    VulkanError, device::Device,
 };
 
 #[allow(unused)]
@@ -36,7 +36,6 @@ pub enum BufferError {
     MapError(ash::vk::Result),
     SizaMismatch,
     LenMismatch,
-    PhysicalDeviceMismatch,
     DeviceMismatch,
 }
 
@@ -50,15 +49,10 @@ impl Buffer {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn from_vec<T: Clone + Copy>(
-        physical_device: &PhysicalDevice,
         device: &Device,
         data: &[T],
         usage: BufferUsage,
     ) -> Result<Buffer, BufferError> {
-        if physical_device.id() != device.physical_device_id() {
-            return Err(BufferError::PhysicalDeviceMismatch);
-        }
-
         let size = data.len() * size_of::<T>();
 
         let index_buffer_info = ash::vk::BufferCreateInfo::default()
@@ -84,7 +78,7 @@ impl Buffer {
             &memory_req,
             ash::vk::MemoryPropertyFlags::HOST_VISIBLE
                 | ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            physical_device,
+            device,
         ) {
             Some(val) => val,
             None => return Err(BufferError::UnableToFindSuitableMemory),
@@ -204,9 +198,9 @@ impl Buffer {
 pub fn find_memorytype_index(
     memory_req: &ash::vk::MemoryRequirements,
     flags: ash::vk::MemoryPropertyFlags,
-    physical_device: &PhysicalDevice,
+    device: &Device,
 ) -> Option<u32> {
-    let memory_prop = physical_device.physical_memory_properties();
+    let memory_prop = device.memory_properties();
     memory_prop.memory_types[..memory_prop.memory_type_count as _]
         .iter()
         .enumerate()

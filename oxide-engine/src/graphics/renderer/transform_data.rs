@@ -36,7 +36,6 @@ pub struct TransformData {
 
 impl TransformData {
     pub fn new(
-        physical_device: &PhysicalDevice,
         device: &Device,
         descriptor_pool: &DescriptorPool,
         position: Vec3f,
@@ -45,7 +44,6 @@ impl TransformData {
     ) -> Result<TransformData, VulkanError> {
         let translation_matrix = Matrix4f::translation(position);
         let translation_buffer = Buffer::from_vec(
-            physical_device,
             device,
             &[translation_matrix],
             BufferUsage::UNIFORM_BUFFER,
@@ -53,7 +51,6 @@ impl TransformData {
         .unwrap();
         let scale_matrix = Matrix4f::scale(scale);
         let scale_buffer = Buffer::from_vec(
-            physical_device,
             device,
             &[scale_matrix],
             BufferUsage::UNIFORM_BUFFER,
@@ -61,7 +58,6 @@ impl TransformData {
         .unwrap();
         let rotation_matrix = rotation.into_matrix();
         let rotation_buffer = Buffer::from_vec(
-            physical_device,
             device,
             &[rotation_matrix],
             BufferUsage::UNIFORM_BUFFER,
@@ -73,7 +69,6 @@ impl TransformData {
             Vec3f::UP * rotation,
         );
         let look_at_buffer = Buffer::from_vec(
-            physical_device,
             device,
             &[look_at_matrix],
             BufferUsage::UNIFORM_BUFFER,
@@ -152,7 +147,6 @@ impl TransformData {
 
 #[system]
 fn add_transform_data(
-    physical_device: Resource<PhysicalDevice>,
     device: Resource<Device>,
     descriptor_pool: Resource<DescriptorPool>,
     mut transforms_data: Resource<IdVec<TransformData>>,
@@ -161,7 +155,6 @@ fn add_transform_data(
     for (_, transform) in transforms.iter() {
         if transform.data_id.is_none() {
             let transform_data = TransformData::new(
-                &physical_device,
                 &device,
                 &descriptor_pool,
                 transform.position,

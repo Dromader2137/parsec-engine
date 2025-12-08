@@ -13,7 +13,6 @@ use crate::{
                 DescriptorSetLayout, DescriptorStage, DescriptorType,
             },
             device::Device,
-            physical_device::PhysicalDevice,
         },
         window::WindowWrapper,
     },
@@ -31,7 +30,6 @@ pub struct CameraData {
 impl CameraData {
     pub fn new(
         window: &WindowWrapper,
-        physical_device: &PhysicalDevice,
         device: &Device,
         descriptor_pool: &DescriptorPool,
         vfov: f32,
@@ -41,7 +39,6 @@ impl CameraData {
         let projection_matrix =
             Matrix4f::perspective(vfov, window.aspect_ratio(), near, far);
         let projection_buffer = Buffer::from_vec(
-            physical_device,
             device,
             &[projection_matrix],
             BufferUsage::UNIFORM_BUFFER,
@@ -71,7 +68,6 @@ impl CameraData {
 #[system]
 fn add_camera_data(
     window: Resource<WindowWrapper>,
-    physical_device: Resource<PhysicalDevice>,
     device: Resource<Device>,
     descriptor_pool: Resource<DescriptorPool>,
     mut cameras_data: Resource<IdVec<CameraData>>,
@@ -81,7 +77,6 @@ fn add_camera_data(
         if camera.data_id.is_none() {
             let camera_data = CameraData::new(
                 &window,
-                &physical_device,
                 &device,
                 &descriptor_pool,
                 camera.vertical_fov,

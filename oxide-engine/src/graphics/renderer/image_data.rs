@@ -58,7 +58,7 @@ pub fn init_renderer_images(
         out
     };
 
-    let depth_image = OwnedImage::new(physical_device, device, ImageInfo {
+    let depth_image = OwnedImage::new(device, ImageInfo {
         format: ImageFormat::D32_SFLOAT,
         size: (window.width(), window.height()),
         usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
@@ -125,7 +125,7 @@ pub fn recreate_renderer_images(
         out
     };
 
-    let depth_image = OwnedImage::new(physical_device, device, ImageInfo {
+    let depth_image = OwnedImage::new(device, ImageInfo {
         format: ImageFormat::D32_SFLOAT,
         size: (window.width(), window.height()),
         usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,

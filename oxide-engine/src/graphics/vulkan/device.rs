@@ -10,6 +10,7 @@ pub struct Device {
     physical_device_id: u32,
     surface_id: u32,
     device: ash::Device,
+    memory_properties: ash::vk::PhysicalDeviceMemoryProperties
 }
 
 #[derive(Debug)]
@@ -72,6 +73,7 @@ impl Device {
             physical_device_id: physical_device.id(),
             surface_id: surface.id(),
             device,
+            memory_properties: physical_device.physical_memory_properties()
         })
     }
 
@@ -89,4 +91,8 @@ impl Device {
     pub fn physical_device_id(&self) -> u32 { self.physical_device_id }
 
     pub fn surface_id(&self) -> u32 { self.surface_id }
+
+    pub fn memory_properties(&self) -> ash::vk::PhysicalDeviceMemoryProperties {
+        self.memory_properties
+    }
 }
