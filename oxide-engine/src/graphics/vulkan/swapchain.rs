@@ -116,7 +116,7 @@ impl Swapchain {
         let present_mode = present_modes
             .iter()
             .cloned()
-            .find(|&mode| mode == ash::vk::PresentModeKHR::MAILBOX)
+            .find(|&mode| mode == ash::vk::PresentModeKHR::IMMEDIATE)
             .unwrap_or(ash::vk::PresentModeKHR::FIFO);
         
         let swapchain_loader = ash::khr::swapchain::Device::new(
