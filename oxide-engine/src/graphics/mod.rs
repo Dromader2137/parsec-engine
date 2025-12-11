@@ -12,16 +12,10 @@ use crate::{
     },
     graphics::{
         renderer::{
-            InitRenderer, QueueClear, Render,
-            assets::mesh::Mesh,
-            camera_data::{AddCameraData, UpdateCameraData},
-            components::{
+            InitRenderer, QueueClear, Render, RendererResizeFlag, assets::mesh::Mesh, camera_data::{AddCameraData, UpdateCameraData}, components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            },
-            draw_queue::{Draw, MeshAndMaterial},
-            mesh_data::AddMeshData,
-            transform_data::{AddTransformData, UpdateTransformData},
+            }, draw_queue::{Draw, MeshAndMaterial}, mesh_data::AddMeshData, transform_data::{AddTransformData, UpdateTransformData}
         },
         vulkan::{context::InitVulkan, device::Device},
     },
@@ -61,9 +55,13 @@ impl SystemBundle for GraphicsBundle {
             (SystemTrigger::Update, AddMeshData::new()),
             (SystemTrigger::Update, AddTransformData::new()),
             (SystemTrigger::End, EndWaitIdle::new()),
+            (SystemTrigger::WindowResized, MarkResize::new()),
         ]
     }
 }
+
+#[system]
+fn mark_resize(mut resize: Resource<RendererResizeFlag>) { resize.0 = true }
 
 #[system]
 fn request_redraw(window: Resource<WindowWrapper>) { window.request_redraw(); }

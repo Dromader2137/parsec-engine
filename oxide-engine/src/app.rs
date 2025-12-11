@@ -157,7 +157,6 @@ impl winit::application::ApplicationHandler for App {
                 ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);
                 self.systems.execute_type(SystemTrigger::End);
                 event_loop.exit();
-                println!("{:#?}", self.systems);
             },
             winit::event::WindowEvent::RedrawRequested => {
                 self.systems.execute_type(SystemTrigger::Render);

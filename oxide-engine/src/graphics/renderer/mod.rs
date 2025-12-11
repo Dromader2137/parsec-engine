@@ -52,7 +52,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct RendererResizeFlag(bool);
+pub struct RendererResizeFlag(pub bool);
 #[derive(Debug, Clone, Copy)]
 pub struct RendererCurrentFrame(usize);
 #[derive(Debug, Clone, Copy)]
@@ -162,7 +162,7 @@ pub fn init_renderer(
     Resources::add(swapchain).unwrap();
     let swapchain_images = Resources::add(swapchain_images).unwrap();
 
-    let frames_in_flight = 2.min(swapchain_images.len()).max(1);
+    let frames_in_flight = 2.min(swapchain_images.len() - 1).max(1);
     let frames_in_flight =
         Resources::add(FramesInFlight(frames_in_flight)).unwrap();
 
@@ -212,6 +212,7 @@ fn recreate_size_dependent_components(
     swapchain: &Swapchain,
 ) -> Result<(), VulkanError> {
     device.wait_idle()?;
+
     let (swapchain, swapchain_images) = recreate_renderer_images(
         instance,
         physical_device,
@@ -275,7 +276,8 @@ pub fn render(
             &swapchain,
         )
         .unwrap();
-        *resize = RendererResizeFlag(false)
+        resize.0 = false;
+        return;
     }
 
     let present_index = {
@@ -287,16 +289,7 @@ pub fn render(
         ) {
             Ok(val) => val,
             Err(_) => {
-                recreate_size_dependent_components(
-                    &instance,
-                    &surface,
-                    &device,
-                    &physical_device,
-                    &window,
-                    &renderpass,
-                    &swapchain,
-                )
-                .unwrap();
+                resize.0 = true;
                 return;
             },
         };
@@ -365,13 +358,14 @@ pub fn render(
         )
         .unwrap();
 
-    swapchain
+    if let Err(err) = swapchain
         .present(
             &graphics_queue,
             &[&image_sync[present_index].rendering_complete_semaphore],
             present_index as u32,
-        )
-        .unwrap();
+        ) {
+        resize.0 = true;
+    }
 
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
 }
