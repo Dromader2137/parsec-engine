@@ -6,42 +6,44 @@ use crate::graphics::{
     },
     vulkan::{
         VulkanError,
-        command_buffer::CommandBuffer,
-        descriptor_set::{DescriptorSetBinding, DescriptorSetLayout},
-        device::Device,
-        framebuffer::Framebuffer,
-        graphics_pipeline::GraphicsPipeline,
-        renderpass::Renderpass,
-        shader::ShaderModule,
+        command_buffer::VulkanCommandBuffer,
+        descriptor_set::{
+            VulkanDescriptorSetBinding, VulkanDescriptorSetLayout,
+        },
+        device::VulkanDevice,
+        framebuffer::VulkanFramebuffer,
+        graphics_pipeline::VulkanGraphicsPipeline,
+        renderpass::VulkanRenderpass,
+        shader::VulkanShaderModule,
     },
 };
 
 pub struct MaterialBase {
     id: u32,
-    pipeline: GraphicsPipeline,
+    pipeline: VulkanGraphicsPipeline,
     #[allow(unused)]
-    descriptor_set_layouts: Vec<DescriptorSetLayout>,
+    descriptor_set_layouts: Vec<VulkanDescriptorSetLayout>,
 }
 
 impl MaterialBase {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        device: &Device,
-        renderpass: &Renderpass,
-        framebuffers: Vec<&Framebuffer>,
-        vertex_shader: &ShaderModule,
-        fragment_shader: &ShaderModule,
-        layout: Vec<Vec<DescriptorSetBinding>>,
+        device: &VulkanDevice,
+        renderpass: &VulkanRenderpass,
+        framebuffers: Vec<&VulkanFramebuffer>,
+        vertex_shader: &VulkanShaderModule,
+        fragment_shader: &VulkanShaderModule,
+        layout: Vec<Vec<VulkanDescriptorSetBinding>>,
     ) -> Result<MaterialBase, VulkanError> {
         let mut descriptor_set_layouts = Vec::new();
 
         for bindings in layout {
             descriptor_set_layouts
-                .push(DescriptorSetLayout::new(&device, bindings)?);
+                .push(VulkanDescriptorSetLayout::new(&device, bindings)?);
         }
 
-        let pipeline = GraphicsPipeline::new::<DefaultVertex>(
+        let pipeline = VulkanGraphicsPipeline::new::<DefaultVertex>(
             device,
             renderpass,
             &framebuffers[0],
@@ -88,9 +90,9 @@ impl MaterialData {
 
     pub fn bind(
         &self,
-        device: &Device,
+        device: &VulkanDevice,
         material_base: &MaterialBase,
-        command_buffer: &CommandBuffer,
+        command_buffer: &VulkanCommandBuffer,
         camera: &CameraData,
         camera_transform: &TransformData,
         transform: &TransformData,

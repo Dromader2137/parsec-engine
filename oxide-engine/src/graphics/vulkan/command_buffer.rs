@@ -1,18 +1,19 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{
-    VulkanError, buffer::Buffer, descriptor_set::DescriptorSet, device::Device,
-    framebuffer::Framebuffer, graphics_pipeline::GraphicsPipeline,
-    physical_device::PhysicalDevice, renderpass::Renderpass,
+    VulkanError, buffer::VulkanBuffer, descriptor_set::VulkanDescriptorSet,
+    device::VulkanDevice, framebuffer::VulkanFramebuffer,
+    graphics_pipeline::VulkanGraphicsPipeline,
+    physical_device::VulkanPhysicalDevice, renderpass::VulkanRenderpass,
 };
 
-pub struct CommandPool {
+pub struct VulkanCommandPool {
     id: u32,
     device_id: u32,
     command_pool: ash::vk::CommandPool,
 }
 
-pub struct CommandBuffer {
+pub struct VulkanCommandBuffer {
     id: u32,
     device_id: u32,
     command_pool_id: u32,
@@ -20,7 +21,7 @@ pub struct CommandBuffer {
 }
 
 #[derive(Debug)]
-pub enum CommandBufferError {
+pub enum VulkanCommandBufferError {
     CreationError(ash::vk::Result),
     BeginError(ash::vk::Result),
     EndError(ash::vk::Result),
@@ -32,33 +33,33 @@ pub enum CommandBufferError {
     RenderpassMismatch,
 }
 
-impl From<CommandBufferError> for VulkanError {
-    fn from(value: CommandBufferError) -> Self {
-        VulkanError::CommandBufferError(value)
+impl From<VulkanCommandBufferError> for VulkanError {
+    fn from(value: VulkanCommandBufferError) -> Self {
+        VulkanError::VulkanCommandBufferError(value)
     }
 }
 
 #[derive(Debug)]
-pub enum CommandPoolError {
+pub enum VulkanCommandPoolError {
     CreationError(ash::vk::Result),
     PhysicalDeviceMismatch,
 }
 
-impl From<CommandPoolError> for VulkanError {
-    fn from(value: CommandPoolError) -> Self {
-        VulkanError::CommandPoolError(value)
+impl From<VulkanCommandPoolError> for VulkanError {
+    fn from(value: VulkanCommandPoolError) -> Self {
+        VulkanError::VulkanCommandPoolError(value)
     }
 }
 
-impl CommandPool {
+impl VulkanCommandPool {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        physical_device: &PhysicalDevice,
-        device: &Device,
-    ) -> Result<CommandPool, CommandPoolError> {
+        physical_device: &VulkanPhysicalDevice,
+        device: &VulkanDevice,
+    ) -> Result<VulkanCommandPool, VulkanCommandPoolError> {
         if physical_device.id() != device.physical_device_id() {
-            return Err(CommandPoolError::PhysicalDeviceMismatch);
+            return Err(VulkanCommandPoolError::PhysicalDeviceMismatch);
         }
 
         let pool_info = ash::vk::CommandPoolCreateInfo::default()
@@ -71,13 +72,13 @@ impl CommandPool {
                 .create_command_pool(&pool_info, None)
         } {
             Ok(val) => val,
-            Err(err) => return Err(CommandPoolError::CreationError(err)),
+            Err(err) => return Err(VulkanCommandPoolError::CreationError(err)),
         };
 
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(CommandPool {
+        Ok(VulkanCommandPool {
             id,
             device_id: device.id(),
             command_pool,
@@ -93,15 +94,15 @@ impl CommandPool {
     pub fn device_id(&self) -> u32 { self.device_id }
 }
 
-impl CommandBuffer {
+impl VulkanCommandBuffer {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        device: &Device,
-        command_pool: &CommandPool,
-    ) -> Result<CommandBuffer, CommandBufferError> {
+        device: &VulkanDevice,
+        command_pool: &VulkanCommandPool,
+    ) -> Result<VulkanCommandBuffer, VulkanCommandBufferError> {
         if device.id() != command_pool.device_id() {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         let create_info = ash::vk::CommandBufferAllocateInfo::default()
@@ -115,13 +116,15 @@ impl CommandBuffer {
                 .allocate_command_buffers(&create_info)
         } {
             Ok(val) => val,
-            Err(err) => return Err(CommandBufferError::CreationError(err)),
+            Err(err) => {
+                return Err(VulkanCommandBufferError::CreationError(err));
+            },
         }[0];
 
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(CommandBuffer {
+        Ok(VulkanCommandBuffer {
             id,
             device_id: device.id(),
             command_pool_id: command_pool.id(),
@@ -129,9 +132,12 @@ impl CommandBuffer {
         })
     }
 
-    pub fn begin(&self, device: &Device) -> Result<(), CommandBufferError> {
+    pub fn begin(
+        &self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         let begin_info = ash::vk::CommandBufferBeginInfo::default()
@@ -142,15 +148,18 @@ impl CommandBuffer {
                 .get_device_raw()
                 .begin_command_buffer(self.command_buffer, &begin_info)
         } {
-            return Err(CommandBufferError::BeginError(err));
+            return Err(VulkanCommandBufferError::BeginError(err));
         };
 
         Ok(())
     }
 
-    pub fn end(&self, device: &Device) -> Result<(), CommandBufferError> {
+    pub fn end(
+        &self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         if let Err(err) = unsafe {
@@ -158,7 +167,7 @@ impl CommandBuffer {
                 .get_device_raw()
                 .end_command_buffer(self.command_buffer)
         } {
-            return Err(CommandBufferError::EndError(err));
+            return Err(VulkanCommandBufferError::EndError(err));
         };
 
         Ok(())
@@ -166,18 +175,18 @@ impl CommandBuffer {
 
     pub fn begin_renderpass(
         &self,
-        device: &Device,
-        framebuffer: &Framebuffer,
-        renderpass: &Renderpass,
-    ) -> Result<(), CommandBufferError> {
+        device: &VulkanDevice,
+        framebuffer: &VulkanFramebuffer,
+        renderpass: &VulkanRenderpass,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id()
             || self.device_id != renderpass.device_id()
         {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         if renderpass.id() != framebuffer.renderpass_id() {
-            return Err(CommandBufferError::RenderpassMismatch);
+            return Err(VulkanCommandBufferError::RenderpassMismatch);
         }
 
         let clear_values = [
@@ -213,10 +222,10 @@ impl CommandBuffer {
 
     pub fn end_renderpass(
         &self,
-        device: &Device,
-    ) -> Result<(), CommandBufferError> {
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         unsafe {
@@ -230,18 +239,18 @@ impl CommandBuffer {
 
     pub fn set_viewports(
         &self,
-        device: &Device,
-        framebuffer: &Framebuffer,
-        renderpass: &Renderpass,
-    ) -> Result<(), CommandBufferError> {
+        device: &VulkanDevice,
+        framebuffer: &VulkanFramebuffer,
+        renderpass: &VulkanRenderpass,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id()
             || self.device_id != renderpass.device_id()
         {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         if renderpass.id() != framebuffer.renderpass_id() {
-            return Err(CommandBufferError::RenderpassMismatch);
+            return Err(VulkanCommandBufferError::RenderpassMismatch);
         }
 
         let viewports = [ash::vk::Viewport {
@@ -265,18 +274,18 @@ impl CommandBuffer {
 
     pub fn set_scissor(
         &self,
-        device: &Device,
-        framebuffer: &Framebuffer,
-        renderpass: &Renderpass,
-    ) -> Result<(), CommandBufferError> {
+        device: &VulkanDevice,
+        framebuffer: &VulkanFramebuffer,
+        renderpass: &VulkanRenderpass,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id()
             || self.device_id != renderpass.device_id()
         {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         if renderpass.id() != framebuffer.renderpass_id() {
-            return Err(CommandBufferError::RenderpassMismatch);
+            return Err(VulkanCommandBufferError::RenderpassMismatch);
         }
 
         let scissors = [framebuffer.get_extent_raw().into()];
@@ -293,13 +302,13 @@ impl CommandBuffer {
 
     pub fn bind_graphics_pipeline(
         &self,
-        device: &Device,
-        pipeline: &GraphicsPipeline,
-    ) -> Result<(), CommandBufferError> {
+        device: &VulkanDevice,
+        pipeline: &VulkanGraphicsPipeline,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id()
             || self.device_id != pipeline.device_id()
         {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         unsafe {
@@ -315,14 +324,14 @@ impl CommandBuffer {
 
     pub fn draw(
         &self,
-        device: &Device,
+        device: &VulkanDevice,
         vertex_count: u32,
         instance_count: u32,
         first_vertex: u32,
         first_instance: u32,
-    ) -> Result<(), CommandBufferError> {
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         unsafe {
@@ -340,15 +349,15 @@ impl CommandBuffer {
 
     pub fn draw_indexed(
         &self,
-        device: &Device,
+        device: &VulkanDevice,
         index_count: u32,
         instance_count: u32,
         first_index: u32,
         vertex_offset: i32,
         first_instance: u32,
-    ) -> Result<(), CommandBufferError> {
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         unsafe {
@@ -367,11 +376,11 @@ impl CommandBuffer {
 
     pub fn bind_vertex_buffer(
         &self,
-        device: &Device,
-        buffer: &Buffer,
-    ) -> Result<(), CommandBufferError> {
+        device: &VulkanDevice,
+        buffer: &VulkanBuffer,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
         unsafe {
             device.get_device_raw().cmd_bind_vertex_buffers(
@@ -387,11 +396,11 @@ impl CommandBuffer {
 
     pub fn bind_index_buffer(
         &self,
-        device: &Device,
-        buffer: &Buffer,
-    ) -> Result<(), CommandBufferError> {
+        device: &VulkanDevice,
+        buffer: &VulkanBuffer,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         unsafe {
@@ -408,16 +417,16 @@ impl CommandBuffer {
 
     pub fn bind_descriptor_set(
         &self,
-        device: &Device,
-        descriptor_set: &DescriptorSet,
-        pipeline: &GraphicsPipeline,
+        device: &VulkanDevice,
+        descriptor_set: &VulkanDescriptorSet,
+        pipeline: &VulkanGraphicsPipeline,
         set_index: u32,
-    ) -> Result<(), CommandBufferError> {
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id()
             || self.device_id != pipeline.device_id()
             || self.device_id != descriptor_set.device_id()
         {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         unsafe {
@@ -434,9 +443,12 @@ impl CommandBuffer {
         Ok(())
     }
 
-    pub fn reset(&self, device: &Device) -> Result<(), CommandBufferError> {
+    pub fn reset(
+        &self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
-            return Err(CommandBufferError::DeviceMismatch);
+            return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         if let Err(err) = unsafe {
@@ -445,7 +457,7 @@ impl CommandBuffer {
                 ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES,
             )
         } {
-            return Err(CommandBufferError::ResetError(err));
+            return Err(VulkanCommandBufferError::ResetError(err));
         }
 
         Ok(())

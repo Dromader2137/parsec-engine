@@ -7,7 +7,7 @@ use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use crate::{graphics::GraphicsError, math::vec::Vec2f};
 
 #[derive(Debug)]
-pub struct WindowWrapper {
+pub struct Window {
     id: u32,
     window: winit::window::Window,
 }
@@ -22,13 +22,13 @@ impl From<WindowError> for GraphicsError {
     fn from(value: WindowError) -> Self { GraphicsError::WindowError(value) }
 }
 
-impl WindowWrapper {
+impl Window {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
         event_loop: &winit::event_loop::ActiveEventLoop,
         name: &str,
-    ) -> Result<WindowWrapper, WindowError> {
+    ) -> Result<Window, WindowError> {
         let attributes = winit::window::Window::default_attributes()
             .with_transparent(false)
             .with_visible(true)
@@ -44,7 +44,7 @@ impl WindowWrapper {
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(WindowWrapper { id, window })
+        Ok(Window { id, window })
     }
 
     pub fn request_redraw(&self) { self.window.request_redraw(); }

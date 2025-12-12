@@ -3,9 +3,9 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use crate::graphics::{vulkan::VulkanError, window::WindowWrapper};
+use crate::graphics::{vulkan::VulkanError, window::Window};
 
-pub struct Instance {
+pub struct VulkanInstance {
     id: u32,
     entry: ash::Entry,
     instance: ash::Instance,
@@ -14,7 +14,7 @@ pub struct Instance {
 }
 
 #[derive(Debug)]
-pub enum InstanceError {
+pub enum VulkanInstanceError {
     EntryError(ash::LoadingError),
     InstanceCreationError(ash::vk::Result),
     PhysicalDeviceEnumerationError(ash::vk::Result),
@@ -23,8 +23,10 @@ pub enum InstanceError {
     DebugCreationError(ash::vk::Result),
 }
 
-impl From<InstanceError> for VulkanError {
-    fn from(value: InstanceError) -> Self { VulkanError::InstanceError(value) }
+impl From<VulkanInstanceError> for VulkanError {
+    fn from(value: VulkanInstanceError) -> Self {
+        VulkanError::VulkanInstanceError(value)
+    }
 }
 
 unsafe extern "system" fn vulkan_debug_callback(
@@ -59,13 +61,15 @@ unsafe extern "system" fn vulkan_debug_callback(
     }
 }
 
-impl Instance {
+impl VulkanInstance {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
-    pub fn new(window: &WindowWrapper) -> Result<Instance, InstanceError> {
+    pub fn new(
+        window: &Window,
+    ) -> Result<VulkanInstance, VulkanInstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
             Ok(val) => val,
-            Err(err) => return Err(InstanceError::EntryError(err)),
+            Err(err) => return Err(VulkanInstanceError::EntryError(err)),
         };
 
         let app_info = ash::vk::ApplicationInfo::default()
@@ -73,7 +77,9 @@ impl Instance {
 
         let display_handle = match window.raw_display_handle() {
             Ok(val) => val,
-            Err(err) => return Err(InstanceError::DisplayHandleError(err)),
+            Err(err) => {
+                return Err(VulkanInstanceError::DisplayHandleError(err));
+            },
         };
 
         let mut extension_names =
@@ -82,7 +88,9 @@ impl Instance {
             ) {
                 Ok(val) => val,
                 Err(err) => {
-                    return Err(InstanceError::ExtensionEnumerationError(err));
+                    return Err(
+                        VulkanInstanceError::ExtensionEnumerationError(err),
+                    );
                 },
             }
             .to_vec();
@@ -102,12 +110,13 @@ impl Instance {
             .enabled_layer_names(&layers_names_raw)
             .enabled_extension_names(&extension_names);
 
-        let instance = match unsafe {
-            entry.create_instance(&create_info, None)
-        } {
-            Ok(val) => val,
-            Err(err) => return Err(InstanceError::InstanceCreationError(err)),
-        };
+        let instance =
+            match unsafe { entry.create_instance(&create_info, None) } {
+                Ok(val) => val,
+                Err(err) => {
+                    return Err(VulkanInstanceError::InstanceCreationError(err));
+                },
+            };
 
         let debug_utils_loader =
             ash::ext::debug_utils::Instance::new(&entry, &instance);
@@ -132,7 +141,9 @@ impl Instance {
                 } {
                     Ok(val) => Some(val),
                     Err(err) => {
-                        return Err(InstanceError::DebugCreationError(err));
+                        return Err(VulkanInstanceError::DebugCreationError(
+                            err,
+                        ));
                     },
                 }
             },
@@ -142,7 +153,7 @@ impl Instance {
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(Instance {
+        Ok(VulkanInstance {
             id,
             entry,
             instance,
@@ -158,7 +169,7 @@ impl Instance {
     pub fn id(&self) -> u32 { self.id }
 }
 
-impl Drop for Instance {
+impl Drop for VulkanInstance {
     fn drop(&mut self) {
         if let Some(messanger) = self._debug_call_back {
             unsafe {

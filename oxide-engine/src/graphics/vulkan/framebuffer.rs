@@ -4,12 +4,13 @@ use ash::vk::Extent2D;
 
 use crate::graphics::{
     vulkan::{
-        VulkanError, device::Device, image::ImageView, renderpass::Renderpass,
+        VulkanError, device::VulkanDevice, image::VulkanImageView,
+        renderpass::VulkanRenderpass,
     },
-    window::WindowWrapper,
+    window::Window,
 };
 
-pub struct Framebuffer {
+pub struct VulkanFramebuffer {
     id: u32,
     renderpass_id: u32,
     image_view_ids: Vec<u32>,
@@ -18,27 +19,27 @@ pub struct Framebuffer {
 }
 
 #[derive(Debug)]
-pub enum FramebufferError {
+pub enum VulkanFramebufferError {
     CreationError(ash::vk::Result),
     NotFound(u32),
 }
 
-impl From<FramebufferError> for VulkanError {
-    fn from(value: FramebufferError) -> Self {
-        VulkanError::FramebufferError(value)
+impl From<VulkanFramebufferError> for VulkanError {
+    fn from(value: VulkanFramebufferError) -> Self {
+        VulkanError::VulkanFramebufferError(value)
     }
 }
 
-impl Framebuffer {
+impl VulkanFramebuffer {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        window: &WindowWrapper,
-        device: &Device,
-        image_view: &ImageView,
-        depth_view: &ImageView,
-        renderpass: &Renderpass,
-    ) -> Result<Framebuffer, FramebufferError> {
+        window: &Window,
+        device: &VulkanDevice,
+        image_view: &VulkanImageView,
+        depth_view: &VulkanImageView,
+        renderpass: &VulkanRenderpass,
+    ) -> Result<VulkanFramebuffer, VulkanFramebufferError> {
         let extent = window.size();
         let extent = Extent2D {
             width: extent.0,
@@ -63,13 +64,13 @@ impl Framebuffer {
                 .create_framebuffer(&frame_buffer_create_info, None)
         } {
             Ok(val) => val,
-            Err(err) => return Err(FramebufferError::CreationError(err)),
+            Err(err) => return Err(VulkanFramebufferError::CreationError(err)),
         };
 
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(Framebuffer {
+        Ok(VulkanFramebuffer {
             id,
             renderpass_id: renderpass.id(),
             image_view_ids: vec![image_view.id(), depth_view.id()],

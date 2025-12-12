@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 use vulkan::VulkanError;
-use window::{WindowError, WindowWrapper};
+use window::{WindowError, Window};
 
 use crate::{
     app::{self},
@@ -12,20 +12,37 @@ use crate::{
     },
     graphics::{
         renderer::{
-            InitRenderer, QueueClear, Render, RendererResizeFlag, assets::mesh::Mesh, camera_data::{AddCameraData, UpdateCameraData}, components::{
+            InitRenderer, QueueClear, Render, RendererResizeFlag,
+            assets::mesh::Mesh,
+            camera_data::{AddCameraData, UpdateCameraData},
+            components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            }, draw_queue::{Draw, MeshAndMaterial}, mesh_data::AddMeshData, transform_data::{AddTransformData, UpdateTransformData}
+            },
+            draw_queue::{Draw, MeshAndMaterial},
+            mesh_data::AddMeshData,
+            transform_data::{AddTransformData, UpdateTransformData},
         },
-        vulkan::{context::InitVulkan, device::Device},
+        vulkan::{context::InitVulkan, device::VulkanDevice},
     },
     resources::{Resource, Resources},
     utils::id_vec::IdVec,
 };
 
+pub mod backend;
+pub mod buffer;
+pub mod command_list;
+pub mod fence;
+pub mod pipeline;
 pub mod renderer;
+pub mod renderpass;
+pub mod semaphore;
+pub mod shader;
+pub mod swapchain;
 pub mod vulkan;
 pub mod window;
+pub mod image;
+pub mod framebuffer;
 
 #[derive(Error, Debug)]
 pub enum GraphicsError {
@@ -64,17 +81,17 @@ impl SystemBundle for GraphicsBundle {
 fn mark_resize(mut resize: Resource<RendererResizeFlag>) { resize.0 = true }
 
 #[system]
-fn request_redraw(window: Resource<WindowWrapper>) { window.request_redraw(); }
+fn request_redraw(window: Resource<Window>) { window.request_redraw(); }
 
 #[system]
-fn end_wait_idle(device: Resource<Device>) { device.wait_idle().unwrap() }
+fn end_wait_idle(device: Resource<VulkanDevice>) { device.wait_idle().unwrap() }
 
 #[system]
 fn init_window() {
     let window = {
         let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
         let event_loop_raw = event_loop.get_event_loop();
-        WindowWrapper::new(event_loop_raw, "Oxide Engine test").unwrap()
+        Window::new(event_loop_raw, "Oxide Engine test").unwrap()
     };
     Resources::add(window).unwrap();
 }

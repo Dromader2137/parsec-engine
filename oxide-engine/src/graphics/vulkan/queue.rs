@@ -1,29 +1,31 @@
 use crate::graphics::vulkan::{
-    VulkanError, command_buffer::CommandBuffer, device::Device, fence::Fence,
-    semaphore::Semaphore,
+    VulkanError, command_buffer::VulkanCommandBuffer, device::VulkanDevice,
+    fence::VulkanFence, semaphore::VulkanSemaphore,
 };
 
-pub struct Queue {
+pub struct VulkanQueue {
     device_id: u32,
     queue: ash::vk::Queue,
 }
 
 #[derive(Debug)]
-pub enum QueueError {
+pub enum VulkanQueueError {
     SubmitError(ash::vk::Result),
     DeviceMismatch,
 }
 
-impl From<QueueError> for VulkanError {
-    fn from(value: QueueError) -> Self { VulkanError::QueueError(value) }
+impl From<VulkanQueueError> for VulkanError {
+    fn from(value: VulkanQueueError) -> Self {
+        VulkanError::VulkanQueueError(value)
+    }
 }
 
-impl Queue {
-    pub fn present(device: &Device, family_index: u32) -> Queue {
+impl VulkanQueue {
+    pub fn present(device: &VulkanDevice, family_index: u32) -> VulkanQueue {
         let raw_queue = unsafe {
             device.get_device_raw().get_device_queue(family_index, 0)
         };
-        Queue {
+        VulkanQueue {
             device_id: device.id(),
             queue: raw_queue,
         }
@@ -31,14 +33,14 @@ impl Queue {
 
     pub fn submit(
         &self,
-        device: &Device,
-        wait_semaphores: &[&Semaphore],
-        signal_semaphores: &[&Semaphore],
-        command_buffers: &[&CommandBuffer],
-        submit_fence: &Fence,
-    ) -> Result<(), QueueError> {
+        device: &VulkanDevice,
+        wait_semaphores: &[&VulkanSemaphore],
+        signal_semaphores: &[&VulkanSemaphore],
+        command_buffers: &[&VulkanCommandBuffer],
+        submit_fence: &VulkanFence,
+    ) -> Result<(), VulkanQueueError> {
         if device.id() != self.device_id {
-            return Err(QueueError::DeviceMismatch);
+            return Err(VulkanQueueError::DeviceMismatch);
         }
 
         let command_buffers = command_buffers
@@ -70,7 +72,7 @@ impl Queue {
                     &[submit_info],
                     *submit_fence.get_fence_raw(),
                 )
-                .map_err(|err| QueueError::SubmitError(err))
+                .map_err(|err| VulkanQueueError::SubmitError(err))
         }
     }
 

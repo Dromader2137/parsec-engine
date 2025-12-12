@@ -1,39 +1,41 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{
-    VulkanError, instance::Instance, physical_device::PhysicalDevice,
-    surface::Surface,
+    VulkanError, instance::VulkanInstance,
+    physical_device::VulkanPhysicalDevice, surface::VulkanSurface,
 };
 
-pub struct Device {
+pub struct VulkanDevice {
     id: u32,
     physical_device_id: u32,
     surface_id: u32,
     device: ash::Device,
-    memory_properties: ash::vk::PhysicalDeviceMemoryProperties
+    memory_properties: ash::vk::PhysicalDeviceMemoryProperties,
 }
 
 #[derive(Debug)]
-pub enum DeviceError {
+pub enum VulkanDeviceError {
     DeviceCreationError(ash::vk::Result),
     WaitIdleError(ash::vk::Result),
     PhysicalDeviceMismatch,
 }
 
-impl From<DeviceError> for VulkanError {
-    fn from(value: DeviceError) -> Self { VulkanError::DeviceError(value) }
+impl From<VulkanDeviceError> for VulkanError {
+    fn from(value: VulkanDeviceError) -> Self {
+        VulkanError::VulkanDeviceError(value)
+    }
 }
 
-impl Device {
+impl VulkanDevice {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        instance: &Instance,
-        physical_device: &PhysicalDevice,
-        surface: &Surface,
-    ) -> Result<Device, DeviceError> {
+        instance: &VulkanInstance,
+        physical_device: &VulkanPhysicalDevice,
+        surface: &VulkanSurface,
+    ) -> Result<VulkanDevice, VulkanDeviceError> {
         if surface.physical_device_id() != physical_device.id() {
-            return Err(DeviceError::PhysicalDeviceMismatch);
+            return Err(VulkanDeviceError::PhysicalDeviceMismatch);
         }
 
         let device_extension_names_raw = [ash::khr::swapchain::NAME.as_ptr()];
@@ -62,24 +64,24 @@ impl Device {
                     &device_create_info,
                     None,
                 )
-                .map_err(|err| DeviceError::DeviceCreationError(err))?
+                .map_err(|err| VulkanDeviceError::DeviceCreationError(err))?
         };
 
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(Device {
+        Ok(VulkanDevice {
             id,
             physical_device_id: physical_device.id(),
             surface_id: surface.id(),
             device,
-            memory_properties: physical_device.physical_memory_properties()
+            memory_properties: physical_device.physical_memory_properties(),
         })
     }
 
-    pub fn wait_idle(&self) -> Result<(), DeviceError> {
+    pub fn wait_idle(&self) -> Result<(), VulkanDeviceError> {
         if let Err(err) = unsafe { self.device.device_wait_idle() } {
-            return Err(DeviceError::WaitIdleError(err));
+            return Err(VulkanDeviceError::WaitIdleError(err));
         }
         Ok(())
     }

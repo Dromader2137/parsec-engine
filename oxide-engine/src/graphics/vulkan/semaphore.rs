@@ -1,55 +1,57 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::graphics::vulkan::{VulkanError, device::Device};
+use crate::graphics::vulkan::{VulkanError, device::VulkanDevice};
 
 #[derive(Clone)]
-pub struct Semaphore {
+pub struct VulkanSemaphore {
     id: u32,
     device_id: u32,
     semaphore: ash::vk::Semaphore,
 }
 
 #[derive(Debug)]
-pub enum SemaphoreError {
+pub enum VulkanSemaphoreError {
     CreationError(ash::vk::Result),
     WaitError(ash::vk::Result),
     DeviceMismatch,
 }
 
-impl From<SemaphoreError> for VulkanError {
-    fn from(value: SemaphoreError) -> Self {
-        VulkanError::SemaphoreError(value)
+impl From<VulkanSemaphoreError> for VulkanError {
+    fn from(value: VulkanSemaphoreError) -> Self {
+        VulkanError::VulkanSemaphoreError(value)
     }
 }
 
-impl Semaphore {
+impl VulkanSemaphore {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
-    pub fn new(device: &Device) -> Result<Semaphore, SemaphoreError> {
+    pub fn new(
+        device: &VulkanDevice,
+    ) -> Result<VulkanSemaphore, VulkanSemaphoreError> {
         let create_info = ash::vk::SemaphoreCreateInfo::default();
 
         let semaphore = match unsafe {
             device.get_device_raw().create_semaphore(&create_info, None)
         } {
             Ok(val) => val,
-            Err(err) => return Err(SemaphoreError::CreationError(err)),
+            Err(err) => return Err(VulkanSemaphoreError::CreationError(err)),
         };
 
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(Semaphore {
+        Ok(VulkanSemaphore {
             id,
             device_id: device.id(),
             semaphore,
         })
     }
 
-    pub fn null(device: &Device) -> Semaphore {
+    pub fn null(device: &VulkanDevice) -> VulkanSemaphore {
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Semaphore {
+        VulkanSemaphore {
             id,
             device_id: device.id(),
             semaphore: ash::vk::Semaphore::null(),

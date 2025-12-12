@@ -2,7 +2,7 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::Span;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::{
     DeriveInput, FnArg, Ident, ItemFn, LitInt, Pat, PatType, Token,
     parse::{Parse, ParseStream, Result},

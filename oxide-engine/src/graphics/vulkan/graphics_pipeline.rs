@@ -1,11 +1,12 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{
-    VulkanError, descriptor_set::DescriptorSetLayout, device::Device,
-    framebuffer::Framebuffer, renderpass::Renderpass, shader::ShaderModule,
+    VulkanError, descriptor_set::VulkanDescriptorSetLayout,
+    device::VulkanDevice, framebuffer::VulkanFramebuffer,
+    renderpass::VulkanRenderpass, shader::VulkanShaderModule,
 };
 
-pub struct GraphicsPipeline {
+pub struct VulkanGraphicsPipeline {
     id: u32,
     device_id: u32,
     framebuffer_id: u32,
@@ -17,57 +18,57 @@ pub struct GraphicsPipeline {
 }
 
 #[derive(Debug)]
-pub enum GraphicsPipelineError {
+pub enum VulkanGraphicsPipelineError {
     LayoutError(ash::vk::Result),
     CreationError(ash::vk::Result),
     DeviceMismatch,
     RenderpassMismatch,
 }
 
-impl From<GraphicsPipelineError> for VulkanError {
-    fn from(value: GraphicsPipelineError) -> Self {
-        VulkanError::GrphicsPipelineError(value)
+impl From<VulkanGraphicsPipelineError> for VulkanError {
+    fn from(value: VulkanGraphicsPipelineError) -> Self {
+        VulkanError::VulkanGraphicsPipelineError(value)
     }
 }
 
-pub type VertexFieldFormat = ash::vk::Format;
+pub type VulkanVertexFieldFormat = ash::vk::Format;
 
-pub struct VertexField {
-    pub format: VertexFieldFormat,
+pub struct VulkanVertexField {
+    pub format: VulkanVertexFieldFormat,
     pub offset: u32,
 }
 
 pub trait Vertex: Clone + Copy {
-    fn description() -> Vec<VertexField>;
+    fn description() -> Vec<VulkanVertexField>;
     fn size() -> u32;
 }
 
-impl GraphicsPipeline {
+impl VulkanGraphicsPipeline {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new<V: Vertex>(
-        device: &Device,
-        renderpass: &Renderpass,
-        framebuffer: &Framebuffer,
-        vertex_shader: &ShaderModule,
-        fragment_shader: &ShaderModule,
-        descriptor_set_layouts: &Vec<DescriptorSetLayout>,
-    ) -> Result<GraphicsPipeline, GraphicsPipelineError> {
+        device: &VulkanDevice,
+        renderpass: &VulkanRenderpass,
+        framebuffer: &VulkanFramebuffer,
+        vertex_shader: &VulkanShaderModule,
+        fragment_shader: &VulkanShaderModule,
+        descriptor_set_layouts: &Vec<VulkanDescriptorSetLayout>,
+    ) -> Result<VulkanGraphicsPipeline, VulkanGraphicsPipelineError> {
         if device.id() != renderpass.device_id()
             || device.id() != vertex_shader.device_id()
             || device.id() != fragment_shader.device_id()
         {
-            return Err(GraphicsPipelineError::DeviceMismatch);
+            return Err(VulkanGraphicsPipelineError::DeviceMismatch);
         }
 
         for layout in descriptor_set_layouts.iter() {
             if layout.device_id() != device.id() {
-                return Err(GraphicsPipelineError::DeviceMismatch);
+                return Err(VulkanGraphicsPipelineError::DeviceMismatch);
             }
         }
 
         if renderpass.id() != framebuffer.renderpass_id() {
-            return Err(GraphicsPipelineError::RenderpassMismatch);
+            return Err(VulkanGraphicsPipelineError::RenderpassMismatch);
         }
 
         let set_layouts: Vec<_> = descriptor_set_layouts
@@ -84,7 +85,9 @@ impl GraphicsPipeline {
                 .create_pipeline_layout(&layout_create_info, None)
         } {
             Ok(val) => val,
-            Err(err) => return Err(GraphicsPipelineError::LayoutError(err)),
+            Err(err) => {
+                return Err(VulkanGraphicsPipelineError::LayoutError(err));
+            },
         };
 
         let shader_entry_name = c"main";
@@ -228,14 +231,14 @@ impl GraphicsPipeline {
         } {
             Ok(val) => val,
             Err(err) => {
-                return Err(GraphicsPipelineError::CreationError(err.1));
+                return Err(VulkanGraphicsPipelineError::CreationError(err.1));
             },
         }[0];
 
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(GraphicsPipeline {
+        Ok(VulkanGraphicsPipeline {
             id,
             device_id: device.id(),
             framebuffer_id: framebuffer.id(),

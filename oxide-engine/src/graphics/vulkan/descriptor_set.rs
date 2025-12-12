@@ -1,20 +1,24 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::graphics::vulkan::{
-    VulkanError, buffer::Buffer, device::Device, image::ImageView,
+use crate::graphics::{
+    pipeline::{PipelineBindingType, PipelineShaderStage},
+    vulkan::{
+        VulkanError, buffer::VulkanBuffer, device::VulkanDevice,
+        image::VulkanImageView,
+    },
 };
 
-pub struct DescriptorPool {
+pub struct VulkanDescriptorPool {
     id: u32,
     device_id: u32,
     pool: ash::vk::DescriptorPool,
 }
 
-pub struct DescriptorPoolSize {
+pub struct VulkanDescriptorPoolSize {
     size: ash::vk::DescriptorPoolSize,
 }
 
-pub struct DescriptorSet {
+pub struct VulkanDescriptorSet {
     id: u32,
     device_id: u32,
     descriptor_pool_id: u32,
@@ -23,15 +27,15 @@ pub struct DescriptorSet {
 }
 
 #[derive(Clone)]
-pub struct DescriptorSetLayout {
+pub struct VulkanDescriptorSetLayout {
     id: u32,
     device_id: u32,
     layout: ash::vk::DescriptorSetLayout,
-    bindings: Vec<DescriptorSetBinding>,
+    bindings: Vec<VulkanDescriptorSetBinding>,
 }
 
 #[derive(Clone)]
-pub struct DescriptorSetBinding {
+pub struct VulkanDescriptorSetBinding {
     binding_type: DescriptorType,
     binding: ash::vk::DescriptorSetLayoutBinding<'static>,
 }
@@ -53,47 +57,71 @@ impl From<DescriptorError> for VulkanError {
 }
 
 pub type DescriptorType = ash::vk::DescriptorType;
+
+impl From<PipelineBindingType> for DescriptorType {
+    fn from(value: PipelineBindingType) -> Self {
+        match value {
+            PipelineBindingType::UniformBuffer => {
+                DescriptorType::UNIFORM_BUFFER
+            },
+        }
+    }
+}
+
 pub type DescriptorStage = ash::vk::ShaderStageFlags;
 
-impl<'a> DescriptorSetBinding {
+impl From<PipelineShaderStage> for DescriptorStage {
+    fn from(value: PipelineShaderStage) -> Self {
+        match value {
+            PipelineShaderStage::Fragment => DescriptorStage::FRAGMENT,
+            PipelineShaderStage::Vertex => DescriptorStage::VERTEX,
+        }
+    }
+}
+
+impl<'a> VulkanDescriptorSetBinding {
     pub fn new(
         binding: u32,
         descriptor_type: DescriptorType,
         descriptor_stage: DescriptorStage,
-    ) -> DescriptorSetBinding {
+    ) -> VulkanDescriptorSetBinding {
         let binding = ash::vk::DescriptorSetLayoutBinding::default()
             .binding(binding)
             .descriptor_count(1)
             .descriptor_type(descriptor_type)
             .stage_flags(descriptor_stage);
 
-        DescriptorSetBinding {
+        VulkanDescriptorSetBinding {
             binding,
             binding_type: descriptor_type,
         }
     }
-}
 
-impl DescriptorPoolSize {
-    pub fn new(
-        descriptor_count: u32,
-        descriptor_type: DescriptorType,
-    ) -> DescriptorPoolSize {
-        let size = ash::vk::DescriptorPoolSize::default()
-            .descriptor_count(descriptor_count)
-            .ty(descriptor_type);
-        DescriptorPoolSize { size }
+    pub fn binding_type(&self) -> DescriptorType {
+        self.binding_type
     }
 }
 
-impl DescriptorPool {
+impl VulkanDescriptorPoolSize {
+    pub fn new(
+        descriptor_count: u32,
+        descriptor_type: DescriptorType,
+    ) -> VulkanDescriptorPoolSize {
+        let size = ash::vk::DescriptorPoolSize::default()
+            .descriptor_count(descriptor_count)
+            .ty(descriptor_type);
+        VulkanDescriptorPoolSize { size }
+    }
+}
+
+impl VulkanDescriptorPool {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        device: &Device,
+        device: &VulkanDevice,
         descriptor_max_count: u32,
-        descriptor_sizes: &[DescriptorPoolSize],
-    ) -> Result<DescriptorPool, DescriptorError> {
+        descriptor_sizes: &[VulkanDescriptorPoolSize],
+    ) -> Result<VulkanDescriptorPool, DescriptorError> {
         let pool_sizes: Vec<_> =
             descriptor_sizes.iter().map(|x| x.size).collect();
 
@@ -112,7 +140,7 @@ impl DescriptorPool {
                 .map_err(|err| DescriptorError::PoolCreationError(err))?
         };
 
-        Ok(DescriptorPool {
+        Ok(VulkanDescriptorPool {
             id,
             device_id: device.id(),
             pool,
@@ -124,13 +152,13 @@ impl DescriptorPool {
     pub fn id(&self) -> u32 { self.id }
 }
 
-impl<'a> DescriptorSetLayout {
+impl<'a> VulkanDescriptorSetLayout {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        device: &Device,
-        bindings: Vec<DescriptorSetBinding>,
-    ) -> Result<DescriptorSetLayout, DescriptorError> {
+        device: &VulkanDevice,
+        bindings: Vec<VulkanDescriptorSetBinding>,
+    ) -> Result<VulkanDescriptorSetLayout, DescriptorError> {
         let bindings_raw: Vec<_> = bindings.iter().map(|x| x.binding).collect();
 
         let create_info = ash::vk::DescriptorSetLayoutCreateInfo::default()
@@ -150,7 +178,7 @@ impl<'a> DescriptorSetLayout {
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(DescriptorSetLayout {
+        Ok(VulkanDescriptorSetLayout {
             id,
             device_id: device.id(),
             layout,
@@ -165,16 +193,20 @@ impl<'a> DescriptorSetLayout {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn device_id(&self) -> u32 { self.device_id }
+
+    pub fn bindings(&self) -> &[VulkanDescriptorSetBinding] {
+        &self.bindings
+    }
 }
 
-impl DescriptorSet {
+impl VulkanDescriptorSet {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        device: &Device,
-        descriptor_layout: &DescriptorSetLayout,
-        descriptor_pool: &DescriptorPool,
-    ) -> Result<DescriptorSet, DescriptorError> {
+        device: &VulkanDevice,
+        descriptor_layout: &VulkanDescriptorSetLayout,
+        descriptor_pool: &VulkanDescriptorPool,
+    ) -> Result<VulkanDescriptorSet, DescriptorError> {
         if device.id() != descriptor_layout.device_id
             || device.id() != descriptor_pool.device_id
         {
@@ -199,7 +231,7 @@ impl DescriptorSet {
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(DescriptorSet {
+        Ok(VulkanDescriptorSet {
             id,
             device_id: device.id(),
             descriptor_pool_id: descriptor_pool.id(),
@@ -210,9 +242,9 @@ impl DescriptorSet {
 
     pub fn bind_buffer(
         &self,
-        buffer: &Buffer,
-        device: &Device,
-        descriptor_layout: &DescriptorSetLayout,
+        buffer: &VulkanBuffer,
+        device: &VulkanDevice,
+        descriptor_layout: &VulkanDescriptorSetLayout,
         dst_binding: u32,
     ) -> Result<(), DescriptorError> {
         if device.id() != descriptor_layout.device_id
@@ -251,9 +283,9 @@ impl DescriptorSet {
 
     pub fn bind_image_view(
         &self,
-        view: &ImageView,
-        device: &Device,
-        descriptor_layout: &DescriptorSetLayout,
+        view: &VulkanImageView,
+        device: &VulkanDevice,
+        descriptor_layout: &VulkanDescriptorSetLayout,
         dst_binding: u32,
     ) -> Result<(), DescriptorError> {
         let image_info = [ash::vk::DescriptorImageInfo::default()

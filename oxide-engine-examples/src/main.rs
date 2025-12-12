@@ -16,14 +16,15 @@ use oxide_engine::{
                 MaterialBase, MaterialData, MaterialDescriptorSets,
             },
         },
+        shader::ShaderType,
         vulkan::{
             descriptor_set::{
-                DescriptorSetBinding, DescriptorStage, DescriptorType,
+                DescriptorStage, DescriptorType, VulkanDescriptorSetBinding,
             },
-            device::Device,
-            framebuffer::Framebuffer,
-            renderpass::Renderpass,
-            shader::{ShaderModule, ShaderType, read_shader_code},
+            device::VulkanDevice,
+            framebuffer::VulkanFramebuffer,
+            renderpass::VulkanRenderpass,
+            shader::{VulkanShaderModule, read_shader_code},
         },
     },
     input::{Input, InputBundle, key::Noncharacter},
@@ -35,23 +36,23 @@ use oxide_engine::{
 
 #[system]
 fn test_system(
-    device: Resource<Device>,
-    framebuffers: Resource<Vec<Framebuffer>>,
-    renderpass: Resource<Renderpass>,
+    device: Resource<VulkanDevice>,
+    framebuffers: Resource<Vec<VulkanFramebuffer>>,
+    renderpass: Resource<VulkanRenderpass>,
     mut materials: Resource<IdVec<MaterialData>>,
     mut material_bases: Resource<IdVec<MaterialBase>>,
     mut meshes: Resource<IdVec<Mesh>>,
 ) {
     let scale = 0.01;
 
-    let vertex = ShaderModule::new(
+    let vertex = VulkanShaderModule::new(
         &device,
         &read_shader_code("shaders/simple.spv").unwrap(),
         ShaderType::Vertex,
     )
     .unwrap();
 
-    let fragment = ShaderModule::new(
+    let fragment = VulkanShaderModule::new(
         &device,
         &read_shader_code("shaders/flat.spv").unwrap(),
         ShaderType::Fragment,
@@ -66,28 +67,28 @@ fn test_system(
         &fragment,
         vec![
             vec![
-                DescriptorSetBinding::new(
+                VulkanDescriptorSetBinding::new(
                     0,
                     DescriptorType::UNIFORM_BUFFER,
                     DescriptorStage::VERTEX,
                 ),
-                DescriptorSetBinding::new(
+                VulkanDescriptorSetBinding::new(
                     1,
                     DescriptorType::UNIFORM_BUFFER,
                     DescriptorStage::VERTEX,
                 ),
-                DescriptorSetBinding::new(
+                VulkanDescriptorSetBinding::new(
                     2,
                     DescriptorType::UNIFORM_BUFFER,
                     DescriptorStage::VERTEX,
                 ),
             ],
-            vec![DescriptorSetBinding::new(
+            vec![VulkanDescriptorSetBinding::new(
                 0,
                 DescriptorType::UNIFORM_BUFFER,
                 DescriptorStage::VERTEX,
             )],
-            vec![DescriptorSetBinding::new(
+            vec![VulkanDescriptorSetBinding::new(
                 0,
                 DescriptorType::UNIFORM_BUFFER,
                 DescriptorStage::VERTEX,
@@ -117,7 +118,9 @@ fn test_system(
         ),
         CameraController {
             yaw: 0.0,
+            target_yaw: 0.0,
             pitch: 0.0,
+            target_pitch: 0.0,
             fov: 40.0,
         },
     ))
@@ -137,7 +140,9 @@ fn test_system(
 #[derive(Debug, Component)]
 pub struct CameraController {
     yaw: f32,
+    target_yaw: f32,
     pitch: f32,
+    target_pitch: f32,
     fov: f32,
 }
 
@@ -149,9 +154,14 @@ fn camera_movement(
 ) {
     for (_, (transform, camera, camera_controller)) in cameras.iter() {
         let delta = input.mouse.positon_delta();
-        camera_controller.yaw += -delta.x * time.delta_time() * 10.0;
-        camera_controller.pitch += delta.y * time.delta_time() * 10.0;
-        camera_controller.pitch = camera_controller.pitch.clamp(-1.57, 1.57);
+        camera_controller.target_yaw += -delta.x * time.delta_time() * 5.0;
+        camera_controller.target_pitch += delta.y * time.delta_time() * 5.0;
+        camera_controller.target_pitch =
+            camera_controller.target_pitch.clamp(-1.57, 1.57);
+        camera_controller.pitch = camera_controller.target_pitch * 0.2
+            + camera_controller.pitch * 0.8;
+        camera_controller.yaw =
+            camera_controller.target_yaw * 0.2 + camera_controller.yaw * 0.8;
         transform.rotation = Quat::from_euler(Vec3f::new(
             camera_controller.pitch,
             camera_controller.yaw,

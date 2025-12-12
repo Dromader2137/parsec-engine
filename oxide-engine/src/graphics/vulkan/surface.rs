@@ -2,18 +2,19 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::{
     vulkan::{
-        VulkanError, instance::Instance, physical_device::PhysicalDevice,
+        VulkanError, instance::VulkanInstance,
+        physical_device::VulkanPhysicalDevice,
     },
-    window::WindowWrapper,
+    window::Window,
 };
 
-pub struct InitialSurface {
+pub struct VulkanInitialSurface {
     window_id: u32,
     surface_loader: ash::khr::surface::Instance,
     surface: ash::vk::SurfaceKHR,
 }
 
-pub struct Surface {
+pub struct VulkanSurface {
     id: u32,
     window_id: u32,
     physical_device_id: u32,
@@ -24,7 +25,7 @@ pub struct Surface {
 }
 
 #[derive(Debug)]
-pub enum SurfaceError {
+pub enum VulkanSurfaceError {
     SupportError(ash::vk::Result),
     CreationError(ash::vk::Result),
     DisplayHandleError(winit::raw_window_handle::HandleError),
@@ -35,21 +36,23 @@ pub enum SurfaceError {
     InitialSurfaceBorrowedMoreThanOnce,
 }
 
-impl From<SurfaceError> for VulkanError {
-    fn from(value: SurfaceError) -> Self { VulkanError::SurfaceError(value) }
+impl From<VulkanSurfaceError> for VulkanError {
+    fn from(value: VulkanSurfaceError) -> Self {
+        VulkanError::VulkanSurfaceError(value)
+    }
 }
 
-impl InitialSurface {
+impl VulkanInitialSurface {
     pub fn new(
-        instance: &Instance,
-        window: &WindowWrapper,
-    ) -> Result<InitialSurface, SurfaceError> {
+        instance: &VulkanInstance,
+        window: &Window,
+    ) -> Result<VulkanInitialSurface, VulkanSurfaceError> {
         let display_handle = window
             .raw_display_handle()
-            .map_err(|err| SurfaceError::DisplayHandleError(err))?;
+            .map_err(|err| VulkanSurfaceError::DisplayHandleError(err))?;
         let window_handle = window
             .raw_window_handle()
-            .map_err(|err| SurfaceError::WindowHandleError(err))?;
+            .map_err(|err| VulkanSurfaceError::WindowHandleError(err))?;
 
         let surface = unsafe {
             ash_window::create_surface(
@@ -59,7 +62,7 @@ impl InitialSurface {
                 window_handle.as_raw(),
                 None,
             )
-            .map_err(|err| SurfaceError::CreationError(err))?
+            .map_err(|err| VulkanSurfaceError::CreationError(err))?
         };
 
         let surface_loader = ash::khr::surface::Instance::new(
@@ -67,7 +70,7 @@ impl InitialSurface {
             instance.get_instance_raw(),
         );
 
-        Ok(InitialSurface {
+        Ok(VulkanInitialSurface {
             window_id: window.id(),
             surface,
             surface_loader,
@@ -78,7 +81,7 @@ impl InitialSurface {
         &self,
         physical_device: ash::vk::PhysicalDevice,
         queue_family_index: u32,
-    ) -> Result<bool, SurfaceError> {
+    ) -> Result<bool, VulkanSurfaceError> {
         unsafe {
             self.surface_loader
                 .get_physical_device_surface_support(
@@ -86,7 +89,7 @@ impl InitialSurface {
                     queue_family_index,
                     self.surface,
                 )
-                .map_err(|err| SurfaceError::SupportError(err))
+                .map_err(|err| VulkanSurfaceError::SupportError(err))
         }
     }
 
@@ -97,14 +100,14 @@ impl InitialSurface {
     pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 }
 
-impl Surface {
+impl VulkanSurface {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn from_initial_surface(
-        initial_surface: InitialSurface,
-        physical_device: &PhysicalDevice,
-    ) -> Result<Surface, SurfaceError> {
-        let InitialSurface {
+        initial_surface: VulkanInitialSurface,
+        physical_device: &VulkanPhysicalDevice,
+    ) -> Result<VulkanSurface, VulkanSurfaceError> {
+        let VulkanInitialSurface {
             surface_loader,
             surface,
             window_id,
@@ -117,11 +120,11 @@ impl Surface {
                     *physical_device.get_physical_device_raw(),
                     initial_surface.surface,
                 )
-                .map_err(|err| SurfaceError::FormatsError(err))?
+                .map_err(|err| VulkanSurfaceError::FormatsError(err))?
         };
 
         if surface_formats.is_empty() {
-            return Err(SurfaceError::NoSurfaceFormatsAvailable);
+            return Err(VulkanSurfaceError::NoSurfaceFormatsAvailable);
         }
 
         let surface_capabilities = unsafe {
@@ -130,13 +133,13 @@ impl Surface {
                     *physical_device.get_physical_device_raw(),
                     initial_surface.surface,
                 )
-                .map_err(|err| SurfaceError::CapabilitiesError(err))?
+                .map_err(|err| VulkanSurfaceError::CapabilitiesError(err))?
         };
 
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(Surface {
+        Ok(VulkanSurface {
             id,
             window_id,
             physical_device_id: physical_device.id(),

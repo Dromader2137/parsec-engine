@@ -1,20 +1,15 @@
+use std::ops::DerefMut;
+
 use crate::{
     ecs::{
         system::system,
         world::{fetch::Mut, query::Query},
     },
     graphics::{
-        renderer::components::camera::Camera,
-        vulkan::{
-            VulkanError,
-            buffer::{Buffer, BufferUsage},
-            descriptor_set::{
-                DescriptorPool, DescriptorSet, DescriptorSetBinding,
-                DescriptorSetLayout, DescriptorStage, DescriptorType,
-            },
-            device::Device,
-        },
-        window::WindowWrapper,
+        backend::GraphicsBackend, buffer::{Buffer, BufferUsage}, pipeline::{
+            PipelineBinding, PipelineBindingType, PipelineLayoutBinding,
+            PipelineShaderStage,
+        }, renderer::components::camera::Camera, vulkan::VulkanBackend, window::Window
     },
     math::mat::Matrix4f,
     resources::Resource,
@@ -24,67 +19,56 @@ use crate::{
 pub struct CameraData {
     pub projection_matrix: Matrix4f,
     pub projection_buffer: Buffer,
-    pub projection_set: DescriptorSet,
+    pub projection_binding: PipelineBinding,
 }
 
 impl CameraData {
     pub fn new(
-        window: &WindowWrapper,
-        device: &Device,
-        descriptor_pool: &DescriptorPool,
+        backend: &mut impl GraphicsBackend,
+        window: &Window,
         vfov: f32,
         near: f32,
         far: f32,
-    ) -> Result<CameraData, VulkanError> {
+    ) -> CameraData {
         let projection_matrix =
             Matrix4f::perspective(vfov, window.aspect_ratio(), near, far);
-        let projection_buffer = Buffer::from_vec(
-            device,
-            &[projection_matrix],
-            BufferUsage::UNIFORM_BUFFER,
-        )
-        .unwrap();
-        let projection_set_layout =
-            DescriptorSetLayout::new(device, vec![DescriptorSetBinding::new(
-                0,
-                DescriptorType::UNIFORM_BUFFER,
-                DescriptorStage::VERTEX,
-            )])
+        let projection_buffer = backend
+            .create_buffer(&[projection_matrix], &[BufferUsage::Uniform])
             .unwrap();
-        let projection_set =
-            DescriptorSet::new(device, &projection_set_layout, descriptor_pool)
-                .unwrap();
-        projection_set
-            .bind_buffer(&projection_buffer, device, &projection_set_layout, 0)
+        let projection_binding_layout = backend
+            .create_pipeline_layout(&[&[PipelineLayoutBinding {
+                binding_type: PipelineBindingType::UniformBuffer,
+                shader_stage: PipelineShaderStage::Vertex,
+            }]])
             .unwrap();
-        Ok(CameraData {
+        let projection_binding = backend
+            .create_pipeline_binding(projection_binding_layout, 0)
+            .unwrap();
+        backend.bind_buffer(projection_binding, projection_buffer, 0).unwrap();
+        CameraData {
             projection_matrix,
             projection_buffer,
-            projection_set,
-        })
+            projection_binding,
+        }
     }
 }
 
 #[system]
 fn add_camera_data(
-    window: Resource<WindowWrapper>,
-    device: Resource<Device>,
-    descriptor_pool: Resource<DescriptorPool>,
+    window: Resource<Window>,
+    mut backend: Resource<VulkanBackend>,
     mut cameras_data: Resource<IdVec<CameraData>>,
     mut cameras: Query<Mut<Camera>>,
 ) {
     for (_, camera) in cameras.iter() {
         if camera.data_id.is_none() {
             let camera_data = CameraData::new(
+                backend.deref_mut(),
                 &window,
-                &device,
-                &descriptor_pool,
                 camera.vertical_fov,
                 camera.near_clipping_plane,
                 camera.far_clipping_plane,
-            )
-            .unwrap();
-
+            );
             let data_id = cameras_data.push(camera_data);
             camera.data_id = Some(data_id);
         }
@@ -93,8 +77,8 @@ fn add_camera_data(
 
 #[system]
 fn update_camera_data(
-    window: Resource<WindowWrapper>,
-    device: Resource<Device>,
+    window: Resource<Window>,
+    mut backend: Resource<VulkanBackend>,
     mut cameras_data: Resource<IdVec<CameraData>>,
     mut cameras: Query<Camera>,
 ) {
@@ -111,9 +95,6 @@ fn update_camera_data(
             camera.near_clipping_plane,
             camera.far_clipping_plane,
         );
-        camera_data
-            .projection_buffer
-            .update(&device, &[camera_data.projection_matrix])
-            .unwrap();
+        backend.update_buffer(camera_data.projection_buffer, &[camera_data.projection_matrix]);
     }
 }

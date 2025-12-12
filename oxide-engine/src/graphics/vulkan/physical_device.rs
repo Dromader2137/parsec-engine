@@ -1,10 +1,10 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::graphics::vulkan::{
-    VulkanError, instance::Instance, surface::InitialSurface,
+    VulkanError, instance::VulkanInstance, surface::VulkanInitialSurface,
 };
 
-pub struct PhysicalDevice {
+pub struct VulkanPhysicalDevice {
     id: u32,
     instance_id: u32,
     physical_device: ash::vk::PhysicalDevice,
@@ -13,29 +13,29 @@ pub struct PhysicalDevice {
 }
 
 #[derive(Debug)]
-pub enum PhysicalDeviceError {
+pub enum VulkanPhysicalDeviceError {
     CreationError(ash::vk::Result),
     SuitableDeviceNotFound,
 }
 
-impl From<PhysicalDeviceError> for VulkanError {
-    fn from(value: PhysicalDeviceError) -> Self {
-        VulkanError::PhysicalDeviceError(value)
+impl From<VulkanPhysicalDeviceError> for VulkanError {
+    fn from(value: VulkanPhysicalDeviceError) -> Self {
+        VulkanError::VulkanPhysicalDeviceError(value)
     }
 }
 
-impl PhysicalDevice {
+impl VulkanPhysicalDevice {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        instance: &Instance,
-        initial_surface: &InitialSurface,
-    ) -> Result<PhysicalDevice, PhysicalDeviceError> {
+        instance: &VulkanInstance,
+        initial_surface: &VulkanInitialSurface,
+    ) -> Result<VulkanPhysicalDevice, VulkanPhysicalDeviceError> {
         let physical_devices = unsafe {
             instance
                 .get_instance_raw()
                 .enumerate_physical_devices()
-                .map_err(|err| PhysicalDeviceError::CreationError(err))?
+                .map_err(|err| VulkanPhysicalDeviceError::CreationError(err))?
         };
 
         let (physical_device, queue_family_index) = match physical_devices
@@ -64,7 +64,9 @@ impl PhysicalDevice {
                 })
             }) {
             Some(val) => val,
-            None => return Err(PhysicalDeviceError::SuitableDeviceNotFound),
+            None => {
+                return Err(VulkanPhysicalDeviceError::SuitableDeviceNotFound);
+            },
         };
 
         let memory_prop = unsafe {
@@ -76,7 +78,7 @@ impl PhysicalDevice {
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(PhysicalDevice {
+        Ok(VulkanPhysicalDevice {
             id,
             instance_id: instance.id(),
             physical_device,

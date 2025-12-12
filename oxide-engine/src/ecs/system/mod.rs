@@ -1,6 +1,6 @@
 //! Module responsible for systems management.
 
-use std::{collections::HashMap, fmt::Debug, time::SystemTime};
+use std::{collections::HashMap, fmt::Debug, time::Instant};
 
 /// List of possible actions a system can run on.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -40,13 +40,11 @@ pub struct Systems {
 
 impl Debug for Systems {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut builder = f
-            .debug_struct("Systems");
-        
+        let mut builder = f.debug_struct("Systems");
+
         for systems_by_trig in self.systems.iter() {
             for system in systems_by_trig.1.iter() {
-                builder
-                    .field(system.0.name(), &system.1);
+                builder.field(system.0.name(), &system.1);
             }
         }
 
@@ -65,7 +63,13 @@ pub struct SystemStats {
 
 impl Default for SystemStats {
     fn default() -> Self {
-        SystemStats { times_called: 0, total_time: 0.0, min_time: 1000.0, max_time: 0.0, avg_time: 0.0 }
+        SystemStats {
+            times_called: 0,
+            total_time: 0.0,
+            min_time: 1000.0,
+            max_time: 0.0,
+            avg_time: 0.0,
+        }
     }
 }
 
@@ -105,21 +109,17 @@ impl Systems {
     pub fn execute_type(&mut self, system_type: SystemTrigger) {
         if let Some(systems) = self.systems.get_mut(&system_type) {
             for (system, stats) in systems.iter_mut() {
-                // let timer = SystemTime::now();
+                let instant = Instant::now();
                 system.run();
-                // let duration = (SystemTime::now()
-                //     .duration_since(timer)
-                //     .unwrap()
-                //     .as_micros() as f64)
-                //     / 1000.0;
+                let duration = (instant.elapsed().as_micros() as f64) / 1000.0;
                 stats.times_called += 1;
                 if stats.times_called < 25 {
                     continue;
                 }
-                // stats.total_time += duration;
-                // stats.min_time = stats.min_time.min(duration);
-                // stats.max_time = stats.max_time.max(duration);
-                // stats.avg_time = stats.total_time / stats.times_called as f64;
+                stats.total_time += duration;
+                stats.min_time = stats.min_time.min(duration);
+                stats.max_time = stats.max_time.max(duration);
+                stats.avg_time = stats.total_time / stats.times_called as f64;
             }
         }
     }

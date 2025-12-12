@@ -1,62 +1,47 @@
 //! The built-in renderer.
 
-use std::{sync::Arc, time::SystemTime};
+use std::ops::DerefMut;
 
 pub mod assets;
 pub mod camera_data;
 pub mod components;
 pub mod draw_queue;
-pub mod image_data;
 pub mod material_data;
 pub mod mesh_data;
 pub mod sync;
 pub mod transform_data;
 
-use sync::{VulkanRendererFrameSync, VulkanRendererImageSync};
+use sync::{RendererFrameSync, RendererImageSync};
 
 use crate::{
     ecs::system::system,
     graphics::{
+        backend::GraphicsBackend,
+        command_list::CommandList,
+        framebuffer::Framebuffer,
+        image::{Image, ImageFormat, ImageUsage, ImageView},
         renderer::{
             assets::mesh::Mesh,
             camera_data::CameraData,
             draw_queue::{Draw, MeshAndMaterial},
-            image_data::{init_renderer_images, recreate_renderer_images},
             material_data::{MaterialBase, MaterialData},
             mesh_data::MeshData,
             transform_data::TransformData,
         },
+        renderpass::Renderpass,
+        swapchain::{Swapchain, SwapchainError},
         vulkan::{
-            VulkanError,
-            command_buffer::{CommandBuffer, CommandPool},
-            descriptor_set::{
-                DescriptorPool, DescriptorPoolSize, DescriptorSet,
-                DescriptorType,
+            VulkanBackend, VulkanError,
+            graphics_pipeline::{
+                Vertex, VulkanVertexField, VulkanVertexFieldFormat,
             },
-            device::Device,
-            fence::Fence,
-            framebuffer::Framebuffer,
-            graphics_pipeline::{Vertex, VertexField, VertexFieldFormat},
-            instance::Instance,
-            physical_device::PhysicalDevice,
-            queue::Queue,
-            renderpass::Renderpass,
-            surface::Surface,
-            swapchain::Swapchain,
         },
-        window::WindowWrapper,
+        window::Window,
     },
     math::vec::{Vec2f, Vec3f},
     resources::{Resource, Resources},
     utils::id_vec::IdVec,
 };
-
-#[derive(Debug, Clone, Copy)]
-pub struct RendererResizeFlag(pub bool);
-#[derive(Debug, Clone, Copy)]
-pub struct RendererCurrentFrame(usize);
-#[derive(Debug, Clone, Copy)]
-pub struct FramesInFlight(usize);
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -70,22 +55,22 @@ pub struct DefaultVertex {
 impl Vertex for DefaultVertex {
     fn size() -> u32 { size_of::<f32>() as u32 * 11 }
 
-    fn description() -> Vec<VertexField> {
+    fn description() -> Vec<VulkanVertexField> {
         vec![
-            VertexField {
-                format: VertexFieldFormat::R32G32B32_SFLOAT,
+            VulkanVertexField {
+                format: VulkanVertexFieldFormat::R32G32B32_SFLOAT,
                 offset: 0,
             },
-            VertexField {
-                format: VertexFieldFormat::R32G32B32_SFLOAT,
+            VulkanVertexField {
+                format: VulkanVertexFieldFormat::R32G32B32_SFLOAT,
                 offset: size_of::<f32>() as u32 * 3,
             },
-            VertexField {
-                format: VertexFieldFormat::R32G32B32_SFLOAT,
+            VulkanVertexField {
+                format: VulkanVertexFieldFormat::R32G32B32_SFLOAT,
                 offset: size_of::<f32>() as u32 * 6,
             },
-            VertexField {
-                format: VertexFieldFormat::R32G32_SFLOAT,
+            VulkanVertexField {
+                format: VulkanVertexFieldFormat::R32G32_SFLOAT,
                 offset: size_of::<f32>() as u32 * 9,
             },
         ]
@@ -104,94 +89,107 @@ impl DefaultVertex {
 }
 
 fn create_frame_sync(
-    device: &Device,
+    backend: &mut impl GraphicsBackend,
     frames_in_flight: usize,
-) -> Result<Vec<VulkanRendererFrameSync>, VulkanError> {
+) -> Vec<RendererFrameSync> {
     let mut ret = Vec::new();
     for _ in 0..frames_in_flight {
-        ret.push(VulkanRendererFrameSync::new(device)?);
+        ret.push(RendererFrameSync::new(backend));
     }
-    Ok(ret)
+    ret
 }
 
 fn create_image_sync(
-    device: &Device,
+    backend: &mut impl GraphicsBackend,
     image_count: usize,
-) -> Result<Vec<VulkanRendererImageSync>, VulkanError> {
+) -> Vec<RendererImageSync> {
     let mut ret = Vec::new();
     for _ in 0..image_count {
-        ret.push(VulkanRendererImageSync::new(device)?);
+        ret.push(RendererImageSync::new(backend));
     }
-    Ok(ret)
+    ret
 }
 
-fn create_commad_buffers(
-    device: &Device,
-    command_pool: &CommandPool,
+fn create_commad_lists(
+    backend: &mut impl GraphicsBackend,
     frames_in_flight: usize,
-) -> Result<Vec<CommandBuffer>, VulkanError> {
+) -> Vec<CommandList> {
     let mut ret = Vec::new();
     for _ in 0..frames_in_flight {
-        ret.push(CommandBuffer::new(device, command_pool)?);
+        ret.push(backend.create_command_list().unwrap());
     }
-    Ok(ret)
+    ret
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ResizeFlag(pub bool);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RendererCurrentFrame(u32);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RendererFramesInFlight(u32);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RendererMainRenderpass(Renderpass);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RendererSwapchain(Swapchain);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RendererSwapchainImages(Vec<Image>);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RendererSwapchainImageViews(Vec<ImageView>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RendererDepthImage(Image);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RendererDepthImageView(ImageView);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RendererFramebuffers(Vec<Framebuffer>);
 
 #[system]
 pub fn init_renderer(
-    instance: Resource<Instance>,
-    surface: Resource<Surface>,
-    device: Resource<Device>,
-    physical_device: Resource<PhysicalDevice>,
-    command_pool: Resource<CommandPool>,
-    window: Resource<WindowWrapper>,
+    mut backend: Resource<VulkanBackend>,
+    window: Resource<Window>,
 ) {
-    let renderpass = Renderpass::new(&surface, &device).unwrap();
-    let renderpass = Resources::add(renderpass).unwrap();
-
-    let (swapchain, swapchain_images) = init_renderer_images(
-        &instance,
-        &physical_device,
-        &window,
-        &surface,
-        &device,
-        &renderpass,
-    )
-    .unwrap();
-
-    Resources::add(swapchain).unwrap();
-    let swapchain_images = Resources::add(swapchain_images).unwrap();
-
+    let renderpass = backend.create_renderpass().unwrap();
+    let (swapchain, swapchain_images) =
+        backend.create_swapchain(&window, None).unwrap();
+    let swapchain_image_views = swapchain_images
+        .iter()
+        .map(|img| backend.create_image_view(*img))
+        .collect::<Vec<_>>();
+    let depth_image = backend.create_image(
+        window.size(),
+        ImageFormat::D32,
+        ImageUsage::DepthBuffer,
+    );
+    let depth_image_view = backend.create_image_view(depth_image);
+    let framebuffers = swapchain_image_views
+        .iter()
+        .map(|view| {
+            backend.create_framebuffer(
+                &window,
+                *view,
+                depth_image_view,
+                renderpass,
+            )
+        })
+        .collect::<Vec<_>>();
     let frames_in_flight = 2.min(swapchain_images.len() - 1).max(1);
-    let frames_in_flight =
-        Resources::add(FramesInFlight(frames_in_flight)).unwrap();
-
-    let frame_sync = create_frame_sync(&device, frames_in_flight.0).unwrap();
-    Resources::add(frame_sync).unwrap();
-
+    let frame_sync = create_frame_sync(backend.deref_mut(), frames_in_flight);
     let image_sync =
-        create_image_sync(&device, swapchain_images.len()).unwrap();
+        create_image_sync(backend.deref_mut(), swapchain_images.len());
+    let command_lists =
+        create_commad_lists(backend.deref_mut(), frames_in_flight);
+
+    Resources::add(RendererMainRenderpass(renderpass)).unwrap();
+    Resources::add(RendererSwapchain(swapchain)).unwrap();
+    Resources::add(RendererSwapchainImages(swapchain_images)).unwrap();
+    Resources::add(RendererSwapchainImageViews(swapchain_image_views)).unwrap();
+    Resources::add(RendererDepthImage(depth_image)).unwrap();
+    Resources::add(RendererDepthImageView(depth_image_view)).unwrap();
+    Resources::add(RendererFramebuffers(framebuffers)).unwrap();
+    Resources::add(frame_sync).unwrap();
     Resources::add(image_sync).unwrap();
-
-    let command_buffers =
-        create_commad_buffers(&device, &command_pool, frames_in_flight.0)
-            .unwrap();
-    Resources::add(command_buffers).unwrap();
-
-    let descriptor_pool =
-        DescriptorPool::new(&device, 32, &[DescriptorPoolSize::new(
-            16,
-            DescriptorType::UNIFORM_BUFFER,
-        )])
-        .unwrap();
-    Resources::add(descriptor_pool).unwrap();
-
-    let graphics_queue =
-        Queue::present(&device, physical_device.get_queue_family_index());
-    Resources::add(graphics_queue).unwrap();
-
+    Resources::add(command_lists).unwrap();
     Resources::add(RendererCurrentFrame(0)).unwrap();
-    Resources::add(RendererResizeFlag(false)).unwrap();
+    Resources::add(ResizeFlag(false)).unwrap();
     Resources::add(Vec::<Draw>::new()).unwrap();
     Resources::add(IdVec::<MeshData<DefaultVertex>>::new()).unwrap();
     Resources::add(IdVec::<Mesh>::new()).unwrap();
@@ -199,67 +197,97 @@ pub fn init_renderer(
     Resources::add(IdVec::<MaterialBase>::new()).unwrap();
     Resources::add(IdVec::<TransformData>::new()).unwrap();
     Resources::add(IdVec::<CameraData>::new()).unwrap();
-    Resources::add(IdVec::<Arc<DescriptorSet>>::new()).unwrap();
 }
 
 fn recreate_size_dependent_components(
-    instance: &Instance,
-    surface: &Surface,
-    device: &Device,
-    physical_device: &PhysicalDevice,
-    window: &WindowWrapper,
-    renderpass: &Renderpass,
-    swapchain: &Swapchain,
+    backend: &mut impl GraphicsBackend,
+    window: &Window,
+    swapchain: Swapchain,
+    swapchain_images: &[Image],
+    swapchain_views: &[ImageView],
+    depth_image: Image,
+    depth_view: ImageView,
+    framebuffers: &[Framebuffer],
+    renderpass: Renderpass,
 ) -> Result<(), VulkanError> {
-    device.wait_idle()?;
+    backend.wait_idle();
 
-    let (swapchain, swapchain_images) = recreate_renderer_images(
-        instance,
-        physical_device,
-        window,
-        surface,
-        device,
-        renderpass,
-        swapchain,
-    )?;
+    let (new_swapchain, new_swapchain_images) =
+        backend.create_swapchain(window, Some(swapchain)).unwrap();
+    let new_swapchain_image_views = new_swapchain_images
+        .iter()
+        .map(|img| backend.create_image_view(*img))
+        .collect::<Vec<_>>();
+    let new_depth_image = backend.create_image(
+        window.size(),
+        ImageFormat::D32,
+        ImageUsage::DepthBuffer,
+    );
+    let new_depth_image_view = backend.create_image_view(new_depth_image);
+    let new_framebuffers = new_swapchain_image_views
+        .iter()
+        .map(|view| {
+            backend.create_framebuffer(
+                &window,
+                *view,
+                new_depth_image_view,
+                renderpass,
+            )
+        })
+        .collect::<Vec<_>>();
 
-    Resources::add_or_change(swapchain);
-    Resources::add_or_change(swapchain_images);
+    backend.delete_swapchain(swapchain);
+    swapchain_views
+        .iter()
+        .for_each(|view| backend.delete_image_view(*view));
+    swapchain_images
+        .iter()
+        .for_each(|img| backend.delete_image(*img));
+    backend.delete_image_view(depth_view);
+    backend.delete_image(depth_image);
+    framebuffers
+        .iter()
+        .for_each(|framebuffer| backend.delete_framebuffer(*framebuffer));
+
+    Resources::add_or_change(RendererSwapchain(new_swapchain));
+    Resources::add_or_change(RendererSwapchainImages(new_swapchain_images));
+    Resources::add_or_change(RendererSwapchainImageViews(
+        new_swapchain_image_views,
+    ));
+    Resources::add_or_change(RendererDepthImage(new_depth_image));
+    Resources::add_or_change(RendererDepthImageView(new_depth_image_view));
+    Resources::add_or_change(RendererFramebuffers(new_framebuffers));
 
     Ok(())
 }
 
 #[system]
 pub fn render(
-    instance: Resource<Instance>,
-    surface: Resource<Surface>,
-    physical_device: Resource<PhysicalDevice>,
-    window: Resource<WindowWrapper>,
-    mut current_frame: Resource<RendererCurrentFrame>,
-    frame_sync: Resource<Vec<VulkanRendererFrameSync>>,
-    image_sync: Resource<Vec<VulkanRendererImageSync>>,
-    mut resize: Resource<RendererResizeFlag>,
-    swapchain: Resource<Swapchain>,
-    command_buffers: Resource<Vec<CommandBuffer>>,
-    framebuffers: Resource<Vec<Framebuffer>>,
+    mut backend: Resource<VulkanBackend>,
+    window: Resource<Window>,
+    current_frame: Resource<RendererCurrentFrame>,
+    frames_in_flight: Resource<RendererFramesInFlight>,
+    resize: Resource<ResizeFlag>,
+    frame_sync: Resource<Vec<RendererFrameSync>>,
+    image_sync: Resource<Vec<RendererImageSync>>,
+    swapchain: Resource<RendererSwapchain>,
+    swapchain_images: Resource<RendererSwapchainImages>,
+    swapchain_views: Resource<RendererSwapchainImageViews>,
+    depth_image: Resource<RendererDepthImage>,
+    depth_view: Resource<RendererDepthImageView>,
+    renderpass: Resource<RendererMainRenderpass>,
+    framebuffers: Resource<RendererFramebuffers>,
+    command_lists: Resource<Vec<CommandList>>,
     draw_queue: Resource<Vec<Draw>>,
-    graphics_queue: Resource<Queue>,
-    frames_in_flight: Resource<FramesInFlight>,
     meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
     materials_data: Resource<IdVec<MaterialData>>,
-    materials_base: Resource<IdVec<MaterialBase>>,
+    material_bases: Resource<IdVec<MaterialBase>>,
     transforms_data: Resource<IdVec<TransformData>>,
-    cameras_data: Resource<IdVec<CameraData>>,
-    device: Resource<Device>,
-    renderpass: Resource<Renderpass>,
+    cameras_data: Resource<IdVec<CameraData>>
 ) {
-    *current_frame = {
-        frame_sync[current_frame.0]
-            .command_buffer_fence
-            .wait(&device)
-            .unwrap();
-        *current_frame
-    };
+    let command_buffer_fence =
+        frame_sync[current_frame.0 as usize].command_buffer_fence;
+    backend.wait_fence(command_buffer_fence);
 
     if window.minimized() {
         return;
@@ -267,54 +295,41 @@ pub fn render(
 
     if resize.0 {
         recreate_size_dependent_components(
-            &instance,
-            &surface,
-            &device,
-            &physical_device,
+            backend.deref_mut(),
             &window,
-            &renderpass,
-            &swapchain,
+            swapchain.0,
+            &swapchain_images.0,
+            &swapchain_views.0,
+            depth_image.0,
+            depth_view.0,
+            &framebuffers.0,
+            renderpass.0,
         )
         .unwrap();
         resize.0 = false;
         return;
     }
 
-    let present_index = {
-        let (present_index, suboptimal) = match swapchain.acquire_next_image(
-            &frame_sync[current_frame.0]
-                .image_available_semaphore
-                .clone(),
-            &Fence::null(&device),
-        ) {
-            Ok(val) => val,
-            Err(_) => {
-                resize.0 = true;
-                return;
-            },
-        };
-        resize.0 |= suboptimal;
-        frame_sync[current_frame.0]
-            .command_buffer_fence
-            .reset(&device)
-            .unwrap();
-        present_index as usize
+    let present_index = match backend.next_image_id(
+        swapchain.0,
+        frame_sync[current_frame.0 as usize].image_available_semaphore,
+    ) {
+        Ok(val) => val,
+        Err(SwapchainError::SwapchainOutOfDate) => {
+            resize.0 = true;
+            return;
+        },
+        _ => panic!("Shouldn't be here"),
     };
+    backend
+        .reset_fence(frame_sync[current_frame.0 as usize].command_buffer_fence);
 
-    let command_buffer = &command_buffers[current_frame.0];
-    let framebuffer = &framebuffers[present_index];
+    let command_list = command_lists[current_frame.0 as usize];
+    let framebuffer = framebuffers.0[present_index as usize];
 
-    command_buffer.reset(&device).unwrap();
-    command_buffer.begin(&device).unwrap();
-    command_buffer
-        .begin_renderpass(&device, framebuffer, &renderpass)
-        .unwrap();
-    command_buffer
-        .set_viewports(&device, framebuffer, &renderpass)
-        .unwrap();
-    command_buffer
-        .set_scissor(&device, framebuffer, &renderpass)
-        .unwrap();
+    backend.command_reset(command_list).unwrap();
+    backend.command_begin(command_list).unwrap();
+    backend.command_begin_renderpass(command_list, renderpass.0, present_index).unwrap();
 
     for draw in draw_queue.iter() {
         match draw {
@@ -327,7 +342,7 @@ pub fn render(
             }) => {
                 let material = materials_data.get(*material).unwrap();
                 let material_base =
-                    materials_base.get(material.material_base_id()).unwrap();
+                    material_bases.get(material.material_base_id()).unwrap();
                 let mesh = meshes_data.get(*mesh).unwrap();
                 let camera = cameras_data.get(*camera).unwrap();
                 let camera_transform =
@@ -345,27 +360,26 @@ pub fn render(
             },
         }
     }
-    command_buffer.end_renderpass(&device).unwrap();
-    command_buffer.end(&device).unwrap();
+    
+    backend.command_end_renderpass(command_list).unwrap();
+    backend.command_end(command_list).unwrap();
 
-    graphics_queue
-        .submit(
-            &device,
-            &[&frame_sync[current_frame.0].image_available_semaphore],
-            &[&image_sync[present_index].rendering_complete_semaphore],
-            &[command_buffer],
-            &frame_sync[current_frame.0].command_buffer_fence,
-        )
-        .unwrap();
+    backend.submit_commands(command_list, 
+            &[frame_sync[current_frame.0 as usize].image_available_semaphore],
+            &[image_sync[present_index as usize].rendering_complete_semaphore],
+            frame_sync[current_frame.0 as usize].command_buffer_fence,
+        );
 
-    if let Err(err) = swapchain
-        .present(
-            &graphics_queue,
-            &[&image_sync[present_index].rendering_complete_semaphore],
-            present_index as u32,
-        ) {
-        resize.0 = true;
-    }
+    match backend.present(
+        swapchain.0,
+        &[image_sync[present_index as usize].rendering_complete_semaphore],
+        present_index,
+    ) {
+        Err(SwapchainError::SwapchainOutOfDate) => {
+            resize.0 = true;
+        }
+        _ => panic!("Shouldn't be here"),
+    };
 
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
 }

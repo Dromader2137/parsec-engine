@@ -3,12 +3,10 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use crate::graphics::vulkan::{
-    VulkanError, device::Device,
-};
+use crate::graphics::{buffer::BufferUsage, vulkan::{VulkanError, device::VulkanDevice}};
 
 #[allow(unused)]
-pub struct Buffer {
+pub struct VulkanBuffer {
     id: u32,
     device_id: u32,
     buffer: ash::vk::Buffer,
@@ -18,7 +16,7 @@ pub struct Buffer {
     pub len: u32,
 }
 
-impl Debug for Buffer {
+impl Debug for VulkanBuffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Buffer")
             .field("size", &self.size)
@@ -28,7 +26,7 @@ impl Debug for Buffer {
 }
 
 #[derive(Debug)]
-pub enum BufferError {
+pub enum VulkanBufferError {
     CreationError(ash::vk::Result),
     UnableToFindSuitableMemory,
     AllocationError(ash::vk::Result),
@@ -39,20 +37,32 @@ pub enum BufferError {
     DeviceMismatch,
 }
 
-impl From<BufferError> for VulkanError {
-    fn from(value: BufferError) -> Self { VulkanError::BufferError(value) }
+impl From<VulkanBufferError> for VulkanError {
+    fn from(value: VulkanBufferError) -> Self {
+        VulkanError::VulkanBufferError(value)
+    }
 }
 
-pub type BufferUsage = ash::vk::BufferUsageFlags;
+pub type VulkanBufferUsage = ash::vk::BufferUsageFlags;
 
-impl Buffer {
+impl From<BufferUsage> for VulkanBufferUsage {
+    fn from(value: BufferUsage) -> Self {
+        match value {
+            BufferUsage::Uniform => VulkanBufferUsage::UNIFORM_BUFFER,
+            BufferUsage::Index => VulkanBufferUsage::INDEX_BUFFER,
+            BufferUsage::Vertex => VulkanBufferUsage::VERTEX_BUFFER
+        }
+    }
+}
+
+impl VulkanBuffer {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn from_vec<T: Clone + Copy>(
-        device: &Device,
+        device: &VulkanDevice,
         data: &[T],
-        usage: BufferUsage,
-    ) -> Result<Buffer, BufferError> {
+        usage: VulkanBufferUsage,
+    ) -> Result<VulkanBuffer, VulkanBufferError> {
         let size = data.len() * size_of::<T>();
 
         let index_buffer_info = ash::vk::BufferCreateInfo::default()
@@ -66,7 +76,7 @@ impl Buffer {
                 .create_buffer(&index_buffer_info, None)
         } {
             Ok(val) => val,
-            Err(err) => return Err(BufferError::CreationError(err)),
+            Err(err) => return Err(VulkanBufferError::CreationError(err)),
         };
 
         let memory_req = unsafe {
@@ -81,7 +91,7 @@ impl Buffer {
             device,
         ) {
             Some(val) => val,
-            None => return Err(BufferError::UnableToFindSuitableMemory),
+            None => return Err(VulkanBufferError::UnableToFindSuitableMemory),
         };
 
         let allocate_info = ash::vk::MemoryAllocateInfo {
@@ -95,7 +105,7 @@ impl Buffer {
                 .allocate_memory(&allocate_info, None)
         } {
             Ok(val) => val,
-            Err(err) => return Err(BufferError::AllocationError(err)),
+            Err(err) => return Err(VulkanBufferError::AllocationError(err)),
         };
 
         let memory_ptr = match unsafe {
@@ -107,7 +117,7 @@ impl Buffer {
             )
         } {
             Ok(val) => val,
-            Err(err) => return Err(BufferError::MapError(err)),
+            Err(err) => return Err(VulkanBufferError::MapError(err)),
         };
 
         let mut slice = unsafe {
@@ -125,13 +135,13 @@ impl Buffer {
                 .get_device_raw()
                 .bind_buffer_memory(buffer, memory, 0)
         } {
-            return Err(BufferError::BindError(err));
+            return Err(VulkanBufferError::BindError(err));
         }
 
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(Buffer {
+        Ok(VulkanBuffer {
             id,
             device_id: device.id(),
             buffer,
@@ -144,21 +154,21 @@ impl Buffer {
 
     pub fn update<T: Clone + Copy>(
         &self,
-        device: &Device,
+        device: &VulkanDevice,
         data: &[T],
-    ) -> Result<(), BufferError> {
+    ) -> Result<(), VulkanBufferError> {
         if self.device_id != device.id() {
-            return Err(BufferError::DeviceMismatch);
+            return Err(VulkanBufferError::DeviceMismatch);
         }
 
         let size = (data.len() * size_of::<T>()) as u64;
 
         if data.len() as u32 != self.len {
-            return Err(BufferError::LenMismatch);
+            return Err(VulkanBufferError::LenMismatch);
         }
 
         if size != self.size {
-            return Err(BufferError::SizaMismatch);
+            return Err(VulkanBufferError::SizaMismatch);
         }
 
         let memory_ptr = match unsafe {
@@ -170,7 +180,7 @@ impl Buffer {
             )
         } {
             Ok(val) => val,
-            Err(err) => return Err(BufferError::MapError(err)),
+            Err(err) => return Err(VulkanBufferError::MapError(err)),
         };
 
         let mut slice = unsafe {
@@ -193,12 +203,14 @@ impl Buffer {
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory { &self.memory }
 
     pub fn device_id(&self) -> u32 { self.device_id }
+
+    pub fn id(&self) -> u32 { self.id }
 }
 
 pub fn find_memorytype_index(
     memory_req: &ash::vk::MemoryRequirements,
     flags: ash::vk::MemoryPropertyFlags,
-    device: &Device,
+    device: &VulkanDevice,
 ) -> Option<u32> {
     let memory_prop = device.memory_properties();
     memory_prop.memory_types[..memory_prop.memory_type_count as _]

@@ -1,16 +1,9 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::DerefMut};
 
 use crate::{
     ecs::system::system,
     graphics::{
-        renderer::{DefaultVertex, assets::mesh::Mesh},
-        vulkan::{
-            VulkanError,
-            buffer::{Buffer, BufferUsage},
-            command_buffer::CommandBuffer,
-            device::Device,
-            graphics_pipeline::Vertex,
-        },
+        backend::GraphicsBackend, buffer::{Buffer, BufferUsage}, command_list::CommandList, renderer::{DefaultVertex, assets::mesh::Mesh}, vulkan::VulkanBackend 
     },
     resources::Resource,
     utils::id_vec::IdVec,
@@ -24,39 +17,29 @@ pub struct MeshBuffer<V: Vertex> {
 
 impl<V: Vertex> MeshBuffer<V> {
     pub fn new(
-        device: &Device,
+        backend: &mut impl GraphicsBackend,
         vertices: &[V],
         indices: &[u32],
-    ) -> Result<MeshBuffer<V>, VulkanError> {
-        Ok(MeshBuffer {
-            vertex_buffer: Buffer::from_vec(
-                device,
+    ) -> MeshBuffer<V> {
+        MeshBuffer {
+            vertex_buffer: backend.create_buffer(
                 vertices,
-                BufferUsage::VERTEX_BUFFER,
-            )?,
-            index_buffer: Buffer::from_vec(
-                device,
+                &[BufferUsage::Vertex]
+            ).unwrap(),
+            index_buffer: backend.create_buffer(
                 indices,
-                BufferUsage::INDEX_BUFFER,
-            )?,
+                &[BufferUsage::Index]
+            ).unwrap(),
             _marker: PhantomData::default(),
-        })
+        }
     }
 
     pub fn record_draw_commands(
         &self,
-        device: &Device,
-        command_buffer: &CommandBuffer,
+        backend: &mut impl GraphicsBackend,
+        command_list: CommandList
     ) {
-        command_buffer
-            .bind_vertex_buffer(device, &self.vertex_buffer)
-            .unwrap();
-        command_buffer
-            .bind_index_buffer(device, &self.index_buffer)
-            .unwrap();
-        command_buffer
-            .draw_indexed(device, self.index_buffer.len as u32, 1, 0, 0, 1)
-            .unwrap();
+        backend.command_draw(command_list, self.vertex_buffer, self.index_buffer).unwrap();
     }
 }
 
@@ -66,38 +49,33 @@ pub struct MeshData<V: Vertex> {
 
 impl<V: Vertex> MeshData<V> {
     pub fn new(
-        device: &Device,
+        backend: &mut impl GraphicsBackend,
         vertices: &[V],
         indices: &[u32],
-    ) -> Result<MeshData<V>, VulkanError> {
-        let buffer =
-            MeshBuffer::new(device, vertices, indices)?;
-        Ok(MeshData { buffer })
+    ) -> MeshData<V> {
+        let buffer = MeshBuffer::new(backend, vertices, indices);
+        MeshData { buffer }
     }
 
     pub fn record_commands(
         &self,
-        device: &Device,
-        command_buffer: &CommandBuffer,
+        backend: &mut impl GraphicsBackend,
+        command_list: CommandList
     ) {
-        self.buffer.record_draw_commands(device, command_buffer);
+        self.buffer.record_draw_commands(backend, command_list);
     }
 }
 
 #[system]
 fn add_mesh_data(
-    device: Resource<Device>,
+    mut backend: Resource<VulkanBackend>,
     mut meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
     mut meshes: Resource<IdVec<Mesh>>,
 ) {
     for mesh in meshes.iter_mut() {
         if mesh.data_id.is_none() {
-            let mesh_data = MeshData::new(
-                &device,
-                &mesh.vertices,
-                &mesh.indices,
-            )
-            .unwrap();
+            let mesh_data =
+                MeshData::new(backend.deref_mut(), &mesh.vertices, &mesh.indices).unwrap();
             let data_id = meshes_data.push(mesh_data);
             mesh.data_id = Some(data_id);
         }

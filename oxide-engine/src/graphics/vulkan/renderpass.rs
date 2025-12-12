@@ -1,34 +1,36 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::graphics::vulkan::{VulkanError, device::Device, surface::Surface};
+use crate::graphics::vulkan::{
+    VulkanError, device::VulkanDevice, surface::VulkanSurface,
+};
 
-pub struct Renderpass {
+pub struct VulkanRenderpass {
     id: u32,
     device_id: u32,
     renderpass: ash::vk::RenderPass,
 }
 
 #[derive(Debug)]
-pub enum RenderpassError {
+pub enum VulkanRenderpassError {
     CreationError(ash::vk::Result),
     SurfaceMismatch,
 }
 
-impl From<RenderpassError> for VulkanError {
-    fn from(value: RenderpassError) -> Self {
-        VulkanError::RenderpassError(value)
+impl From<VulkanRenderpassError> for VulkanError {
+    fn from(value: VulkanRenderpassError) -> Self {
+        VulkanError::VulkanRenderpassError(value)
     }
 }
 
-impl Renderpass {
+impl VulkanRenderpass {
     const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     pub fn new(
-        surface: &Surface,
-        device: &Device,
-    ) -> Result<Renderpass, RenderpassError> {
+        surface: &VulkanSurface,
+        device: &VulkanDevice,
+    ) -> Result<VulkanRenderpass, VulkanRenderpassError> {
         if device.surface_id() != surface.id() {
-            return Err(RenderpassError::SurfaceMismatch);
+            return Err(VulkanRenderpassError::SurfaceMismatch);
         }
 
         let renderpass_attachments = [
@@ -85,13 +87,13 @@ impl Renderpass {
                 .create_render_pass(&renderpass_create_info, None)
         } {
             Ok(val) => val,
-            Err(err) => return Err(RenderpassError::CreationError(err)),
+            Err(err) => return Err(VulkanRenderpassError::CreationError(err)),
         };
 
         let id = Self::ID_COUNTER.load(Ordering::Acquire);
         Self::ID_COUNTER.store(id + 1, Ordering::Release);
 
-        Ok(Renderpass {
+        Ok(VulkanRenderpass {
             id,
             device_id: device.id(),
             renderpass,
