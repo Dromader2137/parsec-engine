@@ -1,9 +1,11 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::graphics::vulkan::{
-    VulkanError, device::VulkanDevice, surface::VulkanSurface,
+use crate::{
+    graphics::vulkan::{
+        VulkanError, device::VulkanDevice, surface::VulkanSurface,
+    },
+    utils::id_counter::IdCounter,
 };
 
+#[derive(Debug)]
 pub struct VulkanRenderpass {
     id: u32,
     device_id: u32,
@@ -22,9 +24,9 @@ impl From<VulkanRenderpassError> for VulkanError {
     }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanRenderpass {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         surface: &VulkanSurface,
         device: &VulkanDevice,
@@ -90,11 +92,8 @@ impl VulkanRenderpass {
             Err(err) => return Err(VulkanRenderpassError::CreationError(err)),
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanRenderpass {
-            id,
+            id: ID_COUNTER.next(),
             device_id: device.id(),
             renderpass,
         })

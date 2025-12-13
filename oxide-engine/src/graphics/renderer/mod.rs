@@ -25,17 +25,12 @@ use crate::{
             camera_data::CameraData,
             draw_queue::{Draw, MeshAndMaterial},
             material_data::{MaterialBase, MaterialData},
-            mesh_data::MeshData,
+            mesh_data::{MeshData, Vertex, VertexField, VertexFieldFormat},
             transform_data::TransformData,
         },
         renderpass::Renderpass,
         swapchain::{Swapchain, SwapchainError},
-        vulkan::{
-            VulkanBackend, VulkanError,
-            graphics_pipeline::{
-                Vertex, VulkanVertexField, VulkanVertexFieldFormat,
-            },
-        },
+        vulkan::VulkanBackend,
         window::Window,
     },
     math::vec::{Vec2f, Vec3f},
@@ -53,25 +48,19 @@ pub struct DefaultVertex {
 }
 
 impl Vertex for DefaultVertex {
-    fn size() -> u32 { size_of::<f32>() as u32 * 11 }
-
-    fn description() -> Vec<VulkanVertexField> {
+    fn fields() -> Vec<VertexField> {
         vec![
-            VulkanVertexField {
-                format: VulkanVertexFieldFormat::R32G32B32_SFLOAT,
-                offset: 0,
+            VertexField {
+                format: VertexFieldFormat::Vec3,
             },
-            VulkanVertexField {
-                format: VulkanVertexFieldFormat::R32G32B32_SFLOAT,
-                offset: size_of::<f32>() as u32 * 3,
+            VertexField {
+                format: VertexFieldFormat::Vec3,
             },
-            VulkanVertexField {
-                format: VulkanVertexFieldFormat::R32G32B32_SFLOAT,
-                offset: size_of::<f32>() as u32 * 6,
+            VertexField {
+                format: VertexFieldFormat::Vec3,
             },
-            VulkanVertexField {
-                format: VulkanVertexFieldFormat::R32G32_SFLOAT,
-                offset: size_of::<f32>() as u32 * 9,
+            VertexField {
+                format: VertexFieldFormat::Vec2,
             },
         ]
     }
@@ -124,23 +113,23 @@ fn create_commad_lists(
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ResizeFlag(pub bool);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererCurrentFrame(u32);
+pub struct RendererCurrentFrame(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererFramesInFlight(u32);
+pub struct RendererFramesInFlight(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererMainRenderpass(Renderpass);
+pub struct RendererMainRenderpass(pub Renderpass);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererSwapchain(Swapchain);
+pub struct RendererSwapchain(pub Swapchain);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RendererSwapchainImages(Vec<Image>);
+pub struct RendererSwapchainImages(pub Vec<Image>);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RendererSwapchainImageViews(Vec<ImageView>);
+pub struct RendererSwapchainImageViews(pub Vec<ImageView>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererDepthImage(Image);
+pub struct RendererDepthImage(pub Image);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererDepthImageView(ImageView);
+pub struct RendererDepthImageView(pub ImageView);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RendererFramebuffers(Vec<Framebuffer>);
+pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
 #[system]
 pub fn init_renderer(
@@ -189,6 +178,7 @@ pub fn init_renderer(
     Resources::add(image_sync).unwrap();
     Resources::add(command_lists).unwrap();
     Resources::add(RendererCurrentFrame(0)).unwrap();
+    Resources::add(RendererFramesInFlight(frames_in_flight as u32)).unwrap();
     Resources::add(ResizeFlag(false)).unwrap();
     Resources::add(Vec::<Draw>::new()).unwrap();
     Resources::add(IdVec::<MeshData<DefaultVertex>>::new()).unwrap();
@@ -209,7 +199,7 @@ fn recreate_size_dependent_components(
     depth_view: ImageView,
     framebuffers: &[Framebuffer],
     renderpass: Renderpass,
-) -> Result<(), VulkanError> {
+) {
     backend.wait_idle();
 
     let (new_swapchain, new_swapchain_images) =
@@ -257,17 +247,15 @@ fn recreate_size_dependent_components(
     Resources::add_or_change(RendererDepthImage(new_depth_image));
     Resources::add_or_change(RendererDepthImageView(new_depth_image_view));
     Resources::add_or_change(RendererFramebuffers(new_framebuffers));
-
-    Ok(())
 }
 
 #[system]
 pub fn render(
     mut backend: Resource<VulkanBackend>,
-    window: Resource<Window>,
-    current_frame: Resource<RendererCurrentFrame>,
+    mut current_frame: Resource<RendererCurrentFrame>,
+    mut resize: Resource<ResizeFlag>,
     frames_in_flight: Resource<RendererFramesInFlight>,
-    resize: Resource<ResizeFlag>,
+    window: Resource<Window>,
     frame_sync: Resource<Vec<RendererFrameSync>>,
     image_sync: Resource<Vec<RendererImageSync>>,
     swapchain: Resource<RendererSwapchain>,
@@ -283,7 +271,7 @@ pub fn render(
     materials_data: Resource<IdVec<MaterialData>>,
     material_bases: Resource<IdVec<MaterialBase>>,
     transforms_data: Resource<IdVec<TransformData>>,
-    cameras_data: Resource<IdVec<CameraData>>
+    cameras_data: Resource<IdVec<CameraData>>,
 ) {
     let command_buffer_fence =
         frame_sync[current_frame.0 as usize].command_buffer_fence;
@@ -304,8 +292,7 @@ pub fn render(
             depth_view.0,
             &framebuffers.0,
             renderpass.0,
-        )
-        .unwrap();
+        );
         resize.0 = false;
         return;
     }
@@ -329,7 +316,9 @@ pub fn render(
 
     backend.command_reset(command_list).unwrap();
     backend.command_begin(command_list).unwrap();
-    backend.command_begin_renderpass(command_list, renderpass.0, present_index).unwrap();
+    backend
+        .command_begin_renderpass(command_list, renderpass.0, framebuffer)
+        .unwrap();
 
     for draw in draw_queue.iter() {
         match draw {
@@ -349,35 +338,37 @@ pub fn render(
                     transforms_data.get(*camera_transform).unwrap();
                 let transform = transforms_data.get(*transform).unwrap();
                 material.bind(
-                    &device,
+                    backend.deref_mut(),
+                    command_list,
                     material_base,
-                    command_buffer,
                     camera,
                     camera_transform,
                     transform,
                 );
-                mesh.record_commands(&device, command_buffer);
+                mesh.record_commands(backend.deref_mut(), command_list);
             },
         }
     }
-    
+
     backend.command_end_renderpass(command_list).unwrap();
     backend.command_end(command_list).unwrap();
 
-    backend.submit_commands(command_list, 
-            &[frame_sync[current_frame.0 as usize].image_available_semaphore],
-            &[image_sync[present_index as usize].rendering_complete_semaphore],
-            frame_sync[current_frame.0 as usize].command_buffer_fence,
-        );
+    backend.submit_commands(
+        command_list,
+        &[frame_sync[current_frame.0 as usize].image_available_semaphore],
+        &[image_sync[present_index as usize].rendering_complete_semaphore],
+        frame_sync[current_frame.0 as usize].command_buffer_fence,
+    );
 
     match backend.present(
         swapchain.0,
         &[image_sync[present_index as usize].rendering_complete_semaphore],
         present_index,
     ) {
+        Ok(_) => (),
         Err(SwapchainError::SwapchainOutOfDate) => {
             resize.0 = true;
-        }
+        },
         _ => panic!("Shouldn't be here"),
     };
 
@@ -392,8 +383,4 @@ pub enum RendererError {
     ShaderNotFound(u32),
     BufferNotFound(u32),
     MaterialBaseNotFound(u32),
-}
-
-impl From<RendererError> for VulkanError {
-    fn from(value: RendererError) -> Self { VulkanError::RendererError(value) }
 }

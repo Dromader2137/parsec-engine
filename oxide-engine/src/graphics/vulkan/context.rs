@@ -1,9 +1,7 @@
 use crate::{
     ecs::system::system,
     graphics::{
-        backend::GraphicsBackend, vulkan::
-            VulkanBackend
-        , window::Window
+        backend::GraphicsBackend, vulkan::VulkanBackend, window::Window,
     },
     resources::{Resource, Resources},
 };

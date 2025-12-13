@@ -1,9 +1,9 @@
-use std::{
-    borrow::Cow,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use std::borrow::Cow;
 
-use crate::graphics::{vulkan::VulkanError, window::Window};
+use crate::{
+    graphics::{vulkan::VulkanError, window::Window},
+    utils::id_counter::IdCounter,
+};
 
 pub struct VulkanInstance {
     id: u32,
@@ -61,12 +61,10 @@ unsafe extern "system" fn vulkan_debug_callback(
     }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanInstance {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
-    pub fn new(
-        window: &Window,
-    ) -> Result<VulkanInstance, VulkanInstanceError> {
+    pub fn new(window: &Window) -> Result<VulkanInstance, VulkanInstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
             Ok(val) => val,
             Err(err) => return Err(VulkanInstanceError::EntryError(err)),
@@ -110,13 +108,14 @@ impl VulkanInstance {
             .enabled_layer_names(&layers_names_raw)
             .enabled_extension_names(&extension_names);
 
-        let instance =
-            match unsafe { entry.create_instance(&create_info, None) } {
-                Ok(val) => val,
-                Err(err) => {
-                    return Err(VulkanInstanceError::InstanceCreationError(err));
-                },
-            };
+        let instance = match unsafe {
+            entry.create_instance(&create_info, None)
+        } {
+            Ok(val) => val,
+            Err(err) => {
+                return Err(VulkanInstanceError::InstanceCreationError(err));
+            },
+        };
 
         let debug_utils_loader =
             ash::ext::debug_utils::Instance::new(&entry, &instance);
@@ -150,11 +149,8 @@ impl VulkanInstance {
             false => None,
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanInstance {
-            id,
+            id: ID_COUNTER.next(),
             entry,
             instance,
             _debug_utils_loader: debug_utils_loader,

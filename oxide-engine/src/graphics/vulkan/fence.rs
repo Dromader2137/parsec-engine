@@ -1,6 +1,7 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::graphics::vulkan::{VulkanError, device::VulkanDevice};
+use crate::{
+    graphics::vulkan::{VulkanError, device::VulkanDevice},
+    utils::id_counter::IdCounter,
+};
 
 #[derive(Clone)]
 pub struct VulkanFence {
@@ -24,9 +25,9 @@ impl From<VulkanFenceError> for VulkanError {
     }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanFence {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         device: &VulkanDevice,
         signaled: bool,
@@ -44,11 +45,8 @@ impl VulkanFence {
             Err(err) => return Err(VulkanFenceError::CreationError(err)),
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanFence {
-            id,
+            id: ID_COUNTER.next(),
             device_id: device.id(),
             fence,
         })
@@ -85,11 +83,8 @@ impl VulkanFence {
     }
 
     pub fn null(device: &VulkanDevice) -> VulkanFence {
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         VulkanFence {
-            id,
+            id: ID_COUNTER.next(),
             device_id: device.id(),
             fence: ash::vk::Fence::null(),
         }

@@ -1,7 +1,8 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::graphics::vulkan::{
-    VulkanError, instance::VulkanInstance, surface::VulkanInitialSurface,
+use crate::{
+    graphics::vulkan::{
+        VulkanError, instance::VulkanInstance, surface::VulkanInitialSurface,
+    },
+    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanPhysicalDevice {
@@ -24,9 +25,9 @@ impl From<VulkanPhysicalDeviceError> for VulkanError {
     }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanPhysicalDevice {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         instance: &VulkanInstance,
         initial_surface: &VulkanInitialSurface,
@@ -75,11 +76,8 @@ impl VulkanPhysicalDevice {
                 .get_physical_device_memory_properties(physical_device)
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanPhysicalDevice {
-            id,
+            id: ID_COUNTER.next(),
             instance_id: instance.id(),
             physical_device,
             physical_memory_properties: memory_prop,

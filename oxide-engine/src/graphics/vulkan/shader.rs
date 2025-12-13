@@ -1,13 +1,14 @@
-use std::{
-    fs::File,
-    sync::atomic::{AtomicU32, Ordering},
+use std::fs::File;
+
+use crate::{
+    graphics::{
+        shader::ShaderType,
+        vulkan::{VulkanError, device::VulkanDevice},
+    },
+    utils::id_counter::IdCounter,
 };
 
-use crate::graphics::{
-    shader::ShaderType,
-    vulkan::{VulkanError, device::VulkanDevice},
-};
-
+#[derive(Debug)]
 pub struct VulkanShaderModule {
     id: u32,
     device_id: u32,
@@ -39,9 +40,9 @@ pub fn read_shader_code(path: &str) -> Result<Vec<u32>, VulkanShaderError> {
     }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanShaderModule {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         device: &VulkanDevice,
         code: &[u32],
@@ -58,11 +59,8 @@ impl VulkanShaderModule {
             Err(err) => return Err(VulkanShaderError::CreationError(err)),
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanShaderModule {
-            id,
+            id: ID_COUNTER.next(),
             device_id: device.id(),
             shader_module,
             shader_type,

@@ -9,10 +9,11 @@ use crate::{
         backend::GraphicsBackend,
         buffer::{Buffer, BufferUsage},
         pipeline::{
-            PipelineBinding, PipelineBindingType, PipelineLayoutBinding,
-            PipelineShaderStage,
+            PipelineBinding, PipelineBindingType, PipelineShaderStage,
+            PipelineSubbindingLayout,
         },
-        renderer::components::transform::Transform, vulkan::VulkanBackend,
+        renderer::components::transform::Transform,
+        vulkan::VulkanBackend,
     },
     math::{mat::Matrix4f, quat::Quat, vec::Vec3f},
     resources::Resource,
@@ -60,37 +61,43 @@ impl TransformData {
             .create_buffer(&[scale_matrix], &[BufferUsage::Uniform])
             .unwrap();
         let model_pipeline_layout = backend
-            .create_pipeline_layout(&[&[
-                PipelineLayoutBinding {
+            .create_pipeline_binding_layout(&[
+                PipelineSubbindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
                     shader_stage: PipelineShaderStage::Vertex,
                 },
-                PipelineLayoutBinding {
+                PipelineSubbindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
                     shader_stage: PipelineShaderStage::Vertex,
                 },
-                PipelineLayoutBinding {
+                PipelineSubbindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
                     shader_stage: PipelineShaderStage::Vertex,
                 },
-            ]])
+            ])
             .unwrap();
         let look_at_pipeline_layout = backend
-            .create_pipeline_layout(&[&[PipelineLayoutBinding {
+            .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stage: PipelineShaderStage::Vertex,
-            }]])
+            }])
             .unwrap();
         let model_binding = backend
-            .create_pipeline_binding(model_pipeline_layout, 0)
+            .create_pipeline_binding(model_pipeline_layout)
             .unwrap();
         let look_at_binding = backend
-            .create_pipeline_binding(look_at_pipeline_layout, 0)
+            .create_pipeline_binding(look_at_pipeline_layout)
             .unwrap();
-        backend.bind_buffer(model_binding, translation_buffer, 0).unwrap();
+        backend
+            .bind_buffer(model_binding, translation_buffer, 0)
+            .unwrap();
         backend.bind_buffer(model_binding, scale_buffer, 1).unwrap();
-        backend.bind_buffer(model_binding, rotation_buffer, 2).unwrap();
-        backend.bind_buffer(look_at_binding, look_at_buffer, 0).unwrap();
+        backend
+            .bind_buffer(model_binding, rotation_buffer, 2)
+            .unwrap();
+        backend
+            .bind_buffer(look_at_binding, look_at_buffer, 0)
+            .unwrap();
         TransformData {
             translation_matrix,
             scale_matrix,
@@ -105,14 +112,19 @@ impl TransformData {
         }
     }
 
-    fn update_buffers_from_data(
-        &mut self,
-        backend: &mut impl GraphicsBackend,
-    ) {
-        backend.update_buffer(self.translation_buffer, &[self.translation_matrix]).unwrap();
-        backend.update_buffer(self.scale_buffer, &[self.scale_matrix]).unwrap();
-        backend.update_buffer(self.rotation_buffer, &[self.rotation_matrix]).unwrap();
-        backend.update_buffer(self.look_at_buffer, &[self.look_at_matrix]).unwrap();
+    fn update_buffers_from_data(&mut self, backend: &mut impl GraphicsBackend) {
+        backend
+            .update_buffer(self.translation_buffer, &[self.translation_matrix])
+            .unwrap();
+        backend
+            .update_buffer(self.scale_buffer, &[self.scale_matrix])
+            .unwrap();
+        backend
+            .update_buffer(self.rotation_buffer, &[self.rotation_matrix])
+            .unwrap();
+        backend
+            .update_buffer(self.look_at_buffer, &[self.look_at_matrix])
+            .unwrap();
     }
 }
 

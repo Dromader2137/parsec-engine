@@ -112,7 +112,7 @@ impl winit::application::ApplicationHandler for App {
                 device_id: _,
                 position,
             } => {
-                Resources::add(MouseMovementEvent::new(Vec2f::new(
+                Resources::add(MouseMovementEvent::position(Vec2f::new(
                     position.x as f32,
                     position.y as f32,
                 )))

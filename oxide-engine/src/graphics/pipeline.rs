@@ -4,16 +4,16 @@ pub struct Pipeline {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PipelineLayout {
-    ids: Vec<u32>,
+pub struct PipelineBindingLayout {
+    id: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PipelineBinding {
-    id: u32
+    id: u32,
 }
 
-pub struct PipelineLayoutBinding {
+pub struct PipelineSubbindingLayout {
     pub binding_type: PipelineBindingType,
     pub shader_stage: PipelineShaderStage,
 }
@@ -21,6 +21,7 @@ pub struct PipelineLayoutBinding {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineBindingType {
     UniformBuffer,
+    TextureSampler,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,10 +43,24 @@ impl Pipeline {
     pub fn id(&self) -> u32 { self.id }
 }
 
-impl PipelineLayout {
-    pub fn new(ids: Vec<u32>) -> PipelineLayout { PipelineLayout { ids } }
+impl PipelineBindingLayout {
+    pub fn new(id: u32) -> PipelineBindingLayout {
+        PipelineBindingLayout { id }
+    }
 
-    pub fn ids(&self) -> &[u32] { &self.ids }
+    pub fn id(&self) -> u32 { self.id }
+}
+
+impl PipelineSubbindingLayout {
+    pub fn new(
+        binding_type: PipelineBindingType,
+        shader_stage: PipelineShaderStage,
+    ) -> PipelineSubbindingLayout {
+        PipelineSubbindingLayout {
+            binding_type,
+            shader_stage,
+        }
+    }
 }
 
 impl PipelineBinding {

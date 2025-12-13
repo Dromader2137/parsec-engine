@@ -1,13 +1,14 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
 use ash::vk::Extent2D;
 
-use crate::graphics::{
-    vulkan::{
-        VulkanError, device::VulkanDevice, image::VulkanImageView,
-        renderpass::VulkanRenderpass,
+use crate::{
+    graphics::{
+        vulkan::{
+            VulkanError, device::VulkanDevice, image::VulkanImageView,
+            renderpass::VulkanRenderpass,
+        },
+        window::Window,
     },
-    window::Window,
+    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanFramebuffer {
@@ -30,9 +31,9 @@ impl From<VulkanFramebufferError> for VulkanError {
     }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanFramebuffer {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         window: &Window,
         device: &VulkanDevice,
@@ -67,11 +68,8 @@ impl VulkanFramebuffer {
             Err(err) => return Err(VulkanFramebufferError::CreationError(err)),
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanFramebuffer {
-            id,
+            id: ID_COUNTER.next(),
             renderpass_id: renderpass.id(),
             image_view_ids: vec![image_view.id(), depth_view.id()],
             framebuffer,

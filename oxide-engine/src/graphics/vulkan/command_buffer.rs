@@ -1,10 +1,11 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::graphics::vulkan::{
-    VulkanError, buffer::VulkanBuffer, descriptor_set::VulkanDescriptorSet,
-    device::VulkanDevice, framebuffer::VulkanFramebuffer,
-    graphics_pipeline::VulkanGraphicsPipeline,
-    physical_device::VulkanPhysicalDevice, renderpass::VulkanRenderpass,
+use crate::{
+    graphics::vulkan::{
+        VulkanError, buffer::VulkanBuffer, descriptor_set::VulkanDescriptorSet,
+        device::VulkanDevice, framebuffer::VulkanFramebuffer,
+        graphics_pipeline::VulkanGraphicsPipeline,
+        physical_device::VulkanPhysicalDevice, renderpass::VulkanRenderpass,
+    },
+    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanCommandPool {
@@ -51,9 +52,9 @@ impl From<VulkanCommandPoolError> for VulkanError {
     }
 }
 
+static ID_COUNTER_POOL: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanCommandPool {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         physical_device: &VulkanPhysicalDevice,
         device: &VulkanDevice,
@@ -75,11 +76,8 @@ impl VulkanCommandPool {
             Err(err) => return Err(VulkanCommandPoolError::CreationError(err)),
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanCommandPool {
-            id,
+            id: ID_COUNTER_POOL.next(),
             device_id: device.id(),
             command_pool,
         })
@@ -94,9 +92,9 @@ impl VulkanCommandPool {
     pub fn device_id(&self) -> u32 { self.device_id }
 }
 
+static ID_COUNTER_BUFFER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanCommandBuffer {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         device: &VulkanDevice,
         command_pool: &VulkanCommandPool,
@@ -121,11 +119,8 @@ impl VulkanCommandBuffer {
             },
         }[0];
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanCommandBuffer {
-            id,
+            id: ID_COUNTER_BUFFER.next(),
             device_id: device.id(),
             command_pool_id: command_pool.id(),
             command_buffer,

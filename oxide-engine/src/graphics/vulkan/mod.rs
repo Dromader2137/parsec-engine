@@ -4,10 +4,23 @@
 use std::collections::HashMap;
 
 use crate::graphics::{
-    GraphicsError, backend::GraphicsBackend, buffer::{Buffer, BufferError, BufferUsage}, command_list::{CommandList, CommandListError}, fence::Fence, framebuffer::Framebuffer, image::{Image, ImageFormat, ImageUsage, ImageView}, pipeline::{
-        Pipeline, PipelineBinding, PipelineError, PipelineLayout,
-        PipelineLayoutBinding,
-    }, renderer::{DefaultVertex, RendererError}, renderpass::{Renderpass, RenderpassError}, semaphore::Semaphore, shader::{Shader, ShaderError, ShaderType}, swapchain::{Swapchain, SwapchainError}, vulkan::{
+    GraphicsError,
+    backend::GraphicsBackend,
+    buffer::{Buffer, BufferError, BufferUsage},
+    command_list::{CommandList, CommandListError},
+    fence::Fence,
+    framebuffer::Framebuffer,
+    image::{Image, ImageFormat, ImageUsage, ImageView},
+    pipeline::{
+        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
+        PipelineSubbindingLayout,
+    },
+    renderer::{DefaultVertex, RendererError},
+    renderpass::{Renderpass, RenderpassError},
+    semaphore::Semaphore,
+    shader::{Shader, ShaderError, ShaderType},
+    swapchain::{Swapchain, SwapchainError},
+    vulkan::{
         buffer::{VulkanBuffer, VulkanBufferError, VulkanBufferUsage},
         command_buffer::{
             VulkanCommandBuffer, VulkanCommandBufferError, VulkanCommandPool,
@@ -36,7 +49,8 @@ use crate::graphics::{
         shader::{VulkanShaderError, VulkanShaderModule},
         surface::{VulkanInitialSurface, VulkanSurface, VulkanSurfaceError},
         swapchain::{VulkanSwapchain, VulkanSwapchainError},
-    }, window::Window
+    },
+    window::Window,
 };
 
 pub mod allocation;
@@ -164,9 +178,7 @@ impl GraphicsBackend for VulkanBackend {
         }
     }
 
-    fn wait_idle(&self) {
-        self.device.wait_idle().unwrap();
-    }
+    fn wait_idle(&self) { self.device.wait_idle().unwrap(); }
 
     fn create_buffer<T: Clone + Copy>(
         &mut self,
@@ -177,7 +189,7 @@ impl GraphicsBackend for VulkanBackend {
         buffer_usage.iter().for_each(|x| usage |= (*x).into());
         let buffer = VulkanBuffer::from_vec(&self.device, data, usage).unwrap();
         let buffer_id = buffer.id();
-        self.buffers.insert(buffer_id, buffer).unwrap();
+        self.buffers.insert(buffer_id, buffer);
         Ok(Buffer::new(buffer_id))
     }
 
@@ -203,7 +215,7 @@ impl GraphicsBackend for VulkanBackend {
         let shader =
             VulkanShaderModule::new(&self.device, code, shader_type).unwrap();
         let shader_id = shader.id();
-        self.shaders.insert(shader_id, shader).unwrap();
+        self.shaders.insert(shader_id, shader);
         Ok(Shader::new(shader_id))
     }
 
@@ -211,34 +223,30 @@ impl GraphicsBackend for VulkanBackend {
         let renderpass =
             VulkanRenderpass::new(&self.surface, &self.device).unwrap();
         let rendrepass_id = renderpass.id();
-        self.renderpasses.insert(rendrepass_id, renderpass).unwrap();
+        self.renderpasses.insert(rendrepass_id, renderpass);
         Ok(Renderpass::new(rendrepass_id))
     }
 
-    fn create_pipeline_layout(
+    fn create_pipeline_binding_layout(
         &mut self,
-        bindings: &[&[PipelineLayoutBinding]],
-    ) -> Result<PipelineLayout, PipelineError> {
-        let layouts = bindings
+        subbindings: &[PipelineSubbindingLayout],
+    ) -> Result<PipelineBindingLayout, PipelineError> {
+        let set_bindings = subbindings
             .iter()
-            .map(|set| {
-                let set_bindings = set
-                    .iter()
-                    .enumerate()
-                    .map(|(id, binding)| {
-                        VulkanDescriptorSetBinding::new(
-                            id as u32,
-                            binding.binding_type.into(),
-                            binding.shader_stage.into(),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                VulkanDescriptorSetLayout::new(&self.device, set_bindings)
-                    .unwrap()
+            .enumerate()
+            .map(|(id, binding)| {
+                VulkanDescriptorSetBinding::new(
+                    id as u32,
+                    binding.binding_type.into(),
+                    binding.shader_stage.into(),
+                )
             })
             .collect::<Vec<_>>();
-        let ids = layouts.iter().map(|x| x.id()).collect::<Vec<_>>();
-        Ok(PipelineLayout::new(ids))
+        let dsl =
+            VulkanDescriptorSetLayout::new(&self.device, set_bindings).unwrap();
+        let dsl_id = dsl.id();
+        self.descriptor_set_layouts.insert(dsl_id, dsl);
+        Ok(PipelineBindingLayout::new(dsl_id))
     }
 
     fn create_pipeline(
@@ -246,7 +254,7 @@ impl GraphicsBackend for VulkanBackend {
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,
-        layout: PipelineLayout,
+        binding_layouts: &[PipelineBindingLayout],
     ) -> Result<Pipeline, PipelineError> {
         let vsm = self
             .shaders
@@ -262,12 +270,11 @@ impl GraphicsBackend for VulkanBackend {
             .ok_or(PipelineError::RenderpassNotFound)?;
         let fra = self
             .framebuffers
-            .get(0)
+            .get(&0)
             .ok_or(PipelineError::FramebufferNotFound)?;
-        let dsl = layout
-            .ids()
+        let dsl = binding_layouts
             .iter()
-            .map(|x| self.descriptor_set_layouts.get(x).unwrap().clone())
+            .map(|x| self.descriptor_set_layouts.get(&x.id()).unwrap().clone())
             .collect::<Vec<_>>();
         let pipeline = VulkanGraphicsPipeline::new::<DefaultVertex>(
             &self.device,
@@ -279,22 +286,23 @@ impl GraphicsBackend for VulkanBackend {
         )
         .unwrap();
         let pipeline_id = pipeline.id();
-        self.pipelines.insert(pipeline_id, pipeline).unwrap();
+        self.pipelines.insert(pipeline_id, pipeline);
         Ok(Pipeline::new(pipeline_id))
     }
 
     fn create_pipeline_binding(
         &mut self,
-        pipeline_layout: PipelineLayout,
-        binding: u32,
+        pipeline_layout: PipelineBindingLayout,
     ) -> Result<PipelineBinding, PipelineError> {
-        let pl = pipeline_layout.ids().get(binding as usize).unwrap();
-        let dsl = self.descriptor_set_layouts.get(pl).unwrap();
+        let dsl = self
+            .descriptor_set_layouts
+            .get(&pipeline_layout.id())
+            .unwrap();
         let ds =
             VulkanDescriptorSet::new(&self.device, dsl, &self.descriptor_pool)
                 .unwrap();
         let ds_id = ds.id();
-        self.descriptor_sets.insert(ds_id, ds).unwrap();
+        self.descriptor_sets.insert(ds_id, ds);
         Ok(PipelineBinding::new(ds_id))
     }
 
@@ -319,14 +327,13 @@ impl GraphicsBackend for VulkanBackend {
             VulkanCommandBuffer::new(&self.device, &self.command_pool).unwrap();
         let command_buffer_id = comman_buffer.id();
         self.command_buffers
-            .insert(command_buffer_id, comman_buffer)
-            .unwrap();
+            .insert(command_buffer_id, comman_buffer);
         Ok(CommandList::new(command_buffer_id))
     }
 
     fn command_begin(
-            &mut self,
-            command_list: CommandList,
+        &mut self,
+        command_list: CommandList,
     ) -> Result<(), CommandListError> {
         let command_buffer = self
             .command_buffers
@@ -337,8 +344,8 @@ impl GraphicsBackend for VulkanBackend {
     }
 
     fn command_end(
-            &mut self,
-            command_list: CommandList,
+        &mut self,
+        command_list: CommandList,
     ) -> Result<(), CommandListError> {
         let command_buffer = self
             .command_buffers
@@ -349,8 +356,8 @@ impl GraphicsBackend for VulkanBackend {
     }
 
     fn command_reset(
-            &mut self,
-            command_list: CommandList,
+        &mut self,
+        command_list: CommandList,
     ) -> Result<(), CommandListError> {
         let command_buffer = self
             .command_buffers
@@ -364,13 +371,13 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         command_list: CommandList,
         renderpass: Renderpass,
-        present_image_index: u32,
+        framebuffer: Framebuffer,
     ) -> Result<(), CommandListError> {
         let command_buffer = self
             .command_buffers
             .get(&command_list.id())
             .ok_or(CommandListError::CommandListNotFound)?;
-        let fra = self.framebuffers.get(&present_image_index).unwrap();
+        let fra = self.framebuffers.get(&framebuffer.id()).unwrap();
         let ren = self.renderpasses.get(&renderpass.id()).unwrap();
         command_buffer
             .begin_renderpass(&self.device, fra, ren)
@@ -406,6 +413,25 @@ impl GraphicsBackend for VulkanBackend {
         let pip = self.pipelines.get(&pipeline.id()).unwrap();
         command_buffer
             .bind_graphics_pipeline(&self.device, pip)
+            .unwrap();
+        Ok(())
+    }
+
+    fn command_bind_pipeline_binding(
+        &mut self,
+        command_list: CommandList,
+        pipeline: Pipeline,
+        binding: PipelineBinding,
+        binding_index: u32,
+    ) -> Result<(), CommandListError> {
+        let command_buffer = self
+            .command_buffers
+            .get(&command_list.id())
+            .ok_or(CommandListError::CommandListNotFound)?;
+        let ds = self.descriptor_sets.get(&binding.id()).unwrap();
+        let pip = self.pipelines.get(&pipeline.id()).unwrap();
+        command_buffer
+            .bind_descriptor_set(&self.device, ds, pip, binding_index)
             .unwrap();
         Ok(())
     }
@@ -471,12 +497,11 @@ impl GraphicsBackend for VulkanBackend {
         .unwrap();
         let swapchain_id = swapchain.id();
         let mut images = Vec::new();
-        self.swapchains.insert(swapchain_id, swapchain).unwrap();
+        self.swapchains.insert(swapchain_id, swapchain);
         for swapchain_image in swapchain_images.iter() {
             let swapchain_image_id = swapchain_image.id();
             self.swapchain_images
-                .insert(swapchain_image_id, swapchain_image.clone())
-                .unwrap();
+                .insert(swapchain_image_id, swapchain_image.clone());
             images.push(Image::new(swapchain_image_id));
         }
         Ok((Swapchain::new(swapchain_id), images))
@@ -484,76 +509,6 @@ impl GraphicsBackend for VulkanBackend {
 
     fn delete_swapchain(&mut self, swapchain: Swapchain) {
         self.swapchains.remove(&swapchain.id()).unwrap();
-    }
-
-    fn create_image(
-        &mut self,
-        size: (u32, u32),
-        format: ImageFormat,
-        usage: ImageUsage,
-    ) -> Image {
-        let image = VulkanOwnedImage::new(&self.device, VulkanImageInfo {
-            format: format.into(),
-            size,
-            usage: usage.into(),
-        })
-        .unwrap();
-        let image_id = image.id();
-        self.owned_images.insert(image_id, image).unwrap();
-        Image::new(image_id)
-    }
-
-    fn delete_image(&mut self, image: Image) {
-        let result = self.owned_images.remove(&image.id());
-        if result.is_none() {
-            self.swapchain_images.remove(&image.id()).unwrap();
-        }
-    }
-
-    fn create_image_view(
-        &mut self,
-        image: Image,
-    ) -> ImageView {
-        let oim = self.owned_images.get(&image.id()).map(|x| {
-            VulkanImageView::from_image(
-                &self.device,
-                x,
-            ).unwrap()
-        });
-        let sim = self.swapchain_images.get(&image.id()).map(|x| {
-            VulkanImageView::from_image(
-                &self.device,
-                x,
-            ).unwrap()
-        });
-        let im = oim.or(sim).unwrap();
-        let im_id = im.id();
-        self.image_views.insert(im_id, im).unwrap();
-        ImageView::new(im_id)
-    }
-
-    fn delete_image_view(&mut self, image_view: ImageView) {
-        self.image_views.remove(&image_view.id()).unwrap();
-    }
-
-    fn create_framebuffer(
-            &mut self,
-            window: &Window,
-            color_view: ImageView,
-            depth_view: ImageView,
-            renderpass: Renderpass
-        ) -> Framebuffer {
-        let cv = self.image_views.get(&color_view.id()).unwrap();
-        let dv = self.image_views.get(&depth_view.id()).unwrap();
-        let ren = self.renderpasses.get(&renderpass.id()).unwrap();
-        let framebuffer = VulkanFramebuffer::new(window, &self.device, cv, dv, ren).unwrap();
-        let framebuffer_id = framebuffer.id();
-        self.framebuffers.insert(framebuffer_id, framebuffer).unwrap();
-        Framebuffer::new(framebuffer_id)
-    }
-    
-    fn delete_framebuffer(&mut self, framebuffer: Framebuffer) {
-        self.framebuffers.remove(&framebuffer.id()).unwrap();
     }
 
     fn next_image_id(
@@ -598,10 +553,90 @@ impl GraphicsBackend for VulkanBackend {
             })
     }
 
+    fn create_image(
+        &mut self,
+        size: (u32, u32),
+        format: ImageFormat,
+        usage: ImageUsage,
+    ) -> Image {
+        let image = VulkanOwnedImage::new(&self.device, VulkanImageInfo {
+            format: format.into(),
+            size,
+            usage: usage.into(),
+        })
+        .unwrap();
+        let image_id = image.id();
+        self.owned_images.insert(image_id, image);
+        Image::new(image_id)
+    }
+
+    fn delete_image(&mut self, image: Image) {
+        let result = self.owned_images.remove(&image.id());
+        if let Some(image) = result {
+            unsafe {
+                self.device
+                    .get_device_raw()
+                    .destroy_image(*image.get_image_raw(), None);
+            }
+        } else {
+            self.swapchain_images.remove(&image.id()).unwrap();
+        }
+    }
+
+    fn create_image_view(&mut self, image: Image) -> ImageView {
+        let oim = self
+            .owned_images
+            .get(&image.id())
+            .map(|x| VulkanImageView::from_image(&self.device, x).unwrap());
+        let sim = self
+            .swapchain_images
+            .get(&image.id())
+            .map(|x| VulkanImageView::from_image(&self.device, x).unwrap());
+        let im = oim.or(sim).unwrap();
+        let im_id = im.id();
+        self.image_views.insert(im_id, im);
+        ImageView::new(im_id)
+    }
+
+    fn delete_image_view(&mut self, image_view: ImageView) {
+        let image_view = self.image_views.remove(&image_view.id()).unwrap();
+        unsafe {
+            self.device
+                .get_device_raw()
+                .destroy_image_view(*image_view.get_image_view_raw(), None);
+        }
+    }
+
+    fn create_framebuffer(
+        &mut self,
+        window: &Window,
+        color_view: ImageView,
+        depth_view: ImageView,
+        renderpass: Renderpass,
+    ) -> Framebuffer {
+        let cv = self.image_views.get(&color_view.id()).unwrap();
+        let dv = self.image_views.get(&depth_view.id()).unwrap();
+        let ren = self.renderpasses.get(&renderpass.id()).unwrap();
+        let framebuffer =
+            VulkanFramebuffer::new(window, &self.device, cv, dv, ren).unwrap();
+        let framebuffer_id = framebuffer.id();
+        self.framebuffers.insert(framebuffer_id, framebuffer);
+        Framebuffer::new(framebuffer_id)
+    }
+
+    fn delete_framebuffer(&mut self, framebuffer: Framebuffer) {
+        let framebuffer = self.framebuffers.remove(&framebuffer.id()).unwrap();
+        unsafe {
+            self.device
+                .get_device_raw()
+                .destroy_framebuffer(*framebuffer.get_framebuffer_raw(), None);
+        }
+    }
+
     fn create_fence(&mut self, signaled: bool) -> Fence {
         let fence = VulkanFence::new(&self.device, signaled).unwrap();
         let fence_id = fence.id();
-        self.fences.insert(fence_id, fence).unwrap();
+        self.fences.insert(fence_id, fence);
         Fence::new(fence_id)
     }
 
@@ -615,10 +650,28 @@ impl GraphicsBackend for VulkanBackend {
         fence.reset(&self.device).unwrap();
     }
 
+    fn delete_fence(&mut self, fence: Fence) {
+        let fence = self.fences.remove(&fence.id()).unwrap();
+        unsafe {
+            self.device
+                .get_device_raw()
+                .destroy_fence(*fence.get_fence_raw(), None);
+        }
+    }
+
     fn create_semaphore(&mut self) -> Semaphore {
         let semaphore = VulkanSemaphore::new(&self.device).unwrap();
         let semaphore_id = semaphore.id();
-        self.semaphores.insert(semaphore_id, semaphore).unwrap();
+        self.semaphores.insert(semaphore_id, semaphore);
         Semaphore::new(semaphore_id)
+    }
+
+    fn delete_semaphore(&mut self, semaphore: Semaphore) {
+        let semaphore = self.semaphores.remove(&semaphore.id()).unwrap();
+        unsafe {
+            self.device
+                .get_device_raw()
+                .destroy_semaphore(*semaphore.get_semaphore_raw(), None);
+        }
     }
 }

@@ -6,7 +6,7 @@ pub struct Swapchain {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SwapchainError {
     SwapchainOutOfDate,
-    Undefined
+    Undefined,
 }
 
 impl Swapchain {

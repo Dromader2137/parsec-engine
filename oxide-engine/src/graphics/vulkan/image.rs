@@ -1,11 +1,12 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::graphics::{
-    image::{ImageFormat, ImageUsage},
-    vulkan::{
-        VulkanError, buffer::find_memorytype_index, device::VulkanDevice,
-        format_size::format_size,
+use crate::{
+    graphics::{
+        image::{ImageFormat, ImageUsage},
+        vulkan::{
+            VulkanError, buffer::find_memorytype_index, device::VulkanDevice,
+            format_size::format_size,
+        },
     },
+    utils::id_counter::IdCounter,
 };
 
 pub trait VulkanImage: Send + Sync + 'static {
@@ -36,6 +37,7 @@ pub struct VulkanOwnedImage {
     size: u64,
 }
 
+#[derive(Debug)]
 pub struct VulkanImageView {
     id: u32,
     image_id: u32,
@@ -47,7 +49,9 @@ impl VulkanImage for VulkanSwapchainImage {
     fn id(&self) -> u32 { self.id }
     fn device_id(&self) -> u32 { self.device_id }
     fn format(&self) -> ash::vk::Format { self.format }
-    fn usage(&self) -> ash::vk::ImageUsageFlags { ash::vk::ImageUsageFlags::COLOR_ATTACHMENT }
+    fn usage(&self) -> ash::vk::ImageUsageFlags {
+        ash::vk::ImageUsageFlags::COLOR_ATTACHMENT
+    }
     fn aspect_flags(&self) -> ash::vk::ImageAspectFlags {
         ash::vk::ImageAspectFlags::COLOR
     }
@@ -58,13 +62,13 @@ impl VulkanImage for VulkanOwnedImage {
     fn id(&self) -> u32 { self.id }
     fn device_id(&self) -> u32 { self.device_id }
     fn format(&self) -> ash::vk::Format { self.format }
-    fn usage(&self) -> ash::vk::ImageUsageFlags {
-        self.usage
-    }
+    fn usage(&self) -> ash::vk::ImageUsageFlags { self.usage }
     fn aspect_flags(&self) -> ash::vk::ImageAspectFlags {
         match self.usage {
-            ash::vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT => ash::vk::ImageAspectFlags::DEPTH,
-            _ => ash::vk::ImageAspectFlags::NONE
+            ash::vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT => {
+                ash::vk::ImageAspectFlags::DEPTH
+            },
+            _ => ash::vk::ImageAspectFlags::NONE,
         }
     }
 }
@@ -175,19 +179,16 @@ impl From<VulkanImageInfo> for ash::vk::ImageCreateInfo<'_> {
     }
 }
 
-const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
+static ID_COUNTER_IMAGE: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanSwapchainImage {
     pub fn from_raw_image(
         device: &VulkanDevice,
         format: ash::vk::Format,
         raw_image: ash::vk::Image,
     ) -> VulkanSwapchainImage {
-        let id = ID_COUNTER.load(Ordering::Acquire);
-        ID_COUNTER.store(id + 1, Ordering::Release);
-
         VulkanSwapchainImage {
-            id,
+            id: ID_COUNTER_IMAGE.next(),
             device_id: device.id(),
             format,
             image: raw_image,
@@ -249,11 +250,8 @@ impl VulkanOwnedImage {
             None => return Err(VulkanImageError::FormatNotSupported),
         };
 
-        let id = ID_COUNTER.load(Ordering::Acquire);
-        ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanOwnedImage {
-            id,
+            id: ID_COUNTER_IMAGE.next(),
             device_id: device.id(),
             image,
             format,
@@ -266,9 +264,9 @@ impl VulkanOwnedImage {
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory { &self.memory }
 }
 
+static ID_COUNTER_VIEW: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanImageView {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn from_image(
         device: &VulkanDevice,
         image: &impl VulkanImage,
@@ -280,16 +278,13 @@ impl VulkanImageView {
             aspect_flags: image.aspect_flags(),
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         match unsafe {
             device
                 .get_device_raw()
                 .create_image_view(&view_info.into(), None)
         } {
             Ok(val) => Ok(VulkanImageView {
-                id,
+                id: ID_COUNTER_VIEW.next(),
                 image_id,
                 view: val,
             }),

@@ -1,121 +1,114 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::graphics::{
-    renderer::{
-        DefaultVertex, camera_data::CameraData, transform_data::TransformData,
-    },
-    vulkan::{
-        VulkanError,
-        command_buffer::VulkanCommandBuffer,
-        descriptor_set::{
-            VulkanDescriptorSetBinding, VulkanDescriptorSetLayout,
+use crate::{
+    graphics::{
+        backend::GraphicsBackend,
+        command_list::CommandList,
+        pipeline::{
+            Pipeline, PipelineBinding, PipelineBindingLayout,
+            PipelineSubbindingLayout,
         },
-        device::VulkanDevice,
-        framebuffer::VulkanFramebuffer,
-        graphics_pipeline::VulkanGraphicsPipeline,
-        renderpass::VulkanRenderpass,
-        shader::VulkanShaderModule,
+        renderer::{camera_data::CameraData, transform_data::TransformData},
+        renderpass::Renderpass,
+        shader::Shader,
     },
+    utils::id_counter::IdCounter,
 };
 
 pub struct MaterialBase {
     id: u32,
-    pipeline: VulkanGraphicsPipeline,
+    pipeline: Pipeline,
     #[allow(unused)]
-    descriptor_set_layouts: Vec<VulkanDescriptorSetLayout>,
+    binding_layouts: Vec<PipelineBindingLayout>,
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl MaterialBase {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
-        device: &VulkanDevice,
-        renderpass: &VulkanRenderpass,
-        framebuffers: Vec<&VulkanFramebuffer>,
-        vertex_shader: &VulkanShaderModule,
-        fragment_shader: &VulkanShaderModule,
-        layout: Vec<Vec<VulkanDescriptorSetBinding>>,
-    ) -> Result<MaterialBase, VulkanError> {
-        let mut descriptor_set_layouts = Vec::new();
+        backend: &mut impl GraphicsBackend,
+        vertex_shader: Shader,
+        fragment_shader: Shader,
+        renderpass: Renderpass,
+        binding_layouts: Vec<Vec<PipelineSubbindingLayout>>,
+    ) -> MaterialBase {
+        let binding_layouts = binding_layouts
+            .iter()
+            .map(|binding_layout| {
+                backend
+                    .create_pipeline_binding_layout(&binding_layout)
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
 
-        for bindings in layout {
-            descriptor_set_layouts
-                .push(VulkanDescriptorSetLayout::new(&device, bindings)?);
-        }
+        let pipeline = backend
+            .create_pipeline(
+                vertex_shader,
+                fragment_shader,
+                renderpass,
+                &binding_layouts,
+            )
+            .unwrap();
 
-        let pipeline = VulkanGraphicsPipeline::new::<DefaultVertex>(
-            device,
-            renderpass,
-            &framebuffers[0],
-            vertex_shader,
-            fragment_shader,
-            &descriptor_set_layouts,
-        )?;
-
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
-        Ok(MaterialBase {
-            id,
+        MaterialBase {
+            id: ID_COUNTER.next(),
             pipeline,
-            descriptor_set_layouts,
-        })
+            binding_layouts,
+        }
     }
 
     pub fn id(&self) -> u32 { self.id }
 }
 
-pub enum MaterialDescriptorSets {
-    ModelMatrixSet,
-    ViewMatrixSet,
-    ProjectionMatrixSet,
-    UniformSet(u32),
+pub enum MaterialPipelineBinding {
+    ModelMatrix,
+    ViewMatrix,
+    ProjectionMatrix,
+    Generic(PipelineBinding),
 }
 
 pub struct MaterialData {
     material_base_id: u32,
-    descriptor_sets: Vec<MaterialDescriptorSets>,
+    descriptor_sets: Vec<MaterialPipelineBinding>,
 }
 
 impl MaterialData {
     pub fn new(
         material_base: &MaterialBase,
-        material_descriptor_sets: Vec<MaterialDescriptorSets>,
-    ) -> Result<MaterialData, VulkanError> {
-        Ok(MaterialData {
+        material_descriptor_sets: Vec<MaterialPipelineBinding>,
+    ) -> MaterialData {
+        MaterialData {
             material_base_id: material_base.id(),
             descriptor_sets: material_descriptor_sets,
-        })
+        }
     }
 
     pub fn bind(
         &self,
-        device: &VulkanDevice,
+        backend: &mut impl GraphicsBackend,
+        command_list: CommandList,
         material_base: &MaterialBase,
-        command_buffer: &VulkanCommandBuffer,
         camera: &CameraData,
         camera_transform: &TransformData,
         transform: &TransformData,
     ) {
-        command_buffer
-            .bind_graphics_pipeline(device, &material_base.pipeline)
+        backend
+            .command_bind_pipeline(command_list, material_base.pipeline)
             .unwrap();
-        for (set_index, set) in self.descriptor_sets.iter().enumerate() {
-            let descriptor_set = match set {
-                MaterialDescriptorSets::ViewMatrixSet => {
-                    &camera_transform.look_at_set
+        for (set_index, binding) in self.descriptor_sets.iter().enumerate() {
+            let pipeline_binding = match binding {
+                MaterialPipelineBinding::ViewMatrix => {
+                    camera_transform.look_at_binding
                 },
-                MaterialDescriptorSets::ProjectionMatrixSet => {
-                    &camera.projection_set
+                MaterialPipelineBinding::ProjectionMatrix => {
+                    camera.projection_binding
                 },
-                MaterialDescriptorSets::ModelMatrixSet => &transform.model_set,
-                _ => unreachable!(),
+                MaterialPipelineBinding::ModelMatrix => transform.model_binding,
+                MaterialPipelineBinding::Generic(bind) => *bind,
             };
-            command_buffer
-                .bind_descriptor_set(
-                    device,
-                    descriptor_set,
-                    &material_base.pipeline,
+            backend
+                .command_bind_pipeline_binding(
+                    command_list,
+                    material_base.pipeline,
+                    pipeline_binding,
                     set_index as u32,
                 )
                 .unwrap();

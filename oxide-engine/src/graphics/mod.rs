@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 use vulkan::VulkanError;
-use window::{WindowError, Window};
+use window::{Window, WindowError};
 
 use crate::{
     app::{self},
@@ -11,8 +11,9 @@ use crate::{
         world::query::Query,
     },
     graphics::{
+        backend::GraphicsBackend,
         renderer::{
-            InitRenderer, QueueClear, Render, RendererResizeFlag,
+            InitRenderer, QueueClear, Render, ResizeFlag,
             assets::mesh::Mesh,
             camera_data::{AddCameraData, UpdateCameraData},
             components::{
@@ -23,7 +24,7 @@ use crate::{
             mesh_data::AddMeshData,
             transform_data::{AddTransformData, UpdateTransformData},
         },
-        vulkan::{context::InitVulkan, device::VulkanDevice},
+        vulkan::{VulkanBackend, context::InitVulkan},
     },
     resources::{Resource, Resources},
     utils::id_vec::IdVec,
@@ -33,6 +34,8 @@ pub mod backend;
 pub mod buffer;
 pub mod command_list;
 pub mod fence;
+pub mod framebuffer;
+pub mod image;
 pub mod pipeline;
 pub mod renderer;
 pub mod renderpass;
@@ -41,8 +44,6 @@ pub mod shader;
 pub mod swapchain;
 pub mod vulkan;
 pub mod window;
-pub mod image;
-pub mod framebuffer;
 
 #[derive(Error, Debug)]
 pub enum GraphicsError {
@@ -78,13 +79,13 @@ impl SystemBundle for GraphicsBundle {
 }
 
 #[system]
-fn mark_resize(mut resize: Resource<RendererResizeFlag>) { resize.0 = true }
+fn mark_resize(mut resize: Resource<ResizeFlag>) { resize.0 = true }
 
 #[system]
 fn request_redraw(window: Resource<Window>) { window.request_redraw(); }
 
 #[system]
-fn end_wait_idle(device: Resource<VulkanDevice>) { device.wait_idle().unwrap() }
+fn end_wait_idle(backend: Resource<VulkanBackend>) { backend.wait_idle() }
 
 #[system]
 fn init_window() {

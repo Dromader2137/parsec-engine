@@ -1,9 +1,14 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::graphics::vulkan::{
-    VulkanError, descriptor_set::VulkanDescriptorSetLayout,
-    device::VulkanDevice, framebuffer::VulkanFramebuffer,
-    renderpass::VulkanRenderpass, shader::VulkanShaderModule,
+use crate::{
+    graphics::{
+        renderer::mesh_data::{Vertex, VertexFieldFormat},
+        vulkan::{
+            VulkanError, descriptor_set::VulkanDescriptorSetLayout,
+            device::VulkanDevice, format_size::format_size,
+            framebuffer::VulkanFramebuffer, renderpass::VulkanRenderpass,
+            shader::VulkanShaderModule,
+        },
+    },
+    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanGraphicsPipeline {
@@ -33,19 +38,24 @@ impl From<VulkanGraphicsPipelineError> for VulkanError {
 
 pub type VulkanVertexFieldFormat = ash::vk::Format;
 
-pub struct VulkanVertexField {
-    pub format: VulkanVertexFieldFormat,
-    pub offset: u32,
+impl From<VertexFieldFormat> for VulkanVertexFieldFormat {
+    fn from(value: VertexFieldFormat) -> Self {
+        match value {
+            VertexFieldFormat::Float => VulkanVertexFieldFormat::R32_SFLOAT,
+            VertexFieldFormat::Vec2 => VulkanVertexFieldFormat::R32G32_SFLOAT,
+            VertexFieldFormat::Vec3 => {
+                VulkanVertexFieldFormat::R32G32B32_SFLOAT
+            },
+            VertexFieldFormat::Vec4 => {
+                VulkanVertexFieldFormat::R32G32B32A32_SFLOAT
+            },
+        }
+    }
 }
 
-pub trait Vertex: Clone + Copy {
-    fn description() -> Vec<VulkanVertexField>;
-    fn size() -> u32;
-}
-
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanGraphicsPipeline {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new<V: Vertex>(
         device: &VulkanDevice,
         renderpass: &VulkanRenderpass,
@@ -158,22 +168,26 @@ impl VulkanGraphicsPipeline {
             ash::vk::PipelineDynamicStateCreateInfo::default()
                 .dynamic_states(&dynamic_state);
 
+        let mut vertex_input_attribute_descriptions = Vec::new();
+        let mut current_offset = 0;
+        for (idx, field) in V::fields().iter().enumerate() {
+            vertex_input_attribute_descriptions.push(
+                ash::vk::VertexInputAttributeDescription {
+                    binding: 0,
+                    location: idx as u32,
+                    format: field.format.into(),
+                    offset: current_offset,
+                },
+            );
+            current_offset += format_size(field.format.into()).unwrap();
+        }
+
         let vertex_input_binding_descriptions =
             [ash::vk::VertexInputBindingDescription {
                 binding: 0,
-                stride: V::size(),
+                stride: current_offset,
                 input_rate: ash::vk::VertexInputRate::VERTEX,
             }];
-        let vertex_input_attribute_descriptions = V::description()
-            .iter()
-            .enumerate()
-            .map(|(i, x)| ash::vk::VertexInputAttributeDescription {
-                binding: 0,
-                location: i as u32,
-                format: x.format,
-                offset: x.offset,
-            })
-            .collect::<Vec<_>>();
 
         let vertex_input_state_info =
             ash::vk::PipelineVertexInputStateCreateInfo::default()
@@ -235,11 +249,8 @@ impl VulkanGraphicsPipeline {
             },
         }[0];
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanGraphicsPipeline {
-            id,
+            id: ID_COUNTER.next(),
             device_id: device.id(),
             framebuffer_id: framebuffer.id(),
             vertex_shader_id: vertex_shader.id(),

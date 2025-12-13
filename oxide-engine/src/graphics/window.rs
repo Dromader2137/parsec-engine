@@ -1,10 +1,10 @@
 //! Module responsible for handling windows.
 
-use std::sync::atomic::{AtomicU32, Ordering};
-
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-use crate::{graphics::GraphicsError, math::vec::Vec2f};
+use crate::{
+    graphics::GraphicsError, math::vec::Vec2f, utils::id_counter::IdCounter,
+};
 
 #[derive(Debug)]
 pub struct Window {
@@ -22,9 +22,9 @@ impl From<WindowError> for GraphicsError {
     fn from(value: WindowError) -> Self { GraphicsError::WindowError(value) }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl Window {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         event_loop: &winit::event_loop::ActiveEventLoop,
         name: &str,
@@ -41,10 +41,10 @@ impl Window {
             },
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
-        Ok(Window { id, window })
+        Ok(Window {
+            id: ID_COUNTER.next(),
+            window,
+        })
     }
 
     pub fn request_redraw(&self) { self.window.request_redraw(); }

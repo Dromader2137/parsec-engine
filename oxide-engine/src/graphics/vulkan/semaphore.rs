@@ -1,6 +1,7 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::graphics::vulkan::{VulkanError, device::VulkanDevice};
+use crate::{
+    graphics::vulkan::{VulkanError, device::VulkanDevice},
+    utils::id_counter::IdCounter,
+};
 
 #[derive(Clone)]
 pub struct VulkanSemaphore {
@@ -22,9 +23,9 @@ impl From<VulkanSemaphoreError> for VulkanError {
     }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanSemaphore {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         device: &VulkanDevice,
     ) -> Result<VulkanSemaphore, VulkanSemaphoreError> {
@@ -37,22 +38,16 @@ impl VulkanSemaphore {
             Err(err) => return Err(VulkanSemaphoreError::CreationError(err)),
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanSemaphore {
-            id,
+            id: ID_COUNTER.next(),
             device_id: device.id(),
             semaphore,
         })
     }
 
     pub fn null(device: &VulkanDevice) -> VulkanSemaphore {
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         VulkanSemaphore {
-            id,
+            id: ID_COUNTER.next(),
             device_id: device.id(),
             semaphore: ash::vk::Semaphore::null(),
         }

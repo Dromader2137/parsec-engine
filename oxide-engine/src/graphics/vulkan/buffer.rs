@@ -1,9 +1,12 @@
-use std::{
-    fmt::Debug,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use std::fmt::Debug;
 
-use crate::graphics::{buffer::BufferUsage, vulkan::{VulkanError, device::VulkanDevice}};
+use crate::{
+    graphics::{
+        buffer::BufferUsage,
+        vulkan::{VulkanError, device::VulkanDevice},
+    },
+    utils::id_counter::IdCounter,
+};
 
 #[allow(unused)]
 pub struct VulkanBuffer {
@@ -50,14 +53,14 @@ impl From<BufferUsage> for VulkanBufferUsage {
         match value {
             BufferUsage::Uniform => VulkanBufferUsage::UNIFORM_BUFFER,
             BufferUsage::Index => VulkanBufferUsage::INDEX_BUFFER,
-            BufferUsage::Vertex => VulkanBufferUsage::VERTEX_BUFFER
+            BufferUsage::Vertex => VulkanBufferUsage::VERTEX_BUFFER,
         }
     }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanBuffer {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn from_vec<T: Clone + Copy>(
         device: &VulkanDevice,
         data: &[T],
@@ -138,11 +141,8 @@ impl VulkanBuffer {
             return Err(VulkanBufferError::BindError(err));
         }
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanBuffer {
-            id,
+            id: ID_COUNTER.next(),
             device_id: device.id(),
             buffer,
             memory,

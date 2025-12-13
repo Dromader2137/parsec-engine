@@ -1,11 +1,12 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::graphics::{
-    pipeline::{PipelineBindingType, PipelineShaderStage},
-    vulkan::{
-        VulkanError, buffer::VulkanBuffer, device::VulkanDevice,
-        image::VulkanImageView,
+use crate::{
+    graphics::{
+        pipeline::{PipelineBindingType, PipelineShaderStage},
+        vulkan::{
+            VulkanError, buffer::VulkanBuffer, device::VulkanDevice,
+            image::VulkanImageView,
+        },
     },
+    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanDescriptorPool {
@@ -64,6 +65,9 @@ impl From<PipelineBindingType> for DescriptorType {
             PipelineBindingType::UniformBuffer => {
                 DescriptorType::UNIFORM_BUFFER
             },
+            PipelineBindingType::TextureSampler => {
+                DescriptorType::COMBINED_IMAGE_SAMPLER
+            },
         }
     }
 }
@@ -97,9 +101,7 @@ impl<'a> VulkanDescriptorSetBinding {
         }
     }
 
-    pub fn binding_type(&self) -> DescriptorType {
-        self.binding_type
-    }
+    pub fn binding_type(&self) -> DescriptorType { self.binding_type }
 }
 
 impl VulkanDescriptorPoolSize {
@@ -114,9 +116,9 @@ impl VulkanDescriptorPoolSize {
     }
 }
 
+static ID_COUNTER_POOL: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanDescriptorPool {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         device: &VulkanDevice,
         descriptor_max_count: u32,
@@ -130,9 +132,6 @@ impl VulkanDescriptorPool {
             .max_sets(descriptor_max_count)
             .pool_sizes(&pool_sizes);
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         let pool = unsafe {
             device
                 .get_device_raw()
@@ -141,7 +140,7 @@ impl VulkanDescriptorPool {
         };
 
         Ok(VulkanDescriptorPool {
-            id,
+            id: ID_COUNTER_POOL.next(),
             device_id: device.id(),
             pool,
         })
@@ -152,9 +151,9 @@ impl VulkanDescriptorPool {
     pub fn id(&self) -> u32 { self.id }
 }
 
+static ID_COUNTER_LAYOUT: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl<'a> VulkanDescriptorSetLayout {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         device: &VulkanDevice,
         bindings: Vec<VulkanDescriptorSetBinding>,
@@ -175,11 +174,8 @@ impl<'a> VulkanDescriptorSetLayout {
             },
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanDescriptorSetLayout {
-            id,
+            id: ID_COUNTER_LAYOUT.next(),
             device_id: device.id(),
             layout,
             bindings,
@@ -194,14 +190,12 @@ impl<'a> VulkanDescriptorSetLayout {
 
     pub fn device_id(&self) -> u32 { self.device_id }
 
-    pub fn bindings(&self) -> &[VulkanDescriptorSetBinding] {
-        &self.bindings
-    }
+    pub fn bindings(&self) -> &[VulkanDescriptorSetBinding] { &self.bindings }
 }
 
+static ID_COUNTER_SET: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanDescriptorSet {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         device: &VulkanDevice,
         descriptor_layout: &VulkanDescriptorSetLayout,
@@ -228,11 +222,8 @@ impl VulkanDescriptorSet {
             Err(err) => return Err(DescriptorError::SetCreationError(err)),
         }[0];
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok(VulkanDescriptorSet {
-            id,
+            id: ID_COUNTER_SET.next(),
             device_id: device.id(),
             descriptor_pool_id: descriptor_pool.id(),
             descriptor_layout_id: descriptor_layout.id(),

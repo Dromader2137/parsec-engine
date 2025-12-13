@@ -1,20 +1,21 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-
 use ash::vk::Extent2D;
 
-use crate::graphics::{
-    vulkan::{
-        VulkanError,
-        device::VulkanDevice,
-        fence::VulkanFence,
-        image::{VulkanImage, VulkanSwapchainImage},
-        instance::VulkanInstance,
-        physical_device::VulkanPhysicalDevice,
-        queue::VulkanQueue,
-        semaphore::VulkanSemaphore,
-        surface::VulkanSurface,
+use crate::{
+    graphics::{
+        vulkan::{
+            VulkanError,
+            device::VulkanDevice,
+            fence::VulkanFence,
+            image::{VulkanImage, VulkanSwapchainImage},
+            instance::VulkanInstance,
+            physical_device::VulkanPhysicalDevice,
+            queue::VulkanQueue,
+            semaphore::VulkanSemaphore,
+            surface::VulkanSurface,
+        },
+        window::Window,
     },
-    window::Window,
+    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanSwapchain {
@@ -46,9 +47,9 @@ impl From<VulkanSwapchainError> for VulkanError {
     }
 }
 
+static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
+    once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanSwapchain {
-    const ID_COUNTER: AtomicU32 = AtomicU32::new(0);
-
     pub fn new(
         instance: &VulkanInstance,
         physical_device: &VulkanPhysicalDevice,
@@ -104,25 +105,7 @@ impl VulkanSwapchain {
             surface.current_transform()
         };
 
-        let present_modes = match unsafe {
-            surface
-                .get_surface_loader_raw()
-                .get_physical_device_surface_present_modes(
-                    *physical_device.get_physical_device_raw(),
-                    *surface.get_surface_raw(),
-                )
-        } {
-            Ok(val) => val,
-            Err(err) => {
-                return Err(VulkanSwapchainError::PresentModesError(err));
-            },
-        };
-
-        let present_mode = present_modes
-            .iter()
-            .cloned()
-            .find(|&mode| mode == ash::vk::PresentModeKHR::FIFO)
-            .unwrap_or(ash::vk::PresentModeKHR::FIFO);
+        let present_mode = ash::vk::PresentModeKHR::FIFO;
 
         let swapchain_loader = ash::khr::swapchain::Device::new(
             instance.get_instance_raw(),
@@ -161,19 +144,22 @@ impl VulkanSwapchain {
         } {
             Ok(val) => val
                 .into_iter()
-                .map(|x| VulkanSwapchainImage::from_raw_image(device, x))
+                .map(|x| {
+                    VulkanSwapchainImage::from_raw_image(
+                        device,
+                        surface.format(),
+                        x,
+                    )
+                })
                 .collect::<Vec<_>>(),
             Err(err) => {
                 return Err(VulkanSwapchainError::ImageAcquisitionError(err));
             },
         };
 
-        let id = Self::ID_COUNTER.load(Ordering::Acquire);
-        Self::ID_COUNTER.store(id + 1, Ordering::Release);
-
         Ok((
             VulkanSwapchain {
-                id,
+                id: ID_COUNTER.next(),
                 device_id: device.id(),
                 swapchain,
                 swapchain_image_ids: swapchain_images

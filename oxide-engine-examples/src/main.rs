@@ -1,3 +1,5 @@
+use std::f32;
+
 use oxide_engine::{
     app::App,
     ecs::{
@@ -6,26 +8,25 @@ use oxide_engine::{
     },
     graphics::{
         GraphicsBundle,
+        backend::GraphicsBackend,
+        buffer::BufferUsage,
+        pipeline::{
+            PipelineBindingType, PipelineShaderStage, PipelineSubbindingLayout,
+        },
         renderer::{
+            RendererMainRenderpass,
             assets::mesh::{Mesh, obj::load_obj},
             components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
             },
             material_data::{
-                MaterialBase, MaterialData, MaterialDescriptorSets,
+                MaterialBase, MaterialData, MaterialPipelineBinding,
             },
         },
         shader::ShaderType,
-        vulkan::{
-            descriptor_set::{
-                DescriptorStage, DescriptorType, VulkanDescriptorSetBinding,
-            },
-            device::VulkanDevice,
-            framebuffer::VulkanFramebuffer,
-            renderpass::VulkanRenderpass,
-            shader::{VulkanShaderModule, read_shader_code},
-        },
+        vulkan::{VulkanBackend, shader::read_shader_code},
+        window::Window,
     },
     input::{Input, InputBundle, key::Noncharacter},
     math::{quat::Quat, vec::Vec3f},
@@ -36,73 +37,75 @@ use oxide_engine::{
 
 #[system]
 fn test_system(
-    device: Resource<VulkanDevice>,
-    framebuffers: Resource<Vec<VulkanFramebuffer>>,
-    renderpass: Resource<VulkanRenderpass>,
+    mut backend: Resource<VulkanBackend>,
     mut materials: Resource<IdVec<MaterialData>>,
     mut material_bases: Resource<IdVec<MaterialBase>>,
     mut meshes: Resource<IdVec<Mesh>>,
+    renderpass: Resource<RendererMainRenderpass>,
 ) {
     let scale = 0.01;
 
-    let vertex = VulkanShaderModule::new(
-        &device,
-        &read_shader_code("shaders/simple.spv").unwrap(),
-        ShaderType::Vertex,
-    )
-    .unwrap();
+    let vertex = backend
+        .create_shader(
+            &read_shader_code("shaders/simple.spv").unwrap(),
+            ShaderType::Vertex,
+        )
+        .unwrap();
+    let fragment = backend
+        .create_shader(
+            &read_shader_code("shaders/flat.spv").unwrap(),
+            ShaderType::Fragment,
+        )
+        .unwrap();
 
-    let fragment = VulkanShaderModule::new(
-        &device,
-        &read_shader_code("shaders/flat.spv").unwrap(),
-        ShaderType::Fragment,
-    )
-    .unwrap();
-
-    let material_base = MaterialBase::new(
-        &device,
-        &renderpass,
-        framebuffers.iter().collect(),
-        &vertex,
-        &fragment,
-        vec![
+    let material_base =
+        MaterialBase::new(&mut *backend, vertex, fragment, renderpass.0, vec![
             vec![
-                VulkanDescriptorSetBinding::new(
-                    0,
-                    DescriptorType::UNIFORM_BUFFER,
-                    DescriptorStage::VERTEX,
+                PipelineSubbindingLayout::new(
+                    PipelineBindingType::UniformBuffer,
+                    PipelineShaderStage::Vertex,
                 ),
-                VulkanDescriptorSetBinding::new(
-                    1,
-                    DescriptorType::UNIFORM_BUFFER,
-                    DescriptorStage::VERTEX,
+                PipelineSubbindingLayout::new(
+                    PipelineBindingType::UniformBuffer,
+                    PipelineShaderStage::Vertex,
                 ),
-                VulkanDescriptorSetBinding::new(
-                    2,
-                    DescriptorType::UNIFORM_BUFFER,
-                    DescriptorStage::VERTEX,
+                PipelineSubbindingLayout::new(
+                    PipelineBindingType::UniformBuffer,
+                    PipelineShaderStage::Vertex,
                 ),
             ],
-            vec![VulkanDescriptorSetBinding::new(
-                0,
-                DescriptorType::UNIFORM_BUFFER,
-                DescriptorStage::VERTEX,
+            vec![PipelineSubbindingLayout::new(
+                PipelineBindingType::UniformBuffer,
+                PipelineShaderStage::Vertex,
             )],
-            vec![VulkanDescriptorSetBinding::new(
-                0,
-                DescriptorType::UNIFORM_BUFFER,
-                DescriptorStage::VERTEX,
+            vec![PipelineSubbindingLayout::new(
+                PipelineBindingType::UniformBuffer,
+                PipelineShaderStage::Vertex,
             )],
-        ],
-    )
-    .unwrap();
+            vec![PipelineSubbindingLayout::new(
+                PipelineBindingType::UniformBuffer,
+                PipelineShaderStage::Fragment,
+            )],
+        ]);
+
+    let buffer = backend
+        .create_buffer(&[Vec3f::new(1.0, -1.0, 0.0)], &[BufferUsage::Uniform])
+        .unwrap();
+    let binding_layout = backend
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
+            PipelineBindingType::UniformBuffer,
+            PipelineShaderStage::Fragment,
+        )])
+        .unwrap();
+    let binding = backend.create_pipeline_binding(binding_layout).unwrap();
+    backend.bind_buffer(binding, buffer, 0).unwrap();
 
     let material = MaterialData::new(&material_base, vec![
-        MaterialDescriptorSets::ModelMatrixSet,
-        MaterialDescriptorSets::ViewMatrixSet,
-        MaterialDescriptorSets::ProjectionMatrixSet,
-    ])
-    .unwrap();
+        MaterialPipelineBinding::ModelMatrix,
+        MaterialPipelineBinding::ViewMatrix,
+        MaterialPipelineBinding::ProjectionMatrix,
+        MaterialPipelineBinding::Generic(binding),
+    ]);
 
     material_bases.push(material_base);
     let material_id = materials.push(material);
@@ -149,19 +152,21 @@ pub struct CameraController {
 #[system]
 fn camera_movement(
     mut cameras: Query<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>,
+    window: Resource<Window>,
     input: Resource<Input>,
     time: Resource<Time>,
 ) {
     for (_, (transform, camera, camera_controller)) in cameras.iter() {
         let delta = input.mouse.positon_delta();
-        camera_controller.target_yaw += -delta.x * time.delta_time() * 5.0;
-        camera_controller.target_pitch += delta.y * time.delta_time() * 5.0;
+        camera_controller.target_yaw += -delta.x / window.width() as f32 * 50.0;
+        camera_controller.target_pitch +=
+            delta.y / window.width() as f32 * 50.0;
         camera_controller.target_pitch =
             camera_controller.target_pitch.clamp(-1.57, 1.57);
-        camera_controller.pitch = camera_controller.target_pitch * 0.2
-            + camera_controller.pitch * 0.8;
+        camera_controller.pitch = camera_controller.target_pitch * 0.3
+            + camera_controller.pitch * 0.7;
         camera_controller.yaw =
-            camera_controller.target_yaw * 0.2 + camera_controller.yaw * 0.8;
+            camera_controller.target_yaw * 0.3 + camera_controller.yaw * 0.7;
         transform.rotation = Quat::from_euler(Vec3f::new(
             camera_controller.pitch,
             camera_controller.yaw,
@@ -173,6 +178,21 @@ fn camera_movement(
         let rotation =
             Quat::from_euler(Vec3f::new(0.0, camera_controller.yaw, 0.0));
         let movement_speed = 5.0;
+        if input.keys.is_down("z") {
+            transform.rotation = Quat::from_euler(Vec3f::new(0.0, 0.0, 0.0));
+            camera_controller.target_pitch = 0.0;
+            camera_controller.target_yaw = 0.0;
+            camera_controller.pitch = 0.0;
+            camera_controller.yaw = 0.0;
+        }
+        if input.keys.is_down("x") {
+            transform.rotation =
+                Quat::from_euler(Vec3f::new(0.0, f32::consts::PI / 2.0, 0.0));
+            camera_controller.target_pitch = 0.0;
+            camera_controller.target_yaw = f32::consts::PI / 2.0;
+            camera_controller.pitch = 0.0;
+            camera_controller.yaw = f32::consts::PI / 2.0;
+        }
         if input.keys.is_down("d") {
             transform.position +=
                 Vec3f::FORWARD * rotation * time.delta_time() * movement_speed;
