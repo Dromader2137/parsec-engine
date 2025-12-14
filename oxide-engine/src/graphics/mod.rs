@@ -24,7 +24,7 @@ use crate::{
             mesh_data::AddMeshData,
             transform_data::{AddTransformData, UpdateTransformData},
         },
-        vulkan::{VulkanBackend, context::InitVulkan},
+        vulkan::VulkanBackend,
     },
     resources::{Resource, Resources},
     utils::id_vec::IdVec,
@@ -44,6 +44,7 @@ pub mod shader;
 pub mod swapchain;
 pub mod vulkan;
 pub mod window;
+pub mod sampler;
 
 #[derive(Error, Debug)]
 pub enum GraphicsError {
@@ -76,6 +77,12 @@ impl SystemBundle for GraphicsBundle {
             (SystemTrigger::WindowResized, MarkResize::new()),
         ]
     }
+}
+
+#[system]
+pub fn init_vulkan(window: Resource<Window>) {
+    let context = VulkanBackend::init(&window);
+    Resources::add(context).unwrap();
 }
 
 #[system]

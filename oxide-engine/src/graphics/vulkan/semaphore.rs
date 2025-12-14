@@ -52,6 +52,19 @@ impl VulkanSemaphore {
             semaphore: ash::vk::Semaphore::null(),
         }
     }
+    
+    pub fn delete_semaphore(self, device: &VulkanDevice) -> Result<(), VulkanSemaphoreError> {
+        if self.device_id != device.id() {
+            return Err(VulkanSemaphoreError::DeviceMismatch);
+        }
+
+        unsafe {
+            device
+                .get_device_raw()
+                .destroy_semaphore(*self.get_semaphore_raw(), None);
+        }
+        Ok(())
+    }
 
     pub fn get_semaphore_raw(&self) -> &ash::vk::Semaphore { &self.semaphore }
 

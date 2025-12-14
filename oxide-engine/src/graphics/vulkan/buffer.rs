@@ -28,15 +28,23 @@ impl Debug for VulkanBuffer {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanBufferError {
+    #[error("Failed to create a Vulkan buffer: {0}")]
     CreationError(ash::vk::Result),
+    #[error("Failed to find suitable memory for a Vulkan buffer")]
     UnableToFindSuitableMemory,
+    #[error("Failed to allocate memory for a Vulkan buffer: {0}")]
     AllocationError(ash::vk::Result),
+    #[error("Failed to bind a Vulkan buffer: {0}")]
     BindError(ash::vk::Result),
+    #[error("Failed to map memory for a Vulkan buffer: {0}")]
     MapError(ash::vk::Result),
+    #[error("New data size doesen't match current buffer size")]
     SizaMismatch,
+    #[error("New data len doesen't match current buffer len")]
     LenMismatch,
+    #[error("Buffers created to different devices")]
     DeviceMismatch,
 }
 
@@ -54,6 +62,8 @@ impl From<BufferUsage> for VulkanBufferUsage {
             BufferUsage::Uniform => VulkanBufferUsage::UNIFORM_BUFFER,
             BufferUsage::Index => VulkanBufferUsage::INDEX_BUFFER,
             BufferUsage::Vertex => VulkanBufferUsage::VERTEX_BUFFER,
+            BufferUsage::Src => VulkanBufferUsage::TRANSFER_SRC,
+            BufferUsage::Dst => VulkanBufferUsage::TRANSFER_DST,
         }
     }
 }
@@ -126,7 +136,7 @@ impl VulkanBuffer {
         let mut slice = unsafe {
             ash::util::Align::new(
                 memory_ptr,
-                align_of::<u32>() as u64,
+                align_of::<T>() as u64,
                 memory_req.size,
             )
         };
@@ -195,6 +205,22 @@ impl VulkanBuffer {
 
         unsafe { device.get_device_raw().unmap_memory(self.memory) };
 
+        Ok(())
+    }
+
+    pub fn delete_buffer(self, device: &VulkanDevice) -> Result<(), VulkanBufferError> {
+        if self.device_id != device.id() {
+            return Err(VulkanBufferError::DeviceMismatch);
+        }
+
+        unsafe {
+            device
+                .get_device_raw()
+                .destroy_buffer(*self.get_buffer_raw(), None);
+            device
+                .get_device_raw()
+                .free_memory(*self.get_memory_raw(), None);
+        }
         Ok(())
     }
 

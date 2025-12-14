@@ -3,3 +3,4 @@ Cargo.lock
 shaders/*.spv
 renderdoc/
 *.obj
+*.png

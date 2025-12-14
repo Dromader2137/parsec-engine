@@ -30,6 +30,7 @@ pub struct VulkanSwapchainImage {
 pub struct VulkanOwnedImage {
     id: u32,
     device_id: u32,
+    extent: ash::vk::Extent3D,
     format: ash::vk::Format,
     usage: ash::vk::ImageUsageFlags,
     image: ash::vk::Image,
@@ -41,6 +42,8 @@ pub struct VulkanOwnedImage {
 pub struct VulkanImageView {
     id: u32,
     image_id: u32,
+    device_id: u32,
+    format: ash::vk::Format,
     view: ash::vk::ImageView,
 }
 
@@ -68,7 +71,7 @@ impl VulkanImage for VulkanOwnedImage {
             ash::vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT => {
                 ash::vk::ImageAspectFlags::DEPTH
             },
-            _ => ash::vk::ImageAspectFlags::NONE,
+            _ => ash::vk::ImageAspectFlags::COLOR,
         }
     }
 }
@@ -97,8 +100,11 @@ impl From<ImageFormat> for VulkanImageFormat {
     fn from(value: ImageFormat) -> Self {
         match value {
             ImageFormat::D32 => VulkanImageFormat::D32_SFLOAT,
+            ImageFormat::R8SRGB => VulkanImageFormat::R8_SRGB,
+            ImageFormat::RG8SRGB => VulkanImageFormat::R8G8_SRGB,
             ImageFormat::RGB8SRGB => VulkanImageFormat::R8G8B8_SRGB,
             ImageFormat::RGBA8SRGB => VulkanImageFormat::R8G8B8A8_SRGB,
+            ImageFormat::RGBA8UNORM => VulkanImageFormat::R8G8B8A8_UNORM,
         }
     }
 }
@@ -111,6 +117,15 @@ impl From<ImageUsage> for VulkanImageUsage {
             ImageUsage::DepthBuffer => {
                 VulkanImageUsage::DEPTH_STENCIL_ATTACHMENT
             },
+            ImageUsage::Sampled => {
+                VulkanImageUsage::SAMPLED
+            },
+            ImageUsage::Src => {
+                VulkanImageUsage::TRANSFER_SRC
+            },
+            ImageUsage::Dst => {
+                VulkanImageUsage::TRANSFER_DST
+            }
         }
     }
 }
@@ -121,6 +136,8 @@ impl From<ImageUsage> for VulkanImageAspectFlags {
     fn from(value: ImageUsage) -> Self {
         match value {
             ImageUsage::DepthBuffer => VulkanImageAspectFlags::DEPTH,
+            ImageUsage::Sampled => VulkanImageAspectFlags::COLOR,
+            _ => VulkanImageAspectFlags::NONE
         }
     }
 }
@@ -253,6 +270,7 @@ impl VulkanOwnedImage {
         Ok(VulkanOwnedImage {
             id: ID_COUNTER_IMAGE.next(),
             device_id: device.id(),
+            extent: ash::vk::Extent3D { width: create_info.size.0, height: create_info.size.1, depth: 1 },
             image,
             format,
             usage: create_info.usage,
@@ -260,8 +278,32 @@ impl VulkanOwnedImage {
             size: format_size * size.0 as u64 * size.1 as u64,
         })
     }
+    
+    pub fn delete_image(self, device: &VulkanDevice) -> Result<(), VulkanImageError> {
+        if self.device_id != device.id() {
+            return Err(VulkanImageError::DeviceMismatch);
+        }
+
+        unsafe {
+            device
+                .get_device_raw()
+                .destroy_image(*self.get_image_raw(), None);
+            device
+                .get_device_raw()
+                .free_memory(*self.get_memory_raw(), None);
+        }
+        Ok(())
+    }
 
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory { &self.memory }
+
+    pub fn device_id(&self) -> u32 {
+        self.device_id
+    }
+
+    pub fn extent(&self) -> ash::vk::Extent3D {
+        self.extent
+    }
 }
 
 static ID_COUNTER_VIEW: once_cell::sync::Lazy<IdCounter> =
@@ -286,10 +328,25 @@ impl VulkanImageView {
             Ok(val) => Ok(VulkanImageView {
                 id: ID_COUNTER_VIEW.next(),
                 image_id,
+                format: image.format(),
+                device_id: device.id(),
                 view: val,
             }),
             Err(err) => Err(VulkanImageError::ViewCreationError(err)),
         }
+    }
+    
+    pub fn delete_image_view(self, device: &VulkanDevice) -> Result<(), VulkanImageError> {
+        if self.device_id != device.id() {
+            return Err(VulkanImageError::DeviceMismatch);
+        }
+
+        unsafe {
+            device
+                .get_device_raw()
+                .destroy_image_view(*self.get_image_view_raw(), None);
+        }
+        Ok(())
     }
 
     pub fn get_image_view_raw(&self) -> &ash::vk::ImageView { &self.view }
@@ -297,4 +354,8 @@ impl VulkanImageView {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn image_id(&self) -> u32 { self.image_id }
+
+    pub fn format(&self) -> ash::vk::Format {
+        self.format
+    }
 }

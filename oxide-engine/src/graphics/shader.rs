@@ -3,8 +3,9 @@ pub struct Shader {
     id: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum ShaderError {
+    FailedToCreateShader(anyhow::Error),
     ShaderNotFound,
 }
 

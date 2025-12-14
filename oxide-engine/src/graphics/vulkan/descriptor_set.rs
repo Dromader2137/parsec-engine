@@ -3,7 +3,7 @@ use crate::{
         pipeline::{PipelineBindingType, PipelineShaderStage},
         vulkan::{
             VulkanError, buffer::VulkanBuffer, device::VulkanDevice,
-            image::VulkanImageView,
+            image::VulkanImageView, sampler::VulkanSampler,
         },
     },
     utils::id_counter::IdCounter,
@@ -275,12 +275,14 @@ impl VulkanDescriptorSet {
     pub fn bind_image_view(
         &self,
         view: &VulkanImageView,
+        sampler: &VulkanSampler,
         device: &VulkanDevice,
         descriptor_layout: &VulkanDescriptorSetLayout,
         dst_binding: u32,
     ) -> Result<(), DescriptorError> {
         let image_info = [ash::vk::DescriptorImageInfo::default()
-            .image_view(*view.get_image_view_raw())];
+            .image_view(*view.get_image_view_raw())
+            .sampler(sampler.sampler_raw())];
 
         let binding_type =
             match descriptor_layout.bindings.get(dst_binding as usize) {

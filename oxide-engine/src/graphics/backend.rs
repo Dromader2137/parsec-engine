@@ -3,12 +3,13 @@ use crate::graphics::{
     command_list::{CommandList, CommandListError},
     fence::Fence,
     framebuffer::Framebuffer,
-    image::{Image, ImageFormat, ImageUsage, ImageView},
+    image::{Image, ImageError, ImageFormat, ImageUsage, ImageView},
     pipeline::{
         Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
         PipelineSubbindingLayout,
     },
     renderpass::{Renderpass, RenderpassError},
+    sampler::{Sampler, SamplerError},
     semaphore::Semaphore,
     shader::{Shader, ShaderError, ShaderType},
     swapchain::{Swapchain, SwapchainError},
@@ -29,12 +30,14 @@ pub trait GraphicsBackend {
         buffer: Buffer,
         data: &[T],
     ) -> Result<(), BufferError>;
+    fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BufferError>;
 
     fn create_shader(
         &mut self,
         code: &[u32],
         shader_type: ShaderType,
     ) -> Result<Shader, ShaderError>;
+    fn delete_shader(&mut self, shader: Shader) -> Result<(), ShaderError>;
 
     fn create_renderpass(&mut self) -> Result<Renderpass, RenderpassError>;
 
@@ -59,6 +62,13 @@ pub trait GraphicsBackend {
         buffer: Buffer,
         index: u32,
     ) -> Result<(), BufferError>;
+    fn bind_sampler(
+        &mut self,
+        pipeline_binding: PipelineBinding,
+        sampler: Sampler,
+        image_view: ImageView,
+        index: u32,
+    ) -> Result<(), SamplerError>;
 
     fn create_command_list(&mut self) -> Result<CommandList, CommandListError>;
     fn command_begin(
@@ -131,12 +141,17 @@ pub trait GraphicsBackend {
         &mut self,
         size: (u32, u32),
         format: ImageFormat,
-        usage: ImageUsage,
+        image_usage: &[ImageUsage],
     ) -> Image;
+    fn load_image_from_buffer(
+        &mut self,
+        buffer: Buffer,
+        image: Image
+    ) -> Result<(), ImageError>;
     fn delete_image(&mut self, image: Image);
     fn create_image_view(&mut self, image: Image) -> ImageView;
     fn delete_image_view(&mut self, image_view: ImageView);
-    fn create_image_sampler(&mut self, image_view: ImageView) -> Sampler;
+    fn create_image_sampler(&mut self) -> Sampler;
     fn delete_image_sampler(&mut self, sampler: Sampler);
 
     fn create_framebuffer(

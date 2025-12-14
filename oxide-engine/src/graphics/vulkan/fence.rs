@@ -89,6 +89,19 @@ impl VulkanFence {
             fence: ash::vk::Fence::null(),
         }
     }
+    
+    pub fn delete_fence(self, device: &VulkanDevice) -> Result<(), VulkanFenceError> {
+        if self.device_id != device.id() {
+            return Err(VulkanFenceError::DeviceMismatch);
+        }
+
+        unsafe {
+            device
+                .get_device_raw()
+                .destroy_fence(*self.get_fence_raw(), None);
+        }
+        Ok(())
+    }
 
     pub fn get_fence_raw(&self) -> &ash::vk::Fence { &self.fence }
 

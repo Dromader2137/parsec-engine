@@ -57,11 +57,11 @@ impl VulkanQueue {
             .collect::<Vec<_>>();
 
         let submit_info = ash::vk::SubmitInfo::default()
-            .wait_semaphores(&wait_semaphores)
             .wait_dst_stage_mask(&[
                 ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             ])
             .command_buffers(&command_buffers)
+            .wait_semaphores(&wait_semaphores)
             .signal_semaphores(&signal_semaphores);
 
         unsafe {

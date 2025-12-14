@@ -16,10 +16,14 @@ pub struct VulkanShaderModule {
     shader_module: ash::vk::ShaderModule,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanShaderError {
+    #[error("Failed to create a Vulkan shader: {0}")]
     CreationError(ash::vk::Result),
+    #[error("Failed to read a SpirV shader file: {0}")]
     ShaderFileError(std::io::Error),
+    #[error("Shader created on another device")]
+    DeviceMismatch
 }
 
 impl From<VulkanShaderError> for VulkanError {
@@ -65,6 +69,19 @@ impl VulkanShaderModule {
             shader_module,
             shader_type,
         })
+    }
+    
+    pub fn delete_shader(self, device: &VulkanDevice) -> Result<(), VulkanShaderError> {
+        if self.device_id != device.id() {
+            return Err(VulkanShaderError::DeviceMismatch);
+        }
+
+        unsafe {
+            device
+                .get_device_raw()
+                .destroy_shader_module(*self.get_shader_module_raw(), None);
+        }
+        Ok(())
     }
 
     pub fn get_shader_module_raw(&self) -> &ash::vk::ShaderModule {

@@ -13,6 +13,7 @@ use crate::{
 
 pub struct VulkanFramebuffer {
     id: u32,
+    device_id: u32,
     renderpass_id: u32,
     image_view_ids: Vec<u32>,
     framebuffer: ash::vk::Framebuffer,
@@ -23,6 +24,7 @@ pub struct VulkanFramebuffer {
 pub enum VulkanFramebufferError {
     CreationError(ash::vk::Result),
     NotFound(u32),
+    DeviceMismatch
 }
 
 impl From<VulkanFramebufferError> for VulkanError {
@@ -70,11 +72,25 @@ impl VulkanFramebuffer {
 
         Ok(VulkanFramebuffer {
             id: ID_COUNTER.next(),
+            device_id: device.id(),
             renderpass_id: renderpass.id(),
             image_view_ids: vec![image_view.id(), depth_view.id()],
             framebuffer,
             extent,
         })
+    }
+    
+    pub fn delete_framebuffer(self, device: &VulkanDevice) -> Result<(), VulkanFramebufferError> {
+        if self.device_id != device.id() {
+            return Err(VulkanFramebufferError::DeviceMismatch);
+        }
+
+        unsafe {
+            device
+                .get_device_raw()
+                .destroy_framebuffer(*self.get_framebuffer_raw(), None);
+        }
+        Ok(())
     }
 
     pub fn get_framebuffer_raw(&self) -> &ash::vk::Framebuffer {

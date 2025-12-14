@@ -3,9 +3,13 @@
 layout(location = 0) out vec4 outColor;
 
 layout(location = 0) in vec3 inNormal;
+layout(location = 1) in vec2 inUV;
 
 layout(set = 3, binding = 0) uniform Light { vec3 dir; } light;
+layout(set = 4, binding = 0) uniform sampler2D tex;
 
 void main() {
-    outColor = vec4(vec3(dot(-normalize(light.dir), inNormal) - 0.2), 1.0);
+    float intensity = dot(-normalize(light.dir), inNormal) - 0.2;
+	vec3 color = texture(tex, inUV).rgb;
+	outColor = vec4(color, 1.0);
 }

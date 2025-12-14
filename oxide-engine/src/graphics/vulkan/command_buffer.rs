@@ -1,9 +1,14 @@
 use crate::{
     graphics::vulkan::{
-        VulkanError, buffer::VulkanBuffer, descriptor_set::VulkanDescriptorSet,
-        device::VulkanDevice, framebuffer::VulkanFramebuffer,
+        VulkanError,
+        buffer::VulkanBuffer,
+        descriptor_set::VulkanDescriptorSet,
+        device::VulkanDevice,
+        framebuffer::VulkanFramebuffer,
         graphics_pipeline::VulkanGraphicsPipeline,
-        physical_device::VulkanPhysicalDevice, renderpass::VulkanRenderpass,
+        image::{VulkanImage, VulkanOwnedImage},
+        physical_device::VulkanPhysicalDevice,
+        renderpass::VulkanRenderpass,
     },
     utils::id_counter::IdCounter,
 };
@@ -29,9 +34,11 @@ pub enum VulkanCommandBufferError {
     RenderpassBeginError(ash::vk::Result),
     RenderpassEndError(ash::vk::Result),
     ResetError(ash::vk::Result),
+    CopyError(ash::vk::Result),
     DeviceMismatch,
     PoolMismatch,
     RenderpassMismatch,
+    BarrierError(ash::vk::Result),
 }
 
 impl From<VulkanCommandBufferError> for VulkanError {
@@ -438,6 +445,67 @@ impl VulkanCommandBuffer {
         Ok(())
     }
 
+    pub fn copy_buffer_to_image(
+        &self,
+        device: &VulkanDevice,
+        buffer: &VulkanBuffer,
+        image: &VulkanOwnedImage,
+    ) -> Result<(), VulkanCommandBufferError> {
+        if self.device_id != device.id()
+            || buffer.device_id() != self.device_id
+            || image.device_id() != self.device_id
+        {
+            return Err(VulkanCommandBufferError::DeviceMismatch);
+        }
+
+        let buffer_image_copy = ash::vk::BufferImageCopy::default()
+            .image_extent(image.extent())
+            .image_subresource(
+                ash::vk::ImageSubresourceLayers::default()
+                    .layer_count(1)
+                    .aspect_mask(image.aspect_flags())
+            );
+
+        unsafe {
+            device.get_device_raw().cmd_copy_buffer_to_image(
+                self.command_buffer,
+                *buffer.get_buffer_raw(),
+                *image.get_image_raw(),
+                ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[buffer_image_copy],
+            )
+        };
+
+        Ok(())
+    }
+    
+    pub fn pipeline_barrier(
+        &self,
+        device: &VulkanDevice,
+        src_stage: PipelineStage,
+        dst_stage: PipelineStage,
+        memory_barriers: &[MemoryBarrier],
+        buffer_memory_barriers: &[BufferMemoryBarrier],
+        image_memory_barriers: &[ImageMemoryBarrier],
+    ) -> Result<(), VulkanCommandBufferError> {
+        if self.device_id != device.id() {
+            return Err(VulkanCommandBufferError::DeviceMismatch);
+        }
+
+        unsafe {
+            device.get_device_raw().cmd_pipeline_barrier(
+                self.command_buffer,
+                src_stage,
+                dst_stage,
+                ash::vk::DependencyFlags::empty(),
+                memory_barriers,
+                buffer_memory_barriers,
+                image_memory_barriers
+            );
+        } 
+        Ok(())
+    }
+
     pub fn reset(
         &self,
         device: &VulkanDevice,
@@ -466,3 +534,9 @@ impl VulkanCommandBuffer {
 
     pub fn command_pool_id(&self) -> u32 { self.command_pool_id }
 }
+
+pub type MemoryBarrier = ash::vk::MemoryBarrier<'static>;
+pub type BufferMemoryBarrier = ash::vk::BufferMemoryBarrier<'static>;
+pub type ImageMemoryBarrier = ash::vk::ImageMemoryBarrier<'static>;
+pub type PipelineStage = ash::vk::PipelineStageFlags;
+pub type ImageLayout = ash::vk::ImageLayout;

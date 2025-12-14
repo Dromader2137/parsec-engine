@@ -13,9 +13,11 @@ layout(location = 2) in vec3 inTangent;
 layout(location = 3) in vec2 inUV;
 
 layout(location = 0) out vec3 outNormal;
+layout(location = 1) out vec2 outUV;
 
 void main() {
   outNormal = (rotation.matrix * vec4(inNormal, 1.0)).xyz;
+  outUV = inUV;
   gl_Position = 
 	  projection.matrix * 
 	  view.matrix * 

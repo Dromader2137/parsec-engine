@@ -7,12 +7,18 @@ pub struct Image {
 pub enum ImageFormat {
     RGBA8SRGB,
     RGB8SRGB,
+    RG8SRGB,
+    R8SRGB,
     D32,
+    RGBA8UNORM,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ImageUsage {
     DepthBuffer,
+    Sampled,
+    Src,
+    Dst
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

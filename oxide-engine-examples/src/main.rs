@@ -1,5 +1,6 @@
 use std::f32;
 
+use image::EncodableLayout;
 use oxide_engine::{
     app::App,
     ecs::{
@@ -10,6 +11,7 @@ use oxide_engine::{
         GraphicsBundle,
         backend::GraphicsBackend,
         buffer::BufferUsage,
+        image::{ImageFormat, ImageUsage},
         pipeline::{
             PipelineBindingType, PipelineShaderStage, PipelineSubbindingLayout,
         },
@@ -43,8 +45,6 @@ fn test_system(
     mut meshes: Resource<IdVec<Mesh>>,
     renderpass: Resource<RendererMainRenderpass>,
 ) {
-    let scale = 0.01;
-
     let vertex = backend
         .create_shader(
             &read_shader_code("shaders/simple.spv").unwrap(),
@@ -86,38 +86,76 @@ fn test_system(
                 PipelineBindingType::UniformBuffer,
                 PipelineShaderStage::Fragment,
             )],
+            vec![PipelineSubbindingLayout::new(
+                PipelineBindingType::TextureSampler,
+                PipelineShaderStage::Fragment,
+            )],
         ]);
 
-    let buffer = backend
+    let light_buffer = backend
         .create_buffer(&[Vec3f::new(1.0, -1.0, 0.0)], &[BufferUsage::Uniform])
         .unwrap();
-    let binding_layout = backend
+    let light_binding_layout = backend
         .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
             PipelineBindingType::UniformBuffer,
             PipelineShaderStage::Fragment,
         )])
         .unwrap();
-    let binding = backend.create_pipeline_binding(binding_layout).unwrap();
-    backend.bind_buffer(binding, buffer, 0).unwrap();
+    let light_binding = backend
+        .create_pipeline_binding(light_binding_layout)
+        .unwrap();
+    backend.bind_buffer(light_binding, light_buffer, 0).unwrap();
+
+    let image = image::load_from_memory(include_bytes!("../../test.png"))
+            .unwrap()
+            .to_rgba8();
+    let (width, height) = image.dimensions();
+    let image_data = image.as_raw().as_bytes();
+    let texture_buffer = backend
+        .create_buffer(image_data, &[BufferUsage::Src])
+        .unwrap();
+    let texture_image =
+        backend.create_image((width, height), ImageFormat::RGBA8SRGB, &[
+            ImageUsage::Sampled,
+            ImageUsage::Dst,
+        ]);
+    backend
+        .load_image_from_buffer(texture_buffer, texture_image)
+        .unwrap();
+    let texture_binding_layout = backend
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
+            PipelineBindingType::TextureSampler,
+            PipelineShaderStage::Fragment,
+        )])
+        .unwrap();
+    let texture_binding = backend
+        .create_pipeline_binding(texture_binding_layout)
+        .unwrap();
+    let texture_sampler = backend.create_image_sampler();
+    let texture_image_view = backend.create_image_view(texture_image);
+    backend
+        .bind_sampler(texture_binding, texture_sampler, texture_image_view, 0)
+        .unwrap();
 
     let material = MaterialData::new(&material_base, vec![
         MaterialPipelineBinding::ModelMatrix,
         MaterialPipelineBinding::ViewMatrix,
         MaterialPipelineBinding::ProjectionMatrix,
-        MaterialPipelineBinding::Generic(binding),
+        MaterialPipelineBinding::Generic(light_binding),
+        MaterialPipelineBinding::Generic(texture_binding),
     ]);
 
     material_bases.push(material_base);
     let material_id = materials.push(material);
 
-    let mesh = meshes.push(load_obj("sponza.obj").unwrap());
+    let mesh = meshes.push(load_obj("test.obj").unwrap());
 
     World::spawn((
         Camera::new(40.0_f32.to_radians(), 0.5, 30.0),
         Transform::new(
-            Vec3f::UP * 2.5,
+            Vec3f::UP,
             Vec3f::ZERO,
-            Quat::from_euler(Vec3f::new(0.3, 0.0, 0.0)),
+            Quat::IDENTITY,
         ),
         CameraController {
             yaw: 0.0,
@@ -132,8 +170,8 @@ fn test_system(
     World::spawn((
         Transform::new(
             Vec3f::ZERO,
-            Vec3f::ONE * scale,
-            Quat::from_euler(Vec3f::new(0.0, 3.14, 0.0)),
+            Vec3f::ONE * 10.0,
+            Quat::IDENTITY,
         ),
         MeshRenderer::new(mesh, material_id),
     ))
@@ -158,9 +196,9 @@ fn camera_movement(
 ) {
     for (_, (transform, camera, camera_controller)) in cameras.iter() {
         let delta = input.mouse.positon_delta();
-        camera_controller.target_yaw += -delta.x / window.width() as f32 * 50.0;
+        camera_controller.target_yaw += -delta.x / window.width() as f32 * 10.0;
         camera_controller.target_pitch +=
-            delta.y / window.width() as f32 * 50.0;
+            delta.y / window.width() as f32 * 10.0;
         camera_controller.target_pitch =
             camera_controller.target_pitch.clamp(-1.57, 1.57);
         camera_controller.pitch = camera_controller.target_pitch * 0.3

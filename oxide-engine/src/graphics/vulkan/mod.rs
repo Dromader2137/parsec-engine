@@ -10,20 +10,22 @@ use crate::graphics::{
     command_list::{CommandList, CommandListError},
     fence::Fence,
     framebuffer::Framebuffer,
-    image::{Image, ImageFormat, ImageUsage, ImageView},
+    image::{Image, ImageError, ImageFormat, ImageUsage, ImageView},
     pipeline::{
         Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
         PipelineSubbindingLayout,
     },
     renderer::{DefaultVertex, RendererError},
     renderpass::{Renderpass, RenderpassError},
+    sampler::{Sampler, SamplerError},
     semaphore::Semaphore,
     shader::{Shader, ShaderError, ShaderType},
     swapchain::{Swapchain, SwapchainError},
     vulkan::{
         buffer::{VulkanBuffer, VulkanBufferError, VulkanBufferUsage},
         command_buffer::{
-            VulkanCommandBuffer, VulkanCommandBufferError, VulkanCommandPool,
+            ImageMemoryBarrier, PipelineStage, VulkanCommandBuffer,
+            VulkanCommandBufferError, VulkanCommandPool,
             VulkanCommandPoolError,
         },
         descriptor_set::{
@@ -38,13 +40,14 @@ use crate::graphics::{
             VulkanGraphicsPipeline, VulkanGraphicsPipelineError,
         },
         image::{
-            VulkanImage, VulkanImageError, VulkanImageInfo, VulkanImageView,
-            VulkanOwnedImage, VulkanSwapchainImage,
+            VulkanImage, VulkanImageError, VulkanImageInfo, VulkanImageUsage,
+            VulkanImageView, VulkanOwnedImage, VulkanSwapchainImage,
         },
         instance::{VulkanInstance, VulkanInstanceError},
         physical_device::{VulkanPhysicalDevice, VulkanPhysicalDeviceError},
         queue::{VulkanQueue, VulkanQueueError},
         renderpass::{VulkanRenderpass, VulkanRenderpassError},
+        sampler::VulkanSampler,
         semaphore::{VulkanSemaphore, VulkanSemaphoreError},
         shader::{VulkanShaderError, VulkanShaderModule},
         surface::{VulkanInitialSurface, VulkanSurface, VulkanSurfaceError},
@@ -53,26 +56,26 @@ use crate::graphics::{
     window::Window,
 };
 
-pub mod allocation;
-pub mod allocator;
-pub mod buffer;
-pub mod command_buffer;
-pub mod context;
-pub mod descriptor_set;
-pub mod device;
-pub mod fence;
-pub mod format_size;
-pub mod framebuffer;
-pub mod graphics_pipeline;
-pub mod image;
-pub mod instance;
-pub mod physical_device;
-pub mod queue;
-pub mod renderpass;
-pub mod semaphore;
+mod allocation;
+mod allocator;
+mod buffer;
+mod command_buffer;
+mod descriptor_set;
+mod device;
+mod fence;
+mod format_size;
+mod framebuffer;
+mod graphics_pipeline;
+mod image;
+mod instance;
+mod physical_device;
+mod queue;
+mod renderpass;
+mod sampler;
+mod semaphore;
 pub mod shader;
-pub mod surface;
-pub mod swapchain;
+mod surface;
+mod swapchain;
 
 #[derive(Debug)]
 pub enum VulkanError {
@@ -113,6 +116,7 @@ pub struct VulkanBackend {
     swapchain_images: HashMap<u32, VulkanSwapchainImage>,
     owned_images: HashMap<u32, VulkanOwnedImage>,
     image_views: HashMap<u32, VulkanImageView>,
+    samplers: HashMap<u32, VulkanSampler>,
     framebuffers: HashMap<u32, VulkanFramebuffer>,
     fences: HashMap<u32, VulkanFence>,
     semaphores: HashMap<u32, VulkanSemaphore>,
@@ -165,6 +169,7 @@ impl GraphicsBackend for VulkanBackend {
             swapchain_images: HashMap::new(),
             owned_images: HashMap::new(),
             image_views: HashMap::new(),
+            samplers: HashMap::new(),
             framebuffers: HashMap::new(),
             fences: HashMap::new(),
             semaphores: HashMap::new(),
@@ -187,7 +192,8 @@ impl GraphicsBackend for VulkanBackend {
     ) -> Result<Buffer, BufferError> {
         let mut usage = VulkanBufferUsage::empty();
         buffer_usage.iter().for_each(|x| usage |= (*x).into());
-        let buffer = VulkanBuffer::from_vec(&self.device, data, usage).unwrap();
+        let buffer = VulkanBuffer::from_vec(&self.device, data, usage)
+            .map_err(|err| BufferError::FailedToCreateBuffer(err.into()))?;
         let buffer_id = buffer.id();
         self.buffers.insert(buffer_id, buffer);
         Ok(Buffer::new(buffer_id))
@@ -203,7 +209,18 @@ impl GraphicsBackend for VulkanBackend {
             .buffers
             .get(&buffer_id)
             .ok_or(BufferError::BufferNotFound)?;
-        buffer.update(&self.device, data).unwrap();
+        buffer
+            .update(&self.device, data)
+            .map_err(|err| BufferError::FailedToUpdateBuffer(err.into()))?;
+        Ok(())
+    }
+
+    fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BufferError> {
+        let buffer = self
+            .buffers
+            .remove(&buffer.id())
+            .ok_or(BufferError::BufferNotFound)?;
+        buffer.delete_buffer(&self.device).unwrap();
         Ok(())
     }
 
@@ -213,10 +230,20 @@ impl GraphicsBackend for VulkanBackend {
         shader_type: ShaderType,
     ) -> Result<Shader, ShaderError> {
         let shader =
-            VulkanShaderModule::new(&self.device, code, shader_type).unwrap();
+            VulkanShaderModule::new(&self.device, code, shader_type)
+                .map_err(|err| ShaderError::FailedToCreateShader(err.into()))?;
         let shader_id = shader.id();
         self.shaders.insert(shader_id, shader);
         Ok(Shader::new(shader_id))
+    }
+
+    fn delete_shader(&mut self, shader: Shader) -> Result<(), ShaderError> {
+        let shader = self
+            .shaders
+            .remove(&shader.id())
+            .ok_or(ShaderError::ShaderNotFound)?;
+        shader.delete_shader(&self.device).unwrap();
+        Ok(())
     }
 
     fn create_renderpass(&mut self) -> Result<Renderpass, RenderpassError> {
@@ -319,6 +346,25 @@ impl GraphicsBackend for VulkanBackend {
             .unwrap();
         let buf = self.buffers.get(&buffer.id()).unwrap();
         ds.bind_buffer(buf, &self.device, dsl, index).unwrap();
+        Ok(())
+    }
+
+    fn bind_sampler(
+        &mut self,
+        pipeline_binding: PipelineBinding,
+        sampler: Sampler,
+        image_view: ImageView,
+        index: u32,
+    ) -> Result<(), SamplerError> {
+        let ds = self.descriptor_sets.get(&pipeline_binding.id()).unwrap();
+        let dsl = self
+            .descriptor_set_layouts
+            .get(&ds.descriptor_layout_id())
+            .unwrap();
+        let sam = self.samplers.get(&sampler.id()).unwrap();
+        let imv = self.image_views.get(&image_view.id()).unwrap();
+        ds.bind_image_view(imv, sam, &self.device, dsl, index)
+            .unwrap();
         Ok(())
     }
 
@@ -557,8 +603,10 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         size: (u32, u32),
         format: ImageFormat,
-        usage: ImageUsage,
+        image_usage: &[ImageUsage],
     ) -> Image {
+        let mut usage = VulkanImageUsage::empty();
+        image_usage.iter().for_each(|x| usage |= (*x).into());
         let image = VulkanOwnedImage::new(&self.device, VulkanImageInfo {
             format: format.into(),
             size,
@@ -570,14 +618,74 @@ impl GraphicsBackend for VulkanBackend {
         Image::new(image_id)
     }
 
+    fn load_image_from_buffer(
+        &mut self,
+        buffer: Buffer,
+        image: Image,
+    ) -> Result<(), ImageError> {
+        let buf = self.buffers.get(&buffer.id()).unwrap();
+        let img = self.owned_images.get(&image.id()).unwrap();
+        let cmd =
+            VulkanCommandBuffer::new(&self.device, &self.command_pool).unwrap();
+        cmd.begin(&self.device).unwrap();
+        cmd.pipeline_barrier(
+            &self.device,
+            PipelineStage::BOTTOM_OF_PIPE,
+            PipelineStage::TRANSFER,
+            &[],
+            &[],
+            &[ImageMemoryBarrier::default()
+                .image(*img.get_image_raw())
+                .src_access_mask(ash::vk::AccessFlags::empty())
+                .dst_access_mask(ash::vk::AccessFlags::TRANSFER_WRITE)
+                .old_layout(ash::vk::ImageLayout::UNDEFINED)
+                .new_layout(ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+                .subresource_range(
+                    ash::vk::ImageSubresourceRange::default()
+                        .aspect_mask(ash::vk::ImageAspectFlags::COLOR)
+                        .level_count(1)
+                        .layer_count(1),
+                )],
+        )
+        .unwrap();
+        cmd.copy_buffer_to_image(&self.device, buf, img).unwrap();
+        cmd.pipeline_barrier(
+            &self.device,
+            PipelineStage::TRANSFER,
+            PipelineStage::FRAGMENT_SHADER,
+            &[],
+            &[],
+            &[ImageMemoryBarrier::default()
+                .image(*img.get_image_raw())
+                .src_access_mask(ash::vk::AccessFlags::TRANSFER_WRITE)
+                .dst_access_mask(ash::vk::AccessFlags::SHADER_READ)
+                .old_layout(ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+                .new_layout(ash::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                .subresource_range(
+                    ash::vk::ImageSubresourceRange::default()
+                        .aspect_mask(ash::vk::ImageAspectFlags::COLOR)
+                        .level_count(1)
+                        .layer_count(1),
+                )],
+        )
+        .unwrap();
+        cmd.end(&self.device).unwrap();
+        self.present_queue
+            .submit(
+                &self.device,
+                &[],
+                &[],
+                &[&cmd],
+                &VulkanFence::null(&self.device),
+            )
+            .unwrap();
+        Ok(())
+    }
+
     fn delete_image(&mut self, image: Image) {
         let result = self.owned_images.remove(&image.id());
         if let Some(image) = result {
-            unsafe {
-                self.device
-                    .get_device_raw()
-                    .destroy_image(*image.get_image_raw(), None);
-            }
+            image.delete_image(&self.device).unwrap();
         } else {
             self.swapchain_images.remove(&image.id()).unwrap();
         }
@@ -600,11 +708,19 @@ impl GraphicsBackend for VulkanBackend {
 
     fn delete_image_view(&mut self, image_view: ImageView) {
         let image_view = self.image_views.remove(&image_view.id()).unwrap();
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_image_view(*image_view.get_image_view_raw(), None);
-        }
+        image_view.delete_image_view(&self.device).unwrap();
+    }
+
+    fn create_image_sampler(&mut self) -> Sampler {
+        let sampler = VulkanSampler::new(&self.device).unwrap();
+        let sampler_id = sampler.id();
+        self.samplers.insert(sampler_id, sampler);
+        Sampler::new(sampler_id)
+    }
+
+    fn delete_image_sampler(&mut self, sampler: Sampler) {
+        let sampler = self.samplers.remove(&sampler.id()).unwrap();
+        sampler.delete_sampler(&self.device).unwrap();
     }
 
     fn create_framebuffer(
@@ -626,11 +742,7 @@ impl GraphicsBackend for VulkanBackend {
 
     fn delete_framebuffer(&mut self, framebuffer: Framebuffer) {
         let framebuffer = self.framebuffers.remove(&framebuffer.id()).unwrap();
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_framebuffer(*framebuffer.get_framebuffer_raw(), None);
-        }
+        framebuffer.delete_framebuffer(&self.device).unwrap();
     }
 
     fn create_fence(&mut self, signaled: bool) -> Fence {
@@ -652,11 +764,7 @@ impl GraphicsBackend for VulkanBackend {
 
     fn delete_fence(&mut self, fence: Fence) {
         let fence = self.fences.remove(&fence.id()).unwrap();
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_fence(*fence.get_fence_raw(), None);
-        }
+        fence.delete_fence(&self.device).unwrap();
     }
 
     fn create_semaphore(&mut self) -> Semaphore {
@@ -668,10 +776,6 @@ impl GraphicsBackend for VulkanBackend {
 
     fn delete_semaphore(&mut self, semaphore: Semaphore) {
         let semaphore = self.semaphores.remove(&semaphore.id()).unwrap();
-        unsafe {
-            self.device
-                .get_device_raw()
-                .destroy_semaphore(*semaphore.get_semaphore_raw(), None);
-        }
+        semaphore.delete_semaphore(&self.device).unwrap();
     }
 }

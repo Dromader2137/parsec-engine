@@ -146,7 +146,7 @@ pub fn init_renderer(
     let depth_image = backend.create_image(
         window.size(),
         ImageFormat::D32,
-        ImageUsage::DepthBuffer,
+        &[ImageUsage::DepthBuffer],
     );
     let depth_image_view = backend.create_image_view(depth_image);
     let framebuffers = swapchain_image_views
@@ -211,7 +211,7 @@ fn recreate_size_dependent_components(
     let new_depth_image = backend.create_image(
         window.size(),
         ImageFormat::D32,
-        ImageUsage::DepthBuffer,
+        &[ImageUsage::DepthBuffer],
     );
     let new_depth_image_view = backend.create_image_view(new_depth_image);
     let new_framebuffers = new_swapchain_image_views
