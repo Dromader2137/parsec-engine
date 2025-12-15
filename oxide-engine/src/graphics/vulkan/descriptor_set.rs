@@ -41,13 +41,19 @@ pub struct VulkanDescriptorSetBinding {
     binding: ash::vk::DescriptorSetLayoutBinding<'static>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DescriptorError {
+    #[error("Failed to create a descriptor pool: {0}")]
     PoolCreationError(ash::vk::Result),
+    #[error("Failed to create a descriptor set: {0}")]
     SetCreationError(ash::vk::Result),
+    #[error("Failed to delete a descriptor set: {0}")]
     SetCleanupError(ash::vk::Result),
+    #[error("Failed to delete a descriptor set layout: {0}")]
     SetLayoutCreationError(ash::vk::Result),
+    #[error("Failed to bind: binding doesn't exist")]
     BindingDoesntExist,
+    #[error("Descriptor pool/set/layout created on a different device")]
     DeviceMismatch,
 }
 
@@ -282,7 +288,9 @@ impl VulkanDescriptorSet {
     ) -> Result<(), DescriptorError> {
         let image_info = [ash::vk::DescriptorImageInfo::default()
             .image_view(*view.get_image_view_raw())
-            .sampler(sampler.sampler_raw())];
+            .sampler(sampler.sampler_raw())
+            .image_layout(ash::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+        ];
 
         let binding_type =
             match descriptor_layout.bindings.get(dst_binding as usize) {

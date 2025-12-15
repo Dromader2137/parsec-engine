@@ -3,8 +3,12 @@ pub struct Renderpass {
     id: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum RenderpassError {}
+#[derive(Debug)]
+pub enum RenderpassError {
+    RenderpassCreationError(anyhow::Error),
+    RenderpassDeletionError(anyhow::Error),
+    RenderpassNotFound,
+}
 
 impl Renderpass {
     pub fn new(id: u32) -> Renderpass { Renderpass { id } }

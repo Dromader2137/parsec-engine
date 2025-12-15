@@ -112,7 +112,7 @@ fn test_system(
     let (width, height) = image.dimensions();
     let image_data = image.as_raw().as_bytes();
     let texture_buffer = backend
-        .create_buffer(image_data, &[BufferUsage::Src])
+        .create_buffer(image_data, &[BufferUsage::TransferSrc])
         .unwrap();
     let texture_image =
         backend.create_image((width, height), ImageFormat::RGBA8SRGB, &[
@@ -148,7 +148,7 @@ fn test_system(
     material_bases.push(material_base);
     let material_id = materials.push(material);
 
-    let mesh = meshes.push(load_obj("test.obj").unwrap());
+    let mesh = meshes.push(load_obj("sponza.obj").unwrap());
 
     World::spawn((
         Camera::new(40.0_f32.to_radians(), 0.5, 30.0),
@@ -170,7 +170,7 @@ fn test_system(
     World::spawn((
         Transform::new(
             Vec3f::ZERO,
-            Vec3f::ONE * 10.0,
+            Vec3f::ONE * 0.01,
             Quat::IDENTITY,
         ),
         MeshRenderer::new(mesh, material_id),

@@ -5,7 +5,8 @@ pub struct Shader {
 
 #[derive(Debug)]
 pub enum ShaderError {
-    FailedToCreateShader(anyhow::Error),
+    ShaderCreationError(anyhow::Error),
+    ShaderDeletionError(anyhow::Error),
     ShaderNotFound,
 }
 

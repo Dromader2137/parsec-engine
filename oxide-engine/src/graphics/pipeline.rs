@@ -30,8 +30,9 @@ pub enum PipelineShaderStage {
     Fragment,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum PipelineError {
+    LayoutCreationError(anyhow::Error),
     ShaderNotFound,
     RenderpassNotFound,
     FramebufferNotFound,

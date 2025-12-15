@@ -193,7 +193,7 @@ impl GraphicsBackend for VulkanBackend {
         let mut usage = VulkanBufferUsage::empty();
         buffer_usage.iter().for_each(|x| usage |= (*x).into());
         let buffer = VulkanBuffer::from_vec(&self.device, data, usage)
-            .map_err(|err| BufferError::FailedToCreateBuffer(err.into()))?;
+            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
         let buffer_id = buffer.id();
         self.buffers.insert(buffer_id, buffer);
         Ok(Buffer::new(buffer_id))
@@ -211,7 +211,7 @@ impl GraphicsBackend for VulkanBackend {
             .ok_or(BufferError::BufferNotFound)?;
         buffer
             .update(&self.device, data)
-            .map_err(|err| BufferError::FailedToUpdateBuffer(err.into()))?;
+            .map_err(|err| BufferError::BufferUpdateError(err.into()))?;
         Ok(())
     }
 
@@ -220,8 +220,9 @@ impl GraphicsBackend for VulkanBackend {
             .buffers
             .remove(&buffer.id())
             .ok_or(BufferError::BufferNotFound)?;
-        buffer.delete_buffer(&self.device).unwrap();
-        Ok(())
+        buffer
+            .delete_buffer(&self.device)
+            .map_err(|err| BufferError::BufferDeletionError(err.into()))
     }
 
     fn create_shader(
@@ -231,7 +232,7 @@ impl GraphicsBackend for VulkanBackend {
     ) -> Result<Shader, ShaderError> {
         let shader =
             VulkanShaderModule::new(&self.device, code, shader_type)
-                .map_err(|err| ShaderError::FailedToCreateShader(err.into()))?;
+                .map_err(|err| ShaderError::ShaderCreationError(err.into()))?;
         let shader_id = shader.id();
         self.shaders.insert(shader_id, shader);
         Ok(Shader::new(shader_id))
@@ -242,16 +243,32 @@ impl GraphicsBackend for VulkanBackend {
             .shaders
             .remove(&shader.id())
             .ok_or(ShaderError::ShaderNotFound)?;
-        shader.delete_shader(&self.device).unwrap();
-        Ok(())
+        shader
+            .delete_shader(&self.device)
+            .map_err(|err| ShaderError::ShaderDeletionError(err.into()))
     }
 
     fn create_renderpass(&mut self) -> Result<Renderpass, RenderpassError> {
-        let renderpass =
-            VulkanRenderpass::new(&self.surface, &self.device).unwrap();
+        let renderpass = VulkanRenderpass::new(&self.surface, &self.device)
+            .map_err(|err| {
+                RenderpassError::RenderpassCreationError(err.into())
+            })?;
         let rendrepass_id = renderpass.id();
         self.renderpasses.insert(rendrepass_id, renderpass);
         Ok(Renderpass::new(rendrepass_id))
+    }
+
+    fn delete_renderpass(
+        &mut self,
+        renderpass: Renderpass,
+    ) -> Result<(), RenderpassError> {
+        let renderpass = self
+            .renderpasses
+            .remove(&renderpass.id())
+            .ok_or(RenderpassError::RenderpassNotFound)?;
+        renderpass
+            .delete_renderpass(&self.device)
+            .map_err(|err| RenderpassError::RenderpassDeletionError(err.into()))
     }
 
     fn create_pipeline_binding_layout(
@@ -269,8 +286,8 @@ impl GraphicsBackend for VulkanBackend {
                 )
             })
             .collect::<Vec<_>>();
-        let dsl =
-            VulkanDescriptorSetLayout::new(&self.device, set_bindings).unwrap();
+        let dsl = VulkanDescriptorSetLayout::new(&self.device, set_bindings)
+            .map_err(|err| PipelineError::LayoutCreationError(err.into()))?;
         let dsl_id = dsl.id();
         self.descriptor_set_layouts.insert(dsl_id, dsl);
         Ok(PipelineBindingLayout::new(dsl_id))

@@ -40,6 +40,7 @@ pub trait GraphicsBackend {
     fn delete_shader(&mut self, shader: Shader) -> Result<(), ShaderError>;
 
     fn create_renderpass(&mut self) -> Result<Renderpass, RenderpassError>;
+    fn delete_renderpass(&mut self, renderpass: Renderpass) -> Result<(), RenderpassError>;
 
     fn create_pipeline_binding_layout(
         &mut self,

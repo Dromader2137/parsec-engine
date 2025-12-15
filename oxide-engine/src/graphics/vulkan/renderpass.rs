@@ -12,10 +12,17 @@ pub struct VulkanRenderpass {
     renderpass: ash::vk::RenderPass,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanRenderpassError {
+    #[error("Failed to create a renderpass: {0}")]
     CreationError(ash::vk::Result),
+    #[error(
+        "Device used for creating a renderpass was created for a different \
+         surface"
+    )]
     SurfaceMismatch,
+    #[error("Renderpass created on a different device")]
+    DeviceMismatch,
 }
 
 impl From<VulkanRenderpassError> for VulkanError {
@@ -97,6 +104,22 @@ impl VulkanRenderpass {
             device_id: device.id(),
             renderpass,
         })
+    }
+
+    pub fn delete_renderpass(
+        self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanRenderpassError> {
+        if self.device_id != device.id() {
+            return Err(VulkanRenderpassError::DeviceMismatch);
+        }
+
+        unsafe {
+            device.get_device_raw()
+                .destroy_render_pass(*self.get_renderpass_raw(), None);
+        }
+
+        Ok(())
     }
 
     pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass {

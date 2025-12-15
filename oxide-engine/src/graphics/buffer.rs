@@ -8,14 +8,15 @@ pub enum BufferUsage {
     Uniform,
     Vertex,
     Index,
-    Src,
-    Dst
+    TransferSrc,
+    TransferDst
 }
 
 #[derive(Debug)]
 pub enum BufferError {
-    FailedToCreateBuffer(anyhow::Error),
-    FailedToUpdateBuffer(anyhow::Error),
+    BufferCreationError(anyhow::Error),
+    BufferUpdateError(anyhow::Error),
+    BufferDeletionError(anyhow::Error),
     BufferNotFound,
 }
 

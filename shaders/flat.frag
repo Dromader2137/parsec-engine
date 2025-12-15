@@ -9,7 +9,7 @@ layout(set = 3, binding = 0) uniform Light { vec3 dir; } light;
 layout(set = 4, binding = 0) uniform sampler2D tex;
 
 void main() {
-    float intensity = dot(-normalize(light.dir), inNormal) - 0.2;
+    float intensity = abs(dot(-normalize(light.dir), inNormal)) + 0.1;
 	vec3 color = texture(tex, inUV).rgb;
-	outColor = vec4(color, 1.0);
+	outColor = vec4(color * intensity, 1.0);
 }

@@ -62,8 +62,8 @@ impl From<BufferUsage> for VulkanBufferUsage {
             BufferUsage::Uniform => VulkanBufferUsage::UNIFORM_BUFFER,
             BufferUsage::Index => VulkanBufferUsage::INDEX_BUFFER,
             BufferUsage::Vertex => VulkanBufferUsage::VERTEX_BUFFER,
-            BufferUsage::Src => VulkanBufferUsage::TRANSFER_SRC,
-            BufferUsage::Dst => VulkanBufferUsage::TRANSFER_DST,
+            BufferUsage::TransferSrc => VulkanBufferUsage::TRANSFER_SRC,
+            BufferUsage::TransferDst => VulkanBufferUsage::TRANSFER_DST,
         }
     }
 }
