@@ -69,7 +69,7 @@ impl SystemBundle for GraphicsBundle {
 
 #[system]
 pub fn init_vulkan(window: Resource<Window>) {
-    let context = VulkanBackend::init(&window);
+    let context = VulkanBackend::init(&window).unwrap();
     Resources::add(context).unwrap();
 }
 

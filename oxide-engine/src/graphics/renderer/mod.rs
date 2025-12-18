@@ -162,7 +162,7 @@ pub fn init_renderer(
                 .unwrap()
         })
         .collect::<Vec<_>>();
-    let frames_in_flight = 2.min(swapchain_images.len() - 1).max(1);
+    let frames_in_flight = 1;
     let frame_sync = create_frame_sync(backend.deref_mut(), frames_in_flight);
     let image_sync =
         create_image_sync(backend.deref_mut(), swapchain_images.len());
