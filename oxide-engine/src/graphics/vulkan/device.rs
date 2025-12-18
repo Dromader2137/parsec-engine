@@ -14,10 +14,13 @@ pub struct VulkanDevice {
     memory_properties: ash::vk::PhysicalDeviceMemoryProperties,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanDeviceError {
+    #[error("Failed to create device: {0}")]
     DeviceCreationError(ash::vk::Result),
+    #[error("Failed to wait for device to be idle: {0}")]
     WaitIdleError(ash::vk::Result),
+    #[error("Device created on different physical device")]
     PhysicalDeviceMismatch,
 }
 

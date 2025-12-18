@@ -16,8 +16,13 @@ use crate::graphics::{
     window::Window,
 };
 
-pub trait GraphicsBackend {
-    fn init(window: &Window) -> Self;
+#[derive(Debug)]
+pub enum BackendInitError {
+    InitError(anyhow::Error)
+}
+
+pub trait GraphicsBackend: Sized {
+    fn init(window: &Window) -> Result<Self, BackendInitError>;
     fn wait_idle(&self);
 
     fn create_buffer<T: Clone + Copy>(

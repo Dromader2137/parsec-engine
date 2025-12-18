@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use crate::graphics::{
-    backend::GraphicsBackend,
+    backend::{BackendInitError, GraphicsBackend},
     buffer::{Buffer, BufferError, BufferUsage},
     command_list::{CommandList, CommandListError},
     fence::{Fence, FenceError},
@@ -100,21 +100,23 @@ pub struct VulkanBackend {
 }
 
 impl GraphicsBackend for VulkanBackend {
-    fn init(window: &Window) -> VulkanBackend {
-        let instance = VulkanInstance::new(&window).unwrap();
-        let initial_surface =
-            VulkanInitialSurface::new(&instance, &window).unwrap();
+    fn init(window: &Window) -> Result<VulkanBackend, BackendInitError> {
+        let instance = VulkanInstance::new(&window)
+            .map_err(|err| BackendInitError::InitError(err.into()))?;
+        let initial_surface = VulkanInitialSurface::new(&instance, &window)
+            .map_err(|err| BackendInitError::InitError(err.into()))?;
         let physical_device =
-            VulkanPhysicalDevice::new(&instance, &initial_surface).unwrap();
+            VulkanPhysicalDevice::new(&instance, &initial_surface)
+                .map_err(|err| BackendInitError::InitError(err.into()))?;
         let surface = VulkanSurface::from_initial_surface(
             initial_surface,
             &physical_device,
         )
-        .unwrap();
-        let device =
-            VulkanDevice::new(&instance, &physical_device, &surface).unwrap();
-        let command_pool =
-            VulkanCommandPool::new(&physical_device, &device).unwrap();
+        .map_err(|err| BackendInitError::InitError(err.into()))?;
+        let device = VulkanDevice::new(&instance, &physical_device, &surface)
+            .map_err(|err| BackendInitError::InitError(err.into()))?;
+        let command_pool = VulkanCommandPool::new(&physical_device, &device)
+            .map_err(|err| BackendInitError::InitError(err.into()))?;
         let present_queue = VulkanQueue::present(
             &device,
             physical_device.get_queue_family_index(),
@@ -126,8 +128,8 @@ impl GraphicsBackend for VulkanBackend {
                 DescriptorType::COMBINED_IMAGE_SAMPLER,
             ),
         ])
-        .unwrap();
-        VulkanBackend {
+        .map_err(|err| BackendInitError::InitError(err.into()))?;
+        Ok(VulkanBackend {
             instance,
             physical_device,
             surface,
@@ -150,7 +152,7 @@ impl GraphicsBackend for VulkanBackend {
             renderpasses: HashMap::new(),
             descriptor_sets: HashMap::new(),
             descriptor_set_layouts: HashMap::new(),
-        }
+        })
     }
 
     fn wait_idle(&self) { self.device.wait_idle().unwrap(); }

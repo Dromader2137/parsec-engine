@@ -13,9 +13,11 @@ pub struct VulkanPhysicalDevice {
     queue_family_index: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanPhysicalDeviceError {
+    #[error("Failed to create physical device: {0}")]
     CreationError(ash::vk::Result),
+    #[error("Failed to find a suitable physical device")]
     SuitableDeviceNotFound,
 }
 

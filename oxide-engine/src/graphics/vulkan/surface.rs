@@ -24,16 +24,22 @@ pub struct VulkanSurface {
     surface_capabilities: ash::vk::SurfaceCapabilitiesKHR,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanSurfaceError {
+    #[error("Surface not supported by physical device: {0}")]
     SupportError(ash::vk::Result),
+    #[error("Failed to create surface: {0}")]
     CreationError(ash::vk::Result),
+    #[error("Failed to get diplay handle: {0}")]
     DisplayHandleError(winit::raw_window_handle::HandleError),
+    #[error("Failed to get window handle: {0}")]
     WindowHandleError(winit::raw_window_handle::HandleError),
+    #[error("Failed to get surface formats: {0}")]
     FormatsError(ash::vk::Result),
+    #[error("Failed to get surface capabilities: {0}")]
     CapabilitiesError(ash::vk::Result),
+    #[error("No surface format available")]
     NoSurfaceFormatsAvailable,
-    InitialSurfaceBorrowedMoreThanOnce,
 }
 
 impl VulkanInitialSurface {

@@ -10,13 +10,19 @@ pub struct VulkanInstance {
     _debug_call_back: Option<ash::vk::DebugUtilsMessengerEXT>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanInstanceError {
+    #[error("Failed to load vulkan entry: {0}")]
     EntryError(ash::LoadingError),
+    #[error("Failed to create instance: {0}")]
     InstanceCreationError(ash::vk::Result),
+    #[error("Failed to enumarate physical devices: {0}")]
     PhysicalDeviceEnumerationError(ash::vk::Result),
+    #[error("Failed to get display error: {0}")]
     DisplayHandleError(winit::raw_window_handle::HandleError),
+    #[error("Failed to enumarate vulkan extension: {0}")]
     ExtensionEnumerationError(ash::vk::Result),
+    #[error("Failed to create vulkan debug callback: {0}")]
     DebugCreationError(ash::vk::Result),
 }
 
