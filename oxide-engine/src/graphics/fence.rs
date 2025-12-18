@@ -3,8 +3,14 @@ pub struct Fence {
     id: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FenceError {}
+#[derive(Debug)]
+pub enum FenceError {
+    FenceCreationError(anyhow::Error),
+    FenceWaitError(anyhow::Error),
+    FenceResetError(anyhow::Error),
+    FenceDeletionError(anyhow::Error),
+    FenceNotFound,
+}
 
 impl Fence {
     pub fn new(id: u32) -> Fence { Fence { id } }

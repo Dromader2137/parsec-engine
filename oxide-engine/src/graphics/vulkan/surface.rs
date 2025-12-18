@@ -1,8 +1,7 @@
 use crate::{
     graphics::{
         vulkan::{
-            VulkanError, instance::VulkanInstance,
-            physical_device::VulkanPhysicalDevice,
+            instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
         },
         window::Window,
     },
@@ -35,12 +34,6 @@ pub enum VulkanSurfaceError {
     CapabilitiesError(ash::vk::Result),
     NoSurfaceFormatsAvailable,
     InitialSurfaceBorrowedMoreThanOnce,
-}
-
-impl From<VulkanSurfaceError> for VulkanError {
-    fn from(value: VulkanSurfaceError) -> Self {
-        VulkanError::VulkanSurfaceError(value)
-    }
 }
 
 impl VulkanInitialSurface {

@@ -1,5 +1,5 @@
 use crate::graphics::vulkan::{
-    VulkanError, command_buffer::VulkanCommandBuffer, device::VulkanDevice,
+    command_buffer::VulkanCommandBuffer, device::VulkanDevice,
     fence::VulkanFence, semaphore::VulkanSemaphore,
 };
 
@@ -8,16 +8,12 @@ pub struct VulkanQueue {
     queue: ash::vk::Queue,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanQueueError {
+    #[error("Failed to submit Queue: {0}")]
     SubmitError(ash::vk::Result),
+    #[error("Queue created on a different Device")]
     DeviceMismatch,
-}
-
-impl From<VulkanQueueError> for VulkanError {
-    fn from(value: VulkanQueueError) -> Self {
-        VulkanError::VulkanQueueError(value)
-    }
 }
 
 impl VulkanQueue {

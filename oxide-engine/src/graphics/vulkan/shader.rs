@@ -1,10 +1,7 @@
 use std::fs::File;
 
 use crate::{
-    graphics::{
-        shader::ShaderType,
-        vulkan::{VulkanError, device::VulkanDevice},
-    },
+    graphics::{shader::ShaderType, vulkan::device::VulkanDevice},
     utils::id_counter::IdCounter,
 };
 
@@ -18,18 +15,12 @@ pub struct VulkanShaderModule {
 
 #[derive(Debug, thiserror::Error)]
 pub enum VulkanShaderError {
-    #[error("Failed to create a Vulkan shader: {0}")]
+    #[error("Failed to create a shader: {0}")]
     CreationError(ash::vk::Result),
     #[error("Failed to read a SpirV shader file: {0}")]
     ShaderFileError(std::io::Error),
     #[error("Shader created on another device")]
-    DeviceMismatch
-}
-
-impl From<VulkanShaderError> for VulkanError {
-    fn from(value: VulkanShaderError) -> Self {
-        VulkanError::VulkanShaderError(value)
-    }
+    DeviceMismatch,
 }
 
 pub fn read_shader_code(path: &str) -> Result<Vec<u32>, VulkanShaderError> {
@@ -70,8 +61,11 @@ impl VulkanShaderModule {
             shader_type,
         })
     }
-    
-    pub fn delete_shader(self, device: &VulkanDevice) -> Result<(), VulkanShaderError> {
+
+    pub fn delete_shader(
+        self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanShaderError> {
         if self.device_id != device.id() {
             return Err(VulkanShaderError::DeviceMismatch);
         }

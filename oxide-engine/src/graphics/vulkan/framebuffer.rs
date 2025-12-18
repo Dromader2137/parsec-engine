@@ -3,7 +3,7 @@ use ash::vk::Extent2D;
 use crate::{
     graphics::{
         vulkan::{
-            VulkanError, device::VulkanDevice, image::VulkanImageView,
+            device::VulkanDevice, image::VulkanImageView,
             renderpass::VulkanRenderpass,
         },
         window::Window,
@@ -15,22 +15,17 @@ pub struct VulkanFramebuffer {
     id: u32,
     device_id: u32,
     renderpass_id: u32,
-    image_view_ids: Vec<u32>,
+    _image_view_ids: Vec<u32>,
     framebuffer: ash::vk::Framebuffer,
     extent: ash::vk::Extent2D,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanFramebufferError {
+    #[error("Failed to create framebuffer: {0}")]
     CreationError(ash::vk::Result),
-    NotFound(u32),
-    DeviceMismatch
-}
-
-impl From<VulkanFramebufferError> for VulkanError {
-    fn from(value: VulkanFramebufferError) -> Self {
-        VulkanError::VulkanFramebufferError(value)
-    }
+    #[error("Framebuffer created on different device")]
+    DeviceMismatch,
 }
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
@@ -74,13 +69,16 @@ impl VulkanFramebuffer {
             id: ID_COUNTER.next(),
             device_id: device.id(),
             renderpass_id: renderpass.id(),
-            image_view_ids: vec![image_view.id(), depth_view.id()],
+            _image_view_ids: vec![image_view.id(), depth_view.id()],
             framebuffer,
             extent,
         })
     }
-    
-    pub fn delete_framebuffer(self, device: &VulkanDevice) -> Result<(), VulkanFramebufferError> {
+
+    pub fn delete_framebuffer(
+        self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanFramebufferError> {
         if self.device_id != device.id() {
             return Err(VulkanFramebufferError::DeviceMismatch);
         }
@@ -103,5 +101,5 @@ impl VulkanFramebuffer {
 
     pub fn renderpass_id(&self) -> u32 { self.renderpass_id }
 
-    pub fn image_view_ids(&self) -> &[u32] { &self.image_view_ids }
+    pub fn _image_view_ids(&self) -> &[u32] { &self._image_view_ids }
 }

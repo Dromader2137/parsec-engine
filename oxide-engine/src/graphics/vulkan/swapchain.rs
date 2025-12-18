@@ -3,7 +3,6 @@ use ash::vk::Extent2D;
 use crate::{
     graphics::{
         vulkan::{
-            VulkanError,
             device::VulkanDevice,
             fence::VulkanFence,
             image::{VulkanImage, VulkanSwapchainImage},
@@ -21,30 +20,33 @@ use crate::{
 pub struct VulkanSwapchain {
     id: u32,
     device_id: u32,
-    swapchain_image_ids: Vec<u32>,
+    _swapchain_image_ids: Vec<u32>,
     swapchain: ash::vk::SwapchainKHR,
     swapchain_loader: ash::khr::swapchain::Device,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanSwapchainError {
-    PresentModesError(ash::vk::Result),
+    #[error("Failed to create Swapchain: {0}")]
     CreationError(ash::vk::Result),
+    #[error("Failed to acquiere next image: {0}")]
     ImageAcquisitionError(ash::vk::Result),
+    #[error("Failed to acquiere next image: {0}")]
     NextImageError(ash::vk::Result),
+    #[error("Failed to present image: {0}")]
     PresentError(ash::vk::Result),
+    #[error("Physical device created on another instance")]
     InstanceMismatch,
+    #[error("Surface created for another window")]
     WindowMismatch,
+    #[error("Device created on another physical device")]
     PhysicalDeviceMismatch,
+    #[error("Device created for another surface")]
     SurfaceMismatch,
+    #[error("Swapchaing created on another surface")]
     DeviceMismatch,
+    #[error("Swapchain out of date")]
     OutOfDate,
-}
-
-impl From<VulkanSwapchainError> for VulkanError {
-    fn from(value: VulkanSwapchainError) -> Self {
-        VulkanError::VulkanSwapchainError(value)
-    }
 }
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
@@ -162,7 +164,7 @@ impl VulkanSwapchain {
                 id: ID_COUNTER.next(),
                 device_id: device.id(),
                 swapchain,
-                swapchain_image_ids: swapchain_images
+                _swapchain_image_ids: swapchain_images
                     .iter()
                     .map(|x| x.id())
                     .collect(),
@@ -248,7 +250,7 @@ impl VulkanSwapchain {
         &self.swapchain
     }
 
-    pub fn get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
+    pub fn _get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
         &self.swapchain_loader
     }
 
@@ -256,5 +258,5 @@ impl VulkanSwapchain {
 
     pub fn id(&self) -> u32 { self.id }
 
-    pub fn swapchain_image_ids(&self) -> &[u32] { &self.swapchain_image_ids }
+    pub fn _swapchain_image_ids(&self) -> &[u32] { &self._swapchain_image_ids }
 }

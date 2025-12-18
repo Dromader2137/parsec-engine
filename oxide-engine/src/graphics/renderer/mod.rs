@@ -141,23 +141,25 @@ pub fn init_renderer(
         backend.create_swapchain(&window, None).unwrap();
     let swapchain_image_views = swapchain_images
         .iter()
-        .map(|img| backend.create_image_view(*img))
+        .map(|img| backend.create_image_view(*img).unwrap())
         .collect::<Vec<_>>();
-    let depth_image = backend.create_image(
-        window.size(),
-        ImageFormat::D32,
-        &[ImageUsage::DepthBuffer],
-    );
-    let depth_image_view = backend.create_image_view(depth_image);
+    let depth_image = backend
+        .create_image(window.size(), ImageFormat::D32, &[
+            ImageUsage::DepthBuffer,
+        ])
+        .unwrap();
+    let depth_image_view = backend.create_image_view(depth_image).unwrap();
     let framebuffers = swapchain_image_views
         .iter()
         .map(|view| {
-            backend.create_framebuffer(
-                &window,
-                *view,
-                depth_image_view,
-                renderpass,
-            )
+            backend
+                .create_framebuffer(
+                    &window,
+                    *view,
+                    depth_image_view,
+                    renderpass,
+                )
+                .unwrap()
         })
         .collect::<Vec<_>>();
     let frames_in_flight = 2.min(swapchain_images.len() - 1).max(1);
@@ -206,38 +208,41 @@ fn recreate_size_dependent_components(
         backend.create_swapchain(window, Some(swapchain)).unwrap();
     let new_swapchain_image_views = new_swapchain_images
         .iter()
-        .map(|img| backend.create_image_view(*img))
+        .map(|img| backend.create_image_view(*img).unwrap())
         .collect::<Vec<_>>();
-    let new_depth_image = backend.create_image(
-        window.size(),
-        ImageFormat::D32,
-        &[ImageUsage::DepthBuffer],
-    );
-    let new_depth_image_view = backend.create_image_view(new_depth_image);
+    let new_depth_image = backend
+        .create_image(window.size(), ImageFormat::D32, &[
+            ImageUsage::DepthBuffer,
+        ])
+        .unwrap();
+    let new_depth_image_view =
+        backend.create_image_view(new_depth_image).unwrap();
     let new_framebuffers = new_swapchain_image_views
         .iter()
         .map(|view| {
-            backend.create_framebuffer(
-                &window,
-                *view,
-                new_depth_image_view,
-                renderpass,
-            )
+            backend
+                .create_framebuffer(
+                    &window,
+                    *view,
+                    new_depth_image_view,
+                    renderpass,
+                )
+                .unwrap()
         })
         .collect::<Vec<_>>();
 
-    backend.delete_swapchain(swapchain);
+    backend.delete_swapchain(swapchain).unwrap();
     swapchain_views
         .iter()
-        .for_each(|view| backend.delete_image_view(*view));
+        .for_each(|view| backend.delete_image_view(*view).unwrap());
     swapchain_images
         .iter()
-        .for_each(|img| backend.delete_image(*img));
-    backend.delete_image_view(depth_view);
-    backend.delete_image(depth_image);
-    framebuffers
-        .iter()
-        .for_each(|framebuffer| backend.delete_framebuffer(*framebuffer));
+        .for_each(|img| backend.delete_image(*img).unwrap());
+    backend.delete_image_view(depth_view).unwrap();
+    backend.delete_image(depth_image).unwrap();
+    framebuffers.iter().for_each(|framebuffer| {
+        backend.delete_framebuffer(*framebuffer).unwrap()
+    });
 
     Resources::add_or_change(RendererSwapchain(new_swapchain));
     Resources::add_or_change(RendererSwapchainImages(new_swapchain_images));
@@ -275,7 +280,7 @@ pub fn render(
 ) {
     let command_buffer_fence =
         frame_sync[current_frame.0 as usize].command_buffer_fence;
-    backend.wait_fence(command_buffer_fence);
+    backend.wait_fence(command_buffer_fence).unwrap();
 
     if window.minimized() {
         return;
@@ -309,7 +314,8 @@ pub fn render(
         _ => panic!("Shouldn't be here"),
     };
     backend
-        .reset_fence(frame_sync[current_frame.0 as usize].command_buffer_fence);
+        .reset_fence(frame_sync[current_frame.0 as usize].command_buffer_fence)
+        .unwrap();
 
     let command_list = command_lists[current_frame.0 as usize];
     let framebuffer = framebuffers.0[present_index as usize];
@@ -353,12 +359,14 @@ pub fn render(
     backend.command_end_renderpass(command_list).unwrap();
     backend.command_end(command_list).unwrap();
 
-    backend.submit_commands(
-        command_list,
-        &[frame_sync[current_frame.0 as usize].image_available_semaphore],
-        &[image_sync[present_index as usize].rendering_complete_semaphore],
-        frame_sync[current_frame.0 as usize].command_buffer_fence,
-    );
+    backend
+        .submit_commands(
+            command_list,
+            &[frame_sync[current_frame.0 as usize].image_available_semaphore],
+            &[image_sync[present_index as usize].rendering_complete_semaphore],
+            frame_sync[current_frame.0 as usize].command_buffer_fence,
+        )
+        .unwrap();
 
     match backend.present(
         swapchain.0,

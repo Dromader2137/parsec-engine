@@ -1,6 +1,5 @@
 use crate::{
     graphics::vulkan::{
-        VulkanError,
         buffer::VulkanBuffer,
         descriptor_set::VulkanDescriptorSet,
         device::VulkanDevice,
@@ -22,41 +21,32 @@ pub struct VulkanCommandPool {
 pub struct VulkanCommandBuffer {
     id: u32,
     device_id: u32,
-    command_pool_id: u32,
+    _command_pool_id: u32,
     command_buffer: ash::vk::CommandBuffer,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanCommandBufferError {
+    #[error("Failed to create Command Buffer: {0}")]
     CreationError(ash::vk::Result),
+    #[error("Failed to begin Command Buffer: {0}")]
     BeginError(ash::vk::Result),
+    #[error("Failed to end Command Buffer: {0}")]
     EndError(ash::vk::Result),
-    RenderpassBeginError(ash::vk::Result),
-    RenderpassEndError(ash::vk::Result),
+    #[error("Failed to reset Command Buffer: {0}")]
     ResetError(ash::vk::Result),
-    CopyError(ash::vk::Result),
+    #[error("Command Buffer created on a different Device")]
     DeviceMismatch,
-    PoolMismatch,
+    #[error("Renderpass doesn't match")]
     RenderpassMismatch,
-    BarrierError(ash::vk::Result),
 }
 
-impl From<VulkanCommandBufferError> for VulkanError {
-    fn from(value: VulkanCommandBufferError) -> Self {
-        VulkanError::VulkanCommandBufferError(value)
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanCommandPoolError {
+    #[error("Failed to create command pool: {0}")]
     CreationError(ash::vk::Result),
+    #[error("Device created on different physical device")]
     PhysicalDeviceMismatch,
-}
-
-impl From<VulkanCommandPoolError> for VulkanError {
-    fn from(value: VulkanCommandPoolError) -> Self {
-        VulkanError::VulkanCommandPoolError(value)
-    }
 }
 
 static ID_COUNTER_POOL: once_cell::sync::Lazy<IdCounter> =
@@ -129,7 +119,7 @@ impl VulkanCommandBuffer {
         Ok(VulkanCommandBuffer {
             id: ID_COUNTER_BUFFER.next(),
             device_id: device.id(),
-            command_pool_id: command_pool.id(),
+            _command_pool_id: command_pool.id(),
             command_buffer,
         })
     }
@@ -324,7 +314,7 @@ impl VulkanCommandBuffer {
         Ok(())
     }
 
-    pub fn draw(
+    pub fn _draw(
         &self,
         device: &VulkanDevice,
         vertex_count: u32,
@@ -463,7 +453,7 @@ impl VulkanCommandBuffer {
             .image_subresource(
                 ash::vk::ImageSubresourceLayers::default()
                     .layer_count(1)
-                    .aspect_mask(image.aspect_flags())
+                    .aspect_mask(image.aspect_flags()),
             );
 
         unsafe {
@@ -478,7 +468,7 @@ impl VulkanCommandBuffer {
 
         Ok(())
     }
-    
+
     pub fn pipeline_barrier(
         &self,
         device: &VulkanDevice,
@@ -500,9 +490,9 @@ impl VulkanCommandBuffer {
                 ash::vk::DependencyFlags::empty(),
                 memory_barriers,
                 buffer_memory_barriers,
-                image_memory_barriers
+                image_memory_barriers,
             );
-        } 
+        }
         Ok(())
     }
 
@@ -532,11 +522,10 @@ impl VulkanCommandBuffer {
 
     pub fn id(&self) -> u32 { self.id }
 
-    pub fn command_pool_id(&self) -> u32 { self.command_pool_id }
+    pub fn _command_pool_id(&self) -> u32 { self._command_pool_id }
 }
 
 pub type MemoryBarrier = ash::vk::MemoryBarrier<'static>;
 pub type BufferMemoryBarrier = ash::vk::BufferMemoryBarrier<'static>;
 pub type ImageMemoryBarrier = ash::vk::ImageMemoryBarrier<'static>;
 pub type PipelineStage = ash::vk::PipelineStageFlags;
-pub type ImageLayout = ash::vk::ImageLayout;

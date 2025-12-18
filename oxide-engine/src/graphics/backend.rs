@@ -1,8 +1,8 @@
 use crate::graphics::{
     buffer::{Buffer, BufferError, BufferUsage},
     command_list::{CommandList, CommandListError},
-    fence::Fence,
-    framebuffer::Framebuffer,
+    fence::{Fence, FenceError},
+    framebuffer::{Framebuffer, FramebufferError},
     image::{Image, ImageError, ImageFormat, ImageUsage, ImageView},
     pipeline::{
         Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
@@ -10,7 +10,7 @@ use crate::graphics::{
     },
     renderpass::{Renderpass, RenderpassError},
     sampler::{Sampler, SamplerError},
-    semaphore::Semaphore,
+    semaphore::{Semaphore, SemaphoreError},
     shader::{Shader, ShaderError, ShaderType},
     swapchain::{Swapchain, SwapchainError},
     window::Window,
@@ -40,7 +40,10 @@ pub trait GraphicsBackend {
     fn delete_shader(&mut self, shader: Shader) -> Result<(), ShaderError>;
 
     fn create_renderpass(&mut self) -> Result<Renderpass, RenderpassError>;
-    fn delete_renderpass(&mut self, renderpass: Renderpass) -> Result<(), RenderpassError>;
+    fn delete_renderpass(
+        &mut self,
+        renderpass: Renderpass,
+    ) -> Result<(), RenderpassError>;
 
     fn create_pipeline_binding_layout(
         &mut self,
@@ -118,14 +121,17 @@ pub trait GraphicsBackend {
         wait_semaphores: &[Semaphore],
         signal_semaphores: &[Semaphore],
         signal_fence: Fence,
-    );
+    ) -> Result<(), CommandListError>;
 
     fn create_swapchain(
         &mut self,
         window: &Window,
         old_swapchain: Option<Swapchain>,
     ) -> Result<(Swapchain, Vec<Image>), SwapchainError>;
-    fn delete_swapchain(&mut self, swapchain: Swapchain);
+    fn delete_swapchain(
+        &mut self,
+        swapchain: Swapchain,
+    ) -> Result<(), SwapchainError>;
     fn next_image_id(
         &mut self,
         swapchain: Swapchain,
@@ -143,17 +149,26 @@ pub trait GraphicsBackend {
         size: (u32, u32),
         format: ImageFormat,
         image_usage: &[ImageUsage],
-    ) -> Image;
+    ) -> Result<Image, ImageError>;
     fn load_image_from_buffer(
         &mut self,
         buffer: Buffer,
-        image: Image
+        image: Image,
     ) -> Result<(), ImageError>;
-    fn delete_image(&mut self, image: Image);
-    fn create_image_view(&mut self, image: Image) -> ImageView;
-    fn delete_image_view(&mut self, image_view: ImageView);
-    fn create_image_sampler(&mut self) -> Sampler;
-    fn delete_image_sampler(&mut self, sampler: Sampler);
+    fn delete_image(&mut self, image: Image) -> Result<(), ImageError>;
+    fn create_image_view(
+        &mut self,
+        image: Image,
+    ) -> Result<ImageView, ImageError>;
+    fn delete_image_view(
+        &mut self,
+        image_view: ImageView,
+    ) -> Result<(), ImageError>;
+    fn create_image_sampler(&mut self) -> Result<Sampler, SamplerError>;
+    fn delete_image_sampler(
+        &mut self,
+        sampler: Sampler,
+    ) -> Result<(), SamplerError>;
 
     fn create_framebuffer(
         &mut self,
@@ -161,14 +176,20 @@ pub trait GraphicsBackend {
         color_view: ImageView,
         depth_view: ImageView,
         renderpass: Renderpass,
-    ) -> Framebuffer;
-    fn delete_framebuffer(&mut self, framebuffer: Framebuffer);
+    ) -> Result<Framebuffer, FramebufferError>;
+    fn delete_framebuffer(
+        &mut self,
+        framebuffer: Framebuffer,
+    ) -> Result<(), FramebufferError>;
 
-    fn create_fence(&mut self, signaled: bool) -> Fence;
-    fn wait_fence(&mut self, fence: Fence);
-    fn reset_fence(&mut self, fence: Fence);
-    fn delete_fence(&mut self, fence: Fence);
+    fn create_fence(&mut self, signaled: bool) -> Result<Fence, FenceError>;
+    fn wait_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
+    fn reset_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
+    fn delete_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
 
-    fn create_semaphore(&mut self) -> Semaphore;
-    fn delete_semaphore(&mut self, semaphore: Semaphore);
+    fn create_semaphore(&mut self) -> Result<Semaphore, SemaphoreError>;
+    fn delete_semaphore(
+        &mut self,
+        semaphore: Semaphore,
+    ) -> Result<(), SemaphoreError>;
 }

@@ -1,7 +1,5 @@
 use crate::{
-    graphics::vulkan::{
-        VulkanError, device::VulkanDevice, surface::VulkanSurface,
-    },
+    graphics::vulkan::{device::VulkanDevice, surface::VulkanSurface},
     utils::id_counter::IdCounter,
 };
 
@@ -23,12 +21,6 @@ pub enum VulkanRenderpassError {
     SurfaceMismatch,
     #[error("Renderpass created on a different device")]
     DeviceMismatch,
-}
-
-impl From<VulkanRenderpassError> for VulkanError {
-    fn from(value: VulkanRenderpassError) -> Self {
-        VulkanError::VulkanRenderpassError(value)
-    }
 }
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
@@ -115,7 +107,8 @@ impl VulkanRenderpass {
         }
 
         unsafe {
-            device.get_device_raw()
+            device
+                .get_device_raw()
                 .destroy_render_pass(*self.get_renderpass_raw(), None);
         }
 

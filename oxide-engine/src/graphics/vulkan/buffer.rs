@@ -1,10 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    graphics::{
-        buffer::BufferUsage,
-        vulkan::{VulkanError, device::VulkanDevice},
-    },
+    graphics::{buffer::BufferUsage, vulkan::device::VulkanDevice},
     utils::id_counter::IdCounter,
 };
 
@@ -46,12 +43,6 @@ pub enum VulkanBufferError {
     LenMismatch,
     #[error("Buffers created to different devices")]
     DeviceMismatch,
-}
-
-impl From<VulkanBufferError> for VulkanError {
-    fn from(value: VulkanBufferError) -> Self {
-        VulkanError::VulkanBufferError(value)
-    }
 }
 
 pub type VulkanBufferUsage = ash::vk::BufferUsageFlags;
@@ -208,7 +199,10 @@ impl VulkanBuffer {
         Ok(())
     }
 
-    pub fn delete_buffer(self, device: &VulkanDevice) -> Result<(), VulkanBufferError> {
+    pub fn delete_buffer(
+        self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanBufferError> {
         if self.device_id != device.id() {
             return Err(VulkanBufferError::DeviceMismatch);
         }

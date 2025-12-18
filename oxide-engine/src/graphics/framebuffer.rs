@@ -3,8 +3,14 @@ pub struct Framebuffer {
     id: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FramebufferError {}
+#[derive(Debug)]
+pub enum FramebufferError {
+    FramebufferCreationError(anyhow::Error),
+    FramebufferDeletionError(anyhow::Error),
+    ImageViewNotFound,
+    RenderpassNotFound,
+    FramebufferNotFound,
+}
 
 impl Framebuffer {
     pub fn new(id: u32) -> Framebuffer { Framebuffer { id } }

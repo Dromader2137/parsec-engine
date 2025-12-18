@@ -1,9 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{
-    graphics::{vulkan::VulkanError, window::Window},
-    utils::id_counter::IdCounter,
-};
+use crate::{graphics::window::Window, utils::id_counter::IdCounter};
 
 pub struct VulkanInstance {
     id: u32,
@@ -21,12 +18,6 @@ pub enum VulkanInstanceError {
     DisplayHandleError(winit::raw_window_handle::HandleError),
     ExtensionEnumerationError(ash::vk::Result),
     DebugCreationError(ash::vk::Result),
-}
-
-impl From<VulkanInstanceError> for VulkanError {
-    fn from(value: VulkanInstanceError) -> Self {
-        VulkanError::VulkanInstanceError(value)
-    }
 }
 
 unsafe extern "system" fn vulkan_debug_callback(

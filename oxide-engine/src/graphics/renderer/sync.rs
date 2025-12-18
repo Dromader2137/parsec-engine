@@ -14,8 +14,8 @@ pub struct RendererImageSync {
 impl RendererFrameSync {
     pub fn new(backend: &mut impl GraphicsBackend) -> RendererFrameSync {
         RendererFrameSync {
-            command_buffer_fence: backend.create_fence(true),
-            image_available_semaphore: backend.create_semaphore(),
+            command_buffer_fence: backend.create_fence(true).unwrap(),
+            image_available_semaphore: backend.create_semaphore().unwrap(),
         }
     }
 }
@@ -23,7 +23,7 @@ impl RendererFrameSync {
 impl RendererImageSync {
     pub fn new(backend: &mut impl GraphicsBackend) -> RendererImageSync {
         RendererImageSync {
-            rendering_complete_semaphore: backend.create_semaphore(),
+            rendering_complete_semaphore: backend.create_semaphore().unwrap(),
         }
     }
 }

@@ -1,6 +1,5 @@
 use crate::{
-    graphics::vulkan::{VulkanError, device::VulkanDevice},
-    utils::id_counter::IdCounter,
+    graphics::vulkan::device::VulkanDevice, utils::id_counter::IdCounter,
 };
 
 #[derive(Clone)]
@@ -10,17 +9,12 @@ pub struct VulkanSemaphore {
     semaphore: ash::vk::Semaphore,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanSemaphoreError {
+    #[error("Failed to create semaphore: {0}")]
     CreationError(ash::vk::Result),
-    WaitError(ash::vk::Result),
+    #[error("Semaphore created on different device")]
     DeviceMismatch,
-}
-
-impl From<VulkanSemaphoreError> for VulkanError {
-    fn from(value: VulkanSemaphoreError) -> Self {
-        VulkanError::VulkanSemaphoreError(value)
-    }
 }
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
@@ -45,15 +39,18 @@ impl VulkanSemaphore {
         })
     }
 
-    pub fn null(device: &VulkanDevice) -> VulkanSemaphore {
+    pub fn _null(device: &VulkanDevice) -> VulkanSemaphore {
         VulkanSemaphore {
             id: ID_COUNTER.next(),
             device_id: device.id(),
             semaphore: ash::vk::Semaphore::null(),
         }
     }
-    
-    pub fn delete_semaphore(self, device: &VulkanDevice) -> Result<(), VulkanSemaphoreError> {
+
+    pub fn delete_semaphore(
+        self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanSemaphoreError> {
         if self.device_id != device.id() {
             return Err(VulkanSemaphoreError::DeviceMismatch);
         }

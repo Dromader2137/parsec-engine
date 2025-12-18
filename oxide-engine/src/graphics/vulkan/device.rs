@@ -1,7 +1,7 @@
 use crate::{
     graphics::vulkan::{
-        VulkanError, instance::VulkanInstance,
-        physical_device::VulkanPhysicalDevice, surface::VulkanSurface,
+        instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
+        surface::VulkanSurface,
     },
     utils::id_counter::IdCounter,
 };
@@ -19,12 +19,6 @@ pub enum VulkanDeviceError {
     DeviceCreationError(ash::vk::Result),
     WaitIdleError(ash::vk::Result),
     PhysicalDeviceMismatch,
-}
-
-impl From<VulkanDeviceError> for VulkanError {
-    fn from(value: VulkanDeviceError) -> Self {
-        VulkanError::VulkanDeviceError(value)
-    }
 }
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =

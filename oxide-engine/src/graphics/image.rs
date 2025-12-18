@@ -18,7 +18,7 @@ pub enum ImageUsage {
     DepthBuffer,
     Sampled,
     Src,
-    Dst
+    Dst,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -26,8 +26,18 @@ pub struct ImageView {
     id: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ImageError {}
+#[derive(Debug)]
+pub enum ImageError {
+    ImageCreationError(anyhow::Error),
+    ImageLoadError(anyhow::Error),
+    ImageDeletionError(anyhow::Error),
+    ImageViewCreationError(anyhow::Error),
+    ImageViewDeletionError(anyhow::Error),
+    ImageNotFound,
+    SwapchainImageNotFound,
+    ImageViewNotFound,
+    BufferNotFound,
+}
 
 impl Image {
     pub fn new(id: u32) -> Image { Image { id } }

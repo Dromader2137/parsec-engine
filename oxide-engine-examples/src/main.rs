@@ -107,18 +107,19 @@ fn test_system(
     backend.bind_buffer(light_binding, light_buffer, 0).unwrap();
 
     let image = image::load_from_memory(include_bytes!("../../test.png"))
-            .unwrap()
-            .to_rgba8();
+        .unwrap()
+        .to_rgba8();
     let (width, height) = image.dimensions();
     let image_data = image.as_raw().as_bytes();
     let texture_buffer = backend
         .create_buffer(image_data, &[BufferUsage::TransferSrc])
         .unwrap();
-    let texture_image =
-        backend.create_image((width, height), ImageFormat::RGBA8SRGB, &[
+    let texture_image = backend
+        .create_image((width, height), ImageFormat::RGBA8SRGB, &[
             ImageUsage::Sampled,
             ImageUsage::Dst,
-        ]);
+        ])
+        .unwrap();
     backend
         .load_image_from_buffer(texture_buffer, texture_image)
         .unwrap();
@@ -131,8 +132,8 @@ fn test_system(
     let texture_binding = backend
         .create_pipeline_binding(texture_binding_layout)
         .unwrap();
-    let texture_sampler = backend.create_image_sampler();
-    let texture_image_view = backend.create_image_view(texture_image);
+    let texture_sampler = backend.create_image_sampler().unwrap();
+    let texture_image_view = backend.create_image_view(texture_image).unwrap();
     backend
         .bind_sampler(texture_binding, texture_sampler, texture_image_view, 0)
         .unwrap();
@@ -152,11 +153,7 @@ fn test_system(
 
     World::spawn((
         Camera::new(40.0_f32.to_radians(), 0.5, 30.0),
-        Transform::new(
-            Vec3f::UP,
-            Vec3f::ZERO,
-            Quat::IDENTITY,
-        ),
+        Transform::new(Vec3f::UP, Vec3f::ZERO, Quat::IDENTITY),
         CameraController {
             yaw: 0.0,
             target_yaw: 0.0,
@@ -168,11 +165,7 @@ fn test_system(
     .unwrap();
 
     World::spawn((
-        Transform::new(
-            Vec3f::ZERO,
-            Vec3f::ONE * 0.01,
-            Quat::IDENTITY,
-        ),
+        Transform::new(Vec3f::ZERO, Vec3f::ONE * 0.01, Quat::IDENTITY),
         MeshRenderer::new(mesh, material_id),
     ))
     .unwrap();

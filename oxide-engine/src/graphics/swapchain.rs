@@ -3,8 +3,12 @@ pub struct Swapchain {
     id: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug)]
 pub enum SwapchainError {
+    SwapchainCreationError(anyhow::Error),
+    OldSwapchainNotFound,
+    SwapchainNotFound,
+    SemaphoreNotFound,
     SwapchainOutOfDate,
     Undefined,
 }

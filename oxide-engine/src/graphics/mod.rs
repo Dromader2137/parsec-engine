@@ -1,8 +1,6 @@
 //! Module responsible for graphics.
 
-use thiserror::Error;
-use vulkan::VulkanError;
-use window::{Window, WindowError};
+use window::Window;
 
 use crate::{
     app::{self},
@@ -39,22 +37,12 @@ pub mod image;
 pub mod pipeline;
 pub mod renderer;
 pub mod renderpass;
+pub mod sampler;
 pub mod semaphore;
 pub mod shader;
 pub mod swapchain;
 pub mod vulkan;
 pub mod window;
-pub mod sampler;
-
-#[derive(Error, Debug)]
-pub enum GraphicsError {
-    #[error("Window error: {0:?}")]
-    WindowError(WindowError),
-    #[error("Vulkan error: {0:?}")]
-    VulkanError(VulkanError),
-    #[error("Graphics aren't initialized")]
-    Uninitialized,
-}
 
 #[derive(Default)]
 pub struct GraphicsBundle {}

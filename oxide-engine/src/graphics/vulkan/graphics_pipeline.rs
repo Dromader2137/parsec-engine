@@ -2,10 +2,9 @@ use crate::{
     graphics::{
         renderer::mesh_data::{Vertex, VertexFieldFormat},
         vulkan::{
-            VulkanError, descriptor_set::VulkanDescriptorSetLayout,
-            device::VulkanDevice, format_size::format_size,
-            framebuffer::VulkanFramebuffer, renderpass::VulkanRenderpass,
-            shader::VulkanShaderModule,
+            descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,
+            format_size::format_size, framebuffer::VulkanFramebuffer,
+            renderpass::VulkanRenderpass, shader::VulkanShaderModule,
         },
     },
     utils::id_counter::IdCounter,
@@ -14,26 +13,24 @@ use crate::{
 pub struct VulkanGraphicsPipeline {
     id: u32,
     device_id: u32,
-    framebuffer_id: u32,
-    vertex_shader_id: u32,
-    fragment_shader_id: u32,
-    descriptor_set_layout_ids: Vec<u32>,
+    _framebuffer_id: u32,
+    _vertex_shader_id: u32,
+    _fragment_shader_id: u32,
+    _descriptor_set_layout_ids: Vec<u32>,
     graphics_pipeline: ash::vk::Pipeline,
     graphics_pipeline_layout: ash::vk::PipelineLayout,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanGraphicsPipelineError {
+    #[error("Failed to create Pipeline layout: {0}")]
     LayoutError(ash::vk::Result),
+    #[error("Failed to create Pipeline: {0}")]
     CreationError(ash::vk::Result),
+    #[error("Pipeline created on a different device")]
     DeviceMismatch,
+    #[error("Framebuffer created for a different renderpass")]
     RenderpassMismatch,
-}
-
-impl From<VulkanGraphicsPipelineError> for VulkanError {
-    fn from(value: VulkanGraphicsPipelineError) -> Self {
-        VulkanError::VulkanGraphicsPipelineError(value)
-    }
 }
 
 pub type VulkanVertexFieldFormat = ash::vk::Format;
@@ -252,10 +249,10 @@ impl VulkanGraphicsPipeline {
         Ok(VulkanGraphicsPipeline {
             id: ID_COUNTER.next(),
             device_id: device.id(),
-            framebuffer_id: framebuffer.id(),
-            vertex_shader_id: vertex_shader.id(),
-            fragment_shader_id: fragment_shader.id(),
-            descriptor_set_layout_ids: descriptor_set_layouts
+            _framebuffer_id: framebuffer.id(),
+            _vertex_shader_id: vertex_shader.id(),
+            _fragment_shader_id: fragment_shader.id(),
+            _descriptor_set_layout_ids: descriptor_set_layouts
                 .iter()
                 .map(|x| x.id())
                 .collect(),
@@ -274,14 +271,14 @@ impl VulkanGraphicsPipeline {
 
     pub fn id(&self) -> u32 { self.id }
 
-    pub fn framebuffer_id(&self) -> u32 { self.framebuffer_id }
+    pub fn _framebuffer_id(&self) -> u32 { self._framebuffer_id }
 
-    pub fn vertex_shader_id(&self) -> u32 { self.vertex_shader_id }
+    pub fn _vertex_shader_id(&self) -> u32 { self._vertex_shader_id }
 
-    pub fn fragment_shader_id(&self) -> u32 { self.fragment_shader_id }
+    pub fn _fragment_shader_id(&self) -> u32 { self._fragment_shader_id }
 
-    pub fn descriptor_set_layout_ids(&self) -> &[u32] {
-        &self.descriptor_set_layout_ids
+    pub fn _descriptor_set_layout_ids(&self) -> &[u32] {
+        &self._descriptor_set_layout_ids
     }
 
     pub fn device_id(&self) -> u32 { self.device_id }

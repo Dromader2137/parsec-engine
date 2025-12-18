@@ -2,9 +2,7 @@
 
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-use crate::{
-    graphics::GraphicsError, math::vec::Vec2f, utils::id_counter::IdCounter,
-};
+use crate::{math::vec::Vec2f, utils::id_counter::IdCounter};
 
 #[derive(Debug)]
 pub struct Window {
@@ -16,10 +14,6 @@ pub struct Window {
 pub enum WindowError {
     CreationError(winit::error::OsError),
     SetCursorPositionError(winit::error::ExternalError),
-}
-
-impl From<WindowError> for GraphicsError {
-    fn from(value: WindowError) -> Self { GraphicsError::WindowError(value) }
 }
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =

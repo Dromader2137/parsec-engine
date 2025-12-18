@@ -33,9 +33,14 @@ pub enum PipelineShaderStage {
 #[derive(Debug)]
 pub enum PipelineError {
     LayoutCreationError(anyhow::Error),
+    PipelineCreationError(anyhow::Error),
+    BindingCreationError(anyhow::Error),
+    LayoutNotFound,
     ShaderNotFound,
     RenderpassNotFound,
     FramebufferNotFound,
+    BindingLayoutNotFound,
+    BindingNotFound,
 }
 
 impl Pipeline {

@@ -14,7 +14,7 @@ pub enum VulkanSamplerError {
     #[error("Failed to create a Vulkan sampler: {0}")]
     SamplerCreationError(ash::vk::Result),
     #[error("Vulkan sampler created on a different device")]
-    DeviceMismatch
+    DeviceMismatch,
 }
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
@@ -38,8 +38,11 @@ impl VulkanSampler {
             sampler,
         })
     }
-    
-    pub fn delete_sampler(self, device: &VulkanDevice) -> Result<(), VulkanSamplerError> {
+
+    pub fn delete_sampler(
+        self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanSamplerError> {
         if self.device_id != device.id() {
             return Err(VulkanSamplerError::DeviceMismatch);
         }
@@ -54,7 +57,5 @@ impl VulkanSampler {
 
     pub fn sampler_raw(&self) -> ash::vk::Sampler { self.sampler }
 
-    pub fn id(&self) -> u32 {
-        self.id
-    }
+    pub fn id(&self) -> u32 { self.id }
 }

@@ -2,8 +2,8 @@ use crate::{
     graphics::{
         pipeline::{PipelineBindingType, PipelineShaderStage},
         vulkan::{
-            VulkanError, buffer::VulkanBuffer, device::VulkanDevice,
-            image::VulkanImageView, sampler::VulkanSampler,
+            buffer::VulkanBuffer, device::VulkanDevice, image::VulkanImageView,
+            sampler::VulkanSampler,
         },
     },
     utils::id_counter::IdCounter,
@@ -22,7 +22,7 @@ pub struct VulkanDescriptorPoolSize {
 pub struct VulkanDescriptorSet {
     id: u32,
     device_id: u32,
-    descriptor_pool_id: u32,
+    _descriptor_pool_id: u32,
     descriptor_layout_id: u32,
     set: ash::vk::DescriptorSet,
 }
@@ -42,25 +42,17 @@ pub struct VulkanDescriptorSetBinding {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum DescriptorError {
+pub enum VulkanDescriptorError {
     #[error("Failed to create a descriptor pool: {0}")]
     PoolCreationError(ash::vk::Result),
     #[error("Failed to create a descriptor set: {0}")]
     SetCreationError(ash::vk::Result),
-    #[error("Failed to delete a descriptor set: {0}")]
-    SetCleanupError(ash::vk::Result),
     #[error("Failed to delete a descriptor set layout: {0}")]
     SetLayoutCreationError(ash::vk::Result),
     #[error("Failed to bind: binding doesn't exist")]
     BindingDoesntExist,
     #[error("Descriptor pool/set/layout created on a different device")]
     DeviceMismatch,
-}
-
-impl From<DescriptorError> for VulkanError {
-    fn from(value: DescriptorError) -> Self {
-        VulkanError::DescriptorError(value)
-    }
 }
 
 pub type DescriptorType = ash::vk::DescriptorType;
@@ -129,7 +121,7 @@ impl VulkanDescriptorPool {
         device: &VulkanDevice,
         descriptor_max_count: u32,
         descriptor_sizes: &[VulkanDescriptorPoolSize],
-    ) -> Result<VulkanDescriptorPool, DescriptorError> {
+    ) -> Result<VulkanDescriptorPool, VulkanDescriptorError> {
         let pool_sizes: Vec<_> =
             descriptor_sizes.iter().map(|x| x.size).collect();
 
@@ -142,7 +134,7 @@ impl VulkanDescriptorPool {
             device
                 .get_device_raw()
                 .create_descriptor_pool(&create_info, None)
-                .map_err(|err| DescriptorError::PoolCreationError(err))?
+                .map_err(|err| VulkanDescriptorError::PoolCreationError(err))?
         };
 
         Ok(VulkanDescriptorPool {
@@ -163,7 +155,7 @@ impl<'a> VulkanDescriptorSetLayout {
     pub fn new(
         device: &VulkanDevice,
         bindings: Vec<VulkanDescriptorSetBinding>,
-    ) -> Result<VulkanDescriptorSetLayout, DescriptorError> {
+    ) -> Result<VulkanDescriptorSetLayout, VulkanDescriptorError> {
         let bindings_raw: Vec<_> = bindings.iter().map(|x| x.binding).collect();
 
         let create_info = ash::vk::DescriptorSetLayoutCreateInfo::default()
@@ -176,7 +168,7 @@ impl<'a> VulkanDescriptorSetLayout {
         } {
             Ok(val) => val,
             Err(err) => {
-                return Err(DescriptorError::SetLayoutCreationError(err));
+                return Err(VulkanDescriptorError::SetLayoutCreationError(err));
             },
         };
 
@@ -206,11 +198,11 @@ impl VulkanDescriptorSet {
         device: &VulkanDevice,
         descriptor_layout: &VulkanDescriptorSetLayout,
         descriptor_pool: &VulkanDescriptorPool,
-    ) -> Result<VulkanDescriptorSet, DescriptorError> {
+    ) -> Result<VulkanDescriptorSet, VulkanDescriptorError> {
         if device.id() != descriptor_layout.device_id
             || device.id() != descriptor_pool.device_id
         {
-            return Err(DescriptorError::DeviceMismatch);
+            return Err(VulkanDescriptorError::DeviceMismatch);
         }
 
         let layout_raw = [*descriptor_layout.get_layout_raw()];
@@ -225,13 +217,15 @@ impl VulkanDescriptorSet {
                 .allocate_descriptor_sets(&create_info)
         } {
             Ok(val) => val,
-            Err(err) => return Err(DescriptorError::SetCreationError(err)),
+            Err(err) => {
+                return Err(VulkanDescriptorError::SetCreationError(err));
+            },
         }[0];
 
         Ok(VulkanDescriptorSet {
             id: ID_COUNTER_SET.next(),
             device_id: device.id(),
-            descriptor_pool_id: descriptor_pool.id(),
+            _descriptor_pool_id: descriptor_pool.id(),
             descriptor_layout_id: descriptor_layout.id(),
             set,
         })
@@ -243,11 +237,11 @@ impl VulkanDescriptorSet {
         device: &VulkanDevice,
         descriptor_layout: &VulkanDescriptorSetLayout,
         dst_binding: u32,
-    ) -> Result<(), DescriptorError> {
+    ) -> Result<(), VulkanDescriptorError> {
         if device.id() != descriptor_layout.device_id
             || device.id() != buffer.device_id()
         {
-            return Err(DescriptorError::DeviceMismatch);
+            return Err(VulkanDescriptorError::DeviceMismatch);
         }
 
         let buffer_info = [ash::vk::DescriptorBufferInfo::default()
@@ -256,16 +250,16 @@ impl VulkanDescriptorSet {
             .range(buffer.size)];
 
         let binding_type =
-            match descriptor_layout.bindings.get(dst_binding as usize) {
-                Some(val) => val.binding_type,
-                None => return Err(DescriptorError::BindingDoesntExist),
+            match descriptor_layout.bindings().get(dst_binding as usize) {
+                Some(val) => val.binding_type(),
+                None => return Err(VulkanDescriptorError::BindingDoesntExist),
             };
 
         let write_info = ash::vk::WriteDescriptorSet::default()
             .descriptor_type(binding_type)
             .dst_binding(dst_binding)
             .dst_set(self.set)
-            .descriptor_count(descriptor_layout.bindings.len() as u32)
+            .descriptor_count(descriptor_layout.bindings().len() as u32)
             .buffer_info(&buffer_info)
             .dst_array_element(0);
 
@@ -285,24 +279,23 @@ impl VulkanDescriptorSet {
         device: &VulkanDevice,
         descriptor_layout: &VulkanDescriptorSetLayout,
         dst_binding: u32,
-    ) -> Result<(), DescriptorError> {
+    ) -> Result<(), VulkanDescriptorError> {
         let image_info = [ash::vk::DescriptorImageInfo::default()
             .image_view(*view.get_image_view_raw())
             .sampler(sampler.sampler_raw())
-            .image_layout(ash::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-        ];
+            .image_layout(ash::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)];
 
         let binding_type =
-            match descriptor_layout.bindings.get(dst_binding as usize) {
-                Some(val) => val.binding_type,
-                None => return Err(DescriptorError::BindingDoesntExist),
+            match descriptor_layout.bindings().get(dst_binding as usize) {
+                Some(val) => val.binding_type(),
+                None => return Err(VulkanDescriptorError::BindingDoesntExist),
             };
 
         let write_info = ash::vk::WriteDescriptorSet::default()
             .descriptor_type(binding_type)
             .dst_binding(dst_binding)
             .dst_set(self.set)
-            .descriptor_count(descriptor_layout.bindings.len() as u32)
+            .descriptor_count(descriptor_layout.bindings().len() as u32)
             .image_info(&image_info)
             .dst_array_element(0);
 
@@ -321,7 +314,7 @@ impl VulkanDescriptorSet {
 
     pub fn device_id(&self) -> u32 { self.device_id }
 
-    pub fn descriptor_pool_id(&self) -> u32 { self.descriptor_pool_id }
+    pub fn _descriptor_pool_id(&self) -> u32 { self._descriptor_pool_id }
 
     pub fn descriptor_layout_id(&self) -> u32 { self.descriptor_layout_id }
 }

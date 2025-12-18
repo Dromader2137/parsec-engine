@@ -1,6 +1,5 @@
 use crate::{
-    graphics::vulkan::{VulkanError, device::VulkanDevice},
-    utils::id_counter::IdCounter,
+    graphics::vulkan::device::VulkanDevice, utils::id_counter::IdCounter,
 };
 
 #[derive(Clone)]
@@ -10,19 +9,16 @@ pub struct VulkanFence {
     fence: ash::vk::Fence,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanFenceError {
+    #[error("Failed to create fence: {0}")]
     CreationError(ash::vk::Result),
+    #[error("Failed to wait for fence: {0}")]
     WaitError(ash::vk::Result),
+    #[error("Failed to reset fence: {0}")]
     ResetError(ash::vk::Result),
-    StatusError(ash::vk::Result),
+    #[error("Fence created on different device")]
     DeviceMismatch,
-}
-
-impl From<VulkanFenceError> for VulkanError {
-    fn from(value: VulkanFenceError) -> Self {
-        VulkanError::VulkanFenceError(value)
-    }
 }
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
@@ -89,8 +85,11 @@ impl VulkanFence {
             fence: ash::vk::Fence::null(),
         }
     }
-    
-    pub fn delete_fence(self, device: &VulkanDevice) -> Result<(), VulkanFenceError> {
+
+    pub fn delete_fence(
+        self,
+        device: &VulkanDevice,
+    ) -> Result<(), VulkanFenceError> {
         if self.device_id != device.id() {
             return Err(VulkanFenceError::DeviceMismatch);
         }

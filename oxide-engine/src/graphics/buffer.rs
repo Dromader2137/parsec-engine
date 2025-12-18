@@ -9,7 +9,7 @@ pub enum BufferUsage {
     Vertex,
     Index,
     TransferSrc,
-    TransferDst
+    TransferDst,
 }
 
 #[derive(Debug)]
@@ -17,7 +17,9 @@ pub enum BufferError {
     BufferCreationError(anyhow::Error),
     BufferUpdateError(anyhow::Error),
     BufferDeletionError(anyhow::Error),
+    BufferBindError(anyhow::Error),
     BufferNotFound,
+    PipelineBindingNotFound,
 }
 
 impl Buffer {
