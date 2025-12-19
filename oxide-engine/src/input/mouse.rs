@@ -52,7 +52,6 @@ impl MouseWheelEvent {
 #[derive(Debug)]
 pub struct Mouse {
     position: Vec2f,
-    prev_position: Option<Vec2f>,
     position_delta: Vec2f,
     wheel_delta: Vec2f,
     pressed: HashSet<MouseButton>,
@@ -64,7 +63,6 @@ impl Mouse {
     pub fn new() -> Mouse {
         Mouse {
             position: Vec2f::ZERO,
-            prev_position: None,
             position_delta: Vec2f::ZERO,
             wheel_delta: Vec2f::ZERO,
             pressed: HashSet::new(),
@@ -80,19 +78,14 @@ impl Mouse {
     pub fn position(&self) -> Vec2f { self.position }
 
     fn set_position(&mut self, new_position: Vec2f) {
-        if self.prev_position.is_none() {
-            self.prev_position = Some(self.position);
-        }
         self.position = new_position;
-        if let Some(pp) = self.prev_position {
-            self.position_delta = self.position - pp;
-        }
     }
 
-    fn set_delta(&mut self, delta: Vec2f) { let _ = delta; }
+    fn set_delta(&mut self, delta: Vec2f) { 
+        self.position_delta += delta;
+    }
 
     pub fn clear(&mut self) {
-        self.prev_position = None;
         self.position_delta = Vec2f::ZERO;
         self.wheel_delta = Vec2f::ZERO;
         self.pressed.clear();
@@ -101,7 +94,6 @@ impl Mouse {
 
     /// Clears all buttons state.
     pub fn clear_all(&mut self) {
-        self.prev_position = None;
         self.position_delta = Vec2f::ZERO;
         self.wheel_delta = Vec2f::ZERO;
         self.pressed.clear();

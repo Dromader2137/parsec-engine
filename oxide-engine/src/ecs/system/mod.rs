@@ -21,8 +21,10 @@ pub enum SystemTrigger {
     End,
     /// Runs when a window is resized.
     WindowResized,
-    /// Runs when the cursor leaves a window.
+    /// Runs when the cursor leaves the window.
     WindowCursorLeft,
+    /// Runs when the cursor enters the window.
+    WindowCursorEntered,
     /// Runs when there is a new keyboard input.
     KeyboardInput,
     /// Runs when there is a new mouse movement.

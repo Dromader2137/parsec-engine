@@ -8,12 +8,20 @@ use crate::{math::vec::Vec2f, utils::id_counter::IdCounter};
 pub struct Window {
     id: u32,
     window: winit::window::Window,
+    cursor_mode: winit::window::CursorGrabMode,
+    cursor_visibility: bool
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum WindowError {
+    #[error("Failed to create window: {0}")]
     CreationError(winit::error::OsError),
+    #[error("Failed to set cursor position: {0}")]
     SetCursorPositionError(winit::error::ExternalError),
+    #[error("Failed to set cursor grab mode: {0}")]
+    SetCursorModeError(winit::error::ExternalError),
+    #[error("Failed to set cursor visibility: {0}")]
+    SetCursorVisibilityError(winit::error::ExternalError),
 }
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
@@ -38,6 +46,8 @@ impl Window {
         Ok(Window {
             id: ID_COUNTER.next(),
             window,
+            cursor_mode: winit::window::CursorGrabMode::None,
+            cursor_visibility: true
         })
     }
 
@@ -63,6 +73,31 @@ impl Window {
         self.window.inner_size()
     }
 
+    pub fn toggle_cursor_visibility(&mut self) {
+        let new_visibility = !self.cursor_visibility;
+        
+        self.window
+            .set_cursor_visible(new_visibility);
+
+        self.cursor_visibility = new_visibility;
+    }
+
+    pub fn toggle_cursor_lock(
+        &mut self,
+    ) -> Result<(), WindowError> {
+        let new_mode = match self.cursor_mode {
+            winit::window::CursorGrabMode::None => winit::window::CursorGrabMode::Locked,
+            _ => winit::window::CursorGrabMode::None
+        };
+
+        self.window
+            .set_cursor_grab(new_mode)
+            .map_err(|err| WindowError::SetCursorModeError(err))?;
+
+        self.cursor_mode = new_mode;
+        Ok(())
+    }
+
     pub fn set_cursor_position(
         &self,
         position: Vec2f,
@@ -71,8 +106,7 @@ impl Window {
             .set_cursor_position(winit::dpi::LogicalPosition::new(
                 position.x, position.y,
             ))
-            .map_err(|r| WindowError::SetCursorPositionError(r))?;
-        Ok(())
+            .map_err(|r| WindowError::SetCursorPositionError(r))
     }
 
     pub fn raw_display_handle(
@@ -92,6 +126,8 @@ impl Window {
     > {
         self.window.window_handle()
     }
+
+    pub fn focused(&self) -> bool { self.window.has_focus() }
 
     pub fn minimized(&self) -> bool { self.width() <= 0 || self.height() <= 0 }
 

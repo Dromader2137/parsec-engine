@@ -152,7 +152,7 @@ fn test_system(
     let mesh = meshes.push(load_obj("sponza.obj").unwrap());
 
     World::spawn((
-        Camera::new(40.0_f32.to_radians(), 0.5, 30.0),
+        Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
         Transform::new(Vec3f::UP, Vec3f::ZERO, Quat::IDENTITY),
         CameraController {
             yaw: 0.0,
@@ -183,7 +183,7 @@ pub struct CameraController {
 #[system]
 fn camera_movement(
     mut cameras: Query<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>,
-    window: Resource<Window>,
+    mut window: Resource<Window>,
     input: Resource<Input>,
     time: Resource<Time>,
 ) {
@@ -247,6 +247,10 @@ fn camera_movement(
         if input.keys.is_down(Noncharacter::Shift) {
             transform.position +=
                 Vec3f::DOWN * rotation * time.delta_time() * movement_speed;
+        }
+        if input.keys.is_pressed("c") {
+            window.toggle_cursor_lock().unwrap();
+            window.toggle_cursor_visibility();
         }
     }
 }

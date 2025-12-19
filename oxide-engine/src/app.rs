@@ -68,6 +68,28 @@ impl winit::application::ApplicationHandler for App {
         self.systems.execute_type(SystemTrigger::LateStart);
     }
 
+    fn device_event(
+            &mut self,
+            _event_loop: &winit::event_loop::ActiveEventLoop,
+            _device_id: winit::event::DeviceId,
+            event: winit::event::DeviceEvent,
+        ) {
+        match event {
+            winit::event::DeviceEvent::MouseMotion { delta } => {
+                Resources::add(MouseMovementEvent::delta(Vec2f::new(
+                    delta.0 as f32,
+                    delta.1 as f32,
+                )))
+                .unwrap();
+
+                self.systems.execute_type(SystemTrigger::MouseMovement);
+
+                Resources::remove::<MouseMovementEvent>().unwrap();
+            }
+            _ => ()
+        }
+    }
+
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,

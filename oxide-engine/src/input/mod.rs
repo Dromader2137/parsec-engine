@@ -4,6 +4,7 @@ use keys::Keys;
 
 use crate::{
     ecs::system::{System, SystemBundle, SystemTrigger, system},
+    graphics::window::Window,
     input::{
         keys::KeyboardInputEvent,
         mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
@@ -50,7 +51,11 @@ fn input_clear_all(mut input: Resource<Input>) {
 fn input_keyboard_event(
     mut input: Resource<Input>,
     input_event: Resource<KeyboardInputEvent>,
+    window: Resource<Window>,
 ) {
+    if !window.focused() {
+        return;
+    }
     input.keys.process_input_event((*input_event).clone());
 }
 
@@ -58,7 +63,11 @@ fn input_keyboard_event(
 fn input_mouse_movement(
     mut input: Resource<Input>,
     movement_event: Resource<MouseMovementEvent>,
+    window: Resource<Window>,
 ) {
+    if !window.focused() {
+        return;
+    }
     input.mouse.process_movement(*movement_event);
 }
 
@@ -66,7 +75,11 @@ fn input_mouse_movement(
 fn input_mouse_button(
     mut input: Resource<Input>,
     button_event: Resource<MouseButtonEvent>,
+    window: Resource<Window>,
 ) {
+    if !window.focused() {
+        return;
+    }
     input.mouse.process_button_event(*button_event);
 }
 
@@ -74,7 +87,11 @@ fn input_mouse_button(
 fn input_mouse_wheel(
     mut input: Resource<Input>,
     wheel_event: Resource<MouseWheelEvent>,
+    window: Resource<Window>,
 ) {
+    if !window.focused() {
+        return;
+    }
     input.mouse.process_wheel_event(*wheel_event);
 }
 
