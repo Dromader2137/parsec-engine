@@ -286,8 +286,8 @@ pub fn init_renderer(
             &[Matrix4f::orthographic(
                 0.0,
                 100.0,
-                40.0,
-                40.0
+                25.0,
+                25.0
             )],
             &[BufferUsage::Uniform],
         )

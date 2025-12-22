@@ -62,7 +62,9 @@ impl MaterialBase {
 pub enum MaterialPipelineBinding {
     ModelMatrix,
     ViewMatrix,
+    InverseViewMatrix,
     ProjectionMatrix,
+    InverseProjectionMatrix,
     Generic(PipelineBinding),
 }
 
@@ -104,6 +106,7 @@ impl MaterialData {
                 },
                 MaterialPipelineBinding::ModelMatrix => transform.model_binding,
                 MaterialPipelineBinding::Generic(bind) => *bind,
+                _ => todo!()
             };
             backend
                 .command_bind_pipeline_binding(

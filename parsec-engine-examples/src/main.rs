@@ -148,7 +148,7 @@ fn test_system(
     material_bases.push(material_base);
     let material_id = materials.push(material);
 
-    let mesh = meshes.push(load_obj("sponza.obj").unwrap());
+    let mesh = meshes.push(load_obj("test.obj").unwrap());
 
     World::spawn((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
@@ -164,7 +164,7 @@ fn test_system(
     .unwrap();
 
     World::spawn((
-        Transform::new(Vec3f::ZERO, Vec3f::ONE * 0.01, Quat::IDENTITY),
+        Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
         MeshRenderer::new(mesh, material_id),
     ))
     .unwrap();
