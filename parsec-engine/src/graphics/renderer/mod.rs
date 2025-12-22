@@ -10,6 +10,7 @@ pub mod material_data;
 pub mod mesh_data;
 pub mod sync;
 pub mod transform_data;
+pub mod light_data;
 
 use sync::{RendererFrameSync, RendererImageSync};
 
