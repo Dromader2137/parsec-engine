@@ -181,19 +181,7 @@ impl VulkanCommandBuffer {
             return Err(VulkanCommandBufferError::RenderpassMismatch);
         }
 
-        let clear_values = [
-            ash::vk::ClearValue {
-                color: ash::vk::ClearColorValue {
-                    float32: [0.0, 0.0, 0.0, 0.0],
-                },
-            },
-            ash::vk::ClearValue {
-                depth_stencil: ash::vk::ClearDepthStencilValue {
-                    depth: 1.0,
-                    stencil: 0,
-                },
-            },
-        ];
+        let clear_values = renderpass.clear_values();
 
         let begin_info = ash::vk::RenderPassBeginInfo::default()
             .render_pass(*renderpass.get_renderpass_raw())
@@ -232,7 +220,7 @@ impl VulkanCommandBuffer {
     pub fn set_viewports(
         &self,
         device: &VulkanDevice,
-        framebuffer: &VulkanFramebuffer,
+        dimensions: (u32, u32),
         renderpass: &VulkanRenderpass,
     ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id()
@@ -241,15 +229,11 @@ impl VulkanCommandBuffer {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
-        if renderpass.id() != framebuffer.renderpass_id() {
-            return Err(VulkanCommandBufferError::RenderpassMismatch);
-        }
-
         let viewports = [ash::vk::Viewport {
             x: 0.0,
             y: 0.0,
-            width: framebuffer.get_extent_raw().width as f32,
-            height: framebuffer.get_extent_raw().height as f32,
+            width: dimensions.0 as f32,
+            height: dimensions.1 as f32,
             min_depth: 0.0,
             max_depth: 1.0,
         }];
@@ -267,7 +251,7 @@ impl VulkanCommandBuffer {
     pub fn set_scissor(
         &self,
         device: &VulkanDevice,
-        framebuffer: &VulkanFramebuffer,
+        dimensions: (u32, u32),
         renderpass: &VulkanRenderpass,
     ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id()
@@ -276,11 +260,12 @@ impl VulkanCommandBuffer {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
-        if renderpass.id() != framebuffer.renderpass_id() {
-            return Err(VulkanCommandBufferError::RenderpassMismatch);
-        }
-
-        let scissors = [framebuffer.get_extent_raw().into()];
+        let scissors = [
+            ash::vk::Rect2D {
+                extent: ash::vk::Extent2D { width: dimensions.0, height: dimensions.1 },
+                offset: ash::vk::Offset2D::default()
+            }.into()
+        ];
         unsafe {
             device.get_device_raw().cmd_set_scissor(
                 self.command_buffer,

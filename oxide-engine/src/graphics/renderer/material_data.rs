@@ -44,6 +44,7 @@ impl MaterialBase {
                 vertex_shader,
                 fragment_shader,
                 renderpass,
+                None,
                 &binding_layouts,
             )
             .unwrap();

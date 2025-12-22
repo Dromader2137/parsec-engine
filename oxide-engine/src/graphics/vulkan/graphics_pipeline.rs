@@ -3,8 +3,7 @@ use crate::{
         renderer::mesh_data::{Vertex, VertexFieldFormat},
         vulkan::{
             descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,
-            format_size::format_size, framebuffer::VulkanFramebuffer,
-            renderpass::VulkanRenderpass, shader::VulkanShaderModule,
+            format_size::format_size, renderpass::VulkanRenderpass, shader::VulkanShaderModule,
         },
     },
     utils::id_counter::IdCounter,
@@ -13,7 +12,6 @@ use crate::{
 pub struct VulkanGraphicsPipeline {
     id: u32,
     device_id: u32,
-    _framebuffer_id: u32,
     _vertex_shader_id: u32,
     _fragment_shader_id: u32,
     _descriptor_set_layout_ids: Vec<u32>,
@@ -29,8 +27,6 @@ pub enum VulkanGraphicsPipelineError {
     CreationError(ash::vk::Result),
     #[error("Pipeline created on a different device")]
     DeviceMismatch,
-    #[error("Framebuffer created for a different renderpass")]
-    RenderpassMismatch,
 }
 
 pub type VulkanVertexFieldFormat = ash::vk::Format;
@@ -56,9 +52,9 @@ impl VulkanGraphicsPipeline {
     pub fn new<V: Vertex>(
         device: &VulkanDevice,
         renderpass: &VulkanRenderpass,
-        framebuffer: &VulkanFramebuffer,
         vertex_shader: &VulkanShaderModule,
         fragment_shader: &VulkanShaderModule,
+        dimensions: (u32, u32),
         descriptor_set_layouts: &Vec<VulkanDescriptorSetLayout>,
     ) -> Result<VulkanGraphicsPipeline, VulkanGraphicsPipelineError> {
         if device.id() != renderpass.device_id()
@@ -72,10 +68,6 @@ impl VulkanGraphicsPipeline {
             if layout.device_id() != device.id() {
                 return Err(VulkanGraphicsPipelineError::DeviceMismatch);
             }
-        }
-
-        if renderpass.id() != framebuffer.renderpass_id() {
-            return Err(VulkanGraphicsPipelineError::RenderpassMismatch);
         }
 
         let set_layouts: Vec<_> = descriptor_set_layouts
@@ -116,13 +108,13 @@ impl VulkanGraphicsPipeline {
         let viewports = [ash::vk::Viewport {
             x: 0.0,
             y: 0.0,
-            width: framebuffer.get_extent_raw().width as f32,
-            height: framebuffer.get_extent_raw().height as f32,
+            width: dimensions.0 as f32,
+            height: dimensions.1 as f32,
             min_depth: 0.0,
             max_depth: 1.0,
         }];
 
-        let scissors = [framebuffer.get_extent_raw().into()];
+        let scissors = [ash::vk::Rect2D { offset: ash::vk::Offset2D::default(), extent: ash::vk::Extent2D { width: dimensions.0, height: dimensions.1 }} ];
         let viewport_state_info =
             ash::vk::PipelineViewportStateCreateInfo::default()
                 .scissors(&scissors)
@@ -140,8 +132,12 @@ impl VulkanGraphicsPipeline {
                 rasterization_samples: ash::vk::SampleCountFlags::TYPE_1,
                 ..Default::default()
             };
+
+        let color_attachment_count = renderpass.color_attachment_count();
+        let depth_attachment = renderpass.has_depth_attachment();
+
         let color_blend_attachment_states =
-            [ash::vk::PipelineColorBlendAttachmentState {
+            vec![ash::vk::PipelineColorBlendAttachmentState {
                 blend_enable: 0,
                 src_color_blend_factor: ash::vk::BlendFactor::SRC_COLOR,
                 dst_color_blend_factor:
@@ -151,7 +147,7 @@ impl VulkanGraphicsPipeline {
                 dst_alpha_blend_factor: ash::vk::BlendFactor::ZERO,
                 alpha_blend_op: ash::vk::BlendOp::ADD,
                 color_write_mask: ash::vk::ColorComponentFlags::RGBA,
-            }];
+            }; color_attachment_count as usize];
         let color_blend_state =
             ash::vk::PipelineColorBlendStateCreateInfo::default()
                 .logic_op(ash::vk::LogicOp::CLEAR)
@@ -216,10 +212,11 @@ impl VulkanGraphicsPipeline {
             front: noop_stencil_state,
             back: noop_stencil_state,
             max_depth_bounds: 1.0,
+            stencil_test_enable: 0,
             ..Default::default()
         };
 
-        let graphic_pipeline_info =
+        let mut graphic_pipeline_info =
             ash::vk::GraphicsPipelineCreateInfo::default()
                 .stages(&shader_stage_create_infos)
                 .vertex_input_state(&vertex_input_state_info)
@@ -227,11 +224,17 @@ impl VulkanGraphicsPipeline {
                 .viewport_state(&viewport_state_info)
                 .rasterization_state(&rasterization_info)
                 .multisample_state(&multisample_state_info)
-                .color_blend_state(&color_blend_state)
                 .dynamic_state(&dynamic_state_info)
                 .layout(pipeline_layout)
-                .depth_stencil_state(&depth_state_info)
                 .render_pass(*renderpass.get_renderpass_raw());
+
+        if color_attachment_count > 0 {
+            graphic_pipeline_info = graphic_pipeline_info.color_blend_state(&color_blend_state);
+        }
+
+        if depth_attachment {
+            graphic_pipeline_info = graphic_pipeline_info.depth_stencil_state(&depth_state_info);
+        }
 
         let pipeline = match unsafe {
             device.get_device_raw().create_graphics_pipelines(
@@ -249,7 +252,6 @@ impl VulkanGraphicsPipeline {
         Ok(VulkanGraphicsPipeline {
             id: ID_COUNTER.next(),
             device_id: device.id(),
-            _framebuffer_id: framebuffer.id(),
             _vertex_shader_id: vertex_shader.id(),
             _fragment_shader_id: fragment_shader.id(),
             _descriptor_set_layout_ids: descriptor_set_layouts
@@ -270,8 +272,6 @@ impl VulkanGraphicsPipeline {
     }
 
     pub fn id(&self) -> u32 { self.id }
-
-    pub fn _framebuffer_id(&self) -> u32 { self._framebuffer_id }
 
     pub fn _vertex_shader_id(&self) -> u32 { self._vertex_shader_id }
 

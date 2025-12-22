@@ -15,10 +15,12 @@ pub enum ImageFormat {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ImageUsage {
-    DepthBuffer,
+    DepthAttachment,
     Sampled,
     Src,
     Dst,
+    ColorAttachment,
+    ColorBuffer,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

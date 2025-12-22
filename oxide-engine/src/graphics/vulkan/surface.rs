@@ -136,13 +136,18 @@ impl VulkanSurface {
                 .map_err(|err| VulkanSurfaceError::CapabilitiesError(err))?
         };
 
+        let surface_format = *surface_formats
+            .iter()
+            .find(|x| x.format == ash::vk::Format::R8G8B8A8_SRGB)
+            .ok_or(VulkanSurfaceError::NoSurfaceFormatsAvailable)?;
+
         Ok(VulkanSurface {
             id: ID_COUNTER.next(),
             window_id,
             physical_device_id: physical_device.id(),
             surface,
             surface_loader,
-            surface_format: surface_formats[0],
+            surface_format,
             surface_capabilities,
         })
     }

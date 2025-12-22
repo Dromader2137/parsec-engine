@@ -1,5 +1,3 @@
-use std::f32;
-
 use image::EncodableLayout;
 use oxide_engine::{
     app::App,
@@ -30,7 +28,7 @@ use oxide_engine::{
         vulkan::{VulkanBackend, shader::read_shader_code},
         window::Window,
     },
-    input::{Input, InputBundle, key::Noncharacter},
+    input::{Input, InputBundle},
     math::{quat::Quat, vec::Vec3f},
     resources::Resource,
     time::{Time, TimeBundle},
@@ -117,6 +115,7 @@ fn test_system(
     let texture_image = backend
         .create_image((width, height), ImageFormat::RGBA8SRGB, &[
             ImageUsage::Sampled,
+            ImageUsage::ColorBuffer,
             ImageUsage::Dst,
         ])
         .unwrap();
@@ -209,42 +208,27 @@ fn camera_movement(
         let rotation =
             Quat::from_euler(Vec3f::new(0.0, camera_controller.yaw, 0.0));
         let movement_speed = 5.0;
-        if input.keys.is_down("z") {
-            transform.rotation = Quat::from_euler(Vec3f::new(0.0, 0.0, 0.0));
-            camera_controller.target_pitch = 0.0;
-            camera_controller.target_yaw = 0.0;
-            camera_controller.pitch = 0.0;
-            camera_controller.yaw = 0.0;
-        }
-        if input.keys.is_down("x") {
-            transform.rotation =
-                Quat::from_euler(Vec3f::new(0.0, f32::consts::PI / 2.0, 0.0));
-            camera_controller.target_pitch = 0.0;
-            camera_controller.target_yaw = f32::consts::PI / 2.0;
-            camera_controller.pitch = 0.0;
-            camera_controller.yaw = f32::consts::PI / 2.0;
-        }
-        if input.keys.is_down("d") {
+        if input.keys.is_down("r") {
             transform.position +=
                 Vec3f::FORWARD * rotation * time.delta_time() * movement_speed;
         }
-        if input.keys.is_down("s") {
+        if input.keys.is_down("h") {
             transform.position +=
                 Vec3f::BACK * rotation * time.delta_time() * movement_speed;
         }
-        if input.keys.is_down("a") {
+        if input.keys.is_down("s") {
             transform.position +=
                 Vec3f::LEFT * rotation * time.delta_time() * movement_speed;
         }
-        if input.keys.is_down("h") {
+        if input.keys.is_down("t") {
             transform.position +=
                 Vec3f::RIGHT * rotation * time.delta_time() * movement_speed;
         }
-        if input.keys.is_down(Noncharacter::Space) {
+        if input.keys.is_down("a") {
             transform.position +=
                 Vec3f::UP * rotation * time.delta_time() * movement_speed;
         }
-        if input.keys.is_down(Noncharacter::Shift) {
+        if input.keys.is_down("z") {
             transform.position +=
                 Vec3f::DOWN * rotation * time.delta_time() * movement_speed;
         }

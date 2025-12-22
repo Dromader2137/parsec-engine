@@ -1,12 +1,24 @@
 use crate::{
-    graphics::vulkan::{device::VulkanDevice, surface::VulkanSurface},
+    graphics::{
+        renderpass::{
+            RenderpassAttachment, RenderpassAttachmentType,
+            RenderpassClearValue,
+        },
+        vulkan::{
+            device::VulkanDevice,
+            image::{VulkanImageFormat, VulkanImageLayout},
+            surface::VulkanSurface,
+        },
+    },
     utils::id_counter::IdCounter,
 };
 
-#[derive(Debug)]
 pub struct VulkanRenderpass {
     id: u32,
     device_id: u32,
+    color_attachment_count: u32,
+    has_depth_attachment: bool,
+    clear_values: Vec<VulkanClearValue>,
     renderpass: ash::vk::RenderPass,
 }
 
@@ -21,7 +33,137 @@ pub enum VulkanRenderpassError {
     SurfaceMismatch,
     #[error("Renderpass created on a different device")]
     DeviceMismatch,
+    #[error("Only one depth attachment is allowed")]
+    OnlyOneDepthAttachmentAllowed,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanRenderpassAttachmentType {
+    Color,
+    Depth,
+}
+
+pub type VulkanLoadOperation = ash::vk::AttachmentLoadOp;
+pub type VulkanStoreOperation = ash::vk::AttachmentStoreOp;
+
+#[derive(Debug, Clone)]
+pub struct VulkanRenderpassAttachment {
+    pub attachment_type: VulkanRenderpassAttachmentType,
+    pub load_op: VulkanLoadOperation,
+    pub store_op: VulkanStoreOperation,
+    pub image_layout: VulkanImageLayout,
+    pub image_format: VulkanImageFormat,
+}
+
+impl From<VulkanRenderpassAttachment> for ash::vk::AttachmentDescription {
+    fn from(value: VulkanRenderpassAttachment) -> Self {
+        ash::vk::AttachmentDescription {
+            format: value.image_format,
+            samples: ash::vk::SampleCountFlags::TYPE_1,
+            load_op: value.load_op,
+            store_op: value.store_op,
+            final_layout: value.image_layout,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<RenderpassAttachmentType> for VulkanRenderpassAttachmentType {
+    fn from(value: RenderpassAttachmentType) -> Self {
+        match value {
+            RenderpassAttachmentType::PresentColor => {
+                VulkanRenderpassAttachmentType::Color
+            },
+            RenderpassAttachmentType::PresentDepth => {
+                VulkanRenderpassAttachmentType::Depth
+            },
+            RenderpassAttachmentType::StoreDepth => {
+                VulkanRenderpassAttachmentType::Depth
+            },
+        }
+    }
+}
+
+impl From<RenderpassAttachmentType> for VulkanLoadOperation {
+    fn from(value: RenderpassAttachmentType) -> Self {
+        match value {
+            RenderpassAttachmentType::PresentColor => {
+                VulkanLoadOperation::CLEAR
+            },
+            RenderpassAttachmentType::PresentDepth => {
+                VulkanLoadOperation::CLEAR
+            },
+            RenderpassAttachmentType::StoreDepth => VulkanLoadOperation::CLEAR,
+        }
+    }
+}
+
+impl From<RenderpassAttachmentType> for VulkanStoreOperation {
+    fn from(value: RenderpassAttachmentType) -> Self {
+        match value {
+            RenderpassAttachmentType::PresentColor => {
+                VulkanStoreOperation::STORE
+            },
+            RenderpassAttachmentType::PresentDepth => {
+                VulkanStoreOperation::DONT_CARE
+            },
+            RenderpassAttachmentType::StoreDepth => VulkanStoreOperation::STORE,
+        }
+    }
+}
+
+impl From<RenderpassAttachmentType> for VulkanImageLayout {
+    fn from(value: RenderpassAttachmentType) -> Self {
+        match value {
+            RenderpassAttachmentType::PresentColor => {
+                VulkanImageLayout::PRESENT_SRC_KHR
+            },
+            RenderpassAttachmentType::PresentDepth => {
+                VulkanImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+            },
+            RenderpassAttachmentType::StoreDepth => VulkanImageLayout::GENERAL,
+        }
+    }
+}
+
+impl From<RenderpassClearValue> for VulkanClearValue {
+    fn from(value: RenderpassClearValue) -> Self {
+        match value {
+            RenderpassClearValue::Color(r, g, b, a) => VulkanClearValue {
+                color: VulkanClearColorValue {
+                    float32: [r, g, b, a],
+                },
+            },
+            RenderpassClearValue::Depth(d) => VulkanClearValue {
+                depth_stencil: VulkanClearDepthValue {
+                    depth: d,
+                    stencil: 0,
+                },
+            },
+        }
+    }
+}
+
+impl From<RenderpassAttachment>
+    for (VulkanRenderpassAttachment, VulkanClearValue)
+{
+    fn from(value: RenderpassAttachment) -> Self {
+        (
+            VulkanRenderpassAttachment {
+                attachment_type: value.attachment_type.into(),
+                load_op: value.attachment_type.into(),
+                store_op: value.attachment_type.into(),
+                image_layout: value.attachment_type.into(),
+                image_format: value.image_format.into(),
+            },
+            value.clear_value.into(),
+        )
+    }
+}
+
+pub type VulkanClearValue = ash::vk::ClearValue;
+pub type VulkanClearColorValue = ash::vk::ClearColorValue;
+pub type VulkanClearDepthValue = ash::vk::ClearDepthStencilValue;
 
 static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
     once_cell::sync::Lazy::new(|| IdCounter::new(0));
@@ -29,53 +171,64 @@ impl VulkanRenderpass {
     pub fn new(
         surface: &VulkanSurface,
         device: &VulkanDevice,
+        attachments: &[(VulkanRenderpassAttachment, VulkanClearValue)],
     ) -> Result<VulkanRenderpass, VulkanRenderpassError> {
         if device.surface_id() != surface.id() {
             return Err(VulkanRenderpassError::SurfaceMismatch);
         }
 
-        let renderpass_attachments = [
-            ash::vk::AttachmentDescription {
-                format: surface.format(),
-                samples: ash::vk::SampleCountFlags::TYPE_1,
-                load_op: ash::vk::AttachmentLoadOp::CLEAR,
-                store_op: ash::vk::AttachmentStoreOp::STORE,
-                final_layout: ash::vk::ImageLayout::PRESENT_SRC_KHR,
-                ..Default::default()
-            },
-            ash::vk::AttachmentDescription {
-                format: ash::vk::Format::D32_SFLOAT,
-                samples: ash::vk::SampleCountFlags::TYPE_1,
-                load_op: ash::vk::AttachmentLoadOp::CLEAR,
-                store_op: ash::vk::AttachmentStoreOp::DONT_CARE,
-                final_layout:
-                    ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                ..Default::default()
-            },
-        ];
-        let color_attachment_refs = [ash::vk::AttachmentReference {
-            attachment: 0,
-            layout: ash::vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-        }];
-        let depth_attachment_refs = ash::vk::AttachmentReference {
-            attachment: 1,
-            layout: ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        };
+        let mut color_attachment_refs = Vec::new();
+        let mut depth_attachment_refs = Vec::new();
+        let mut renderpass_attachments = Vec::new();
+        let mut clear_values = Vec::new();
+        for (id, (attachment, clear_value)) in attachments.iter().enumerate() {
+            match attachment.attachment_type {
+                VulkanRenderpassAttachmentType::Color => {
+                    color_attachment_refs.push(ash::vk::AttachmentReference {
+                        attachment: id as u32,
+                        layout: ash::vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                    });
+                },
+                VulkanRenderpassAttachmentType::Depth => {
+                    depth_attachment_refs.push(
+                        ash::vk::AttachmentReference {
+                            attachment: id as u32,
+                            layout: ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                        }
+                    );
+                },
+            };
+            renderpass_attachments.push(attachment.clone().into());
+            clear_values.push(*clear_value);
+        }
+
+        if depth_attachment_refs.len() > 1 {
+            return Err(VulkanRenderpassError::OnlyOneDepthAttachmentAllowed);
+        }
+        let depth_attachment_ref = depth_attachment_refs.get(0);
+
         let dependencies = [ash::vk::SubpassDependency {
             src_subpass: ash::vk::SUBPASS_EXTERNAL,
-            src_stage_mask:
-                ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             dst_access_mask: ash::vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            dst_stage_mask:
-                ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+                | ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+                | ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                | ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            src_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+                | ash::vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+                | ash::vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+            dst_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+                | ash::vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+                | ash::vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
             ..Default::default()
         }];
 
-        let subpass = ash::vk::SubpassDescription::default()
+        let mut subpass = ash::vk::SubpassDescription::default()
             .color_attachments(&color_attachment_refs)
-            .depth_stencil_attachment(&depth_attachment_refs)
             .pipeline_bind_point(ash::vk::PipelineBindPoint::GRAPHICS);
+
+        if let Some(depth) = depth_attachment_ref {
+            subpass = subpass.depth_stencil_attachment(depth);
+        }
 
         let renderpass_create_info = ash::vk::RenderPassCreateInfo::default()
             .attachments(&renderpass_attachments)
@@ -94,6 +247,9 @@ impl VulkanRenderpass {
         Ok(VulkanRenderpass {
             id: ID_COUNTER.next(),
             device_id: device.id(),
+            color_attachment_count: color_attachment_refs.len() as u32,
+            has_depth_attachment: depth_attachment_ref.is_some(),
+            clear_values,
             renderpass,
         })
     }
@@ -122,4 +278,10 @@ impl VulkanRenderpass {
     pub fn device_id(&self) -> u32 { self.device_id }
 
     pub fn id(&self) -> u32 { self.id }
+
+    pub fn color_attachment_count(&self) -> u32 { self.color_attachment_count }
+
+    pub fn has_depth_attachment(&self) -> bool { self.has_depth_attachment }
+
+    pub fn clear_values(&self) -> &[VulkanClearValue] { &self.clear_values }
 }

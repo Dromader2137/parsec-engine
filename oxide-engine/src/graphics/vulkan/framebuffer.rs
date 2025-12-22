@@ -6,7 +6,6 @@ use crate::{
             device::VulkanDevice, image::VulkanImageView,
             renderpass::VulkanRenderpass,
         },
-        window::Window,
     },
     utils::id_counter::IdCounter,
 };
@@ -15,7 +14,6 @@ pub struct VulkanFramebuffer {
     id: u32,
     device_id: u32,
     renderpass_id: u32,
-    _image_view_ids: Vec<u32>,
     framebuffer: ash::vk::Framebuffer,
     extent: ash::vk::Extent2D,
 }
@@ -32,22 +30,17 @@ static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
     once_cell::sync::Lazy::new(|| IdCounter::new(0));
 impl VulkanFramebuffer {
     pub fn new(
-        window: &Window,
+        size: (u32, u32),
         device: &VulkanDevice,
-        image_view: &VulkanImageView,
-        depth_view: &VulkanImageView,
+        attachments: &[&VulkanImageView],
         renderpass: &VulkanRenderpass,
     ) -> Result<VulkanFramebuffer, VulkanFramebufferError> {
-        let extent = window.size();
         let extent = Extent2D {
-            width: extent.0,
-            height: extent.1,
+            width: size.0,
+            height: size.1,
         };
 
-        let framebuffer_attachments = [
-            *image_view.get_image_view_raw(),
-            *depth_view.get_image_view_raw(),
-        ];
+        let framebuffer_attachments = attachments.iter().map(|x| *x.get_image_view_raw()).collect::<Vec<_>>();
         let frame_buffer_create_info =
             ash::vk::FramebufferCreateInfo::default()
                 .render_pass(*renderpass.get_renderpass_raw())
@@ -69,7 +62,6 @@ impl VulkanFramebuffer {
             id: ID_COUNTER.next(),
             device_id: device.id(),
             renderpass_id: renderpass.id(),
-            _image_view_ids: vec![image_view.id(), depth_view.id()],
             framebuffer,
             extent,
         })
@@ -100,6 +92,4 @@ impl VulkanFramebuffer {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn renderpass_id(&self) -> u32 { self.renderpass_id }
-
-    pub fn _image_view_ids(&self) -> &[u32] { &self._image_view_ids }
 }

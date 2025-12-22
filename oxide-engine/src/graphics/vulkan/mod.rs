@@ -15,7 +15,7 @@ use crate::graphics::{
         PipelineSubbindingLayout,
     },
     renderer::DefaultVertex,
-    renderpass::{Renderpass, RenderpassError},
+    renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
     sampler::{Sampler, SamplerError},
     semaphore::{Semaphore, SemaphoreError},
     shader::{Shader, ShaderError, ShaderType},
@@ -100,7 +100,7 @@ pub struct VulkanBackend {
 }
 
 impl GraphicsBackend for VulkanBackend {
-    fn init(window: &Window) -> Result<VulkanBackend, BackendInitError> {
+    fn init(window: &Window) -> Result<Self, BackendInitError> {
         let instance = VulkanInstance::new(&window)
             .map_err(|err| BackendInitError::InitError(err.into()))?;
         let initial_surface = VulkanInitialSurface::new(&instance, &window)
@@ -220,11 +220,16 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| ShaderError::ShaderDeletionError(err.into()))
     }
 
-    fn create_renderpass(&mut self) -> Result<Renderpass, RenderpassError> {
-        let renderpass = VulkanRenderpass::new(&self.surface, &self.device)
-            .map_err(|err| {
-                RenderpassError::RenderpassCreationError(err.into())
-            })?;
+    fn create_renderpass(
+        &mut self,
+        attachments: &[RenderpassAttachment],
+    ) -> Result<Renderpass, RenderpassError> {
+        let renderpass = VulkanRenderpass::new(
+            &self.surface,
+            &self.device,
+            &attachments.iter().map(|x| (*x).into()).collect::<Vec<_>>(),
+        )
+        .map_err(|err| RenderpassError::RenderpassCreationError(err.into()))?;
         let rendrepass_id = renderpass.id();
         self.renderpasses.insert(rendrepass_id, renderpass);
         Ok(Renderpass::new(rendrepass_id))
@@ -270,6 +275,7 @@ impl GraphicsBackend for VulkanBackend {
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,
+        dimensions: Option<(u32, u32)>,
         binding_layouts: &[PipelineBindingLayout],
     ) -> Result<Pipeline, PipelineError> {
         let vsm = self
@@ -284,10 +290,17 @@ impl GraphicsBackend for VulkanBackend {
             .renderpasses
             .get(&renderpass.id())
             .ok_or(PipelineError::RenderpassNotFound)?;
-        let fra = self
-            .framebuffers
-            .get(&0)
-            .ok_or(PipelineError::FramebufferNotFound)?;
+        let dim = match dimensions {
+            Some(d) => d,
+            None => {
+                let fra = self
+                    .framebuffers
+                    .values()
+                    .next()
+                    .ok_or(PipelineError::FramebufferNotFound)?;
+                (fra.get_extent_raw().width, fra.get_extent_raw().height)
+            },
+        };
         let dsl = binding_layouts
             .into_iter()
             .map(|x| {
@@ -300,9 +313,9 @@ impl GraphicsBackend for VulkanBackend {
         let pipeline = VulkanGraphicsPipeline::new::<DefaultVertex>(
             &self.device,
             ren,
-            fra,
             vsm,
             fsm,
+            dim,
             &dsl,
         )
         .map_err(|err| PipelineError::PipelineCreationError(err.into()))?;
@@ -450,12 +463,20 @@ impl GraphicsBackend for VulkanBackend {
                 CommandListError::CommandListRenderpassBeginError(err.into())
             })?;
         command_buffer
-            .set_viewports(&self.device, fra, ren)
+            .set_viewports(
+                &self.device,
+                (fra.get_extent_raw().width, fra.get_extent_raw().height),
+                ren,
+            )
             .map_err(|err| {
                 CommandListError::CommandListRenderpassBeginError(err.into())
             })?;
         command_buffer
-            .set_scissor(&self.device, fra, ren)
+            .set_scissor(
+                &self.device,
+                (fra.get_extent_raw().width, fra.get_extent_raw().height),
+                ren,
+            )
             .map_err(|err| {
                 CommandListError::CommandListRenderpassBeginError(err.into())
             })
@@ -849,25 +870,24 @@ impl GraphicsBackend for VulkanBackend {
 
     fn create_framebuffer(
         &mut self,
-        window: &Window,
-        color_view: ImageView,
-        depth_view: ImageView,
+        size: (u32, u32),
+        attachments: &[ImageView],
         renderpass: Renderpass,
     ) -> Result<Framebuffer, FramebufferError> {
-        let cv = self
-            .image_views
-            .get(&color_view.id())
-            .ok_or(FramebufferError::ImageViewNotFound)?;
-        let dv = self
-            .image_views
-            .get(&depth_view.id())
-            .ok_or(FramebufferError::ImageViewNotFound)?;
+        let att = attachments
+            .iter()
+            .map(|attachment| {
+                self.image_views
+                    .get(&attachment.id())
+                    .ok_or(FramebufferError::ImageViewNotFound)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let ren = self
             .renderpasses
             .get(&renderpass.id())
             .ok_or(FramebufferError::RenderpassNotFound)?;
         let framebuffer =
-            VulkanFramebuffer::new(window, &self.device, cv, dv, ren).map_err(
+            VulkanFramebuffer::new(size, &self.device, &att, ren).map_err(
                 |err| FramebufferError::FramebufferCreationError(err.into()),
             )?;
         let framebuffer_id = framebuffer.id();

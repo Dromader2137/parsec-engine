@@ -85,10 +85,7 @@ impl VulkanSwapchain {
             }
         }
 
-        let mut desired_image_count = surface.max_image_count().min(3);
-        if desired_image_count == 0 {
-            desired_image_count = surface.min_image_count().min(3)
-        }
+        let desired_image_count = surface.min_image_count();
 
         let surface_resolution = {
             let size = window.size();

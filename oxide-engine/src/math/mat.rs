@@ -113,6 +113,21 @@ impl Matrix4f {
         ])
     }
 
+    /// Orthographic matrix.
+    pub fn orthographic(
+        near: f32,
+        far: f32,
+        height: f32,
+        width: f32,
+    ) -> Matrix4f {
+        Matrix4f::new([
+            [1.0 / width, 0.0, 0.0, 0.0],
+            [0.0, -1.0 / height, 0.0, 0.0],
+            [0.0, 0.0, 1.0 / (far - near), -near / (far - near)],
+            [0.0, 0.0, 0.0, 1.0],
+        ])
+    }
+
     /// Right-handed look-at matrix.
     pub fn look_at(mut eye: Vec3f, mut dir: Vec3f, mut up: Vec3f) -> Matrix4f {
         let mut f = dir.normalize();

@@ -8,7 +8,7 @@ use crate::graphics::{
         Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
         PipelineSubbindingLayout,
     },
-    renderpass::{Renderpass, RenderpassError},
+    renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
     sampler::{Sampler, SamplerError},
     semaphore::{Semaphore, SemaphoreError},
     shader::{Shader, ShaderError, ShaderType},
@@ -18,7 +18,7 @@ use crate::graphics::{
 
 #[derive(Debug)]
 pub enum BackendInitError {
-    InitError(anyhow::Error)
+    InitError(anyhow::Error),
 }
 
 pub trait GraphicsBackend: Sized {
@@ -44,7 +44,10 @@ pub trait GraphicsBackend: Sized {
     ) -> Result<Shader, ShaderError>;
     fn delete_shader(&mut self, shader: Shader) -> Result<(), ShaderError>;
 
-    fn create_renderpass(&mut self) -> Result<Renderpass, RenderpassError>;
+    fn create_renderpass(
+        &mut self,
+        attachments: &[RenderpassAttachment],
+    ) -> Result<Renderpass, RenderpassError>;
     fn delete_renderpass(
         &mut self,
         renderpass: Renderpass,
@@ -59,6 +62,7 @@ pub trait GraphicsBackend: Sized {
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,
+        dimensions: Option<(u32, u32)>,
         binding_layouts: &[PipelineBindingLayout],
     ) -> Result<Pipeline, PipelineError>;
     fn create_pipeline_binding(
@@ -177,9 +181,8 @@ pub trait GraphicsBackend: Sized {
 
     fn create_framebuffer(
         &mut self,
-        window: &Window,
-        color_view: ImageView,
-        depth_view: ImageView,
+        size: (u32, u32),
+        attachments: &[ImageView],
         renderpass: Renderpass,
     ) -> Result<Framebuffer, FramebufferError>;
     fn delete_framebuffer(

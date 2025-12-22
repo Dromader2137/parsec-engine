@@ -95,6 +95,9 @@ pub enum VulkanImageError {
 }
 
 pub type VulkanImageFormat = ash::vk::Format;
+pub type VulkanImageLayout = ash::vk::ImageLayout;
+pub type VulkanImageUsage = ash::vk::ImageUsageFlags;
+pub type VulkanImageAspectFlags = ash::vk::ImageAspectFlags;
 
 impl From<ImageFormat> for VulkanImageFormat {
     fn from(value: ImageFormat) -> Self {
@@ -109,28 +112,27 @@ impl From<ImageFormat> for VulkanImageFormat {
     }
 }
 
-pub type VulkanImageUsage = ash::vk::ImageUsageFlags;
-
 impl From<ImageUsage> for VulkanImageUsage {
     fn from(value: ImageUsage) -> Self {
         match value {
-            ImageUsage::DepthBuffer => {
+            ImageUsage::DepthAttachment => {
                 VulkanImageUsage::DEPTH_STENCIL_ATTACHMENT
             },
             ImageUsage::Sampled => VulkanImageUsage::SAMPLED,
             ImageUsage::Src => VulkanImageUsage::TRANSFER_SRC,
             ImageUsage::Dst => VulkanImageUsage::TRANSFER_DST,
+            ImageUsage::ColorAttachment => VulkanImageUsage::COLOR_ATTACHMENT,
+            _ => VulkanImageUsage::empty()
         }
     }
 }
 
-pub type VulkanImageAspectFlags = ash::vk::ImageAspectFlags;
-
 impl From<ImageUsage> for VulkanImageAspectFlags {
     fn from(value: ImageUsage) -> Self {
         match value {
-            ImageUsage::DepthBuffer => VulkanImageAspectFlags::DEPTH,
-            ImageUsage::Sampled => VulkanImageAspectFlags::COLOR,
+            ImageUsage::DepthAttachment => VulkanImageAspectFlags::DEPTH,
+            ImageUsage::ColorAttachment => VulkanImageAspectFlags::COLOR,
+            ImageUsage::ColorBuffer => VulkanImageAspectFlags::COLOR,
             _ => VulkanImageAspectFlags::NONE,
         }
     }

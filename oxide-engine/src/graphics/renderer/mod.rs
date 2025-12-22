@@ -17,23 +17,37 @@ use crate::{
     ecs::system::system,
     graphics::{
         backend::GraphicsBackend,
+        buffer::{Buffer, BufferUsage},
         command_list::CommandList,
         framebuffer::Framebuffer,
         image::{Image, ImageFormat, ImageUsage, ImageView},
+        pipeline::{
+            PipelineBinding, PipelineBindingType, PipelineShaderStage,
+            PipelineSubbindingLayout,
+        },
         renderer::{
             assets::mesh::Mesh,
             camera_data::CameraData,
             draw_queue::{Draw, MeshAndMaterial},
-            material_data::{MaterialBase, MaterialData},
+            material_data::{
+                MaterialBase, MaterialData, MaterialPipelineBinding,
+            },
             mesh_data::{MeshData, Vertex, VertexField, VertexFieldFormat},
             transform_data::TransformData,
         },
-        renderpass::Renderpass,
+        renderpass::{
+            Renderpass, RenderpassAttachment, RenderpassAttachmentType,
+            RenderpassClearValue,
+        },
+        shader::{Shader, ShaderType},
         swapchain::{Swapchain, SwapchainError},
-        vulkan::VulkanBackend,
+        vulkan::{VulkanBackend, shader::read_shader_code},
         window::Window,
     },
-    math::vec::{Vec2f, Vec3f},
+    math::{
+        mat::Matrix4f,
+        vec::{Vec2f, Vec3f},
+    },
     resources::{Resource, Resources},
     utils::id_vec::IdVec,
 };
@@ -131,12 +145,40 @@ pub struct RendererDepthImageView(pub ImageView);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
+#[allow(unused)]
+pub struct RendererShadowpassData {
+    renderpass: Renderpass,
+    material_id: u32,
+    vertex_shader: Shader,
+    fragment_shader: Shader,
+    image: Image,
+    image_view: ImageView,
+    framebuffer: Framebuffer,
+    proj_buffer: Buffer,
+    look_buffer: Buffer,
+    proj_binding: PipelineBinding,
+    look_binding: PipelineBinding,
+}
+
 #[system]
 pub fn init_renderer(
     mut backend: Resource<VulkanBackend>,
     window: Resource<Window>,
 ) {
-    let renderpass = backend.create_renderpass().unwrap();
+    let renderpass = backend
+        .create_renderpass(&[
+            RenderpassAttachment {
+                attachment_type: RenderpassAttachmentType::PresentColor,
+                image_format: ImageFormat::RGBA8SRGB,
+                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 0.0),
+            },
+            RenderpassAttachment {
+                attachment_type: RenderpassAttachmentType::PresentDepth,
+                image_format: ImageFormat::D32,
+                clear_value: RenderpassClearValue::Depth(1.0),
+            },
+        ])
+        .unwrap();
     let (swapchain, swapchain_images) =
         backend.create_swapchain(&window, None).unwrap();
     let swapchain_image_views = swapchain_images
@@ -145,7 +187,7 @@ pub fn init_renderer(
         .collect::<Vec<_>>();
     let depth_image = backend
         .create_image(window.size(), ImageFormat::D32, &[
-            ImageUsage::DepthBuffer,
+            ImageUsage::DepthAttachment,
         ])
         .unwrap();
     let depth_image_view = backend.create_image_view(depth_image).unwrap();
@@ -154,9 +196,8 @@ pub fn init_renderer(
         .map(|view| {
             backend
                 .create_framebuffer(
-                    &window,
-                    *view,
-                    depth_image_view,
+                    window.size(),
+                    &[*view, depth_image_view],
                     renderpass,
                 )
                 .unwrap()
@@ -169,6 +210,143 @@ pub fn init_renderer(
     let command_lists =
         create_commad_lists(backend.deref_mut(), frames_in_flight);
 
+    let shadow_renderpass = backend
+        .create_renderpass(&[RenderpassAttachment {
+            attachment_type: RenderpassAttachmentType::StoreDepth,
+            image_format: ImageFormat::D32,
+            clear_value: RenderpassClearValue::Depth(1.0),
+        }])
+        .unwrap();
+    let shadow_vertex_shader = backend
+        .create_shader(
+            &read_shader_code("shaders/shadow_vert.spv").unwrap(),
+            ShaderType::Vertex,
+        )
+        .unwrap();
+    let shadow_fragment_shader = backend
+        .create_shader(
+            &read_shader_code("shaders/shadow_frag.spv").unwrap(),
+            ShaderType::Fragment,
+        )
+        .unwrap();
+    let shadow_material_base = MaterialBase::new(
+        &mut *backend,
+        shadow_vertex_shader,
+        shadow_fragment_shader,
+        shadow_renderpass,
+        vec![
+            vec![
+                PipelineSubbindingLayout::new(
+                    PipelineBindingType::UniformBuffer,
+                    PipelineShaderStage::Vertex,
+                ),
+                PipelineSubbindingLayout::new(
+                    PipelineBindingType::UniformBuffer,
+                    PipelineShaderStage::Vertex,
+                ),
+                PipelineSubbindingLayout::new(
+                    PipelineBindingType::UniformBuffer,
+                    PipelineShaderStage::Vertex,
+                ),
+            ],
+            vec![PipelineSubbindingLayout::new(
+                PipelineBindingType::UniformBuffer,
+                PipelineShaderStage::Vertex,
+            )],
+            vec![PipelineSubbindingLayout::new(
+                PipelineBindingType::UniformBuffer,
+                PipelineShaderStage::Vertex,
+            )],
+            vec![PipelineSubbindingLayout::new(
+                PipelineBindingType::UniformBuffer,
+                PipelineShaderStage::Fragment,
+            )],
+            vec![PipelineSubbindingLayout::new(
+                PipelineBindingType::TextureSampler,
+                PipelineShaderStage::Fragment,
+            )],
+        ],
+    );
+    let shadow_depth_image = backend
+        .create_image((1024, 1024), ImageFormat::D32, &[
+            ImageUsage::DepthAttachment,
+        ])
+        .unwrap();
+    let shadow_depth_view =
+        backend.create_image_view(shadow_depth_image).unwrap();
+    let shadow_framebuffer = backend
+        .create_framebuffer(
+            (1024, 1024),
+            &[shadow_depth_view],
+            shadow_renderpass,
+        )
+        .unwrap();
+    let shadow_proj_buffer = backend
+        .create_buffer(
+            &[Matrix4f::orthographic(
+                0.0,
+                100.0,
+                40.0,
+                40.0
+            )],
+            &[BufferUsage::Uniform],
+        )
+        .unwrap();
+    let shadow_look_buffer = backend
+        .create_buffer(
+            &[Matrix4f::look_at(
+                Vec3f::new(40.0, 40.0, 40.0),
+                Vec3f::new(-1.0, -1.0, -1.0),
+                Vec3f::new(-1.0, 1.0, -1.0),
+            )],
+            &[BufferUsage::Uniform],
+        )
+        .unwrap();
+    let shadow_proj_layout = backend
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+            binding_type: PipelineBindingType::UniformBuffer,
+            shader_stage: PipelineShaderStage::Vertex,
+        }])
+        .unwrap();
+    let shadow_look_layout = backend
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+            binding_type: PipelineBindingType::UniformBuffer,
+            shader_stage: PipelineShaderStage::Vertex,
+        }])
+        .unwrap();
+    let shadow_proj_binding = backend
+        .create_pipeline_binding(shadow_proj_layout).unwrap();
+    let shadow_look_binding = backend
+        .create_pipeline_binding(shadow_look_layout).unwrap();
+    backend.bind_buffer(shadow_proj_binding, shadow_proj_buffer, 0).unwrap();
+    backend.bind_buffer(shadow_look_binding, shadow_look_buffer, 0).unwrap();
+    let shadow_material = MaterialData::new(&shadow_material_base, vec![
+        MaterialPipelineBinding::ModelMatrix,
+        MaterialPipelineBinding::Generic(shadow_look_binding),
+        MaterialPipelineBinding::Generic(shadow_proj_binding),
+    ]);
+
+    let mut material_bases = IdVec::new();
+    let mut materials_data = IdVec::new();
+
+    material_bases.push(shadow_material_base);
+    let shadow_material_id = materials_data.push(shadow_material);
+
+    let shadow_data = RendererShadowpassData {
+        renderpass: shadow_renderpass,
+        material_id: shadow_material_id,
+        vertex_shader: shadow_vertex_shader,
+        fragment_shader: shadow_fragment_shader,
+        image: shadow_depth_image,
+        image_view: shadow_depth_view,
+        framebuffer: shadow_framebuffer,
+        proj_buffer: shadow_proj_buffer,
+        proj_binding: shadow_proj_binding,
+        look_buffer: shadow_look_buffer,
+        look_binding: shadow_look_binding
+    };
+
+    Resources::add(shadow_data).unwrap();
     Resources::add(RendererMainRenderpass(renderpass)).unwrap();
     Resources::add(RendererSwapchain(swapchain)).unwrap();
     Resources::add(RendererSwapchainImages(swapchain_images)).unwrap();
@@ -185,8 +363,8 @@ pub fn init_renderer(
     Resources::add(Vec::<Draw>::new()).unwrap();
     Resources::add(IdVec::<MeshData<DefaultVertex>>::new()).unwrap();
     Resources::add(IdVec::<Mesh>::new()).unwrap();
-    Resources::add(IdVec::<MaterialData>::new()).unwrap();
-    Resources::add(IdVec::<MaterialBase>::new()).unwrap();
+    Resources::add(material_bases).unwrap();
+    Resources::add(materials_data).unwrap();
     Resources::add(IdVec::<TransformData>::new()).unwrap();
     Resources::add(IdVec::<CameraData>::new()).unwrap();
 }
@@ -212,7 +390,7 @@ fn recreate_size_dependent_components(
         .collect::<Vec<_>>();
     let new_depth_image = backend
         .create_image(window.size(), ImageFormat::D32, &[
-            ImageUsage::DepthBuffer,
+            ImageUsage::DepthAttachment,
         ])
         .unwrap();
     let new_depth_image_view =
@@ -222,9 +400,8 @@ fn recreate_size_dependent_components(
         .map(|view| {
             backend
                 .create_framebuffer(
-                    &window,
-                    *view,
-                    new_depth_image_view,
+                    window.size(),
+                    &[*view, new_depth_image_view],
                     renderpass,
                 )
                 .unwrap()
@@ -277,6 +454,7 @@ pub fn render(
     material_bases: Resource<IdVec<MaterialBase>>,
     transforms_data: Resource<IdVec<TransformData>>,
     cameras_data: Resource<IdVec<CameraData>>,
+    shadowpass_data: Resource<RendererShadowpassData>,
 ) {
     let command_buffer_fence =
         frame_sync[current_frame.0 as usize].command_buffer_fence;
@@ -336,6 +514,45 @@ pub fn render(
                 transform,
             }) => {
                 let material = materials_data.get(*material).unwrap();
+                let material_base =
+                    material_bases.get(material.material_base_id()).unwrap();
+                let mesh = meshes_data.get(*mesh).unwrap();
+                let camera = cameras_data.get(*camera).unwrap();
+                let camera_transform =
+                    transforms_data.get(*camera_transform).unwrap();
+                let transform = transforms_data.get(*transform).unwrap();
+                material.bind(
+                    backend.deref_mut(),
+                    command_list,
+                    material_base,
+                    camera,
+                    camera_transform,
+                    transform,
+                );
+                mesh.record_commands(backend.deref_mut(), command_list);
+            },
+        }
+    }
+
+    backend.command_end_renderpass(command_list).unwrap();
+    backend
+        .command_begin_renderpass(
+            command_list,
+            shadowpass_data.renderpass,
+            shadowpass_data.framebuffer
+        )
+        .unwrap();
+
+    for draw in draw_queue.iter() {
+        match draw {
+            Draw::MeshAndMaterial(MeshAndMaterial {
+                mesh,
+                camera,
+                camera_transform,
+                transform,
+                ..
+            }) => {
+                let material = materials_data.get(shadowpass_data.material_id).unwrap();
                 let material_base =
                     material_bases.get(material.material_base_id()).unwrap();
                 let mesh = meshes_data.get(*mesh).unwrap();
