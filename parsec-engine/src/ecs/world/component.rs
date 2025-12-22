@@ -2,7 +2,7 @@
 
 /// Marks a type as a component. Used for simple data types.
 pub trait Component: Copy + Clone + Send + Sync + Sized + 'static {}
-pub use oxide_engine_macros::Component;
+pub use parsec_engine_macros::Component;
 
 macro_rules! impl_component_for_primitives {
     ( $( $t:ty ),* ) => {

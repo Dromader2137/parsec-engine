@@ -197,8 +197,8 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
         format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
     let struct_name_str = struct_name.to_token_stream().to_string();
 
-    let found_crate = crate_name("oxide-engine")
-        .expect("oxide-engine is present in `Cargo.toml`");
+    let found_crate = crate_name("parsec-engine")
+        .expect("parsec-engine is present in `Cargo.toml`");
 
     let engine_crate = match found_crate {
         FoundCrate::Itself => quote!(crate),

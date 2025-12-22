@@ -150,4 +150,4 @@ pub trait SystemBundle {
 }
 
 /// Macro used to mark functions as systems.
-pub use oxide_engine_macros::system;
+pub use parsec_engine_macros::system;

@@ -1,4 +1,4 @@
-# Oxide Engine
+# Parsec Engine
 
 Simple, modular, ergonomic and high-performance game engine tailored for space scale games.
 

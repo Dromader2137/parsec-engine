@@ -1,5 +1,5 @@
 use image::EncodableLayout;
-use oxide_engine::{
+use parsec_engine::{
     app::App,
     ecs::{
         system::{SystemTrigger, system},

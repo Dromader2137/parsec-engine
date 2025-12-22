@@ -1,5 +1,5 @@
 [package]
-name = "oxide-engine-macros"
+name = "parsec-engine-macros"
 version = "0.1.0"
 edition = "2024"
 

@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use oxide_engine_macros::{impl_fetch, multiple_tuples};
+use parsec_engine_macros::{impl_fetch, multiple_tuples};
 
 use crate::ecs::world::{
     archetype::{Archetype, ArchetypeError, ArchetypeId, BorrowingStats},
