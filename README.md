@@ -1,28 +1,38 @@
 # Parsec Engine
 
-Simple, modular, ergonomic and high-performance game engine tailored for space scale games.
+Simple, ergonomic and high-performance game engine made specifically for space scale games.
 
 > [!CAUTION]
-> Pull requests won't be accepted for the time being!
+> I am not acceping any pull requests for the time being!
 
 ## Features
 
-- High-performance modular ECS
-- Global state queryable resources
-- Custom Vulkan wrapper
-- Extendable built-in renderer
-- Proper input handling
+- High-performance ECS
+- Optimized built-in renderer
 
 ## Design goals
 
-- Invisible spatial partitioning allowing for universe scale games without special systems (floating origin etc)
-- Ergonomic design moving the boilerplate away from the user, but also allowing low level access
-- Modularity
+- Invisible spatial partitioning allowing developers to create universe scale games without special systems like "floating origin"
+- Ergonomic design moving the boilerplate away from the user, but also allowing low level access if you need it
+- High perfomance even on integrated GPUs
+- Perfect Wayland support on Linux
 
-## TODO
+## Activity
 
-- [x] Timing resource (delta time, uptime, etc)
-- [x] Textures
-- [ ] Fix Transform and Cameara data artifacts
-- [ ] Proper gpu buffer allocator that generates the buffers on the gpu and not cpu !!!!!!!!
-- [ ] Better OBJ loader (mesh splitting, auto material generation, etc)
+### Currently in progress
+
+- Shadowmaps
+
+### Plans for the near future
+
+- Performant Vulkan buffer allocator
+- Project management
+- Importing assets
+- Better .obj loader (objects, shading, mtl...)
+
+### Already done
+
+- Timing resource (delta time, uptime, start time...)
+- Textures
+- Basic renderer
+- ECS
