@@ -18,7 +18,5 @@ void main() {
 		intensity = 0.05;
 	}
 	vec3 color = texture(tex, inUV).rgb;
-	// outColor = vec4(light_pos.z, cam_depth, 0.0, 1.0);
 	outColor = vec4(color * intensity, 1.0);
-	// outColor = vec4(((light_pos.xy + 1.0) / 2.0), 0.0, 1.0);
 }
