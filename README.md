@@ -21,8 +21,8 @@ Simple, modular, ergonomic and high-performance game engine tailored for space s
 
 ## TODO
 
-- [ ] Proper gpu buffer allocator that generates the buffers on the gpu and not cpu !!!!!!!!
 - [x] Timing resource (delta time, uptime, etc)
-- [ ] ECS&Resources integration tests
-- [ ] Textures
+- [x] Textures
+- [ ] Fix Transform and Cameara data artifacts
+- [ ] Proper gpu buffer allocator that generates the buffers on the gpu and not cpu !!!!!!!!
 - [ ] Better OBJ loader (mesh splitting, auto material generation, etc)
