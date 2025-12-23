@@ -88,21 +88,11 @@ fn test_system(
                 PipelineBindingType::TextureSampler,
                 PipelineShaderStage::Fragment,
             )],
+            vec![PipelineSubbindingLayout::new(
+                PipelineBindingType::TextureSampler,
+                PipelineShaderStage::Fragment,
+            )],
         ]);
-
-    let light_buffer = backend
-        .create_buffer(&[Vec3f::new(1.0, -1.0, 0.0)], &[BufferUsage::Uniform])
-        .unwrap();
-    let light_binding_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
-            PipelineBindingType::UniformBuffer,
-            PipelineShaderStage::Fragment,
-        )])
-        .unwrap();
-    let light_binding = backend
-        .create_pipeline_binding(light_binding_layout)
-        .unwrap();
-    backend.bind_buffer(light_binding, light_buffer, 0).unwrap();
 
     let image = image::load_from_memory(include_bytes!("../../test.png"))
         .unwrap()
@@ -138,11 +128,12 @@ fn test_system(
         .unwrap();
 
     let material = MaterialData::new(&material_base, vec![
-        MaterialPipelineBinding::ModelMatrix,
-        MaterialPipelineBinding::ViewMatrix,
-        MaterialPipelineBinding::ProjectionMatrix,
-        MaterialPipelineBinding::Generic(light_binding),
+        MaterialPipelineBinding::Model,
+        MaterialPipelineBinding::View,
+        MaterialPipelineBinding::Projection,
+        MaterialPipelineBinding::Light,
         MaterialPipelineBinding::Generic(texture_binding),
+        MaterialPipelineBinding::ShadowMap,
     ]);
 
     material_bases.push(material_base);
@@ -166,9 +157,23 @@ fn test_system(
     World::spawn((
         Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
         MeshRenderer::new(mesh, material_id),
+        Movable  { _pad: 0 },
+    ))
+    .unwrap();
+
+    World::spawn((
+        Transform::new(
+            Vec3f::new(3.0, -3.0, 3.0),
+            Vec3f::ONE * 1.5,
+            Quat::IDENTITY,
+        ),
+        MeshRenderer::new(mesh, material_id),
     ))
     .unwrap();
 }
+
+#[derive(Debug, Component)]
+pub struct Movable { _pad: u8 }
 
 #[derive(Debug, Component)]
 pub struct CameraController {
@@ -239,6 +244,20 @@ fn camera_movement(
     }
 }
 
+#[system]
+fn box_mover(
+    mut movable_boxes: Query<(Mut<Transform>, Movable)>,
+    time: Resource<Time>,
+) {
+    for (_, (tra, _)) in movable_boxes.iter() {
+        tra.position.y = (time
+            .current_time()
+            .duration_since(time.start_time())
+            .unwrap()
+            .as_millis() as f32 / 1000.0).sin();
+    }
+}
+
 fn main() {
     let mut app = App::new();
     app.systems.add_bundle(GraphicsBundle::default());
@@ -247,5 +266,7 @@ fn main() {
     app.systems.add(SystemTrigger::LateStart, TestSystem::new());
     app.systems
         .add(SystemTrigger::Update, CameraMovement::new());
+    app.systems
+        .add(SystemTrigger::Update, BoxMover::new());
     app.run();
 }

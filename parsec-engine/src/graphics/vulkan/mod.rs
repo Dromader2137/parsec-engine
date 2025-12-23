@@ -36,8 +36,7 @@ use crate::graphics::{
         framebuffer::VulkanFramebuffer,
         graphics_pipeline::VulkanGraphicsPipeline,
         image::{
-            VulkanImage, VulkanImageInfo, VulkanImageUsage, VulkanImageView,
-            VulkanOwnedImage, VulkanSwapchainImage,
+            VulkanImage, VulkanImageAspectFlags, VulkanImageInfo, VulkanImageUsage, VulkanImageView, VulkanOwnedImage, VulkanSwapchainImage
         },
         instance::VulkanInstance,
         physical_device::VulkanPhysicalDevice,
@@ -706,11 +705,14 @@ impl GraphicsBackend for VulkanBackend {
         image_usage: &[ImageUsage],
     ) -> Result<Image, ImageError> {
         let mut usage = VulkanImageUsage::empty();
+        let mut aspect = VulkanImageAspectFlags::empty();
         image_usage.iter().for_each(|x| usage |= (*x).into());
+        image_usage.iter().for_each(|x| aspect |= (*x).into());
         let image = VulkanOwnedImage::new(&self.device, VulkanImageInfo {
             format: format.into(),
             size,
-            usage: usage.into(),
+            usage: usage,
+            aspect: aspect
         })
         .map_err(|err| ImageError::ImageCreationError(err.into()))?;
         let image_id = image.id();

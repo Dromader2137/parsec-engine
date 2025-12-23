@@ -60,11 +60,11 @@ impl MaterialBase {
 }
 
 pub enum MaterialPipelineBinding {
-    ModelMatrix,
-    ViewMatrix,
-    InverseViewMatrix,
-    ProjectionMatrix,
-    InverseProjectionMatrix,
+    Model,
+    View,
+    Projection,
+    ShadowMap,
+    Light,
     Generic(PipelineBinding),
 }
 
@@ -92,21 +92,26 @@ impl MaterialData {
         camera: &CameraData,
         camera_transform: &TransformData,
         transform: &TransformData,
+        light_binding: PipelineBinding,
+        shadowmap_binding: PipelineBinding
     ) {
         backend
             .command_bind_pipeline(command_list, material_base.pipeline)
             .unwrap();
         for (set_index, binding) in self.descriptor_sets.iter().enumerate() {
             let pipeline_binding = match binding {
-                MaterialPipelineBinding::ViewMatrix => {
+                MaterialPipelineBinding::View => {
                     camera_transform.look_at_binding
                 },
-                MaterialPipelineBinding::ProjectionMatrix => {
+                MaterialPipelineBinding::Projection => {
                     camera.projection_binding
                 },
-                MaterialPipelineBinding::ModelMatrix => transform.model_binding,
+                MaterialPipelineBinding::Model => transform.model_binding,
+                MaterialPipelineBinding::Light => light_binding,
+                MaterialPipelineBinding::ShadowMap => {
+                    shadowmap_binding
+                }
                 MaterialPipelineBinding::Generic(bind) => *bind,
-                _ => todo!()
             };
             backend
                 .command_bind_pipeline_binding(

@@ -33,6 +33,7 @@ pub struct VulkanOwnedImage {
     extent: ash::vk::Extent3D,
     format: ash::vk::Format,
     usage: ash::vk::ImageUsageFlags,
+    aspect: ash::vk::ImageAspectFlags,
     image: ash::vk::Image,
     memory: ash::vk::DeviceMemory,
     size: u64,
@@ -66,14 +67,7 @@ impl VulkanImage for VulkanOwnedImage {
     fn _device_id(&self) -> u32 { self.device_id }
     fn format(&self) -> ash::vk::Format { self.format }
     fn _usage(&self) -> ash::vk::ImageUsageFlags { self.usage }
-    fn aspect_flags(&self) -> ash::vk::ImageAspectFlags {
-        match self.usage {
-            ash::vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT => {
-                ash::vk::ImageAspectFlags::DEPTH
-            },
-            _ => ash::vk::ImageAspectFlags::COLOR,
-        }
-    }
+    fn aspect_flags(&self) -> ash::vk::ImageAspectFlags { self.aspect }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -122,7 +116,7 @@ impl From<ImageUsage> for VulkanImageUsage {
             ImageUsage::Src => VulkanImageUsage::TRANSFER_SRC,
             ImageUsage::Dst => VulkanImageUsage::TRANSFER_DST,
             ImageUsage::ColorAttachment => VulkanImageUsage::COLOR_ATTACHMENT,
-            _ => VulkanImageUsage::empty()
+            _ => VulkanImageUsage::empty(),
         }
     }
 }
@@ -133,7 +127,7 @@ impl From<ImageUsage> for VulkanImageAspectFlags {
             ImageUsage::DepthAttachment => VulkanImageAspectFlags::DEPTH,
             ImageUsage::ColorAttachment => VulkanImageAspectFlags::COLOR,
             ImageUsage::ColorBuffer => VulkanImageAspectFlags::COLOR,
-            _ => VulkanImageAspectFlags::NONE,
+            _ => VulkanImageAspectFlags::empty(),
         }
     }
 }
@@ -149,6 +143,7 @@ pub struct VulkanImageInfo {
     pub format: VulkanImageFormat,
     pub size: (u32, u32),
     pub usage: VulkanImageUsage,
+    pub aspect: VulkanImageAspectFlags,
 }
 
 impl<'a> From<VulkanImageViewInfo<'a>> for ash::vk::ImageViewCreateInfo<'_> {
@@ -274,6 +269,7 @@ impl VulkanOwnedImage {
             image,
             format,
             usage: create_info.usage,
+            aspect: create_info.aspect,
             memory: image_memory,
             size: format_size * size.0 as u64 * size.1 as u64,
         })

@@ -121,7 +121,7 @@ impl From<RenderpassAttachmentType> for VulkanImageLayout {
             RenderpassAttachmentType::PresentDepth => {
                 VulkanImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
             },
-            RenderpassAttachmentType::StoreDepth => VulkanImageLayout::GENERAL,
+            RenderpassAttachmentType::StoreDepth => VulkanImageLayout::SHADER_READ_ONLY_OPTIMAL,
         }
     }
 }

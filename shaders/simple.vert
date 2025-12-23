@@ -14,9 +14,15 @@ layout(location = 3) in vec2 inUV;
 
 layout(location = 0) out vec3 outNormal;
 layout(location = 1) out vec2 outUV;
+layout(location = 2) out vec3 outPosition;
 
 void main() {
   outNormal = (rotation.matrix * vec4(inNormal, 1.0)).xyz;
+  outPosition = 
+	  (translation.matrix * 
+	  scale.matrix *
+	  rotation.matrix *
+	  vec4(inPosition, 1.0)).xyz;
   outUV = inUV;
   gl_Position = 
 	  projection.matrix * 

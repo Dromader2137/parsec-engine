@@ -6,11 +6,11 @@ pub mod assets;
 pub mod camera_data;
 pub mod components;
 pub mod draw_queue;
+pub mod light_data;
 pub mod material_data;
 pub mod mesh_data;
 pub mod sync;
 pub mod transform_data;
-pub mod light_data;
 
 use sync::{RendererFrameSync, RendererImageSync};
 
@@ -40,6 +40,7 @@ use crate::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentType,
             RenderpassClearValue,
         },
+        sampler::Sampler,
         shader::{Shader, ShaderType},
         swapchain::{Swapchain, SwapchainError},
         vulkan::{VulkanBackend, shader::read_shader_code},
@@ -148,17 +149,29 @@ pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
 #[allow(unused)]
 pub struct RendererShadowpassData {
+    light_dir_buffer: Buffer,
+    light_dir_binding: PipelineBinding,
     renderpass: Renderpass,
     material_id: u32,
     vertex_shader: Shader,
     fragment_shader: Shader,
     image: Image,
     image_view: ImageView,
+    image_sampler: Sampler,
+    image_binding: PipelineBinding,
     framebuffer: Framebuffer,
     proj_buffer: Buffer,
     look_buffer: Buffer,
     proj_binding: PipelineBinding,
     look_binding: PipelineBinding,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct LD {
+    dir: Vec3f,
+    _pad: u8,
+    mat: Matrix4f,
 }
 
 #[system]
@@ -258,47 +271,35 @@ pub fn init_renderer(
                 PipelineBindingType::UniformBuffer,
                 PipelineShaderStage::Vertex,
             )],
-            vec![PipelineSubbindingLayout::new(
-                PipelineBindingType::UniformBuffer,
-                PipelineShaderStage::Fragment,
-            )],
-            vec![PipelineSubbindingLayout::new(
-                PipelineBindingType::TextureSampler,
-                PipelineShaderStage::Fragment,
-            )],
         ],
     );
+    let shadow_size = 4096;
     let shadow_depth_image = backend
-        .create_image((1024, 1024), ImageFormat::D32, &[
+        .create_image((shadow_size, shadow_size), ImageFormat::D32, &[
             ImageUsage::DepthAttachment,
+            ImageUsage::Sampled,
         ])
         .unwrap();
     let shadow_depth_view =
         backend.create_image_view(shadow_depth_image).unwrap();
     let shadow_framebuffer = backend
         .create_framebuffer(
-            (1024, 1024),
+            (shadow_size, shadow_size),
             &[shadow_depth_view],
             shadow_renderpass,
         )
         .unwrap();
     let shadow_proj_buffer = backend
-        .create_buffer(
-            &[Matrix4f::orthographic(
-                0.0,
-                100.0,
-                25.0,
-                25.0
-            )],
-            &[BufferUsage::Uniform],
-        )
+        .create_buffer(&[Matrix4f::orthographic(0.0, 100.0, 25.0, 25.0)], &[
+            BufferUsage::Uniform,
+        ])
         .unwrap();
     let shadow_look_buffer = backend
         .create_buffer(
             &[Matrix4f::look_at(
-                Vec3f::new(40.0, 40.0, 40.0),
-                Vec3f::new(-1.0, -1.0, -1.0),
-                Vec3f::new(-1.0, 1.0, -1.0),
+                Vec3f::new(-40.0, 40.0, -40.0),
+                Vec3f::new(1.0, -1.0, 1.0),
+                Vec3f::new(1.0, 1.0, 1.0),
             )],
             &[BufferUsage::Uniform],
         )
@@ -315,17 +316,59 @@ pub fn init_renderer(
             shader_stage: PipelineShaderStage::Vertex,
         }])
         .unwrap();
-    let shadow_proj_binding = backend
-        .create_pipeline_binding(shadow_proj_layout).unwrap();
-    let shadow_look_binding = backend
-        .create_pipeline_binding(shadow_look_layout).unwrap();
-    backend.bind_buffer(shadow_proj_binding, shadow_proj_buffer, 0).unwrap();
-    backend.bind_buffer(shadow_look_binding, shadow_look_buffer, 0).unwrap();
+    let shadow_proj_binding =
+        backend.create_pipeline_binding(shadow_proj_layout).unwrap();
+    let shadow_look_binding =
+        backend.create_pipeline_binding(shadow_look_layout).unwrap();
+    backend
+        .bind_buffer(shadow_proj_binding, shadow_proj_buffer, 0)
+        .unwrap();
+    backend
+        .bind_buffer(shadow_look_binding, shadow_look_buffer, 0)
+        .unwrap();
     let shadow_material = MaterialData::new(&shadow_material_base, vec![
-        MaterialPipelineBinding::ModelMatrix,
+        MaterialPipelineBinding::Model,
         MaterialPipelineBinding::Generic(shadow_look_binding),
         MaterialPipelineBinding::Generic(shadow_proj_binding),
     ]);
+    let shadow_sampler = backend.create_image_sampler().unwrap();
+    let shadow_tex_layout = backend
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+            binding_type: PipelineBindingType::TextureSampler,
+            shader_stage: PipelineShaderStage::Fragment,
+        }])
+        .unwrap();
+    let shadow_tex_binding =
+        backend.create_pipeline_binding(shadow_tex_layout).unwrap();
+    backend
+        .bind_sampler(shadow_tex_binding, shadow_sampler, shadow_depth_view, 0)
+        .unwrap();
+
+    let light_buffer = backend
+        .create_buffer(
+            &[LD {
+                dir: Vec3f::new(1.0, -1.0, 1.0),
+                mat: Matrix4f::orthographic(0.0, 100.0, 25.0, 25.0)
+                    * Matrix4f::look_at(
+                        Vec3f::new(-40.0, 40.0, -40.0),
+                        Vec3f::new(1.0, -1.0, 1.0),
+                        Vec3f::new(1.0, 1.0, 1.0),
+                    ),
+                _pad: 0,
+            }],
+            &[BufferUsage::Uniform],
+        )
+        .unwrap();
+    let light_binding_layout = backend
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
+            PipelineBindingType::UniformBuffer,
+            PipelineShaderStage::Fragment,
+        )])
+        .unwrap();
+    let light_binding = backend
+        .create_pipeline_binding(light_binding_layout)
+        .unwrap();
+    backend.bind_buffer(light_binding, light_buffer, 0).unwrap();
 
     let mut material_bases = IdVec::new();
     let mut materials_data = IdVec::new();
@@ -334,17 +377,21 @@ pub fn init_renderer(
     let shadow_material_id = materials_data.push(shadow_material);
 
     let shadow_data = RendererShadowpassData {
+        light_dir_buffer: light_buffer,
+        light_dir_binding: light_binding,
         renderpass: shadow_renderpass,
         material_id: shadow_material_id,
         vertex_shader: shadow_vertex_shader,
         fragment_shader: shadow_fragment_shader,
         image: shadow_depth_image,
         image_view: shadow_depth_view,
+        image_sampler: shadow_sampler,
+        image_binding: shadow_tex_binding,
         framebuffer: shadow_framebuffer,
         proj_buffer: shadow_proj_buffer,
         proj_binding: shadow_proj_binding,
         look_buffer: shadow_look_buffer,
-        look_binding: shadow_look_binding
+        look_binding: shadow_look_binding,
     };
 
     Resources::add(shadow_data).unwrap();
@@ -502,6 +549,48 @@ pub fn render(
     backend.command_reset(command_list).unwrap();
     backend.command_begin(command_list).unwrap();
     backend
+        .command_begin_renderpass(
+            command_list,
+            shadowpass_data.renderpass,
+            shadowpass_data.framebuffer,
+        )
+        .unwrap();
+
+    for draw in draw_queue.iter() {
+        match draw {
+            Draw::MeshAndMaterial(MeshAndMaterial {
+                mesh,
+                camera,
+                camera_transform,
+                transform,
+                ..
+            }) => {
+                let material =
+                    materials_data.get(shadowpass_data.material_id).unwrap();
+                let material_base =
+                    material_bases.get(material.material_base_id()).unwrap();
+                let mesh = meshes_data.get(*mesh).unwrap();
+                let camera = cameras_data.get(*camera).unwrap();
+                let camera_transform =
+                    transforms_data.get(*camera_transform).unwrap();
+                let transform = transforms_data.get(*transform).unwrap();
+                material.bind(
+                    backend.deref_mut(),
+                    command_list,
+                    material_base,
+                    camera,
+                    camera_transform,
+                    transform,
+                    shadowpass_data.light_dir_binding,
+                    shadowpass_data.image_binding,
+                );
+                mesh.record_commands(backend.deref_mut(), command_list);
+            },
+        }
+    }
+
+    backend.command_end_renderpass(command_list).unwrap();
+    backend
         .command_begin_renderpass(command_list, renderpass.0, framebuffer)
         .unwrap();
 
@@ -529,45 +618,8 @@ pub fn render(
                     camera,
                     camera_transform,
                     transform,
-                );
-                mesh.record_commands(backend.deref_mut(), command_list);
-            },
-        }
-    }
-
-    backend.command_end_renderpass(command_list).unwrap();
-    backend
-        .command_begin_renderpass(
-            command_list,
-            shadowpass_data.renderpass,
-            shadowpass_data.framebuffer
-        )
-        .unwrap();
-
-    for draw in draw_queue.iter() {
-        match draw {
-            Draw::MeshAndMaterial(MeshAndMaterial {
-                mesh,
-                camera,
-                camera_transform,
-                transform,
-                ..
-            }) => {
-                let material = materials_data.get(shadowpass_data.material_id).unwrap();
-                let material_base =
-                    material_bases.get(material.material_base_id()).unwrap();
-                let mesh = meshes_data.get(*mesh).unwrap();
-                let camera = cameras_data.get(*camera).unwrap();
-                let camera_transform =
-                    transforms_data.get(*camera_transform).unwrap();
-                let transform = transforms_data.get(*transform).unwrap();
-                material.bind(
-                    backend.deref_mut(),
-                    command_list,
-                    material_base,
-                    camera,
-                    camera_transform,
-                    transform,
+                    shadowpass_data.light_dir_binding,
+                    shadowpass_data.image_binding,
                 );
                 mesh.record_commands(backend.deref_mut(), command_list);
             },
