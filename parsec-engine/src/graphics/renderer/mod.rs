@@ -290,7 +290,7 @@ pub fn init_renderer(
         )
         .unwrap();
     let shadow_proj_buffer = backend
-        .create_buffer(&[Matrix4f::orthographic(0.0, 100.0, 25.0, 25.0)], &[
+        .create_buffer(&[Matrix4f::orthographic(0.0, 100.0, 5.0, 5.0)], &[
             BufferUsage::Uniform,
         ])
         .unwrap();
@@ -348,7 +348,7 @@ pub fn init_renderer(
         .create_buffer(
             &[LD {
                 dir: Vec3f::new(1.0, -1.0, 1.0),
-                mat: Matrix4f::orthographic(0.0, 100.0, 25.0, 25.0)
+                mat: Matrix4f::orthographic(0.0, 100.0, 5.0, 5.0)
                     * Matrix4f::look_at(
                         Vec3f::new(-40.0, 40.0, -40.0),
                         Vec3f::new(1.0, -1.0, 1.0),
