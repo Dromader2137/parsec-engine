@@ -157,7 +157,14 @@ fn test_system(
     World::spawn((
         Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
         MeshRenderer::new(mesh, material_id),
-        Movable  { _pad: 0 },
+        Movable  { base_pos: Vec3f::ZERO, offset: 0.0, speed: 1.0 },
+    ))
+    .unwrap();
+    
+    World::spawn((
+        Transform::new(Vec3f::new(-2.0, 2.0, -2.0), Vec3f::ONE * 0.4, Quat::IDENTITY),
+        MeshRenderer::new(mesh, material_id),
+        Movable  { base_pos: Vec3f::new(-2.0, 2.0, -2.0), offset: 1.0, speed: 2.5 },
     ))
     .unwrap();
 
@@ -173,7 +180,7 @@ fn test_system(
 }
 
 #[derive(Debug, Component)]
-pub struct Movable { _pad: u8 }
+pub struct Movable { base_pos: Vec3f, offset: f32, speed: f32 }
 
 #[derive(Debug, Component)]
 pub struct CameraController {
@@ -249,12 +256,12 @@ fn box_mover(
     mut movable_boxes: Query<(Mut<Transform>, Movable)>,
     time: Resource<Time>,
 ) {
-    for (_, (tra, _)) in movable_boxes.iter() {
-        tra.position.y = (time
+    for (_, (tra, mov)) in movable_boxes.iter() {
+        tra.position.y = mov.base_pos.y + (time
             .current_time()
             .duration_since(time.start_time())
             .unwrap()
-            .as_millis() as f32 / 1000.0).sin();
+            .as_millis() as f32 / 1000.0 * mov.speed + mov.offset).sin();
     }
 }
 
