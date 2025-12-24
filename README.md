@@ -7,14 +7,14 @@ Simple, ergonomic and high-performance game engine made specifically for space s
 
 ## Features
 
-- High-performance ECS
+- High performance ECS
 - Optimized built-in renderer
 
 ## Design goals
 
 - Invisible spatial partitioning allowing developers to create universe scale games without special systems like "floating origin"
 - Ergonomic design moving the boilerplate away from the user, but also allowing low level access if you need it
-- High perfomance even on integrated GPUs
+- High performance even on integrated GPUs
 - Perfect Wayland support on Linux
 
 ## Activity
