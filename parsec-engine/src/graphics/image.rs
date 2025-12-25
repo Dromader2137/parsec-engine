@@ -11,6 +11,19 @@ pub enum ImageFormat {
     R8SRGB,
     D32,
     RGBA8UNORM,
+    BGRA8SRGB,
+    R8UNORM,
+    RG8UNORM,
+    RGB8UNORM,
+    BGRA8UNORM,
+    R16UNORM,
+    RG16UNORM,
+    RGB16UNORM,
+    RGBA16UNORM,
+    R16SNORM,
+    RG16SNORM,
+    RGB16SNORM,
+    RGBA16SNORM,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

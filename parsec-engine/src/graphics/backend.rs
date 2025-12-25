@@ -25,6 +25,8 @@ pub trait GraphicsBackend: Sized {
     fn init(window: &Window) -> Result<Self, BackendInitError>;
     fn wait_idle(&self);
 
+    fn get_surface_format(&self) -> ImageFormat;
+
     fn create_buffer<T: Clone + Copy>(
         &mut self,
         data: &[T],

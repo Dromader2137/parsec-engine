@@ -156,6 +156,10 @@ impl GraphicsBackend for VulkanBackend {
 
     fn wait_idle(&self) { self.device.wait_idle().unwrap(); }
 
+    fn get_surface_format(&self) -> ImageFormat {
+        self.surface.format().into()
+    }
+
     fn create_buffer<T: Clone + Copy>(
         &mut self,
         data: &[T],

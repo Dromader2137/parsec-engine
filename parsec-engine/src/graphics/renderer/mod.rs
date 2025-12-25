@@ -179,11 +179,13 @@ pub fn init_renderer(
     mut backend: Resource<VulkanBackend>,
     window: Resource<Window>,
 ) {
+    let surface_format = backend.get_surface_format();
+
     let renderpass = backend
         .create_renderpass(&[
             RenderpassAttachment {
                 attachment_type: RenderpassAttachmentType::PresentColor,
-                image_format: ImageFormat::RGBA8SRGB,
+                image_format: surface_format,
                 clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 0.0),
             },
             RenderpassAttachment {

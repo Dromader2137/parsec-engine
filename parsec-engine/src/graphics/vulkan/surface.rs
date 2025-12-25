@@ -136,11 +136,15 @@ impl VulkanSurface {
                 .map_err(|err| VulkanSurfaceError::CapabilitiesError(err))?
         };
 
-        let surface_format = *surface_formats
+        let preferred_formats = [
+            ash::vk::Format::R8G8B8A8_SRGB,
+            ash::vk::Format::B8G8R8A8_SRGB,
+        ];
+
+        let surface_format = *preferred_formats
             .iter()
-            .find(|x| {
-                x.format == ash::vk::Format::R8G8B8A8_SRGB
-                    || x.format == ash::vk::Format::B8G8R8A8_SRGB
+            .find_map(|preffered_format| {
+                surface_formats.iter().find(|format| format.format == *preffered_format)
             })
             .ok_or(VulkanSurfaceError::NoSurfaceFormatsAvailable)?;
 

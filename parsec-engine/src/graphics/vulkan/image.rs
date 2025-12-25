@@ -101,7 +101,34 @@ impl From<ImageFormat> for VulkanImageFormat {
             ImageFormat::RG8SRGB => VulkanImageFormat::R8G8_SRGB,
             ImageFormat::RGB8SRGB => VulkanImageFormat::R8G8B8_SRGB,
             ImageFormat::RGBA8SRGB => VulkanImageFormat::R8G8B8A8_SRGB,
+            ImageFormat::BGRA8SRGB => VulkanImageFormat::B8G8R8A8_SRGB,
+            ImageFormat::R8UNORM => VulkanImageFormat::R8_UNORM,
+            ImageFormat::RG8UNORM => VulkanImageFormat::R8G8_UNORM,
+            ImageFormat::RGB8UNORM => VulkanImageFormat::R8G8B8_UNORM,
             ImageFormat::RGBA8UNORM => VulkanImageFormat::R8G8B8A8_UNORM,
+            ImageFormat::BGRA8UNORM => VulkanImageFormat::B8G8R8A8_UNORM,
+            ImageFormat::R16UNORM => VulkanImageFormat::R16_UNORM,
+            ImageFormat::RG16UNORM => VulkanImageFormat::R16G16_UNORM,
+            ImageFormat::RGB16UNORM => VulkanImageFormat::R16G16B16_UNORM,
+            ImageFormat::RGBA16UNORM => VulkanImageFormat::R16G16B16A16_UNORM,
+            ImageFormat::R16SNORM => VulkanImageFormat::R16_SNORM,
+            ImageFormat::RG16SNORM => VulkanImageFormat::R16G16_SNORM,
+            ImageFormat::RGB16SNORM => VulkanImageFormat::R16G16B16_SNORM,
+            ImageFormat::RGBA16SNORM => VulkanImageFormat::R16G16B16A16_SNORM,
+        }
+    }
+}
+
+impl From<VulkanImageFormat> for ImageFormat {
+    fn from(value: VulkanImageFormat) -> Self {
+        match value {
+            VulkanImageFormat::D32_SFLOAT => ImageFormat::D32,
+            VulkanImageFormat::R8_SRGB => ImageFormat::R8SRGB,
+            VulkanImageFormat::R8G8_SRGB => ImageFormat::RG8SRGB,
+            VulkanImageFormat::R8G8B8_SRGB => ImageFormat::RGB8SRGB,
+            VulkanImageFormat::R8G8B8A8_SRGB => ImageFormat::RGBA8SRGB,
+            VulkanImageFormat::R8G8B8A8_UNORM => ImageFormat::RGBA8UNORM,
+            _ => todo!()
         }
     }
 }
