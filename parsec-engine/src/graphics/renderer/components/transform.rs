@@ -3,12 +3,11 @@ use crate::{
     math::{quat::Quat, vec::Vec3f},
 };
 
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub struct Transform {
     pub position: Vec3f,
     pub scale: Vec3f,
     pub rotation: Quat,
-    pub data_id: Option<u32>,
 }
 
 impl Transform {
@@ -17,7 +16,6 @@ impl Transform {
             position,
             scale,
             rotation,
-            data_id: None,
         }
     }
 }

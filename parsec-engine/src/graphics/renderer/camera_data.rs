@@ -27,6 +27,10 @@ pub struct CameraData {
     pub projection_binding: PipelineBinding,
 }
 
+pub struct CameraDataManager {
+
+}
+
 impl CameraData {
     pub fn new(
         backend: &mut impl GraphicsBackend,

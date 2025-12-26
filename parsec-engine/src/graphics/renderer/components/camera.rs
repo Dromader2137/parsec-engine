@@ -1,11 +1,10 @@
 use crate::ecs::world::component::Component;
 
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub struct Camera {
     pub vertical_fov: f32,
     pub near_clipping_plane: f32,
     pub far_clipping_plane: f32,
-    pub data_id: Option<u32>,
 }
 
 impl Camera {
@@ -18,7 +17,6 @@ impl Camera {
             vertical_fov,
             near_clipping_plane,
             far_clipping_plane,
-            data_id: None,
         }
     }
 }

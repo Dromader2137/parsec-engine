@@ -14,7 +14,7 @@ void main() {
     float intensity = clamp(dot(-normalize(light.dir), inNormal), 0.05, 1.0);
 	vec3 light_pos = (light.mat * vec4(inPosition, 1.0)).xyz;
 	float cam_depth = texture(shadow, ((light_pos.xy + 1.0) / 2.0)).r;
-	if (light_pos.z >= cam_depth + 0.0001) {
+	if (light_pos.z >= cam_depth + 0.001) {
 		intensity = 0.05;
 	}
 	vec3 color = texture(tex, inUV).rgb;
