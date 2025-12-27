@@ -3,7 +3,6 @@ use crate::{
         instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
         surface::VulkanSurface,
     },
-    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanDevice {
@@ -24,8 +23,7 @@ pub enum VulkanDeviceError {
     PhysicalDeviceMismatch,
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanDevice {
     pub fn new(
         instance: &VulkanInstance,

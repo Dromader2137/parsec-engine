@@ -2,7 +2,7 @@
 
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-use crate::{math::vec::Vec2f, utils::id_counter::IdCounter};
+use crate::math::vec::Vec2f;
 
 #[derive(Debug)]
 pub struct Window {
@@ -24,8 +24,7 @@ pub enum WindowError {
     SetCursorVisibilityError(winit::error::ExternalError),
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl Window {
     pub fn new(
         event_loop: &winit::event_loop::ActiveEventLoop,

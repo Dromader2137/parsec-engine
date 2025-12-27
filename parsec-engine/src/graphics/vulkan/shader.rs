@@ -1,9 +1,8 @@
 use std::fs::File;
 
-use crate::{
-    graphics::{shader::ShaderType, vulkan::device::VulkanDevice},
-    utils::id_counter::IdCounter,
-};
+use crate::
+    graphics::{shader::ShaderType, vulkan::device::VulkanDevice}
+;
 
 #[derive(Debug)]
 pub struct VulkanShaderModule {
@@ -35,8 +34,7 @@ pub fn read_shader_code(path: &str) -> Result<Vec<u32>, VulkanShaderError> {
     }
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanShaderModule {
     pub fn new(
         device: &VulkanDevice,

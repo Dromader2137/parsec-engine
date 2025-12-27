@@ -11,7 +11,8 @@ layout(set = 4, binding = 0) uniform sampler2D tex;
 layout(set = 5, binding = 0) uniform sampler2D shadow;
 
 void main() {
-    float intensity = clamp(dot(-normalize(light.dir), inNormal), 0.05, 1.0);
+	float light_angle = dot(-normalize(light.dir), inNormal);
+    float intensity = clamp(light_angle, 0.05, 1.0);
 	vec3 light_pos = (light.mat * vec4(inPosition, 1.0)).xyz;
 	float cam_depth = texture(shadow, ((light_pos.xy + 1.0) / 2.0)).r;
 	if (light_pos.z >= cam_depth + 0.001) {

@@ -5,8 +5,7 @@ use crate::{
             buffer::find_memorytype_index, device::VulkanDevice,
             format_size::format_size,
         },
-    },
-    utils::id_counter::IdCounter,
+    }
 };
 
 pub trait VulkanImage: Send + Sync + 'static {
@@ -214,8 +213,7 @@ impl From<VulkanImageInfo> for ash::vk::ImageCreateInfo<'_> {
     }
 }
 
-static ID_COUNTER_IMAGE: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER_IMAGE}
 impl VulkanSwapchainImage {
     pub fn from_raw_image(
         device: &VulkanDevice,
@@ -328,8 +326,7 @@ impl VulkanOwnedImage {
     pub fn extent(&self) -> ash::vk::Extent3D { self.extent }
 }
 
-static ID_COUNTER_VIEW: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER_VIEW}
 impl VulkanImageView {
     pub fn from_image(
         device: &VulkanDevice,

@@ -1,6 +1,6 @@
-use crate::{
-    graphics::vulkan::device::VulkanDevice, utils::id_counter::IdCounter,
-};
+use crate::
+    graphics::vulkan::device::VulkanDevice
+;
 
 #[derive(Clone)]
 pub struct VulkanFence {
@@ -21,8 +21,7 @@ pub enum VulkanFenceError {
     DeviceMismatch,
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanFence {
     pub fn new(
         device: &VulkanDevice,

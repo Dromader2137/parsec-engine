@@ -2,45 +2,33 @@ use image::EncodableLayout;
 use parsec_engine::{
     app::App,
     ecs::{
-        system::{SystemTrigger, system},
-        world::{World, component::Component, fetch::Mut, query::Query},
+        system::{system, SystemTrigger},
+        world::{component::Component, fetch::Mut, query::Query, World},
     },
     graphics::{
-        GraphicsBundle,
-        backend::GraphicsBackend,
-        buffer::BufferUsage,
-        image::{ImageFormat, ImageUsage},
-        pipeline::{
-            PipelineBindingType, PipelineShaderStage, PipelineSubbindingLayout,
-        },
-        renderer::{
-            RendererMainRenderpass,
-            assets::mesh::{Mesh, obj::load_obj},
-            components::{
+        backend::GraphicsBackend, buffer::BufferUsage, image::{ImageFormat, ImageUsage}, pipeline::{
+            PipelineBindingType, PipelineCullingMode, PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout
+        }, renderer::{
+            assets::mesh::{obj::load_obj, Mesh}, components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            },
-            material_data::{
+            }, material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
-            },
-        },
-        shader::ShaderType,
-        vulkan::{VulkanBackend, shader::read_shader_code},
-        window::Window,
+            }, RendererMainRenderpass
+        }, shader::ShaderType, vulkan::{shader::read_shader_code, VulkanBackend}, window::Window, GraphicsBundle
     },
     input::{Input, InputBundle},
     math::{quat::Quat, vec::Vec3f},
     resources::Resource,
-    time::{Time, TimeBundle},
-    utils::id_vec::IdVec,
+    time::{Time, TimeBundle}, utils::identifiable::IdStore,
 };
 
 #[system]
 fn test_system(
     mut backend: Resource<VulkanBackend>,
-    mut materials: Resource<IdVec<MaterialData>>,
-    mut material_bases: Resource<IdVec<MaterialBase>>,
-    mut meshes: Resource<IdVec<Mesh>>,
+    mut materials: Resource<IdStore<MaterialData>>,
+    mut material_bases: Resource<IdStore<MaterialBase>>,
+    mut meshes: Resource<IdStore<Mesh>>,
     renderpass: Resource<RendererMainRenderpass>,
 ) {
     let vertex = backend
@@ -91,8 +79,9 @@ fn test_system(
             vec![PipelineSubbindingLayout::new(
                 PipelineBindingType::TextureSampler,
                 PipelineShaderStage::Fragment,
-            )],
-        ]);
+            )]],
+            PipelineOptions { culling_mode: PipelineCullingMode::CullBack }
+        );
 
     let image = image::load_from_memory(include_bytes!("../../test.png"))
         .unwrap()

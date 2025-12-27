@@ -1,14 +1,13 @@
 use ash::vk::Extent2D;
 
-use crate::{
+use crate::
     graphics::{
         vulkan::{
             device::VulkanDevice, image::VulkanImageView,
             renderpass::VulkanRenderpass,
         },
-    },
-    utils::id_counter::IdCounter,
-};
+    }
+;
 
 pub struct VulkanFramebuffer {
     id: u32,
@@ -26,8 +25,7 @@ pub enum VulkanFramebufferError {
     DeviceMismatch,
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanFramebuffer {
     pub fn new(
         size: (u32, u32),

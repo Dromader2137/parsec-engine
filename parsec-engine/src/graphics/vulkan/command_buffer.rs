@@ -9,7 +9,6 @@ use crate::{
         physical_device::VulkanPhysicalDevice,
         renderpass::VulkanRenderpass,
     },
-    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanCommandPool {
@@ -49,8 +48,7 @@ pub enum VulkanCommandPoolError {
     PhysicalDeviceMismatch,
 }
 
-static ID_COUNTER_POOL: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER_POOL}
 impl VulkanCommandPool {
     pub fn new(
         physical_device: &VulkanPhysicalDevice,
@@ -89,8 +87,7 @@ impl VulkanCommandPool {
     pub fn device_id(&self) -> u32 { self.device_id }
 }
 
-static ID_COUNTER_BUFFER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER_BUFFER}
 impl VulkanCommandBuffer {
     pub fn new(
         device: &VulkanDevice,

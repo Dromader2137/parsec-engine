@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::{collections::HashMap, ops::DerefMut};
 
 use crate::{
     ecs::{
@@ -17,20 +17,21 @@ use crate::{
         window::Window,
     },
     math::mat::Matrix4f,
-    resources::Resource,
-    utils::id_vec::IdVec,
+    resources::Resource, utils::{identifiable::{IdStore, Identifiable}, IdType},
 };
 
 pub struct CameraData {
+    camera_data_id: IdType,
     pub projection_matrix: Matrix4f,
     pub projection_buffer: Buffer,
     pub projection_binding: PipelineBinding,
 }
 
 pub struct CameraDataManager {
-
+    pub component_to_data: HashMap<u32, u32>,
 }
 
+crate::create_counter!{ID_COUNTER}
 impl CameraData {
     pub fn new(
         backend: &mut impl GraphicsBackend,
@@ -57,6 +58,7 @@ impl CameraData {
             .bind_buffer(projection_binding, projection_buffer, 0)
             .unwrap();
         CameraData {
+            camera_data_id: ID_COUNTER.next(),
             projection_matrix,
             projection_buffer,
             projection_binding,
@@ -64,15 +66,25 @@ impl CameraData {
     }
 }
 
+impl Identifiable for CameraData {
+    fn id(&self) -> IdType {
+        self.camera_data_id
+    }
+}
+
 #[system]
 fn add_camera_data(
     window: Resource<Window>,
     mut backend: Resource<VulkanBackend>,
-    mut cameras_data: Resource<IdVec<CameraData>>,
+    mut cameras_data: Resource<IdStore<CameraData>>,
+    mut camera_data_manager: Resource<CameraDataManager>,
     mut cameras: Query<Mut<Camera>>,
 ) {
     for (_, camera) in cameras.iter() {
-        if camera.data_id.is_none() {
+        if !camera_data_manager
+            .component_to_data
+            .contains_key(&camera.camera_id())
+        {
             let camera_data = CameraData::new(
                 backend.deref_mut(),
                 &window,
@@ -81,7 +93,9 @@ fn add_camera_data(
                 camera.far_clipping_plane,
             );
             let data_id = cameras_data.push(camera_data);
-            camera.data_id = Some(data_id);
+            camera_data_manager
+                .component_to_data
+                .insert(camera.camera_id(), data_id);
         }
     }
 }
@@ -90,26 +104,29 @@ fn add_camera_data(
 fn update_camera_data(
     window: Resource<Window>,
     mut backend: Resource<VulkanBackend>,
-    mut cameras_data: Resource<IdVec<CameraData>>,
+    mut cameras_data: Resource<IdStore<CameraData>>,
+    camera_data_manager: Resource<CameraDataManager>,
     mut cameras: Query<Camera>,
 ) {
     let aspect_ratio = window.aspect_ratio();
     for (_, camera) in cameras.iter() {
-        if camera.data_id.is_none() {
-            continue;
+        if let Some(data_id) = camera_data_manager
+            .component_to_data
+            .get(&camera.camera_id())
+        {
+            let camera_data =
+                cameras_data.get_mut(*data_id).unwrap();
+            camera_data.projection_matrix = Matrix4f::perspective(
+                camera.vertical_fov,
+                aspect_ratio,
+                camera.near_clipping_plane,
+                camera.far_clipping_plane,
+            );
+            backend
+                .update_buffer(camera_data.projection_buffer, &[
+                    camera_data.projection_matrix
+                ])
+                .unwrap();
         }
-        let camera_data =
-            cameras_data.get_mut(camera.data_id.unwrap()).unwrap();
-        camera_data.projection_matrix = Matrix4f::perspective(
-            camera.vertical_fov,
-            aspect_ratio,
-            camera.near_clipping_plane,
-            camera.far_clipping_plane,
-        );
-        backend
-            .update_buffer(camera_data.projection_buffer, &[
-                camera_data.projection_matrix
-            ])
-            .unwrap();
     }
 }

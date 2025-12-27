@@ -1,17 +1,33 @@
 use std::sync::Mutex;
 
+use crate::utils::IdType;
+
 #[derive(Debug)]
 pub struct IdCounter {
-    id: Mutex<u32>,
+    id: Mutex<IdType>,
 }
 
 impl IdCounter {
-    pub fn new(id: u32) -> IdCounter { IdCounter { id: Mutex::new(id) } }
+    fn new() -> IdCounter { IdCounter { id: Mutex::new(0) } }
 
-    pub fn next(&self) -> u32 {
+    pub fn next(&self) -> IdType {
         let mut lock = self.id.lock().unwrap();
         let ret = *lock;
         *lock += 1;
         ret
     }
+}
+
+impl Default for IdCounter {
+    fn default() -> Self {
+        IdCounter::new()        
+    }
+}
+
+#[macro_export]
+macro_rules! create_counter {
+    ($name:ident) => {
+        static $name: once_cell::sync::Lazy<crate::utils::id_counter::IdCounter> = 
+            once_cell::sync::Lazy::new(|| crate::utils::id_counter::IdCounter::default());
+    };
 }

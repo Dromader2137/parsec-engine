@@ -30,6 +30,24 @@ pub enum PipelineShaderStage {
     Fragment,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PipelineCullingMode {
+    None,
+    CullBack,
+    CullFront
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PipelineOptions {
+    pub culling_mode: PipelineCullingMode,
+}
+
+impl Default for PipelineOptions {
+    fn default() -> Self {
+        PipelineOptions { culling_mode: PipelineCullingMode::None }
+    }
+}
+
 #[derive(Debug)]
 pub enum PipelineError {
     LayoutCreationError(anyhow::Error),

@@ -3,25 +3,23 @@ use crate::{
         backend::GraphicsBackend,
         command_list::CommandList,
         pipeline::{
-            Pipeline, PipelineBinding, PipelineBindingLayout,
-            PipelineSubbindingLayout,
+            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineOptions, PipelineSubbindingLayout
         },
         renderer::{camera_data::CameraData, transform_data::TransformData},
         renderpass::Renderpass,
         shader::Shader,
     },
-    utils::id_counter::IdCounter,
+    utils::{identifiable::Identifiable, IdType},
 };
 
 pub struct MaterialBase {
-    id: u32,
+    material_base_id: IdType,
     pipeline: Pipeline,
     #[allow(unused)]
     binding_layouts: Vec<PipelineBindingLayout>,
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl MaterialBase {
     pub fn new(
         backend: &mut impl GraphicsBackend,
@@ -29,6 +27,7 @@ impl MaterialBase {
         fragment_shader: Shader,
         renderpass: Renderpass,
         binding_layouts: Vec<Vec<PipelineSubbindingLayout>>,
+        pipeline_options: PipelineOptions
     ) -> MaterialBase {
         let binding_layouts = binding_layouts
             .iter()
@@ -44,19 +43,25 @@ impl MaterialBase {
                 vertex_shader,
                 fragment_shader,
                 renderpass,
-                None,
                 &binding_layouts,
+                pipeline_options
             )
             .unwrap();
 
         MaterialBase {
-            id: ID_COUNTER.next(),
+            material_base_id: ID_COUNTER.next(),
             pipeline,
             binding_layouts,
         }
     }
 
-    pub fn id(&self) -> u32 { self.id }
+    pub fn id(&self) -> u32 { self.material_base_id }
+}
+
+impl Identifiable for MaterialBase {
+    fn id(&self) -> IdType {
+        self.id()
+    }
 }
 
 pub enum MaterialPipelineBinding {
@@ -69,16 +74,19 @@ pub enum MaterialPipelineBinding {
 }
 
 pub struct MaterialData {
-    material_base_id: u32,
+    material_id: IdType,
+    material_base_id: IdType,
     descriptor_sets: Vec<MaterialPipelineBinding>,
 }
 
+crate::create_counter!{ID_COUNTER_MAT}
 impl MaterialData {
     pub fn new(
         material_base: &MaterialBase,
         material_descriptor_sets: Vec<MaterialPipelineBinding>,
     ) -> MaterialData {
         MaterialData {
+            material_id: ID_COUNTER_MAT.next(),
             material_base_id: material_base.id(),
             descriptor_sets: material_descriptor_sets,
         }
@@ -125,4 +133,10 @@ impl MaterialData {
     }
 
     pub fn material_base_id(&self) -> u32 { self.material_base_id }
+}
+
+impl Identifiable for MaterialData {
+    fn id(&self) -> IdType {
+        self.material_id
+    }
 }

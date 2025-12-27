@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use crate::{
     graphics::{buffer::BufferUsage, vulkan::device::VulkanDevice},
-    utils::id_counter::IdCounter,
 };
 
 #[allow(unused)]
@@ -59,8 +58,7 @@ impl From<BufferUsage> for VulkanBufferUsage {
     }
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanBuffer {
     pub fn from_vec<T: Clone + Copy>(
         device: &VulkanDevice,

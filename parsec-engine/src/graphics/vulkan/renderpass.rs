@@ -1,4 +1,4 @@
-use crate::{
+use crate::
     graphics::{
         renderpass::{
             RenderpassAttachment, RenderpassAttachmentType,
@@ -9,9 +9,8 @@ use crate::{
             image::{VulkanImageFormat, VulkanImageLayout},
             surface::VulkanSurface,
         },
-    },
-    utils::id_counter::IdCounter,
-};
+    }
+;
 
 pub struct VulkanRenderpass {
     id: u32,
@@ -165,8 +164,7 @@ pub type VulkanClearValue = ash::vk::ClearValue;
 pub type VulkanClearColorValue = ash::vk::ClearColorValue;
 pub type VulkanClearDepthValue = ash::vk::ClearDepthStencilValue;
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanRenderpass {
     pub fn new(
         surface: &VulkanSurface,

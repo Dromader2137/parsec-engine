@@ -5,27 +5,22 @@ use window::Window;
 use crate::{
     app::{self},
     ecs::{
-        system::{System, SystemBundle, SystemTrigger, system},
+        system::{system, System, SystemBundle, SystemTrigger},
         world::query::Query,
     },
     graphics::{
         backend::GraphicsBackend,
         renderer::{
-            InitRenderer, QueueClear, Render, ResizeFlag,
-            assets::mesh::Mesh,
-            camera_data::{AddCameraData, UpdateCameraData},
-            components::{
+            assets::mesh::Mesh, camera_data::{AddCameraData, CameraDataManager, UpdateCameraData}, components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            },
-            draw_queue::{Draw, MeshAndMaterial},
-            mesh_data::AddMeshData,
-            transform_data::{AddTransformData, UpdateTransformData},
+            }, draw_queue::{Draw, MeshAndMaterial}, mesh_data::AddMeshData, transform_data::{
+                AddTransformData, TransformDataManager, UpdateTransformData,
+            }, InitRenderer, QueueClear, Render, ResizeFlag
         },
         vulkan::VulkanBackend,
     },
-    resources::{Resource, Resources},
-    utils::id_vec::IdVec,
+    resources::{Resource, Resources}, utils::identifiable::IdStore,
 };
 
 pub mod backend;
@@ -95,17 +90,25 @@ fn init_window() {
 #[system]
 fn auto_enqueue(
     mut draw_queue: Resource<Vec<Draw>>,
-    meshes: Resource<IdVec<Mesh>>,
+    meshes: Resource<IdStore<Mesh>>,
     mut cameras: Query<(Transform, Camera)>,
+    camera_data_manager: Resource<CameraDataManager>,
     mut mesh_renderers: Query<(Transform, MeshRenderer)>,
+    transform_data_manager: Resource<TransformDataManager>,
 ) {
     for (_, (camera_transform, camera)) in cameras.iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
             let mesh_asset = meshes.get(mesh_renderer.mesh_id).unwrap();
             if mesh_asset.data_id.is_none()
-                || camera.data_id.is_none()
-                || camera_transform.data_id.is_none()
-                || transform.data_id.is_none()
+                || !camera_data_manager
+                    .component_to_data
+                    .contains_key(&camera.camera_id())
+                || !transform_data_manager
+                    .component_to_data
+                    .contains_key(&camera_transform.transform_id())
+                || !transform_data_manager
+                    .component_to_data
+                    .contains_key(&transform.transform_id())
             {
                 continue;
             }
@@ -113,9 +116,9 @@ fn auto_enqueue(
             draw_queue.push(Draw::MeshAndMaterial(MeshAndMaterial {
                 mesh: mesh_asset.data_id.unwrap(),
                 material: mesh_renderer.material_id,
-                camera: camera.data_id.unwrap(),
-                camera_transform: camera_transform.data_id.unwrap(),
-                transform: transform.data_id.unwrap(),
+                camera: *camera_data_manager.component_to_data.get(&camera.camera_id()).unwrap(),
+                camera_transform: *transform_data_manager.component_to_data.get(&camera_transform.transform_id()).unwrap(),
+                transform: *transform_data_manager.component_to_data.get(&transform.transform_id()).unwrap(),
             }));
         }
     }

@@ -6,11 +6,10 @@ use crate::{
         backend::GraphicsBackend,
         buffer::{Buffer, BufferUsage},
         command_list::CommandList,
-        renderer::{DefaultVertex, assets::mesh::Mesh},
+        renderer::{assets::mesh::Mesh, DefaultVertex},
         vulkan::VulkanBackend,
     },
-    resources::Resource,
-    utils::id_vec::IdVec,
+    resources::Resource, utils::{identifiable::{IdStore, Identifiable}, IdType},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -64,9 +63,11 @@ impl<V: Vertex> MeshBuffer<V> {
 }
 
 pub struct MeshData<V: Vertex> {
+    mesh_data_id: IdType,
     pub buffer: MeshBuffer<V>,
 }
 
+crate::create_counter!{ID_COUNTER}
 impl<V: Vertex> MeshData<V> {
     pub fn new(
         backend: &mut impl GraphicsBackend,
@@ -74,7 +75,7 @@ impl<V: Vertex> MeshData<V> {
         indices: &[u32],
     ) -> MeshData<V> {
         let buffer = MeshBuffer::new(backend, vertices, indices);
-        MeshData { buffer }
+        MeshData { mesh_data_id: ID_COUNTER.next(), buffer }
     }
 
     pub fn record_commands(
@@ -86,11 +87,17 @@ impl<V: Vertex> MeshData<V> {
     }
 }
 
+impl<V: Vertex> Identifiable for MeshData<V> {
+    fn id(&self) -> IdType {
+        self.mesh_data_id       
+    }
+}
+
 #[system]
 fn add_mesh_data(
     mut backend: Resource<VulkanBackend>,
-    mut meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
-    mut meshes: Resource<IdVec<Mesh>>,
+    mut meshes_data: Resource<IdStore<MeshData<DefaultVertex>>>,
+    mut meshes: Resource<IdStore<Mesh>>,
 ) {
     for mesh in meshes.iter_mut() {
         if mesh.data_id.is_none() {

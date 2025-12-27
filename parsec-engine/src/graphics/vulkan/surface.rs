@@ -1,12 +1,11 @@
-use crate::{
+use crate::
     graphics::{
         vulkan::{
             instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
         },
         window::Window,
-    },
-    utils::id_counter::IdCounter,
-};
+    }
+;
 
 pub struct VulkanInitialSurface {
     window_id: u32,
@@ -100,8 +99,7 @@ impl VulkanInitialSurface {
     pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanSurface {
     pub fn from_initial_surface(
         initial_surface: VulkanInitialSurface,

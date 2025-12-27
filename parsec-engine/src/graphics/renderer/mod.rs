@@ -1,6 +1,6 @@
 //! The built-in renderer.
 
-use std::ops::DerefMut;
+use std::{collections::HashMap, ops::DerefMut};
 
 pub mod assets;
 pub mod camera_data;
@@ -23,18 +23,17 @@ use crate::{
         framebuffer::Framebuffer,
         image::{Image, ImageFormat, ImageUsage, ImageView},
         pipeline::{
-            PipelineBinding, PipelineBindingType, PipelineShaderStage,
-            PipelineSubbindingLayout,
+            PipelineBinding, PipelineBindingType, PipelineCullingMode, PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout
         },
         renderer::{
             assets::mesh::Mesh,
-            camera_data::CameraData,
+            camera_data::{CameraData, CameraDataManager},
             draw_queue::{Draw, MeshAndMaterial},
             material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
             },
             mesh_data::{MeshData, Vertex, VertexField, VertexFieldFormat},
-            transform_data::TransformData,
+            transform_data::{TransformData, TransformDataManager},
         },
         renderpass::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentType,
@@ -43,15 +42,14 @@ use crate::{
         sampler::Sampler,
         shader::{Shader, ShaderType},
         swapchain::{Swapchain, SwapchainError},
-        vulkan::{VulkanBackend, shader::read_shader_code},
+        vulkan::{shader::read_shader_code, VulkanBackend},
         window::Window,
     },
     math::{
         mat::Matrix4f,
         vec::{Vec2f, Vec3f},
     },
-    resources::{Resource, Resources},
-    utils::id_vec::IdVec,
+    resources::{Resource, Resources}, utils::identifiable::IdStore,
 };
 
 #[repr(C)]
@@ -274,6 +272,7 @@ pub fn init_renderer(
                 PipelineShaderStage::Vertex,
             )],
         ],
+        PipelineOptions { culling_mode: PipelineCullingMode::CullBack }
     );
     let shadow_size = 4096;
     let shadow_depth_image = backend
@@ -372,8 +371,8 @@ pub fn init_renderer(
         .unwrap();
     backend.bind_buffer(light_binding, light_buffer, 0).unwrap();
 
-    let mut material_bases = IdVec::new();
-    let mut materials_data = IdVec::new();
+    let mut material_bases = IdStore::new();
+    let mut materials_data = IdStore::new();
 
     material_bases.push(shadow_material_base);
     let shadow_material_id = materials_data.push(shadow_material);
@@ -411,12 +410,14 @@ pub fn init_renderer(
     Resources::add(RendererFramesInFlight(frames_in_flight as u32)).unwrap();
     Resources::add(ResizeFlag(false)).unwrap();
     Resources::add(Vec::<Draw>::new()).unwrap();
-    Resources::add(IdVec::<MeshData<DefaultVertex>>::new()).unwrap();
-    Resources::add(IdVec::<Mesh>::new()).unwrap();
+    Resources::add(IdStore::<MeshData<DefaultVertex>>::new()).unwrap();
+    Resources::add(IdStore::<Mesh>::new()).unwrap();
     Resources::add(material_bases).unwrap();
     Resources::add(materials_data).unwrap();
-    Resources::add(IdVec::<TransformData>::new()).unwrap();
-    Resources::add(IdVec::<CameraData>::new()).unwrap();
+    Resources::add(IdStore::<TransformData>::new()).unwrap();
+    Resources::add(IdStore::<CameraData>::new()).unwrap();
+    Resources::add(TransformDataManager { component_to_data: HashMap::new() }).unwrap();
+    Resources::add(CameraDataManager { component_to_data: HashMap::new() }).unwrap();
 }
 
 fn recreate_size_dependent_components(
@@ -499,11 +500,11 @@ pub fn render(
     framebuffers: Resource<RendererFramebuffers>,
     command_lists: Resource<Vec<CommandList>>,
     draw_queue: Resource<Vec<Draw>>,
-    meshes_data: Resource<IdVec<MeshData<DefaultVertex>>>,
-    materials_data: Resource<IdVec<MaterialData>>,
-    material_bases: Resource<IdVec<MaterialBase>>,
-    transforms_data: Resource<IdVec<TransformData>>,
-    cameras_data: Resource<IdVec<CameraData>>,
+    meshes_data: Resource<IdStore<MeshData<DefaultVertex>>>,
+    materials_data: Resource<IdStore<MaterialData>>,
+    material_bases: Resource<IdStore<MaterialBase>>,
+    transforms_data: Resource<IdStore<TransformData>>,
+    cameras_data: Resource<IdStore<CameraData>>,
     shadowpass_data: Resource<RendererShadowpassData>,
 ) {
     let command_buffer_fence =

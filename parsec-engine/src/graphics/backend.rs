@@ -5,8 +5,7 @@ use crate::graphics::{
     framebuffer::{Framebuffer, FramebufferError},
     image::{Image, ImageError, ImageFormat, ImageUsage, ImageView},
     pipeline::{
-        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
-        PipelineSubbindingLayout,
+        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError, PipelineOptions, PipelineSubbindingLayout
     },
     renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
     sampler::{Sampler, SamplerError},
@@ -64,8 +63,8 @@ pub trait GraphicsBackend: Sized {
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,
-        dimensions: Option<(u32, u32)>,
         binding_layouts: &[PipelineBindingLayout],
+        options: PipelineOptions
     ) -> Result<Pipeline, PipelineError>;
     fn create_pipeline_binding(
         &mut self,

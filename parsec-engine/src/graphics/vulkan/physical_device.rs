@@ -1,9 +1,8 @@
-use crate::{
+use crate::
     graphics::vulkan::{
         instance::VulkanInstance, surface::VulkanInitialSurface,
-    },
-    utils::id_counter::IdCounter,
-};
+    }
+;
 
 pub struct VulkanPhysicalDevice {
     id: u32,
@@ -21,8 +20,7 @@ pub enum VulkanPhysicalDeviceError {
     SuitableDeviceNotFound,
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanPhysicalDevice {
     pub fn new(
         instance: &VulkanInstance,

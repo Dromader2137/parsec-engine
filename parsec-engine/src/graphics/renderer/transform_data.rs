@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::{collections::HashMap, ops::DerefMut};
 
 use crate::{
     ecs::{
@@ -16,11 +16,11 @@ use crate::{
         vulkan::VulkanBackend,
     },
     math::{mat::Matrix4f, quat::Quat, vec::Vec3f},
-    resources::Resource,
-    utils::id_vec::IdVec,
+    resources::Resource, utils::{identifiable::{IdStore, Identifiable}, IdType},
 };
 
 pub struct TransformData {
+    transform_data_id: IdType,
     pub translation_matrix: Matrix4f,
     pub scale_matrix: Matrix4f,
     pub rotation_matrix: Matrix4f,
@@ -33,6 +33,11 @@ pub struct TransformData {
     pub look_at_binding: PipelineBinding,
 }
 
+pub struct TransformDataManager {
+    pub component_to_data: HashMap<u32, u32>,
+}
+
+crate::create_counter!{ID_COUNTER}
 impl TransformData {
     pub fn new(
         backend: &mut impl GraphicsBackend,
@@ -99,6 +104,7 @@ impl TransformData {
             .bind_buffer(look_at_binding, look_at_buffer, 0)
             .unwrap();
         TransformData {
+            transform_data_id: ID_COUNTER.next(),
             translation_matrix,
             scale_matrix,
             rotation_matrix,
@@ -128,14 +134,24 @@ impl TransformData {
     }
 }
 
+impl Identifiable for TransformData {
+    fn id(&self) -> IdType {
+        self.transform_data_id
+    }
+}
+
 #[system]
 fn add_transform_data(
     mut backend: Resource<VulkanBackend>,
-    mut transforms_data: Resource<IdVec<TransformData>>,
+    mut transforms_data: Resource<IdStore<TransformData>>,
+    mut transforms_data_manager: Resource<TransformDataManager>,
     mut transforms: Query<Mut<Transform>>,
 ) {
     for (_, transform) in transforms.iter() {
-        if transform.data_id.is_none() {
+        if !transforms_data_manager
+            .component_to_data
+            .contains_key(&transform.transform_id())
+        {
             let transform_data = TransformData::new(
                 backend.deref_mut(),
                 transform.position,
@@ -143,7 +159,9 @@ fn add_transform_data(
                 transform.rotation,
             );
             let data_id = transforms_data.push(transform_data);
-            transform.data_id = Some(data_id);
+            transforms_data_manager
+                .component_to_data
+                .insert(transform.transform_id(), data_id);
         }
     }
 }
@@ -151,22 +169,25 @@ fn add_transform_data(
 #[system]
 fn update_transform_data(
     mut backend: Resource<VulkanBackend>,
-    mut transforms_data: Resource<IdVec<TransformData>>,
+    mut transforms_data: Resource<IdStore<TransformData>>,
+    transforms_data_manager: Resource<TransformDataManager>,
     mut transforms: Query<Transform>,
 ) {
     for (_, transform) in transforms.iter() {
-        if transform.data_id.is_none() {
-            continue;
+        if let Some(data_id) = transforms_data_manager
+            .component_to_data
+            .get(&transform.transform_id())
+        {
+            let data = transforms_data.get_mut(*data_id).unwrap();
+            data.translation_matrix = Matrix4f::translation(transform.position);
+            data.scale_matrix = Matrix4f::scale(transform.scale);
+            data.rotation_matrix = transform.rotation.into_matrix();
+            data.look_at_matrix = Matrix4f::look_at(
+                transform.position,
+                Vec3f::FORWARD * transform.rotation,
+                Vec3f::UP * transform.rotation,
+            );
+            data.update_buffers_from_data(backend.deref_mut());
         }
-        let data = transforms_data.get_mut(transform.data_id.unwrap()).unwrap();
-        data.translation_matrix = Matrix4f::translation(transform.position);
-        data.scale_matrix = Matrix4f::scale(transform.scale);
-        data.rotation_matrix = transform.rotation.into_matrix();
-        data.look_at_matrix = Matrix4f::look_at(
-            transform.position,
-            Vec3f::FORWARD * transform.rotation,
-            Vec3f::UP * transform.rotation,
-        );
-        data.update_buffers_from_data(backend.deref_mut());
     }
 }

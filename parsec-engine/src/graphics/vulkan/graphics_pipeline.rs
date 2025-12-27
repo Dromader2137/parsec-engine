@@ -1,12 +1,10 @@
 use crate::{
     graphics::{
-        renderer::mesh_data::{Vertex, VertexFieldFormat},
-        vulkan::{
+        pipeline::{PipelineCullingMode, PipelineOptions}, renderer::mesh_data::{Vertex, VertexFieldFormat}, vulkan::{
             descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,
             format_size::format_size, renderpass::VulkanRenderpass, shader::VulkanShaderModule,
-        },
+        }
     },
-    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanGraphicsPipeline {
@@ -46,16 +44,37 @@ impl From<VertexFieldFormat> for VulkanVertexFieldFormat {
     }
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+pub type CullMode = ash::vk::CullModeFlags;
+
+pub struct VulkanPipelineOptions {
+    cull_mode: CullMode
+}
+
+impl From<PipelineCullingMode> for ash::vk::CullModeFlags {
+    fn from(value: PipelineCullingMode) -> Self {
+        match value {
+            PipelineCullingMode::None => CullMode::NONE,
+            PipelineCullingMode::CullBack => CullMode::BACK,
+            PipelineCullingMode::CullFront => CullMode::FRONT,
+        }
+    }
+}
+
+impl From<PipelineOptions> for VulkanPipelineOptions {
+    fn from(value: PipelineOptions) -> Self {
+        VulkanPipelineOptions { cull_mode: value.culling_mode.into() }
+    }
+}
+
+crate::create_counter!{ID_COUNTER}
 impl VulkanGraphicsPipeline {
     pub fn new<V: Vertex>(
         device: &VulkanDevice,
         renderpass: &VulkanRenderpass,
         vertex_shader: &VulkanShaderModule,
         fragment_shader: &VulkanShaderModule,
-        dimensions: (u32, u32),
         descriptor_set_layouts: &Vec<VulkanDescriptorSetLayout>,
+        options: VulkanPipelineOptions,
     ) -> Result<VulkanGraphicsPipeline, VulkanGraphicsPipelineError> {
         if device.id() != renderpass.device_id()
             || device.id() != vertex_shader.device_id()
@@ -105,16 +124,9 @@ impl VulkanGraphicsPipeline {
             },
         ];
 
-        let viewports = [ash::vk::Viewport {
-            x: 0.0,
-            y: 0.0,
-            width: dimensions.0 as f32,
-            height: dimensions.1 as f32,
-            min_depth: 0.0,
-            max_depth: 1.0,
-        }];
+        let viewports = [ash::vk::Viewport::default()];
 
-        let scissors = [ash::vk::Rect2D { offset: ash::vk::Offset2D::default(), extent: ash::vk::Extent2D { width: dimensions.0, height: dimensions.1 }} ];
+        let scissors = [ash::vk::Rect2D::default()];
         let viewport_state_info =
             ash::vk::PipelineViewportStateCreateInfo::default()
                 .scissors(&scissors)
@@ -125,6 +137,7 @@ impl VulkanGraphicsPipeline {
                 front_face: ash::vk::FrontFace::COUNTER_CLOCKWISE,
                 line_width: 1.0,
                 polygon_mode: ash::vk::PolygonMode::FILL,
+                cull_mode: options.cull_mode,
                 ..Default::default()
             };
         let multisample_state_info =

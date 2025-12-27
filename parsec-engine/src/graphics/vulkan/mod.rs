@@ -11,8 +11,7 @@ use crate::graphics::{
     framebuffer::{Framebuffer, FramebufferError},
     image::{Image, ImageError, ImageFormat, ImageUsage, ImageView},
     pipeline::{
-        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
-        PipelineSubbindingLayout,
+        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError, PipelineOptions, PipelineSubbindingLayout
     },
     renderer::DefaultVertex,
     renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
@@ -278,8 +277,8 @@ impl GraphicsBackend for VulkanBackend {
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,
-        dimensions: Option<(u32, u32)>,
         binding_layouts: &[PipelineBindingLayout],
+        options: PipelineOptions,
     ) -> Result<Pipeline, PipelineError> {
         let vsm = self
             .shaders
@@ -293,17 +292,6 @@ impl GraphicsBackend for VulkanBackend {
             .renderpasses
             .get(&renderpass.id())
             .ok_or(PipelineError::RenderpassNotFound)?;
-        let dim = match dimensions {
-            Some(d) => d,
-            None => {
-                let fra = self
-                    .framebuffers
-                    .values()
-                    .next()
-                    .ok_or(PipelineError::FramebufferNotFound)?;
-                (fra.get_extent_raw().width, fra.get_extent_raw().height)
-            },
-        };
         let dsl = binding_layouts
             .into_iter()
             .map(|x| {
@@ -318,8 +306,8 @@ impl GraphicsBackend for VulkanBackend {
             ren,
             vsm,
             fsm,
-            dim,
             &dsl,
+            options.into()
         )
         .map_err(|err| PipelineError::PipelineCreationError(err.into()))?;
         let pipeline_id = pipeline.id();

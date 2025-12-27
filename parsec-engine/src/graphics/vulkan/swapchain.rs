@@ -1,6 +1,6 @@
 use ash::vk::Extent2D;
 
-use crate::{
+use crate::
     graphics::{
         vulkan::{
             device::VulkanDevice,
@@ -13,9 +13,8 @@ use crate::{
             surface::VulkanSurface,
         },
         window::Window,
-    },
-    utils::id_counter::IdCounter,
-};
+    }
+;
 
 pub struct VulkanSwapchain {
     id: u32,
@@ -49,8 +48,7 @@ pub enum VulkanSwapchainError {
     OutOfDate,
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanSwapchain {
     pub fn new(
         instance: &VulkanInstance,

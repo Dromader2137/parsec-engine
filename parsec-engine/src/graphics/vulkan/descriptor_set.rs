@@ -6,7 +6,6 @@ use crate::{
             sampler::VulkanSampler,
         },
     },
-    utils::id_counter::IdCounter,
 };
 
 pub struct VulkanDescriptorPool {
@@ -114,8 +113,7 @@ impl VulkanDescriptorPoolSize {
     }
 }
 
-static ID_COUNTER_POOL: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER_POOL}
 impl VulkanDescriptorPool {
     pub fn new(
         device: &VulkanDevice,
@@ -149,8 +147,7 @@ impl VulkanDescriptorPool {
     pub fn id(&self) -> u32 { self.id }
 }
 
-static ID_COUNTER_LAYOUT: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER_LAYOUT}
 impl<'a> VulkanDescriptorSetLayout {
     pub fn new(
         device: &VulkanDevice,
@@ -191,8 +188,7 @@ impl<'a> VulkanDescriptorSetLayout {
     pub fn bindings(&self) -> &[VulkanDescriptorSetBinding] { &self.bindings }
 }
 
-static ID_COUNTER_SET: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER_SET}
 impl VulkanDescriptorSet {
     pub fn new(
         device: &VulkanDevice,

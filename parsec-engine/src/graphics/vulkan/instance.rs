@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{graphics::window::Window, utils::id_counter::IdCounter};
+use crate::graphics::window::Window;
 
 pub struct VulkanInstance {
     id: u32,
@@ -58,8 +58,7 @@ unsafe extern "system" fn vulkan_debug_callback(
     }
 }
 
-static ID_COUNTER: once_cell::sync::Lazy<IdCounter> =
-    once_cell::sync::Lazy::new(|| IdCounter::new(0));
+crate::create_counter!{ID_COUNTER}
 impl VulkanInstance {
     pub fn new(window: &Window) -> Result<VulkanInstance, VulkanInstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
