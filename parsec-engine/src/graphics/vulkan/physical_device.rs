@@ -1,8 +1,6 @@
-use crate::
-    graphics::vulkan::{
-        instance::VulkanInstance, surface::VulkanInitialSurface,
-    }
-;
+use crate::graphics::vulkan::{
+    instance::VulkanInstance, surface::VulkanInitialSurface,
+};
 
 pub struct VulkanPhysicalDevice {
     id: u32,
@@ -20,7 +18,7 @@ pub enum VulkanPhysicalDeviceError {
     SuitableDeviceNotFound,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanPhysicalDevice {
     pub fn new(
         instance: &VulkanInstance,

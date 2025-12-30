@@ -43,7 +43,7 @@ pub enum PipelineStage {
 pub enum PipelineCullingMode {
     None,
     CullBack,
-    CullFront
+    CullFront,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,7 +53,9 @@ pub struct PipelineOptions {
 
 impl Default for PipelineOptions {
     fn default() -> Self {
-        PipelineOptions { culling_mode: PipelineCullingMode::None }
+        PipelineOptions {
+            culling_mode: PipelineCullingMode::None,
+        }
     }
 }
 

@@ -1,20 +1,18 @@
 use ash::vk::Extent2D;
 
-use crate::
-    graphics::{
-        vulkan::{
-            device::VulkanDevice,
-            fence::VulkanFence,
-            image::{VulkanImage, VulkanSwapchainImage},
-            instance::VulkanInstance,
-            physical_device::VulkanPhysicalDevice,
-            queue::VulkanQueue,
-            semaphore::VulkanSemaphore,
-            surface::VulkanSurface,
-        },
-        window::Window,
-    }
-;
+use crate::graphics::{
+    vulkan::{
+        device::VulkanDevice,
+        fence::VulkanFence,
+        image::{VulkanImage, VulkanSwapchainImage},
+        instance::VulkanInstance,
+        physical_device::VulkanPhysicalDevice,
+        queue::VulkanQueue,
+        semaphore::VulkanSemaphore,
+        surface::VulkanSurface,
+    },
+    window::Window,
+};
 
 pub struct VulkanSwapchain {
     id: u32,
@@ -48,7 +46,7 @@ pub enum VulkanSwapchainError {
     OutOfDate,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanSwapchain {
     pub fn new(
         instance: &VulkanInstance,
@@ -85,14 +83,8 @@ impl VulkanSwapchain {
 
         let desired_image_count = surface.min_image_count();
 
-        let surface_resolution = {
-            let size = window.size();
-            Extent2D {
-                width: size.0,
-                height: size.1,
-            }
-        };
-
+        let surface_resolution = window.size().into();
+        
         let pre_transform = if surface
             .supported_transforms()
             .contains(ash::vk::SurfaceTransformFlagsKHR::IDENTITY)

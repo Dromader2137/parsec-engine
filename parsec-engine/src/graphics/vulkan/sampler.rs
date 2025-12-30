@@ -1,6 +1,4 @@
-use crate::
-    graphics::vulkan::device::VulkanDevice
-;
+use crate::graphics::vulkan::device::VulkanDevice;
 
 #[derive(Debug)]
 pub struct VulkanSampler {
@@ -17,7 +15,7 @@ pub enum VulkanSamplerError {
     DeviceMismatch,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanSampler {
     pub fn new(
         device: &VulkanDevice,

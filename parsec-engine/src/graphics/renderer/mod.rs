@@ -21,9 +21,10 @@ use crate::{
         buffer::{Buffer, BufferUsage},
         command_list::CommandList,
         framebuffer::Framebuffer,
-        image::{Image, ImageFormat, ImageUsage, ImageView},
+        image::{Image, ImageFlag, ImageFormat, ImageView},
         pipeline::{
-            PipelineBinding, PipelineBindingType, PipelineCullingMode, PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout
+            PipelineBinding, PipelineBindingType, PipelineCullingMode,
+            PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
         },
         renderer::{
             assets::mesh::Mesh,
@@ -42,14 +43,14 @@ use crate::{
         sampler::Sampler,
         shader::{Shader, ShaderType},
         swapchain::{Swapchain, SwapchainError},
-        vulkan::{shader::read_shader_code, VulkanBackend},
+        vulkan::{VulkanBackend, shader::read_shader_code},
         window::Window,
     },
     math::{
-        mat::Matrix4f,
-        vec::{Vec2f, Vec3f},
+        mat::Matrix4f, uvec::Vec2u, vec::{Vec2f, Vec3f}
     },
-    resources::{Resource, Resources}, utils::identifiable::IdStore,
+    resources::{Resource, Resources},
+    utils::identifiable::IdStore,
 };
 
 #[repr(C)]
@@ -201,7 +202,7 @@ pub fn init_renderer(
         .collect::<Vec<_>>();
     let depth_image = backend
         .create_image(window.size(), ImageFormat::D32, &[
-            ImageUsage::DepthAttachment,
+            ImageFlag::DepthAttachment,
         ])
         .unwrap();
     let depth_image_view = backend.create_image_view(depth_image).unwrap();
@@ -272,20 +273,22 @@ pub fn init_renderer(
                 PipelineShaderStage::Vertex,
             )],
         ],
-        PipelineOptions { culling_mode: PipelineCullingMode::CullBack }
+        PipelineOptions {
+            culling_mode: PipelineCullingMode::CullBack,
+        },
     );
     let shadow_size = 8192;
     let shadow_depth_image = backend
-        .create_image((shadow_size, shadow_size), ImageFormat::D32, &[
-            ImageUsage::DepthAttachment,
-            ImageUsage::Sampled,
+        .create_image(Vec2u::new(shadow_size, shadow_size), ImageFormat::D32, &[
+            ImageFlag::DepthAttachment,
+            ImageFlag::Sampled,
         ])
         .unwrap();
     let shadow_depth_view =
         backend.create_image_view(shadow_depth_image).unwrap();
     let shadow_framebuffer = backend
         .create_framebuffer(
-            (shadow_size, shadow_size),
+            Vec2u::new(shadow_size, shadow_size),
             &[shadow_depth_view],
             shadow_renderpass,
         )
@@ -416,8 +419,14 @@ pub fn init_renderer(
     Resources::add(materials_data).unwrap();
     Resources::add(IdStore::<TransformData>::new()).unwrap();
     Resources::add(IdStore::<CameraData>::new()).unwrap();
-    Resources::add(TransformDataManager { component_to_data: HashMap::new() }).unwrap();
-    Resources::add(CameraDataManager { component_to_data: HashMap::new() }).unwrap();
+    Resources::add(TransformDataManager {
+        component_to_data: HashMap::new(),
+    })
+    .unwrap();
+    Resources::add(CameraDataManager {
+        component_to_data: HashMap::new(),
+    })
+    .unwrap();
 }
 
 fn recreate_size_dependent_components(
@@ -441,7 +450,7 @@ fn recreate_size_dependent_components(
         .collect::<Vec<_>>();
     let new_depth_image = backend
         .create_image(window.size(), ImageFormat::D32, &[
-            ImageUsage::DepthAttachment,
+            ImageFlag::DepthAttachment,
         ])
         .unwrap();
     let new_depth_image_view =

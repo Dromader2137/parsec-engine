@@ -1,16 +1,13 @@
-use crate::
-    graphics::{
-        renderpass::{
-            RenderpassAttachment, RenderpassAttachmentType,
-            RenderpassClearValue,
-        },
-        vulkan::{
-            device::VulkanDevice,
-            image::{VulkanImageFormat, VulkanImageLayout},
-            surface::VulkanSurface,
-        },
-    }
-;
+use crate::graphics::{
+    renderpass::{
+        RenderpassAttachment, RenderpassAttachmentType, RenderpassClearValue,
+    },
+    vulkan::{
+        device::VulkanDevice,
+        image::{VulkanImageFormat, VulkanImageLayout},
+        surface::VulkanSurface,
+    },
+};
 
 pub struct VulkanRenderpass {
     id: u32,
@@ -120,7 +117,9 @@ impl From<RenderpassAttachmentType> for VulkanImageLayout {
             RenderpassAttachmentType::PresentDepth => {
                 VulkanImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
             },
-            RenderpassAttachmentType::StoreDepth => VulkanImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            RenderpassAttachmentType::StoreDepth => {
+                VulkanImageLayout::SHADER_READ_ONLY_OPTIMAL
+            },
         }
     }
 }
@@ -164,7 +163,7 @@ pub type VulkanClearValue = ash::vk::ClearValue;
 pub type VulkanClearColorValue = ash::vk::ClearColorValue;
 pub type VulkanClearDepthValue = ash::vk::ClearDepthStencilValue;
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanRenderpass {
     pub fn new(
         surface: &VulkanSurface,

@@ -1,8 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{
-    graphics::{buffer::BufferUsage, vulkan::device::VulkanDevice},
-};
+use crate::graphics::{buffer::BufferUsage, vulkan::device::VulkanDevice};
 
 #[allow(unused)]
 pub struct VulkanBuffer {
@@ -58,7 +56,7 @@ impl From<BufferUsage> for VulkanBufferUsage {
     }
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanBuffer {
     pub fn from_vec<T: Clone + Copy>(
         device: &VulkanDevice,

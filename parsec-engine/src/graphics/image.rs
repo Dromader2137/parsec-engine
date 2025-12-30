@@ -27,13 +27,13 @@ pub enum ImageFormat {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ImageUsage {
+pub enum ImageFlag {
     DepthAttachment,
-    Sampled,
-    Src,
-    Dst,
     ColorAttachment,
     ColorBuffer,
+    Sampled,
+    TransferSrc,
+    TransferDst,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

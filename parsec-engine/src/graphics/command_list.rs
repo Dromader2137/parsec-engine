@@ -26,12 +26,7 @@ pub enum CommandListError {
     FenceNotFound,
 }
 
-pub struct BufferBarrier {
-    
-}
-
-pub struct ImageBarrier {
-}
+pub struct ImageBarrier {}
 
 impl CommandList {
     pub fn new(id: u32) -> CommandList { CommandList { id } }

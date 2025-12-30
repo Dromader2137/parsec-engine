@@ -1,11 +1,7 @@
-use crate::
-    graphics::{
-        vulkan::{
-            instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
-        },
-        window::Window,
-    }
-;
+use crate::graphics::{
+    vulkan::{instance::VulkanInstance, physical_device::VulkanPhysicalDevice},
+    window::Window,
+};
 
 pub struct VulkanInitialSurface {
     window_id: u32,
@@ -99,7 +95,7 @@ impl VulkanInitialSurface {
     pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanSurface {
     pub fn from_initial_surface(
         initial_surface: VulkanInitialSurface,
@@ -142,7 +138,9 @@ impl VulkanSurface {
         let surface_format = *preferred_formats
             .iter()
             .find_map(|preffered_format| {
-                surface_formats.iter().find(|format| format.format == *preffered_format)
+                surface_formats
+                    .iter()
+                    .find(|format| format.format == *preffered_format)
             })
             .ok_or(VulkanSurfaceError::NoSurfaceFormatsAvailable)?;
 

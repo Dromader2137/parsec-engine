@@ -3,13 +3,14 @@ use crate::{
         backend::GraphicsBackend,
         command_list::CommandList,
         pipeline::{
-            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineOptions, PipelineSubbindingLayout
+            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineOptions,
+            PipelineSubbindingLayout,
         },
         renderer::{camera_data::CameraData, transform_data::TransformData},
         renderpass::Renderpass,
         shader::Shader,
     },
-    utils::{identifiable::Identifiable, IdType},
+    utils::{IdType, identifiable::Identifiable},
 };
 
 pub struct MaterialBase {
@@ -19,7 +20,7 @@ pub struct MaterialBase {
     binding_layouts: Vec<PipelineBindingLayout>,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl MaterialBase {
     pub fn new(
         backend: &mut impl GraphicsBackend,
@@ -27,7 +28,7 @@ impl MaterialBase {
         fragment_shader: Shader,
         renderpass: Renderpass,
         binding_layouts: Vec<Vec<PipelineSubbindingLayout>>,
-        pipeline_options: PipelineOptions
+        pipeline_options: PipelineOptions,
     ) -> MaterialBase {
         let binding_layouts = binding_layouts
             .iter()
@@ -44,7 +45,7 @@ impl MaterialBase {
                 fragment_shader,
                 renderpass,
                 &binding_layouts,
-                pipeline_options
+                pipeline_options,
             )
             .unwrap();
 
@@ -59,9 +60,7 @@ impl MaterialBase {
 }
 
 impl Identifiable for MaterialBase {
-    fn id(&self) -> IdType {
-        self.id()
-    }
+    fn id(&self) -> IdType { self.id() }
 }
 
 pub enum MaterialPipelineBinding {
@@ -79,7 +78,7 @@ pub struct MaterialData {
     descriptor_sets: Vec<MaterialPipelineBinding>,
 }
 
-crate::create_counter!{ID_COUNTER_MAT}
+crate::create_counter! {ID_COUNTER_MAT}
 impl MaterialData {
     pub fn new(
         material_base: &MaterialBase,
@@ -101,7 +100,7 @@ impl MaterialData {
         camera_transform: &TransformData,
         transform: &TransformData,
         light_binding: PipelineBinding,
-        shadowmap_binding: PipelineBinding
+        shadowmap_binding: PipelineBinding,
     ) {
         backend
             .command_bind_pipeline(command_list, material_base.pipeline)
@@ -116,9 +115,7 @@ impl MaterialData {
                 },
                 MaterialPipelineBinding::Model => transform.model_binding,
                 MaterialPipelineBinding::Light => light_binding,
-                MaterialPipelineBinding::ShadowMap => {
-                    shadowmap_binding
-                }
+                MaterialPipelineBinding::ShadowMap => shadowmap_binding,
                 MaterialPipelineBinding::Generic(bind) => *bind,
             };
             backend
@@ -136,7 +133,5 @@ impl MaterialData {
 }
 
 impl Identifiable for MaterialData {
-    fn id(&self) -> IdType {
-        self.material_id
-    }
+    fn id(&self) -> IdType { self.material_id }
 }

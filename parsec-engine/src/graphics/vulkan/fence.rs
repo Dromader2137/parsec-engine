@@ -1,6 +1,4 @@
-use crate::
-    graphics::vulkan::device::VulkanDevice
-;
+use crate::graphics::vulkan::device::VulkanDevice;
 
 #[derive(Clone)]
 pub struct VulkanFence {
@@ -21,7 +19,7 @@ pub enum VulkanFenceError {
     DeviceMismatch,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanFence {
     pub fn new(
         device: &VulkanDevice,

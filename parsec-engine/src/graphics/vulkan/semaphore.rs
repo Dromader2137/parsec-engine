@@ -1,6 +1,4 @@
-use crate::
-    graphics::vulkan::device::VulkanDevice
-;
+use crate::graphics::vulkan::device::VulkanDevice;
 
 #[derive(Clone)]
 pub struct VulkanSemaphore {
@@ -17,7 +15,7 @@ pub enum VulkanSemaphoreError {
     DeviceMismatch,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanSemaphore {
     pub fn new(
         device: &VulkanDevice,

@@ -1,9 +1,10 @@
-use crate::{
-    graphics::{
-        pipeline::{PipelineCullingMode, PipelineOptions}, renderer::mesh_data::{Vertex, VertexFieldFormat}, vulkan::{
-            descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,
-            format_size::format_size, renderpass::VulkanRenderpass, shader::VulkanShaderModule,
-        }
+use crate::graphics::{
+    pipeline::{PipelineCullingMode, PipelineOptions},
+    renderer::mesh_data::{Vertex, VertexFieldFormat},
+    vulkan::{
+        descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,
+        format_size::format_size, renderpass::VulkanRenderpass,
+        shader::VulkanShaderModule,
     },
 };
 
@@ -47,7 +48,7 @@ impl From<VertexFieldFormat> for VulkanVertexFieldFormat {
 pub type CullMode = ash::vk::CullModeFlags;
 
 pub struct VulkanPipelineOptions {
-    cull_mode: CullMode
+    cull_mode: CullMode,
 }
 
 impl From<PipelineCullingMode> for ash::vk::CullModeFlags {
@@ -62,11 +63,13 @@ impl From<PipelineCullingMode> for ash::vk::CullModeFlags {
 
 impl From<PipelineOptions> for VulkanPipelineOptions {
     fn from(value: PipelineOptions) -> Self {
-        VulkanPipelineOptions { cull_mode: value.culling_mode.into() }
+        VulkanPipelineOptions {
+            cull_mode: value.culling_mode.into(),
+        }
     }
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanGraphicsPipeline {
     pub fn new<V: Vertex>(
         device: &VulkanDevice,
@@ -150,17 +153,20 @@ impl VulkanGraphicsPipeline {
         let depth_attachment = renderpass.has_depth_attachment();
 
         let color_blend_attachment_states =
-            vec![ash::vk::PipelineColorBlendAttachmentState {
-                blend_enable: 0,
-                src_color_blend_factor: ash::vk::BlendFactor::SRC_COLOR,
-                dst_color_blend_factor:
-                    ash::vk::BlendFactor::ONE_MINUS_DST_COLOR,
-                color_blend_op: ash::vk::BlendOp::ADD,
-                src_alpha_blend_factor: ash::vk::BlendFactor::ZERO,
-                dst_alpha_blend_factor: ash::vk::BlendFactor::ZERO,
-                alpha_blend_op: ash::vk::BlendOp::ADD,
-                color_write_mask: ash::vk::ColorComponentFlags::RGBA,
-            }; color_attachment_count as usize];
+            vec![
+                ash::vk::PipelineColorBlendAttachmentState {
+                    blend_enable: 0,
+                    src_color_blend_factor: ash::vk::BlendFactor::SRC_COLOR,
+                    dst_color_blend_factor:
+                        ash::vk::BlendFactor::ONE_MINUS_DST_COLOR,
+                    color_blend_op: ash::vk::BlendOp::ADD,
+                    src_alpha_blend_factor: ash::vk::BlendFactor::ZERO,
+                    dst_alpha_blend_factor: ash::vk::BlendFactor::ZERO,
+                    alpha_blend_op: ash::vk::BlendOp::ADD,
+                    color_write_mask: ash::vk::ColorComponentFlags::RGBA,
+                };
+                color_attachment_count as usize
+            ];
         let color_blend_state =
             ash::vk::PipelineColorBlendStateCreateInfo::default()
                 .logic_op(ash::vk::LogicOp::CLEAR)
@@ -242,11 +248,13 @@ impl VulkanGraphicsPipeline {
                 .render_pass(*renderpass.get_renderpass_raw());
 
         if color_attachment_count > 0 {
-            graphic_pipeline_info = graphic_pipeline_info.color_blend_state(&color_blend_state);
+            graphic_pipeline_info =
+                graphic_pipeline_info.color_blend_state(&color_blend_state);
         }
 
         if depth_attachment {
-            graphic_pipeline_info = graphic_pipeline_info.depth_stencil_state(&depth_state_info);
+            graphic_pipeline_info =
+                graphic_pipeline_info.depth_stencil_state(&depth_state_info);
         }
 
         let pipeline = match unsafe {

@@ -10,6 +10,7 @@ pub enum FramebufferError {
     ImageViewNotFound,
     RenderpassNotFound,
     FramebufferNotFound,
+    ImageNotFound,
 }
 
 impl Framebuffer {

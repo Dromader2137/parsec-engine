@@ -5,22 +5,29 @@ use window::Window;
 use crate::{
     app::{self},
     ecs::{
-        system::{system, System, SystemBundle, SystemTrigger},
+        system::{System, SystemBundle, SystemTrigger, system},
         world::query::Query,
     },
     graphics::{
         backend::GraphicsBackend,
         renderer::{
-            assets::mesh::Mesh, camera_data::{AddCameraData, CameraDataManager, UpdateCameraData}, components::{
+            InitRenderer, QueueClear, Render, ResizeFlag,
+            assets::mesh::Mesh,
+            camera_data::{AddCameraData, CameraDataManager, UpdateCameraData},
+            components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            }, draw_queue::{Draw, MeshAndMaterial}, mesh_data::AddMeshData, transform_data::{
+            },
+            draw_queue::{Draw, MeshAndMaterial},
+            mesh_data::AddMeshData,
+            transform_data::{
                 AddTransformData, TransformDataManager, UpdateTransformData,
-            }, InitRenderer, QueueClear, Render, ResizeFlag
+            },
         },
         vulkan::VulkanBackend,
     },
-    resources::{Resource, Resources}, utils::identifiable::IdStore,
+    resources::{Resource, Resources},
+    utils::identifiable::IdStore,
 };
 
 pub mod backend;
@@ -116,9 +123,18 @@ fn auto_enqueue(
             draw_queue.push(Draw::MeshAndMaterial(MeshAndMaterial {
                 mesh: mesh_asset.data_id.unwrap(),
                 material: mesh_renderer.material_id,
-                camera: *camera_data_manager.component_to_data.get(&camera.camera_id()).unwrap(),
-                camera_transform: *transform_data_manager.component_to_data.get(&camera_transform.transform_id()).unwrap(),
-                transform: *transform_data_manager.component_to_data.get(&transform.transform_id()).unwrap(),
+                camera: *camera_data_manager
+                    .component_to_data
+                    .get(&camera.camera_id())
+                    .unwrap(),
+                camera_transform: *transform_data_manager
+                    .component_to_data
+                    .get(&camera_transform.transform_id())
+                    .unwrap(),
+                transform: *transform_data_manager
+                    .component_to_data
+                    .get(&transform.transform_id())
+                    .unwrap(),
             }));
         }
     }

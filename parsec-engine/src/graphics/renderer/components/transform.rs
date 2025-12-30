@@ -11,7 +11,7 @@ pub struct Transform {
     pub rotation: Quat,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl Transform {
     pub fn new(position: Vec3f, scale: Vec3f, rotation: Quat) -> Transform {
         Transform {
@@ -22,7 +22,5 @@ impl Transform {
         }
     }
 
-    pub fn transform_id(&self) -> u32 {
-        self.transform_id
-    }
+    pub fn transform_id(&self) -> u32 { self.transform_id }
 }

@@ -16,7 +16,11 @@ use crate::{
         vulkan::VulkanBackend,
     },
     math::{mat::Matrix4f, quat::Quat, vec::Vec3f},
-    resources::Resource, utils::{identifiable::{IdStore, Identifiable}, IdType},
+    resources::Resource,
+    utils::{
+        IdType,
+        identifiable::{IdStore, Identifiable},
+    },
 };
 
 pub struct TransformData {
@@ -37,7 +41,7 @@ pub struct TransformDataManager {
     pub component_to_data: HashMap<u32, u32>,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl TransformData {
     pub fn new(
         backend: &mut impl GraphicsBackend,
@@ -135,9 +139,7 @@ impl TransformData {
 }
 
 impl Identifiable for TransformData {
-    fn id(&self) -> IdType {
-        self.transform_data_id
-    }
+    fn id(&self) -> IdType { self.transform_data_id }
 }
 
 #[system]

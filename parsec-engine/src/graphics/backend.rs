@@ -1,11 +1,12 @@
-use crate::graphics::{
+use crate::{graphics::{
     buffer::{Buffer, BufferError, BufferUsage},
     command_list::{CommandList, CommandListError},
     fence::{Fence, FenceError},
     framebuffer::{Framebuffer, FramebufferError},
-    image::{Image, ImageError, ImageFormat, ImageUsage, ImageView},
+    image::{Image, ImageError, ImageFlag, ImageFormat, ImageView},
     pipeline::{
-        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError, PipelineOptions, PipelineSubbindingLayout
+        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
+        PipelineOptions, PipelineStage, PipelineSubbindingLayout,
     },
     renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
     sampler::{Sampler, SamplerError},
@@ -13,7 +14,7 @@ use crate::graphics::{
     shader::{Shader, ShaderError, ShaderType},
     swapchain::{Swapchain, SwapchainError},
     window::Window,
-};
+}, math::uvec::Vec2u};
 
 #[derive(Debug)]
 pub enum BackendInitError {
@@ -26,15 +27,15 @@ pub trait GraphicsBackend: Sized {
 
     fn get_surface_format(&self) -> ImageFormat;
 
-    fn create_buffer<T: Clone + Copy>(
+    fn create_buffer(
         &mut self,
-        data: &[T],
+        data: &[impl Copy],
         buffer_usage: &[BufferUsage],
     ) -> Result<Buffer, BufferError>;
-    fn update_buffer<T: Clone + Copy>(
+    fn update_buffer(
         &mut self,
         buffer: Buffer,
-        data: &[T],
+        data: &[impl Copy],
     ) -> Result<(), BufferError>;
     fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BufferError>;
 
@@ -64,7 +65,7 @@ pub trait GraphicsBackend: Sized {
         fragment_shader: Shader,
         renderpass: Renderpass,
         binding_layouts: &[PipelineBindingLayout],
-        options: PipelineOptions
+        options: PipelineOptions,
     ) -> Result<Pipeline, PipelineError>;
     fn create_pipeline_binding(
         &mut self,
@@ -125,10 +126,6 @@ pub trait GraphicsBackend: Sized {
         vertex_buffer: Buffer,
         index_buffer: Buffer,
     ) -> Result<(), CommandListError>;
-    fn command_barrier(
-        &mut self,
-        command_list: CommandList,
-    ) -> Result<(), CommandListError>;
     fn submit_commands(
         &mut self,
         command_list: CommandList,
@@ -160,9 +157,9 @@ pub trait GraphicsBackend: Sized {
 
     fn create_image(
         &mut self,
-        size: (u32, u32),
+        size: Vec2u,
         format: ImageFormat,
-        image_usage: &[ImageUsage],
+        image_usage: &[ImageFlag],
     ) -> Result<Image, ImageError>;
     fn load_image_from_buffer(
         &mut self,
@@ -186,7 +183,7 @@ pub trait GraphicsBackend: Sized {
 
     fn create_framebuffer(
         &mut self,
-        size: (u32, u32),
+        size: Vec2u,
         attachments: &[ImageView],
         renderpass: Renderpass,
     ) -> Result<Framebuffer, FramebufferError>;

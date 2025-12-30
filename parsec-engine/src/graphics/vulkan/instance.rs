@@ -58,7 +58,7 @@ unsafe extern "system" fn vulkan_debug_callback(
     }
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanInstance {
     pub fn new(window: &Window) -> Result<VulkanInstance, VulkanInstanceError> {
         let entry = match unsafe { ash::Entry::load() } {

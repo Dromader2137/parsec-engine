@@ -3,50 +3,57 @@
 
 use std::collections::HashMap;
 
-use crate::graphics::{
-    backend::{BackendInitError, GraphicsBackend},
-    buffer::{Buffer, BufferError, BufferUsage},
-    command_list::{CommandList, CommandListError},
-    fence::{Fence, FenceError},
-    framebuffer::{Framebuffer, FramebufferError},
-    image::{Image, ImageError, ImageFormat, ImageUsage, ImageView},
-    pipeline::{
-        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError, PipelineOptions, PipelineStage, PipelineSubbindingLayout
+use crate::{
+    graphics::{
+        backend::{BackendInitError, GraphicsBackend},
+        buffer::{Buffer, BufferError, BufferUsage},
+        command_list::{CommandList, CommandListError},
+        fence::{Fence, FenceError},
+        framebuffer::{Framebuffer, FramebufferError},
+        image::{Image, ImageError, ImageFlag, ImageFormat, ImageView},
+        pipeline::{
+            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
+            PipelineOptions, PipelineStage, PipelineSubbindingLayout,
+        },
+        renderer::DefaultVertex,
+        renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
+        sampler::{Sampler, SamplerError},
+        semaphore::{Semaphore, SemaphoreError},
+        shader::{Shader, ShaderError, ShaderType},
+        swapchain::{Swapchain, SwapchainError},
+        vulkan::{
+            buffer::{VulkanBuffer, VulkanBufferUsage},
+            command_buffer::{
+                ImageMemoryBarrier, VulkanCommandBuffer, VulkanCommandPool,
+                VulkanPipelineStage,
+            },
+            descriptor_set::{
+                DescriptorType, VulkanDescriptorPool, VulkanDescriptorPoolSize,
+                VulkanDescriptorSet, VulkanDescriptorSetBinding,
+                VulkanDescriptorSetLayout,
+            },
+            device::VulkanDevice,
+            fence::VulkanFence,
+            framebuffer::VulkanFramebuffer,
+            graphics_pipeline::VulkanGraphicsPipeline,
+            image::{
+                VulkanImage, VulkanImageAspectFlags, VulkanImageInfo,
+                VulkanImageUsage, VulkanImageView, VulkanOwnedImage,
+                VulkanSwapchainImage,
+            },
+            instance::VulkanInstance,
+            physical_device::VulkanPhysicalDevice,
+            queue::VulkanQueue,
+            renderpass::VulkanRenderpass,
+            sampler::VulkanSampler,
+            semaphore::VulkanSemaphore,
+            shader::VulkanShaderModule,
+            surface::{VulkanInitialSurface, VulkanSurface},
+            swapchain::{VulkanSwapchain, VulkanSwapchainError},
+        },
+        window::Window,
     },
-    renderer::DefaultVertex,
-    renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
-    sampler::{Sampler, SamplerError},
-    semaphore::{Semaphore, SemaphoreError},
-    shader::{Shader, ShaderError, ShaderType},
-    swapchain::{Swapchain, SwapchainError},
-    vulkan::{
-        buffer::{VulkanBuffer, VulkanBufferUsage},
-        command_buffer::{
-            ImageMemoryBarrier, VulkanCommandBuffer, VulkanCommandPool, VulkanPipelineStage
-        },
-        descriptor_set::{
-            DescriptorType, VulkanDescriptorPool, VulkanDescriptorPoolSize,
-            VulkanDescriptorSet, VulkanDescriptorSetBinding,
-            VulkanDescriptorSetLayout,
-        },
-        device::VulkanDevice,
-        fence::VulkanFence,
-        framebuffer::VulkanFramebuffer,
-        graphics_pipeline::VulkanGraphicsPipeline,
-        image::{
-            VulkanImage, VulkanImageAspectFlags, VulkanImageInfo, VulkanImageUsage, VulkanImageView, VulkanOwnedImage, VulkanSwapchainImage
-        },
-        instance::VulkanInstance,
-        physical_device::VulkanPhysicalDevice,
-        queue::VulkanQueue,
-        renderpass::VulkanRenderpass,
-        sampler::VulkanSampler,
-        semaphore::VulkanSemaphore,
-        shader::VulkanShaderModule,
-        surface::{VulkanInitialSurface, VulkanSurface},
-        swapchain::{VulkanSwapchain, VulkanSwapchainError},
-    },
-    window::Window,
+    math::uvec::Vec2u,
 };
 
 mod allocation;
@@ -69,6 +76,7 @@ mod semaphore;
 pub mod shader;
 mod surface;
 mod swapchain;
+mod utils;
 
 #[allow(unused)]
 pub struct VulkanBackend {
@@ -154,13 +162,11 @@ impl GraphicsBackend for VulkanBackend {
 
     fn wait_idle(&self) { self.device.wait_idle().unwrap(); }
 
-    fn get_surface_format(&self) -> ImageFormat {
-        self.surface.format().into()
-    }
+    fn get_surface_format(&self) -> ImageFormat { self.surface.format().into() }
 
-    fn create_buffer<T: Clone + Copy>(
+    fn create_buffer(
         &mut self,
-        data: &[T],
+        data: &[impl Copy],
         buffer_usage: &[BufferUsage],
     ) -> Result<Buffer, BufferError> {
         let mut usage = VulkanBufferUsage::empty();
@@ -172,10 +178,10 @@ impl GraphicsBackend for VulkanBackend {
         Ok(Buffer::new(buffer_id))
     }
 
-    fn update_buffer<T: Clone + Copy>(
+    fn update_buffer(
         &mut self,
         buffer: Buffer,
-        data: &[T],
+        data: &[impl Copy],
     ) -> Result<(), BufferError> {
         let buffer_id = buffer.id();
         let buffer = self
@@ -306,7 +312,7 @@ impl GraphicsBackend for VulkanBackend {
             vsm,
             fsm,
             &dsl,
-            options.into()
+            options.into(),
         )
         .map_err(|err| PipelineError::PipelineCreationError(err.into()))?;
         let pipeline_id = pipeline.id();
@@ -447,26 +453,20 @@ impl GraphicsBackend for VulkanBackend {
             .renderpasses
             .get(&renderpass.id())
             .ok_or(CommandListError::RenderpassNotFound)?;
+        let images = fra.attached_images_ids()
+            .map(|image| self.)
         command_buffer
             .begin_renderpass(&self.device, fra, ren)
             .map_err(|err| {
                 CommandListError::CommandListRenderpassBeginError(err.into())
             })?;
         command_buffer
-            .set_viewports(
-                &self.device,
-                (fra.get_extent_raw().width, fra.get_extent_raw().height),
-                ren,
-            )
+            .set_viewports(&self.device, fra.dimensions(), ren)
             .map_err(|err| {
                 CommandListError::CommandListRenderpassBeginError(err.into())
             })?;
         command_buffer
-            .set_scissor(
-                &self.device,
-                (fra.get_extent_raw().width, fra.get_extent_raw().height),
-                ren,
-            )
+            .set_scissor(&self.device, fra.dimensions(), ren)
             .map_err(|err| {
                 CommandListError::CommandListRenderpassBeginError(err.into())
             })
@@ -558,27 +558,6 @@ impl GraphicsBackend for VulkanBackend {
         command_buffer
             .draw_indexed(&self.device, ib.len, 1, 0, 0, 1)
             .map_err(|err| CommandListError::CommandListDrawError(err.into()))
-    }
-
-    fn command_barrier(
-            &mut self,
-            command_list: CommandList,
-            src_stage: PipelineStage,
-            dst_stage: PipelineStage,
-        ) -> Result<(), CommandListError> {
-        let command_buffer = self
-            .command_buffers
-            .get(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
-
-        command_buffer.pipeline_barrier(
-            &self.device, 
-            src_stage.into(), 
-            dst_stage.into(), 
-            memory_barriers, 
-            buffer_memory_barriers, 
-            image_memory_barriers
-        ).map_err(|err| CommandListError::CommandListBarrier(err.into()))
     }
 
     fn submit_commands(
@@ -712,9 +691,9 @@ impl GraphicsBackend for VulkanBackend {
 
     fn create_image(
         &mut self,
-        size: (u32, u32),
+        size: Vec2u,
         format: ImageFormat,
-        image_usage: &[ImageUsage],
+        image_usage: &[ImageFlag],
     ) -> Result<Image, ImageError> {
         let mut usage = VulkanImageUsage::empty();
         let mut aspect = VulkanImageAspectFlags::empty();
@@ -722,9 +701,9 @@ impl GraphicsBackend for VulkanBackend {
         image_usage.iter().for_each(|x| aspect |= (*x).into());
         let image = VulkanOwnedImage::new(&self.device, VulkanImageInfo {
             format: format.into(),
-            size,
-            usage: usage,
-            aspect: aspect
+            size: (size.x, size.y),
+            usage,
+            aspect,
         })
         .map_err(|err| ImageError::ImageCreationError(err.into()))?;
         let image_id = image.id();
@@ -770,7 +749,7 @@ impl GraphicsBackend for VulkanBackend {
             &[],
             &[],
             &[ImageMemoryBarrier::default()
-                .image(*img.get_image_raw())
+                .image(*img.raw_image())
                 .src_access_mask(ash::vk::AccessFlags::empty())
                 .dst_access_mask(ash::vk::AccessFlags::TRANSFER_WRITE)
                 .old_layout(ash::vk::ImageLayout::UNDEFINED)
@@ -792,7 +771,7 @@ impl GraphicsBackend for VulkanBackend {
             &[],
             &[],
             &[ImageMemoryBarrier::default()
-                .image(*img.get_image_raw())
+                .image(*img.raw_image())
                 .src_access_mask(ash::vk::AccessFlags::TRANSFER_WRITE)
                 .dst_access_mask(ash::vk::AccessFlags::SHADER_READ)
                 .old_layout(ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL)
@@ -884,7 +863,7 @@ impl GraphicsBackend for VulkanBackend {
 
     fn create_framebuffer(
         &mut self,
-        size: (u32, u32),
+        size: Vec2u,
         attachments: &[ImageView],
         renderpass: Renderpass,
     ) -> Result<Framebuffer, FramebufferError> {
@@ -894,16 +873,30 @@ impl GraphicsBackend for VulkanBackend {
                 self.image_views
                     .get(&attachment.id())
                     .ok_or(FramebufferError::ImageViewNotFound)
+                    .map(|image_view| {
+                        let o_image = self
+                            .owned_images
+                            .get(&image_view.image_id())
+                            .map(|img| img as &dyn VulkanImage);
+                        let s_image = self
+                            .swapchain_images
+                            .get(&image_view.image_id())
+                            .map(|img| img as &dyn VulkanImage);
+                        o_image
+                            .or(s_image)
+                            .map(|img| (image_view, img))
+                            .ok_or(FramebufferError::ImageNotFound)
+                    })
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Result<Vec<_>, _>, _>>()??;
         let ren = self
             .renderpasses
             .get(&renderpass.id())
             .ok_or(FramebufferError::RenderpassNotFound)?;
-        let framebuffer =
-            VulkanFramebuffer::new(size, &self.device, &att, ren).map_err(
-                |err| FramebufferError::FramebufferCreationError(err.into()),
-            )?;
+        let framebuffer = VulkanFramebuffer::new(&self.device, &att, ren, size)
+            .map_err(|err| {
+                FramebufferError::FramebufferCreationError(err.into())
+            })?;
         let framebuffer_id = framebuffer.id();
         self.framebuffers.insert(framebuffer_id, framebuffer);
         Ok(Framebuffer::new(framebuffer_id))

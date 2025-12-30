@@ -1,10 +1,8 @@
-use crate::{
-    graphics::{
-        pipeline::{PipelineBindingType, PipelineShaderStage},
-        vulkan::{
-            buffer::VulkanBuffer, device::VulkanDevice, image::VulkanImageView,
-            sampler::VulkanSampler,
-        },
+use crate::graphics::{
+    pipeline::{PipelineBindingType, PipelineShaderStage},
+    vulkan::{
+        buffer::VulkanBuffer, device::VulkanDevice, image::VulkanImageView,
+        sampler::VulkanSampler,
     },
 };
 
@@ -113,7 +111,7 @@ impl VulkanDescriptorPoolSize {
     }
 }
 
-crate::create_counter!{ID_COUNTER_POOL}
+crate::create_counter! {ID_COUNTER_POOL}
 impl VulkanDescriptorPool {
     pub fn new(
         device: &VulkanDevice,
@@ -147,7 +145,7 @@ impl VulkanDescriptorPool {
     pub fn id(&self) -> u32 { self.id }
 }
 
-crate::create_counter!{ID_COUNTER_LAYOUT}
+crate::create_counter! {ID_COUNTER_LAYOUT}
 impl<'a> VulkanDescriptorSetLayout {
     pub fn new(
         device: &VulkanDevice,
@@ -188,7 +186,7 @@ impl<'a> VulkanDescriptorSetLayout {
     pub fn bindings(&self) -> &[VulkanDescriptorSetBinding] { &self.bindings }
 }
 
-crate::create_counter!{ID_COUNTER_SET}
+crate::create_counter! {ID_COUNTER_SET}
 impl VulkanDescriptorSet {
     pub fn new(
         device: &VulkanDevice,

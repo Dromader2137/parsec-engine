@@ -8,7 +8,7 @@ pub struct Camera {
     pub far_clipping_plane: f32,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl Camera {
     pub fn new(
         vertical_fov: f32,
@@ -23,7 +23,5 @@ impl Camera {
         }
     }
 
-    pub fn camera_id(&self) -> u32 {
-        self.camera_id
-    }
+    pub fn camera_id(&self) -> u32 { self.camera_id }
 }

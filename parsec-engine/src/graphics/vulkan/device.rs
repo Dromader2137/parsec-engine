@@ -1,8 +1,6 @@
-use crate::{
-    graphics::vulkan::{
-        instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
-        surface::VulkanSurface,
-    },
+use crate::graphics::vulkan::{
+    instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
+    surface::VulkanSurface,
 };
 
 pub struct VulkanDevice {
@@ -23,7 +21,7 @@ pub enum VulkanDeviceError {
     PhysicalDeviceMismatch,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl VulkanDevice {
     pub fn new(
         instance: &VulkanInstance,

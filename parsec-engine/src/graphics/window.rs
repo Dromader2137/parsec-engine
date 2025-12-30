@@ -2,14 +2,14 @@
 
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-use crate::math::vec::Vec2f;
+use crate::math::{uvec::Vec2u, vec::Vec2f};
 
 #[derive(Debug)]
 pub struct Window {
     id: u32,
     window: winit::window::Window,
     cursor_mode: winit::window::CursorGrabMode,
-    cursor_visibility: bool
+    cursor_visibility: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -24,7 +24,7 @@ pub enum WindowError {
     SetCursorVisibilityError(winit::error::ExternalError),
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl Window {
     pub fn new(
         event_loop: &winit::event_loop::ActiveEventLoop,
@@ -46,20 +46,20 @@ impl Window {
             id: ID_COUNTER.next(),
             window,
             cursor_mode: winit::window::CursorGrabMode::None,
-            cursor_visibility: true
+            cursor_visibility: true,
         })
     }
 
     pub fn request_redraw(&self) { self.window.request_redraw(); }
 
-    pub fn size(&self) -> (u32, u32) {
+    pub fn size(&self) -> Vec2u {
         let physical_size = self.window.inner_size();
-        (physical_size.width, physical_size.height)
+        Vec2u::new(physical_size.width, physical_size.height)
     }
 
-    pub fn width(&self) -> u32 { self.size().0 }
+    pub fn width(&self) -> u32 { self.size().x }
 
-    pub fn height(&self) -> u32 { self.size().1 }
+    pub fn height(&self) -> u32 { self.size().y }
 
     pub fn aspect_ratio(&self) -> f32 {
         if self.height() == 0 {
@@ -74,19 +74,18 @@ impl Window {
 
     pub fn toggle_cursor_visibility(&mut self) {
         let new_visibility = !self.cursor_visibility;
-        
-        self.window
-            .set_cursor_visible(new_visibility);
+
+        self.window.set_cursor_visible(new_visibility);
 
         self.cursor_visibility = new_visibility;
     }
 
-    pub fn toggle_cursor_lock(
-        &mut self,
-    ) -> Result<(), WindowError> {
+    pub fn toggle_cursor_lock(&mut self) -> Result<(), WindowError> {
         let new_mode = match self.cursor_mode {
-            winit::window::CursorGrabMode::None => winit::window::CursorGrabMode::Locked,
-            _ => winit::window::CursorGrabMode::None
+            winit::window::CursorGrabMode::None => {
+                winit::window::CursorGrabMode::Locked
+            },
+            _ => winit::window::CursorGrabMode::None,
         };
 
         self.window

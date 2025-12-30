@@ -17,7 +17,11 @@ use crate::{
         window::Window,
     },
     math::mat::Matrix4f,
-    resources::Resource, utils::{identifiable::{IdStore, Identifiable}, IdType},
+    resources::Resource,
+    utils::{
+        IdType,
+        identifiable::{IdStore, Identifiable},
+    },
 };
 
 pub struct CameraData {
@@ -31,7 +35,7 @@ pub struct CameraDataManager {
     pub component_to_data: HashMap<u32, u32>,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {ID_COUNTER}
 impl CameraData {
     pub fn new(
         backend: &mut impl GraphicsBackend,
@@ -67,9 +71,7 @@ impl CameraData {
 }
 
 impl Identifiable for CameraData {
-    fn id(&self) -> IdType {
-        self.camera_data_id
-    }
+    fn id(&self) -> IdType { self.camera_data_id }
 }
 
 #[system]
@@ -114,8 +116,7 @@ fn update_camera_data(
             .component_to_data
             .get(&camera.camera_id())
         {
-            let camera_data =
-                cameras_data.get_mut(*data_id).unwrap();
+            let camera_data = cameras_data.get_mut(*data_id).unwrap();
             camera_data.projection_matrix = Matrix4f::perspective(
                 camera.vertical_fov,
                 aspect_ratio,

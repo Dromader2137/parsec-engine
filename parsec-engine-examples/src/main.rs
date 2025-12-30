@@ -2,25 +2,38 @@ use image::EncodableLayout;
 use parsec_engine::{
     app::App,
     ecs::{
-        system::{system, SystemTrigger},
-        world::{component::Component, fetch::Mut, query::Query, World},
+        system::{SystemTrigger, system},
+        world::{World, component::Component, fetch::Mut, query::Query},
     },
     graphics::{
-        backend::GraphicsBackend, buffer::BufferUsage, image::{ImageFormat, ImageUsage}, pipeline::{
-            PipelineBindingType, PipelineCullingMode, PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout
-        }, renderer::{
-            assets::mesh::{obj::load_obj, Mesh}, components::{
+        GraphicsBundle,
+        backend::GraphicsBackend,
+        buffer::BufferUsage,
+        image::{ImageFlag, ImageFormat},
+        pipeline::{
+            PipelineBindingType, PipelineCullingMode, PipelineOptions,
+            PipelineShaderStage, PipelineSubbindingLayout,
+        },
+        renderer::{
+            RendererMainRenderpass,
+            assets::mesh::{Mesh, obj::load_obj},
+            components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            }, material_data::{
+            },
+            material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
-            }, RendererMainRenderpass
-        }, shader::ShaderType, vulkan::{shader::read_shader_code, VulkanBackend}, window::Window, GraphicsBundle
+            },
+        },
+        shader::ShaderType,
+        vulkan::{VulkanBackend, shader::read_shader_code},
+        window::Window,
     },
     input::{Input, InputBundle},
-    math::{quat::Quat, vec::Vec3f},
+    math::{quat::Quat, uvec::Vec2u, vec::Vec3f},
     resources::Resource,
-    time::{Time, TimeBundle}, utils::identifiable::IdStore,
+    time::{Time, TimeBundle},
+    utils::identifiable::IdStore,
 };
 
 #[system]
@@ -44,8 +57,12 @@ fn test_system(
         )
         .unwrap();
 
-    let material_base =
-        MaterialBase::new(&mut *backend, vertex, fragment, renderpass.0, vec![
+    let material_base = MaterialBase::new(
+        &mut *backend,
+        vertex,
+        fragment,
+        renderpass.0,
+        vec![
             vec![
                 PipelineSubbindingLayout::new(
                     PipelineBindingType::UniformBuffer,
@@ -79,9 +96,12 @@ fn test_system(
             vec![PipelineSubbindingLayout::new(
                 PipelineBindingType::TextureSampler,
                 PipelineShaderStage::Fragment,
-            )]],
-            PipelineOptions { culling_mode: PipelineCullingMode::CullBack }
-        );
+            )],
+        ],
+        PipelineOptions {
+            culling_mode: PipelineCullingMode::CullBack,
+        },
+    );
 
     let image = image::load_from_memory(include_bytes!("../../test.png"))
         .unwrap()
@@ -92,10 +112,10 @@ fn test_system(
         .create_buffer(image_data, &[BufferUsage::TransferSrc])
         .unwrap();
     let texture_image = backend
-        .create_image((width, height), ImageFormat::RGBA8SRGB, &[
-            ImageUsage::Sampled,
-            ImageUsage::ColorBuffer,
-            ImageUsage::Dst,
+        .create_image(Vec2u::new(width, height), ImageFormat::RGBA8SRGB, &[
+            ImageFlag::Sampled,
+            ImageFlag::ColorBuffer,
+            ImageFlag::TransferDst,
         ])
         .unwrap();
     backend
@@ -146,14 +166,26 @@ fn test_system(
     World::spawn((
         Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
         MeshRenderer::new(mesh, material_id),
-        Movable  { base_pos: Vec3f::ZERO, offset: 0.0, speed: 1.0 },
+        Movable {
+            base_pos: Vec3f::ZERO,
+            offset: 0.0,
+            speed: 1.0,
+        },
     ))
     .unwrap();
-    
+
     World::spawn((
-        Transform::new(Vec3f::new(-2.0, 2.0, -2.0), Vec3f::ONE * 0.4, Quat::IDENTITY),
+        Transform::new(
+            Vec3f::new(-2.0, 2.0, -2.0),
+            Vec3f::ONE * 0.4,
+            Quat::IDENTITY,
+        ),
         MeshRenderer::new(mesh, material_id),
-        Movable  { base_pos: Vec3f::new(-2.0, 2.0, -2.0), offset: 1.0, speed: 2.5 },
+        Movable {
+            base_pos: Vec3f::new(-2.0, 2.0, -2.0),
+            offset: 1.0,
+            speed: 2.5,
+        },
     ))
     .unwrap();
 
@@ -169,7 +201,11 @@ fn test_system(
 }
 
 #[derive(Debug, Component)]
-pub struct Movable { base_pos: Vec3f, offset: f32, speed: f32 }
+pub struct Movable {
+    base_pos: Vec3f,
+    offset: f32,
+    speed: f32,
+}
 
 #[derive(Debug, Component)]
 pub struct CameraController {
@@ -246,11 +282,16 @@ fn box_mover(
     time: Resource<Time>,
 ) {
     for (_, (tra, mov)) in movable_boxes.iter() {
-        tra.position.y = mov.base_pos.y + (time
-            .current_time()
-            .duration_since(time.start_time())
-            .unwrap()
-            .as_millis() as f32 / 1000.0 * mov.speed + mov.offset).sin();
+        tra.position.y = mov.base_pos.y
+            + (time
+                .current_time()
+                .duration_since(time.start_time())
+                .unwrap()
+                .as_millis() as f32
+                / 1000.0
+                * mov.speed
+                + mov.offset)
+                .sin();
     }
 }
 
@@ -262,7 +303,6 @@ fn main() {
     app.systems.add(SystemTrigger::LateStart, TestSystem::new());
     app.systems
         .add(SystemTrigger::Update, CameraMovement::new());
-    app.systems
-        .add(SystemTrigger::Update, BoxMover::new());
+    app.systems.add(SystemTrigger::Update, BoxMover::new());
     app.run();
 }

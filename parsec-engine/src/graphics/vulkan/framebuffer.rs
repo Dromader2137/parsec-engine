@@ -1,53 +1,55 @@
-use ash::vk::Extent2D;
+use crate::{
+    graphics::vulkan::{
+        device::VulkanDevice,
+        image::{VulkanImage, VulkanImageView},
+        renderpass::VulkanRenderpass, utils::VulkanResult,
+    },
+    math::uvec::Vec2u,
+};
 
-use crate::
-    graphics::{
-        vulkan::{
-            device::VulkanDevice, image::VulkanImageView,
-            renderpass::VulkanRenderpass,
-        },
-    }
-;
+pub type VulkanRawFramebuffer = ash::vk::Framebuffer;
 
 pub struct VulkanFramebuffer {
     id: u32,
     device_id: u32,
     renderpass_id: u32,
-    framebuffer: ash::vk::Framebuffer,
-    extent: ash::vk::Extent2D,
+    attached_images_ids: Vec<u32>,
+    dimensions: Vec2u,
+    raw_framebuffer: VulkanRawFramebuffer,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum VulkanFramebufferError {
     #[error("Failed to create framebuffer: {0}")]
-    CreationError(ash::vk::Result),
+    CreationError(VulkanResult),
     #[error("Framebuffer created on different device")]
     DeviceMismatch,
 }
 
-crate::create_counter!{ID_COUNTER}
+crate::create_counter! {FRAMEBUFFER_ID_COUNTER}
 impl VulkanFramebuffer {
     pub fn new(
-        size: (u32, u32),
         device: &VulkanDevice,
-        attachments: &[&VulkanImageView],
+        attachments: &[(&VulkanImageView, &dyn VulkanImage)],
         renderpass: &VulkanRenderpass,
+        dimensions: Vec2u,
     ) -> Result<VulkanFramebuffer, VulkanFramebufferError> {
-        let extent = Extent2D {
-            width: size.0,
-            height: size.1,
-        };
+        let mut attached_images_ids = Vec::new();
+        let mut raw_attachments = Vec::new();
+        for (attachment_view, attachment_image) in attachments.iter() {
+            attached_images_ids.push(attachment_image.id());
+            raw_attachments.push(*attachment_view.get_image_view_raw());
+        }
 
-        let framebuffer_attachments = attachments.iter().map(|x| *x.get_image_view_raw()).collect::<Vec<_>>();
         let frame_buffer_create_info =
             ash::vk::FramebufferCreateInfo::default()
                 .render_pass(*renderpass.get_renderpass_raw())
-                .attachments(&framebuffer_attachments)
-                .width(extent.width)
-                .height(extent.height)
+                .attachments(&raw_attachments)
+                .width(dimensions.x)
+                .height(dimensions.y)
                 .layers(1);
 
-        let framebuffer = match unsafe {
+        let raw_framebuffer = match unsafe {
             device
                 .get_device_raw()
                 .create_framebuffer(&frame_buffer_create_info, None)
@@ -57,11 +59,12 @@ impl VulkanFramebuffer {
         };
 
         Ok(VulkanFramebuffer {
-            id: ID_COUNTER.next(),
+            id: FRAMEBUFFER_ID_COUNTER.next(),
             device_id: device.id(),
             renderpass_id: renderpass.id(),
-            framebuffer,
-            extent,
+            attached_images_ids,
+            dimensions,
+            raw_framebuffer,
         })
     }
 
@@ -76,18 +79,20 @@ impl VulkanFramebuffer {
         unsafe {
             device
                 .get_device_raw()
-                .destroy_framebuffer(*self.get_framebuffer_raw(), None);
+                .destroy_framebuffer(*self.raw_framebuffer(), None);
         }
         Ok(())
     }
 
-    pub fn get_framebuffer_raw(&self) -> &ash::vk::Framebuffer {
-        &self.framebuffer
+    pub fn raw_framebuffer(&self) -> &VulkanRawFramebuffer {
+        &self.raw_framebuffer
     }
 
-    pub fn get_extent_raw(&self) -> ash::vk::Extent2D { self.extent }
+    pub fn dimensions(&self) -> Vec2u { self.dimensions }
 
     pub fn id(&self) -> u32 { self.id }
 
     pub fn renderpass_id(&self) -> u32 { self.renderpass_id }
+
+    pub fn attached_images_ids(&self) -> &[u32] { &self.attached_images_ids }
 }

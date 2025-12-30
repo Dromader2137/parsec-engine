@@ -41,7 +41,7 @@ impl VulkanQueue {
 
         let command_buffers = command_buffers
             .iter()
-            .map(|x| *x.get_command_buffer_raw())
+            .map(|x| *x.raw_command_buffer())
             .collect::<Vec<_>>();
         let wait_semaphores = wait_semaphores
             .iter()

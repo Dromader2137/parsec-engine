@@ -19,15 +19,16 @@ impl IdCounter {
 }
 
 impl Default for IdCounter {
-    fn default() -> Self {
-        IdCounter::new()        
-    }
+    fn default() -> Self { IdCounter::new() }
 }
 
 #[macro_export]
 macro_rules! create_counter {
     ($name:ident) => {
-        static $name: once_cell::sync::Lazy<crate::utils::id_counter::IdCounter> = 
-            once_cell::sync::Lazy::new(|| crate::utils::id_counter::IdCounter::default());
+        static $name: once_cell::sync::Lazy<
+            crate::utils::id_counter::IdCounter,
+        > = once_cell::sync::Lazy::new(|| {
+            crate::utils::id_counter::IdCounter::default()
+        });
     };
 }

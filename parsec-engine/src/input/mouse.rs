@@ -81,9 +81,7 @@ impl Mouse {
         self.position = new_position;
     }
 
-    fn set_delta(&mut self, delta: Vec2f) { 
-        self.position_delta += delta;
-    }
+    fn set_delta(&mut self, delta: Vec2f) { self.position_delta += delta; }
 
     pub fn clear(&mut self) {
         self.position_delta = Vec2f::ZERO;

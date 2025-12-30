@@ -69,11 +69,11 @@ impl winit::application::ApplicationHandler for App {
     }
 
     fn device_event(
-            &mut self,
-            _event_loop: &winit::event_loop::ActiveEventLoop,
-            _device_id: winit::event::DeviceId,
-            event: winit::event::DeviceEvent,
-        ) {
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
         match event {
             winit::event::DeviceEvent::MouseMotion { delta } => {
                 Resources::add(MouseMovementEvent::delta(Vec2f::new(
@@ -85,8 +85,8 @@ impl winit::application::ApplicationHandler for App {
                 self.systems.execute_type(SystemTrigger::MouseMovement);
 
                 Resources::remove::<MouseMovementEvent>().unwrap();
-            }
-            _ => ()
+            },
+            _ => (),
         }
     }
 
