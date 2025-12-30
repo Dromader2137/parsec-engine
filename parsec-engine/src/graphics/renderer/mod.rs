@@ -274,7 +274,7 @@ pub fn init_renderer(
         ],
         PipelineOptions { culling_mode: PipelineCullingMode::CullBack }
     );
-    let shadow_size = 4096;
+    let shadow_size = 8192;
     let shadow_depth_image = backend
         .create_image((shadow_size, shadow_size), ImageFormat::D32, &[
             ImageUsage::DepthAttachment,

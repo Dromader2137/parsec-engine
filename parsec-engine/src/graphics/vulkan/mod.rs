@@ -11,7 +11,7 @@ use crate::graphics::{
     framebuffer::{Framebuffer, FramebufferError},
     image::{Image, ImageError, ImageFormat, ImageUsage, ImageView},
     pipeline::{
-        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError, PipelineOptions, PipelineSubbindingLayout
+        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError, PipelineOptions, PipelineStage, PipelineSubbindingLayout
     },
     renderer::DefaultVertex,
     renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
@@ -22,8 +22,7 @@ use crate::graphics::{
     vulkan::{
         buffer::{VulkanBuffer, VulkanBufferUsage},
         command_buffer::{
-            ImageMemoryBarrier, PipelineStage, VulkanCommandBuffer,
-            VulkanCommandPool,
+            ImageMemoryBarrier, VulkanCommandBuffer, VulkanCommandPool, VulkanPipelineStage
         },
         descriptor_set::{
             DescriptorType, VulkanDescriptorPool, VulkanDescriptorPoolSize,
@@ -561,6 +560,27 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| CommandListError::CommandListDrawError(err.into()))
     }
 
+    fn command_barrier(
+            &mut self,
+            command_list: CommandList,
+            src_stage: PipelineStage,
+            dst_stage: PipelineStage,
+        ) -> Result<(), CommandListError> {
+        let command_buffer = self
+            .command_buffers
+            .get(&command_list.id())
+            .ok_or(CommandListError::CommandListNotFound)?;
+
+        command_buffer.pipeline_barrier(
+            &self.device, 
+            src_stage.into(), 
+            dst_stage.into(), 
+            memory_barriers, 
+            buffer_memory_barriers, 
+            image_memory_barriers
+        ).map_err(|err| CommandListError::CommandListBarrier(err.into()))
+    }
+
     fn submit_commands(
         &mut self,
         command_list: CommandList,
@@ -745,8 +765,8 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         cmd.pipeline_barrier(
             &self.device,
-            PipelineStage::BOTTOM_OF_PIPE,
-            PipelineStage::TRANSFER,
+            VulkanPipelineStage::BOTTOM_OF_PIPE,
+            VulkanPipelineStage::TRANSFER,
             &[],
             &[],
             &[ImageMemoryBarrier::default()
@@ -757,7 +777,7 @@ impl GraphicsBackend for VulkanBackend {
                 .new_layout(ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL)
                 .subresource_range(
                     ash::vk::ImageSubresourceRange::default()
-                        .aspect_mask(ash::vk::ImageAspectFlags::COLOR)
+                        .aspect_mask(img.aspect_flags())
                         .level_count(1)
                         .layer_count(1),
                 )],
@@ -767,8 +787,8 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         cmd.pipeline_barrier(
             &self.device,
-            PipelineStage::TRANSFER,
-            PipelineStage::FRAGMENT_SHADER,
+            VulkanPipelineStage::TRANSFER,
+            VulkanPipelineStage::FRAGMENT_SHADER,
             &[],
             &[],
             &[ImageMemoryBarrier::default()
@@ -779,7 +799,7 @@ impl GraphicsBackend for VulkanBackend {
                 .new_layout(ash::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
                 .subresource_range(
                     ash::vk::ImageSubresourceRange::default()
-                        .aspect_mask(ash::vk::ImageAspectFlags::COLOR)
+                        .aspect_mask(img.aspect_flags())
                         .level_count(1)
                         .layer_count(1),
                 )],

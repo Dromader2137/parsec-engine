@@ -15,6 +15,7 @@ pub enum CommandListError {
     CommandListBindError(anyhow::Error),
     CommandListSubmitError(anyhow::Error),
     CommandListCopyToImageError(anyhow::Error),
+    CommandListBarrier(anyhow::Error),
     CommandListNotFound,
     FramebufferNotFound,
     RenderpassNotFound,
@@ -23,6 +24,13 @@ pub enum CommandListError {
     BufferNotFound,
     SemaphoreNotFound,
     FenceNotFound,
+}
+
+pub struct BufferBarrier {
+    
+}
+
+pub struct ImageBarrier {
 }
 
 impl CommandList {

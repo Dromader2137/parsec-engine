@@ -125,6 +125,10 @@ pub trait GraphicsBackend: Sized {
         vertex_buffer: Buffer,
         index_buffer: Buffer,
     ) -> Result<(), CommandListError>;
+    fn command_barrier(
+        &mut self,
+        command_list: CommandList,
+    ) -> Result<(), CommandListError>;
     fn submit_commands(
         &mut self,
         command_list: CommandList,

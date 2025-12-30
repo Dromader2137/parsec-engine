@@ -31,6 +31,15 @@ pub enum PipelineShaderStage {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PipelineStage {
+    TopOfPipe,
+    BottomOfPipe,
+    Transfer,
+    VertexShader,
+    FragmentShader,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineCullingMode {
     None,
     CullBack,

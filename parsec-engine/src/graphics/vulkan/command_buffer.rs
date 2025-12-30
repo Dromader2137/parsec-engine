@@ -1,5 +1,4 @@
-use crate::{
-    graphics::vulkan::{
+use crate::graphics::{pipeline::PipelineStage, vulkan::{
         buffer::VulkanBuffer,
         descriptor_set::VulkanDescriptorSet,
         device::VulkanDevice,
@@ -8,8 +7,7 @@ use crate::{
         image::{VulkanImage, VulkanOwnedImage},
         physical_device::VulkanPhysicalDevice,
         renderpass::VulkanRenderpass,
-    },
-};
+    }};
 
 pub struct VulkanCommandPool {
     id: u32,
@@ -454,8 +452,8 @@ impl VulkanCommandBuffer {
     pub fn pipeline_barrier(
         &self,
         device: &VulkanDevice,
-        src_stage: PipelineStage,
-        dst_stage: PipelineStage,
+        src_stage: VulkanPipelineStage,
+        dst_stage: VulkanPipelineStage,
         memory_barriers: &[MemoryBarrier],
         buffer_memory_barriers: &[BufferMemoryBarrier],
         image_memory_barriers: &[ImageMemoryBarrier],
@@ -510,4 +508,16 @@ impl VulkanCommandBuffer {
 pub type MemoryBarrier = ash::vk::MemoryBarrier<'static>;
 pub type BufferMemoryBarrier = ash::vk::BufferMemoryBarrier<'static>;
 pub type ImageMemoryBarrier = ash::vk::ImageMemoryBarrier<'static>;
-pub type PipelineStage = ash::vk::PipelineStageFlags;
+pub type VulkanPipelineStage = ash::vk::PipelineStageFlags;
+
+impl From<PipelineStage> for VulkanPipelineStage {
+    fn from(value: PipelineStage) -> Self {
+        match value {
+            PipelineStage::TopOfPipe => VulkanPipelineStage::TOP_OF_PIPE,
+            PipelineStage::BottomOfPipe => VulkanPipelineStage::BOTTOM_OF_PIPE,
+            PipelineStage::Transfer => VulkanPipelineStage::TRANSFER,
+            PipelineStage::VertexShader => VulkanPipelineStage::VERTEX_SHADER,
+            PipelineStage::FragmentShader => VulkanPipelineStage::FRAGMENT_SHADER,
+        }
+    }
+}
