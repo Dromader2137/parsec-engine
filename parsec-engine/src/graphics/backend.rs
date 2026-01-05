@@ -107,6 +107,8 @@ pub trait GraphicsBackend: Sized {
     fn command_end_renderpass(
         &mut self,
         command_list: CommandList,
+        renderpass: Renderpass,
+        framebuffer: Framebuffer,
     ) -> Result<(), CommandListError>;
     fn command_bind_pipeline(
         &mut self,

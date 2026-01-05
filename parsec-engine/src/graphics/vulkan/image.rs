@@ -1,14 +1,14 @@
 use crate::graphics::{
     image::{ImageFlag, ImageFormat},
     vulkan::{
-        buffer::find_memorytype_index, device::VulkanDevice,
-        format_size::format_size,
+        buffer::find_memorytype_index, command_buffer::VulkanAccess, device::VulkanDevice, format_size::format_size
     },
 };
 
 pub type VulkanImageFormat = ash::vk::Format;
 pub type VulkanImageLayout = ash::vk::ImageLayout;
 pub type VulkanImageUsage = ash::vk::ImageUsageFlags;
+pub type VulkanImageSubresourceRange = ash::vk::ImageSubresourceRange;
 pub type VulkanImageAspectFlags = ash::vk::ImageAspectFlags;
 pub type VulkanRawImage = ash::vk::Image;
 pub type VulkanRawImageView = ash::vk::ImageView;
@@ -20,10 +20,15 @@ pub trait VulkanImage: Send + Sync + 'static {
     fn format(&self) -> VulkanImageFormat;
     fn _usage(&self) -> VulkanImageUsage;
     fn aspect_flags(&self) -> VulkanImageAspectFlags;
+    fn subresource_range(&self) -> VulkanImageSubresourceRange;
     fn set_layout(
         &mut self,
         new_layout: VulkanImageLayout,
     ) -> Result<VulkanImageLayout, VulkanImageError>;
+    fn set_access(
+        &mut self,
+        new_access: VulkanAccess
+    ) -> Result<VulkanAccess, VulkanImageError>;
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +48,7 @@ pub struct VulkanOwnedImage {
     usage: VulkanImageUsage,
     aspect: VulkanImageAspectFlags,
     layout: VulkanImageLayout,
+    access: VulkanAccess,
     image: VulkanRawImage,
     memory: ash::vk::DeviceMemory,
     size: u64,
@@ -67,12 +73,25 @@ impl VulkanImage for VulkanSwapchainImage {
     fn aspect_flags(&self) -> ash::vk::ImageAspectFlags {
         ash::vk::ImageAspectFlags::COLOR
     }
+    fn subresource_range(&self) -> VulkanImageSubresourceRange {
+        VulkanImageSubresourceRange::default()
+            .aspect_mask(self.aspect_flags())
+            .level_count(1)
+            .layer_count(1)
+    }
     fn set_layout(
         &mut self,
         new_layout: VulkanImageLayout,
     ) -> Result<VulkanImageLayout, VulkanImageError> {
         let _ = new_layout;
         Err(VulkanImageError::CannotChangeLayoutForPresentImage)
+    }
+    fn set_access(
+            &mut self,
+            new_access: VulkanAccess
+        ) -> Result<VulkanAccess, VulkanImageError> {
+        let _ = new_access;
+        Err(VulkanImageError::CannotChangeAccessForPresentImage)
     }
 }
 
@@ -83,6 +102,12 @@ impl VulkanImage for VulkanOwnedImage {
     fn format(&self) -> ash::vk::Format { self.format }
     fn _usage(&self) -> ash::vk::ImageUsageFlags { self.usage }
     fn aspect_flags(&self) -> ash::vk::ImageAspectFlags { self.aspect }
+    fn subresource_range(&self) -> VulkanImageSubresourceRange {
+        VulkanImageSubresourceRange::default()
+            .aspect_mask(self.aspect_flags())
+            .level_count(1)
+            .layer_count(1)
+    }
     fn set_layout(
         &mut self,
         new_layout: VulkanImageLayout,
@@ -90,6 +115,14 @@ impl VulkanImage for VulkanOwnedImage {
         let old_layout = self.layout;
         self.layout = new_layout;
         Ok(old_layout)
+    }
+    fn set_access(
+            &mut self,
+            new_access: VulkanAccess
+        ) -> Result<VulkanAccess, VulkanImageError> {
+        let old_access = self.access;
+        self.access = new_access;
+        Ok(old_access)
     }
 }
 
@@ -111,6 +144,8 @@ pub enum VulkanImageError {
     DeviceMismatch,
     #[error("Changing layout for swapchaing images is not supported")]
     CannotChangeLayoutForPresentImage,
+    #[error("Changing access for swapchaing images is not supported")]
+    CannotChangeAccessForPresentImage,
 }
 
 impl From<ImageFormat> for VulkanImageFormat {
@@ -310,6 +345,7 @@ impl VulkanOwnedImage {
             usage: create_info.usage,
             aspect: create_info.aspect,
             layout: ash::vk::ImageLayout::UNDEFINED,
+            access: VulkanAccess::NONE,
             memory: image_memory,
             size: format_size * size.0 as u64 * size.1 as u64,
         })

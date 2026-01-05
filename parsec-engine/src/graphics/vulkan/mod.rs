@@ -24,8 +24,8 @@ use crate::{
         vulkan::{
             buffer::{VulkanBuffer, VulkanBufferUsage},
             command_buffer::{
-                ImageMemoryBarrier, VulkanCommandBuffer, VulkanCommandPool,
-                VulkanPipelineStage,
+                VulkanAccess, VulkanCommandBuffer, VulkanCommandPool,
+                VulkanImageMemoryBarrier, VulkanPipelineStage,
             },
             descriptor_set::{
                 DescriptorType, VulkanDescriptorPool, VulkanDescriptorPoolSize,
@@ -38,8 +38,8 @@ use crate::{
             graphics_pipeline::VulkanGraphicsPipeline,
             image::{
                 VulkanImage, VulkanImageAspectFlags, VulkanImageInfo,
-                VulkanImageUsage, VulkanImageView, VulkanOwnedImage,
-                VulkanSwapchainImage,
+                VulkanImageLayout, VulkanImageUsage, VulkanImageView,
+                VulkanOwnedImage, VulkanSwapchainImage,
             },
             instance::VulkanInstance,
             physical_device::VulkanPhysicalDevice,
@@ -453,8 +453,48 @@ impl GraphicsBackend for VulkanBackend {
             .renderpasses
             .get(&renderpass.id())
             .ok_or(CommandListError::RenderpassNotFound)?;
-        let images = fra.attached_images_ids()
-            .map(|image| self.)
+        let barriers = fra
+            .attached_images_ids()
+            .iter()
+            .enumerate()
+            .filter_map(|(id, image_id)| {
+                if ren.depth_attachment_id() != id as u32 {
+                    return None;
+                }
+
+                let o_image = self
+                    .owned_images
+                    .get_mut(&image_id)
+                    .map(|img| img as &mut (dyn VulkanImage + 'static));
+                let s_image = self
+                    .swapchain_images
+                    .get_mut(&image_id)
+                    .map(|img| img as &mut (dyn VulkanImage + 'static));
+                Some(o_image
+                    .or(s_image)
+                    .ok_or(CommandListError::ImageNotFound)
+                    .map(|image| {
+                        VulkanImageMemoryBarrier::raw_image_barrier(
+                            image,
+                            VulkanImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
+                            VulkanAccess::empty()
+                        )
+                    }))
+            })
+            .collect::<Result<Result<Vec<_>, _>, _>>()?
+            .map_err(|err| {
+                CommandListError::CommandListRenderpassBeginError(err.into())
+            })?;
+        command_buffer
+            .pipeline_barrier(
+                &self.device,
+                VulkanPipelineStage::ALL_GRAPHICS,
+                VulkanPipelineStage::EARLY_FRAGMENT_TESTS,
+                &[],
+                &[],
+                &barriers,
+            )
+            .map_err(|err| CommandListError::CommandListRenderpassBeginError(err.into()))?;
         command_buffer
             .begin_renderpass(&self.device, fra, ren)
             .map_err(|err| {
@@ -475,11 +515,63 @@ impl GraphicsBackend for VulkanBackend {
     fn command_end_renderpass(
         &mut self,
         command_list: CommandList,
+        renderpass: Renderpass,
+        framebuffer: Framebuffer,
     ) -> Result<(), CommandListError> {
         let command_buffer = self
             .command_buffers
             .get(&command_list.id())
             .ok_or(CommandListError::CommandListNotFound)?;
+        let fra = self
+            .framebuffers
+            .get(&framebuffer.id())
+            .ok_or(CommandListError::FramebufferNotFound)?;
+        let ren = self
+            .renderpasses
+            .get(&renderpass.id())
+            .ok_or(CommandListError::RenderpassNotFound)?;
+        let barriers = fra
+            .attached_images_ids()
+            .iter()
+            .enumerate()
+            .filter_map(|(id, image_id)| {
+                if ren.depth_attachment_id() != id as u32 {
+                    return None;
+                }
+
+                let o_image = self
+                    .owned_images
+                    .get_mut(&image_id)
+                    .map(|img| img as &mut (dyn VulkanImage + 'static));
+                let s_image = self
+                    .swapchain_images
+                    .get_mut(&image_id)
+                    .map(|img| img as &mut (dyn VulkanImage + 'static));
+                Some(o_image
+                    .or(s_image)
+                    .ok_or(CommandListError::ImageNotFound)
+                    .map(|image| {
+                        VulkanImageMemoryBarrier::raw_image_barrier(
+                            image,
+                            VulkanImageLayout::GENERAL,
+                            VulkanAccess::empty()
+                        )
+                    }))
+            })
+            .collect::<Result<Result<Vec<_>, _>, _>>()?
+            .map_err(|err| {
+                CommandListError::CommandListRenderpassBeginError(err.into())
+            })?;
+        command_buffer
+            .pipeline_barrier(
+                &self.device,
+                VulkanPipelineStage::ALL_GRAPHICS,
+                VulkanPipelineStage::TOP_OF_PIPE,
+                &[],
+                &[],
+                &barriers,
+            )
+            .map_err(|err| CommandListError::CommandListRenderpassBeginError(err.into()))?;
         command_buffer.end_renderpass(&self.device).map_err(|err| {
             CommandListError::CommandListRenderpassEndError(err.into())
         })
@@ -736,7 +828,7 @@ impl GraphicsBackend for VulkanBackend {
             .ok_or(ImageError::BufferNotFound)?;
         let img = self
             .owned_images
-            .get(&image.id())
+            .get_mut(&image.id())
             .ok_or(ImageError::ImageNotFound)?;
         let cmd = VulkanCommandBuffer::new(&self.device, &self.command_pool)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
@@ -748,18 +840,12 @@ impl GraphicsBackend for VulkanBackend {
             VulkanPipelineStage::TRANSFER,
             &[],
             &[],
-            &[ImageMemoryBarrier::default()
-                .image(*img.raw_image())
-                .src_access_mask(ash::vk::AccessFlags::empty())
-                .dst_access_mask(ash::vk::AccessFlags::TRANSFER_WRITE)
-                .old_layout(ash::vk::ImageLayout::UNDEFINED)
-                .new_layout(ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL)
-                .subresource_range(
-                    ash::vk::ImageSubresourceRange::default()
-                        .aspect_mask(img.aspect_flags())
-                        .level_count(1)
-                        .layer_count(1),
-                )],
+            &[VulkanImageMemoryBarrier::raw_image_barrier(
+                img,
+                VulkanImageLayout::TRANSFER_DST_OPTIMAL,
+                VulkanAccess::TRANSFER_WRITE,
+            )
+            .map_err(|err| ImageError::ImageLoadError(err.into()))?],
         )
         .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         cmd.copy_buffer_to_image(&self.device, buf, img)
@@ -770,18 +856,12 @@ impl GraphicsBackend for VulkanBackend {
             VulkanPipelineStage::FRAGMENT_SHADER,
             &[],
             &[],
-            &[ImageMemoryBarrier::default()
-                .image(*img.raw_image())
-                .src_access_mask(ash::vk::AccessFlags::TRANSFER_WRITE)
-                .dst_access_mask(ash::vk::AccessFlags::SHADER_READ)
-                .old_layout(ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL)
-                .new_layout(ash::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-                .subresource_range(
-                    ash::vk::ImageSubresourceRange::default()
-                        .aspect_mask(img.aspect_flags())
-                        .level_count(1)
-                        .layer_count(1),
-                )],
+            &[VulkanImageMemoryBarrier::raw_image_barrier(
+                img,
+                VulkanImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                VulkanAccess::SHADER_READ,
+            )
+            .map_err(|err| ImageError::ImageLoadError(err.into()))?],
         )
         .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         cmd.end(&self.device)

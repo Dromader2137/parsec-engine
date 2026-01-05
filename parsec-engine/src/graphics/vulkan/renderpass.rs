@@ -14,6 +14,7 @@ pub struct VulkanRenderpass {
     device_id: u32,
     color_attachment_count: u32,
     has_depth_attachment: bool,
+    depth_attachment_id: u32,
     clear_values: Vec<VulkanClearValue>,
     renderpass: ash::vk::RenderPass,
 }
@@ -177,6 +178,7 @@ impl VulkanRenderpass {
         let mut color_attachment_refs = Vec::new();
         let mut depth_attachment_refs = Vec::new();
         let mut renderpass_attachments = Vec::new();
+        let mut depth_id = 0;
         let mut clear_values = Vec::new();
         for (id, (attachment, clear_value)) in attachments.iter().enumerate() {
             match attachment.attachment_type {
@@ -187,6 +189,7 @@ impl VulkanRenderpass {
                     });
                 },
                 VulkanRenderpassAttachmentType::Depth => {
+                    depth_id = id;
                     depth_attachment_refs.push(
                         ash::vk::AttachmentReference {
                             attachment: id as u32,
@@ -206,10 +209,10 @@ impl VulkanRenderpass {
 
         let dependencies = [ash::vk::SubpassDependency {
             src_subpass: ash::vk::SUBPASS_EXTERNAL,
-            dst_access_mask: ash::vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE
-                | ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                | ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            // dst_access_mask: ash::vk::AccessFlags::COLOR_ATTACHMENT_READ
+            //     | ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+            //     | ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+            //     | ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             src_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
                 | ash::vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
                 | ash::vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
@@ -246,6 +249,7 @@ impl VulkanRenderpass {
             device_id: device.id(),
             color_attachment_count: color_attachment_refs.len() as u32,
             has_depth_attachment: depth_attachment_ref.is_some(),
+            depth_attachment_id: depth_id as u32,
             clear_values,
             renderpass,
         })
@@ -281,4 +285,8 @@ impl VulkanRenderpass {
     pub fn has_depth_attachment(&self) -> bool { self.has_depth_attachment }
 
     pub fn clear_values(&self) -> &[VulkanClearValue] { &self.clear_values }
+
+    pub fn depth_attachment_id(&self) -> u32 {
+        self.depth_attachment_id
+    }
 }

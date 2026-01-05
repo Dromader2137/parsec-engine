@@ -1,36 +1,51 @@
-use crate::{graphics::{
-    pipeline::PipelineStage, vulkan::{
-        buffer::VulkanBuffer,
-        descriptor_set::VulkanDescriptorSet,
-        device::VulkanDevice,
-        framebuffer::VulkanFramebuffer,
-        graphics_pipeline::VulkanGraphicsPipeline,
-        image::{VulkanImage, VulkanOwnedImage},
-        physical_device::VulkanPhysicalDevice,
-        renderpass::VulkanRenderpass, utils::VulkanResult,
-    }
-}, math::uvec::Vec2u};
+use crate::{
+    graphics::{
+        pipeline::PipelineStage,
+        vulkan::{
+            buffer::VulkanBuffer,
+            descriptor_set::VulkanDescriptorSet,
+            device::VulkanDevice,
+            framebuffer::VulkanFramebuffer,
+            graphics_pipeline::VulkanGraphicsPipeline,
+            image::{
+                VulkanImage, VulkanImageError, VulkanImageLayout,
+                VulkanOwnedImage,
+            },
+            physical_device::VulkanPhysicalDevice,
+            renderpass::VulkanRenderpass,
+            utils::VulkanResult,
+        },
+    },
+    math::uvec::Vec2u,
+};
 
-pub type MemoryBarrier = ash::vk::MemoryBarrier<'static>;
-pub type BufferMemoryBarrier = ash::vk::BufferMemoryBarrier<'static>;
-pub type RawImageMemoryBarrier = ash::vk::ImageMemoryBarrier<'static>;
+pub type VulkanAccess = ash::vk::AccessFlags;
+
+pub type RawVulkanMemoryBarrier = ash::vk::MemoryBarrier<'static>;
+pub type RawVulkanBufferMemoryBarrier = ash::vk::BufferMemoryBarrier<'static>;
+pub type RawVulkanImageMemoryBarrier<'a> = ash::vk::ImageMemoryBarrier<'a>;
+
 pub type VulkanPipelineStage = ash::vk::PipelineStageFlags;
 pub type VulkanRawCommandBuffer = ash::vk::CommandBuffer;
 pub type VulkanRawCommandPool = ash::vk::CommandPool;
 
-pub struct ImageMemoryBarrier<'a> {
-    image: &'a dyn VulkanImage,
-    src_access: ash::vk
-}
+pub struct VulkanImageMemoryBarrier;
+impl VulkanImageMemoryBarrier {
+    pub fn raw_image_barrier<'a>(
+        image: &mut dyn VulkanImage,
+        new_layout: VulkanImageLayout,
+        new_access: VulkanAccess,
+    ) -> Result<RawVulkanImageMemoryBarrier<'a>, VulkanImageError> {
+        let old_layout = image.set_layout(new_layout)?;
+        let old_access = image.set_access(new_access)?;
 
-impl<'a> ImageMemoryBarrier<'a> {
-    pub fn new(image: &'a impl VulkanImage) -> ImageMemoryBarrier {
-        ImageMemoryBarrier { 
-            image, 
-            raw_barrier: ash::vk::ImageMemoryBarrier::default()
-                .image(*image.raw_image())
-
-        }
+        Ok(RawVulkanImageMemoryBarrier::default()
+            .image(*image.raw_image())
+            .subresource_range(image.subresource_range())
+            .old_layout(old_layout)
+            .new_layout(new_layout)
+            .src_access_mask(old_access)
+            .dst_access_mask(new_access))
     }
 }
 
@@ -472,9 +487,9 @@ impl VulkanCommandBuffer {
         device: &VulkanDevice,
         src_stage: VulkanPipelineStage,
         dst_stage: VulkanPipelineStage,
-        memory_barriers: &[MemoryBarrier],
-        buffer_memory_barriers: &[BufferMemoryBarrier],
-        image_memory_barriers: &[ImageMemoryBarrier],
+        memory_barriers: &[RawVulkanMemoryBarrier],
+        buffer_memory_barriers: &[RawVulkanBufferMemoryBarrier],
+        image_memory_barriers: &[RawVulkanImageMemoryBarrier],
     ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
             return Err(VulkanCommandBufferError::DeviceMismatch);

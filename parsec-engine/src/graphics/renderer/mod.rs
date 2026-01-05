@@ -601,7 +601,7 @@ pub fn render(
         }
     }
 
-    backend.command_end_renderpass(command_list).unwrap();
+    backend.command_end_renderpass(command_list, renderpass.0, framebuffer).unwrap();
     backend
         .command_begin_renderpass(command_list, renderpass.0, framebuffer)
         .unwrap();
@@ -638,7 +638,7 @@ pub fn render(
         }
     }
 
-    backend.command_end_renderpass(command_list).unwrap();
+    backend.command_end_renderpass(command_list, renderpass.0, framebuffer).unwrap();
     backend.command_end(command_list).unwrap();
 
     backend

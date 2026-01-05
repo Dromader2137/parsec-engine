@@ -24,6 +24,7 @@ pub enum CommandListError {
     BufferNotFound,
     SemaphoreNotFound,
     FenceNotFound,
+    ImageNotFound,
 }
 
 pub struct ImageBarrier {}
