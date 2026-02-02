@@ -453,48 +453,80 @@ impl GraphicsBackend for VulkanBackend {
             .renderpasses
             .get(&renderpass.id())
             .ok_or(CommandListError::RenderpassNotFound)?;
-        let barriers = fra
-            .attached_images_ids()
-            .iter()
-            .enumerate()
-            .filter_map(|(id, image_id)| {
-                if ren.depth_attachment_id() != id as u32 {
-                    return None;
-                }
+        let mut depth_barriers = Vec::new();
+        let mut color_barriers = Vec::new();
+        for (id, image_id) in fra.attached_images_id().iter().enumerate() {
+            let o_image = self
+                .owned_images
+                .get_mut(&image_id)
+                .map(|img| img as &mut (dyn VulkanImage + 'static));
+            let s_image = self
+                .swapchain_images
+                .get_mut(&image_id)
+                .map(|img| img as &mut (dyn VulkanImage + 'static));
 
-                let o_image = self
-                    .owned_images
-                    .get_mut(&image_id)
-                    .map(|img| img as &mut (dyn VulkanImage + 'static));
-                let s_image = self
-                    .swapchain_images
-                    .get_mut(&image_id)
-                    .map(|img| img as &mut (dyn VulkanImage + 'static));
-                Some(o_image
-                    .or(s_image)
-                    .ok_or(CommandListError::ImageNotFound)
-                    .map(|image| {
-                        VulkanImageMemoryBarrier::raw_image_barrier(
+            if ren.depth_attachment_id() != id as u32 {
+                color_barriers.push(
+                    o_image
+                        .or(s_image)
+                        .ok_or(CommandListError::ImageNotFound)
+                        .map(|image| {
+                            VulkanImageMemoryBarrier::raw_image_barrier(
+                                image,
+                                VulkanImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                                VulkanAccess::COLOR_ATTACHMENT_WRITE,
+                            )
+                        })?
+                        .map_err(|err| {
+                            CommandListError::CommandListRenderpassBeginError(
+                                err.into(),
+                            )
+                        })?,
+                );
+            } else {
+                depth_barriers.push(
+                    o_image
+                        .or(s_image)
+                        .ok_or(CommandListError::ImageNotFound)
+                        .map(|image| {
+                            VulkanImageMemoryBarrier::raw_image_barrier(
                             image,
-                            VulkanImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
-                            VulkanAccess::empty()
+                            VulkanImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                            VulkanAccess::DEPTH_STENCIL_ATTACHMENT_WRITE
                         )
-                    }))
-            })
-            .collect::<Result<Result<Vec<_>, _>, _>>()?
+                        })?
+                        .map_err(|err| {
+                            CommandListError::CommandListRenderpassBeginError(
+                                err.into(),
+                            )
+                        })?,
+                )
+            }
+        }
+        command_buffer
+            .pipeline_barrier(
+                &self.device,
+                VulkanPipelineStage::LATE_FRAGMENT_TESTS,
+                VulkanPipelineStage::EARLY_FRAGMENT_TESTS,
+                &[],
+                &[],
+                &depth_barriers,
+            )
             .map_err(|err| {
                 CommandListError::CommandListRenderpassBeginError(err.into())
             })?;
         command_buffer
             .pipeline_barrier(
                 &self.device,
-                VulkanPipelineStage::ALL_GRAPHICS,
-                VulkanPipelineStage::EARLY_FRAGMENT_TESTS,
+                VulkanPipelineStage::COLOR_ATTACHMENT_OUTPUT,
+                VulkanPipelineStage::COLOR_ATTACHMENT_OUTPUT,
                 &[],
                 &[],
-                &barriers,
+                &color_barriers,
             )
-            .map_err(|err| CommandListError::CommandListRenderpassBeginError(err.into()))?;
+            .map_err(|err| {
+                CommandListError::CommandListRenderpassBeginError(err.into())
+            })?;
         command_buffer
             .begin_renderpass(&self.device, fra, ren)
             .map_err(|err| {
@@ -522,6 +554,10 @@ impl GraphicsBackend for VulkanBackend {
             .command_buffers
             .get(&command_list.id())
             .ok_or(CommandListError::CommandListNotFound)?;
+        command_buffer.end_renderpass(&self.device).map_err(|err| {
+            CommandListError::CommandListRenderpassEndError(err.into())
+        })?;
+
         let fra = self
             .framebuffers
             .get(&framebuffer.id())
@@ -531,11 +567,11 @@ impl GraphicsBackend for VulkanBackend {
             .get(&renderpass.id())
             .ok_or(CommandListError::RenderpassNotFound)?;
         let barriers = fra
-            .attached_images_ids()
+            .attached_images_id()
             .iter()
             .enumerate()
             .filter_map(|(id, image_id)| {
-                if ren.depth_attachment_id() != id as u32 {
+                if ren.depth_attachment_id() != id as u32 || !ren.has_depth_attachment() {
                     return None;
                 }
 
@@ -553,7 +589,7 @@ impl GraphicsBackend for VulkanBackend {
                     .map(|image| {
                         VulkanImageMemoryBarrier::raw_image_barrier(
                             image,
-                            VulkanImageLayout::GENERAL,
+                            VulkanImageLayout::SHADER_READ_ONLY_OPTIMAL,
                             VulkanAccess::empty()
                         )
                     }))
@@ -565,16 +601,13 @@ impl GraphicsBackend for VulkanBackend {
         command_buffer
             .pipeline_barrier(
                 &self.device,
-                VulkanPipelineStage::ALL_GRAPHICS,
-                VulkanPipelineStage::TOP_OF_PIPE,
+                VulkanPipelineStage::LATE_FRAGMENT_TESTS,
+                VulkanPipelineStage::FRAGMENT_SHADER,
                 &[],
                 &[],
                 &barriers,
             )
-            .map_err(|err| CommandListError::CommandListRenderpassBeginError(err.into()))?;
-        command_buffer.end_renderpass(&self.device).map_err(|err| {
-            CommandListError::CommandListRenderpassEndError(err.into())
-        })
+            .map_err(|err| CommandListError::CommandListRenderpassBeginError(err.into()))
     }
 
     fn command_bind_pipeline(

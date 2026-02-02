@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     graphics::{
         pipeline::PipelineStage,
@@ -42,7 +44,7 @@ impl VulkanImageMemoryBarrier {
         Ok(RawVulkanImageMemoryBarrier::default()
             .image(*image.raw_image())
             .subresource_range(image.subresource_range())
-            .old_layout(old_layout)
+            // .old_layout(old_layout)
             .new_layout(new_layout)
             .src_access_mask(old_access)
             .dst_access_mask(new_access))
@@ -55,9 +57,16 @@ pub struct VulkanCommandPool {
     raw_command_pool: VulkanRawCommandPool,
 }
 
+pub struct VulkanCommandBufferImageState {
+    image_id: u32,
+    last_pipeline_stage: VulkanPipelineStage,
+    last_access: VulkanAccess,
+}
+
 pub struct VulkanCommandBuffer {
     id: u32,
     device_id: u32,
+    image_state: HashMap<u32, VulkanCommandBufferImageState>,
     raw_command_buffer: VulkanRawCommandBuffer,
 }
 
@@ -153,6 +162,7 @@ impl VulkanCommandBuffer {
         Ok(VulkanCommandBuffer {
             id: COMMAND_BUFFER_ID_COUNTER.next(),
             device_id: device.id(),
+            image_state: HashMap::new(),
             raw_command_buffer: command_buffer,
         })
     }
@@ -215,6 +225,11 @@ impl VulkanCommandBuffer {
         }
 
         let clear_values = renderpass.clear_values();
+        let attached_images = framebuffer.attached_images_id();
+
+        for (attachment, attached_image) in renderpass.attachments().iter().zip(attached_images.iter()) {
+            
+        }
 
         let begin_info = ash::vk::RenderPassBeginInfo::default()
             .render_pass(*renderpass.get_renderpass_raw())
