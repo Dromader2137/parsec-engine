@@ -16,15 +16,17 @@ pub type VulkanRawImageView = ash::vk::ImageView;
 pub trait VulkanImage: Send + Sync + 'static {
     fn raw_image(&self) -> &VulkanRawImage;
     fn id(&self) -> u32;
-    fn _device_id(&self) -> u32;
+    fn device_id(&self) -> u32;
     fn format(&self) -> VulkanImageFormat;
-    fn _usage(&self) -> VulkanImageUsage;
+    fn usage(&self) -> VulkanImageUsage;
     fn aspect_flags(&self) -> VulkanImageAspectFlags;
     fn subresource_range(&self) -> VulkanImageSubresourceRange;
+    fn layout(&self) -> VulkanImageLayout;
     fn set_layout(
         &mut self,
         new_layout: VulkanImageLayout,
     ) -> Result<VulkanImageLayout, VulkanImageError>;
+    fn access(&self) -> VulkanAccess;
     fn set_access(
         &mut self,
         new_access: VulkanAccess
@@ -65,9 +67,9 @@ pub struct VulkanImageView {
 impl VulkanImage for VulkanSwapchainImage {
     fn raw_image(&self) -> &ash::vk::Image { &self.image }
     fn id(&self) -> u32 { self.id }
-    fn _device_id(&self) -> u32 { self._device_id }
+    fn device_id(&self) -> u32 { self._device_id }
     fn format(&self) -> ash::vk::Format { self.format }
-    fn _usage(&self) -> ash::vk::ImageUsageFlags {
+    fn usage(&self) -> ash::vk::ImageUsageFlags {
         ash::vk::ImageUsageFlags::COLOR_ATTACHMENT
     }
     fn aspect_flags(&self) -> ash::vk::ImageAspectFlags {
@@ -98,9 +100,9 @@ impl VulkanImage for VulkanSwapchainImage {
 impl VulkanImage for VulkanOwnedImage {
     fn raw_image(&self) -> &ash::vk::Image { &self.image }
     fn id(&self) -> u32 { self.id }
-    fn _device_id(&self) -> u32 { self.device_id }
+    fn device_id(&self) -> u32 { self.device_id }
     fn format(&self) -> ash::vk::Format { self.format }
-    fn _usage(&self) -> ash::vk::ImageUsageFlags { self.usage }
+    fn usage(&self) -> ash::vk::ImageUsageFlags { self.usage }
     fn aspect_flags(&self) -> ash::vk::ImageAspectFlags { self.aspect }
     fn subresource_range(&self) -> VulkanImageSubresourceRange {
         VulkanImageSubresourceRange::default()

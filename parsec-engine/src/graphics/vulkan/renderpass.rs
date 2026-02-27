@@ -207,21 +207,6 @@ impl VulkanRenderpass {
         }
         let depth_attachment_ref = depth_attachment_refs.get(0);
 
-        let dependencies = [ash::vk::SubpassDependency {
-            src_subpass: ash::vk::SUBPASS_EXTERNAL,
-            // dst_access_mask: ash::vk::AccessFlags::COLOR_ATTACHMENT_READ
-            //     | ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE
-            //     | ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-            //     | ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
-            src_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
-                | ash::vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
-                | ash::vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-            dst_stage_mask: ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
-                | ash::vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
-                | ash::vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-            ..Default::default()
-        }];
-
         let mut subpass = ash::vk::SubpassDescription::default()
             .color_attachments(&color_attachment_refs)
             .pipeline_bind_point(ash::vk::PipelineBindPoint::GRAPHICS);
@@ -232,8 +217,7 @@ impl VulkanRenderpass {
 
         let renderpass_create_info = ash::vk::RenderPassCreateInfo::default()
             .attachments(&renderpass_attachments)
-            .subpasses(std::slice::from_ref(&subpass))
-            .dependencies(&dependencies);
+            .subpasses(std::slice::from_ref(&subpass));
 
         let renderpass = match unsafe {
             device
