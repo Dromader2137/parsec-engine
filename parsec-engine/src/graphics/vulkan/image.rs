@@ -1,7 +1,7 @@
 use crate::graphics::{
     image::{ImageFlag, ImageFormat},
     vulkan::{
-        buffer::find_memorytype_index, command_buffer::VulkanAccess, device::VulkanDevice, format_size::format_size
+        buffer::find_memorytype_index, command_buffer::VulkanAccess, device::VulkanDevice, format_size::format_size, utils::VulkanExtent2D
     },
 };
 
@@ -38,6 +38,8 @@ pub struct VulkanSwapchainImage {
     id: u32,
     _device_id: u32,
     format: VulkanImageFormat,
+    layout: VulkanImageLayout,
+    access: VulkanAccess,
     image: VulkanRawImage,
 }
 
@@ -81,19 +83,35 @@ impl VulkanImage for VulkanSwapchainImage {
             .level_count(1)
             .layer_count(1)
     }
+    // fn set_layout(
+    //     &mut self,
+    //     new_layout: VulkanImageLayout,
+    // ) -> Result<VulkanImageLayout, VulkanImageError> {
+    //     let _ = new_layout;
+    //     Err(VulkanImageError::CannotChangeLayoutForPresentImage)
+    // }
+    // fn set_access(
+    //         &mut self,
+    //         new_access: VulkanAccess
+    //     ) -> Result<VulkanAccess, VulkanImageError> {
+    //     let _ = new_access;
+    //     Err(VulkanImageError::CannotChangeAccessForPresentImage)
+    // }
     fn set_layout(
         &mut self,
         new_layout: VulkanImageLayout,
     ) -> Result<VulkanImageLayout, VulkanImageError> {
-        let _ = new_layout;
-        Err(VulkanImageError::CannotChangeLayoutForPresentImage)
+        let old_layout = self.layout;
+        self.layout = new_layout;
+        Ok(old_layout)
     }
     fn set_access(
             &mut self,
             new_access: VulkanAccess
         ) -> Result<VulkanAccess, VulkanImageError> {
-        let _ = new_access;
-        Err(VulkanImageError::CannotChangeAccessForPresentImage)
+        let old_access = self.access;
+        self.access = new_access;
+        Ok(old_access)
     }
 }
 
@@ -275,6 +293,8 @@ impl VulkanSwapchainImage {
             id: ID_COUNTER_IMAGE.next(),
             _device_id: device.id(),
             format,
+            layout: VulkanImageLayout::PRESENT_SRC_KHR,
+            access: VulkanAccess::empty(),
             image: raw_image,
         }
     }

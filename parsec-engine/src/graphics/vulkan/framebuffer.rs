@@ -94,5 +94,5 @@ impl VulkanFramebuffer {
 
     pub fn renderpass_id(&self) -> u32 { self.renderpass_id }
 
-    pub fn attached_images_ids(&self) -> &[u32] { &self.attached_images_ids }
+    pub fn attached_images_id(&self) -> &[u32] { &self.attached_images_ids }
 }
