@@ -154,9 +154,9 @@ impl VulkanInstance {
         })
     }
 
-    pub fn get_instance_raw(&self) -> &ash::Instance { &self.instance }
+    pub fn raw_instance(&self) -> &ash::Instance { &self.instance }
 
-    pub fn get_entry_raw(&self) -> &ash::Entry { &self.entry }
+    pub fn raw_entry(&self) -> &ash::Entry { &self.entry }
 
     pub fn id(&self) -> u32 { self.id }
 }

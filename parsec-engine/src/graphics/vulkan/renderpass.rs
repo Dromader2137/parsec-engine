@@ -1,21 +1,21 @@
-use crate::graphics::{
-    renderpass::{
-        RenderpassAttachment, RenderpassAttachmentType, RenderpassClearValue,
+use crate::{
+    graphics::{
+        renderpass::{
+            RenderpassAttachment, RenderpassAttachmentLoadOp, RenderpassAttachmentStoreOp, RenderpassAttachmentType, RenderpassClearValue
+        },
+        vulkan::{
+            device::VulkanDevice,
+            image::{VulkanImageFormat, VulkanImageLayout},
+            surface::VulkanSurface,
+        },
     },
-    vulkan::{
-        device::VulkanDevice,
-        image::{VulkanImageFormat, VulkanImageLayout},
-        surface::VulkanSurface,
-    },
+    math::vec::Vec4f,
 };
 
 pub struct VulkanRenderpass {
     id: u32,
     device_id: u32,
-    color_attachment_count: u32,
-    has_depth_attachment: bool,
-    depth_attachment_id: u32,
-    attachments: Vec<VulkanRenderpassAttachment>, 
+    attachments: Vec<VulkanRenderpassAttachment>,
     clear_values: Vec<VulkanClearValue>,
     renderpass: ash::vk::RenderPass,
 }
@@ -35,94 +35,32 @@ pub enum VulkanRenderpassError {
     OnlyOneDepthAttachmentAllowed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VulkanRenderpassAttachmentType {
-    Color,
-    Depth,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum VulkanClearValue {
+    Color(Vec4f),
+    Depth(f32),
 }
 
-pub type VulkanLoadOperation = ash::vk::AttachmentLoadOp;
-pub type VulkanStoreOperation = ash::vk::AttachmentStoreOp;
-
-#[derive(Debug, Clone)]
-pub struct VulkanRenderpassAttachment {
-    pub attachment_type: VulkanRenderpassAttachmentType,
-    pub load_op: VulkanLoadOperation,
-    pub store_op: VulkanStoreOperation,
-    pub image_initial_layout: VulkanImageLayout,
-    pub image_layout: VulkanImageLayout,
-    pub image_format: VulkanImageFormat,
-}
-
-impl From<VulkanRenderpassAttachment> for ash::vk::AttachmentDescription {
-    fn from(value: VulkanRenderpassAttachment) -> Self {
-        ash::vk::AttachmentDescription {
-            format: value.image_format,
-            samples: ash::vk::SampleCountFlags::TYPE_1,
-            load_op: value.load_op,
-            store_op: value.store_op,
-            // initial_layout: value.image_initial_layout,
-            final_layout: value.image_layout,
-            ..Default::default()
+impl VulkanClearValue {
+    pub fn new(value: RenderpassClearValue) -> Self {
+        match value {
+            RenderpassClearValue::Color(r, g, b, a) => {
+                Self::Color(Vec4f::new(r, g, b, a))
+            },
+            RenderpassClearValue::Depth(d) => Self::Depth(d),
         }
     }
-}
 
-impl From<RenderpassAttachmentType> for VulkanRenderpassAttachmentType {
-    fn from(value: RenderpassAttachmentType) -> Self {
-        match value {
-            RenderpassAttachmentType::PresentColor => {
-                VulkanRenderpassAttachmentType::Color
-            },
-            RenderpassAttachmentType::PresentDepth => {
-                VulkanRenderpassAttachmentType::Depth
-            },
-            RenderpassAttachmentType::StoreDepth => {
-                VulkanRenderpassAttachmentType::Depth
-            },
-        }
-    }
-}
-
-impl From<RenderpassAttachmentType> for VulkanLoadOperation {
-    fn from(value: RenderpassAttachmentType) -> Self {
-        match value {
-            RenderpassAttachmentType::PresentColor => {
-                VulkanLoadOperation::CLEAR
-            },
-            RenderpassAttachmentType::PresentDepth => {
-                VulkanLoadOperation::CLEAR
-            },
-            RenderpassAttachmentType::StoreDepth => VulkanLoadOperation::CLEAR,
-        }
-    }
-}
-
-impl From<RenderpassAttachmentType> for VulkanStoreOperation {
-    fn from(value: RenderpassAttachmentType) -> Self {
-        match value {
-            RenderpassAttachmentType::PresentColor => {
-                VulkanStoreOperation::STORE
-            },
-            RenderpassAttachmentType::PresentDepth => {
-                VulkanStoreOperation::DONT_CARE
-            },
-            RenderpassAttachmentType::StoreDepth => VulkanStoreOperation::STORE,
-        }
-    }
-}
-
-impl From<RenderpassClearValue> for VulkanClearValue {
-    fn from(value: RenderpassClearValue) -> Self {
-        match value {
-            RenderpassClearValue::Color(r, g, b, a) => VulkanClearValue {
-                color: VulkanClearColorValue {
-                    float32: [r, g, b, a],
+    pub fn raw_clear_value(&self) -> ash::vk::ClearValue {
+        match self {
+            VulkanClearValue::Color(col) => ash::vk::ClearValue {
+                color: ash::vk::ClearColorValue {
+                    float32: [col.x, col.y, col.z, col.w],
                 },
             },
-            RenderpassClearValue::Depth(d) => VulkanClearValue {
-                depth_stencil: VulkanClearDepthValue {
-                    depth: d,
+            VulkanClearValue::Depth(d) => ash::vk::ClearValue {
+                depth_stencil: ash::vk::ClearDepthStencilValue {
+                    depth: *d,
                     stencil: 0,
                 },
             },
@@ -130,55 +68,100 @@ impl From<RenderpassClearValue> for VulkanClearValue {
     }
 }
 
-fn get_image_layout(value: &RenderpassAttachmentType) -> VulkanImageLayout {
-    match value {
-        RenderpassAttachmentType::PresentColor => {
-            VulkanImageLayout::PRESENT_SRC_KHR
-        },
-        RenderpassAttachmentType::PresentDepth => {
-            VulkanImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        },
-        RenderpassAttachmentType::StoreDepth => {
-            VulkanImageLayout::SHADER_READ_ONLY_OPTIMAL
-        },
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanStoreOp {
+    Store,
+    DontCare,
+}
+
+impl VulkanStoreOp {
+    pub fn new(value: RenderpassAttachmentStoreOp) -> Self {
+        match value {
+            RenderpassAttachmentStoreOp::Store => Self::Store,
+            RenderpassAttachmentStoreOp::DontCare => Self::DontCare,
+        }
+    }
+
+    pub fn raw_store_op(&self) -> ash::vk::AttachmentStoreOp {
+        match self {
+            VulkanStoreOp::Store => ash::vk::AttachmentStoreOp::STORE,
+            VulkanStoreOp::DontCare => ash::vk::AttachmentStoreOp::DONT_CARE,
+        }
     }
 }
 
-fn get_image_initial_layout(value: &RenderpassAttachmentType) -> VulkanImageLayout {
-    match value {
-        RenderpassAttachmentType::PresentColor => {
-            VulkanImageLayout::PRESENT_SRC_KHR
-        },
-        RenderpassAttachmentType::PresentDepth => {
-            VulkanImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        },
-        RenderpassAttachmentType::StoreDepth => {
-            VulkanImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        },
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanLoadOp {
+    Load,
+    Clear,
+    DontCare,
+}
+
+impl VulkanLoadOp {
+    pub fn new(value: RenderpassAttachmentLoadOp) -> Self {
+        match value {
+            RenderpassAttachmentLoadOp::Load => Self::Load,
+            RenderpassAttachmentLoadOp::Clear => Self::Clear,
+            RenderpassAttachmentLoadOp::DontCare => Self::DontCare,
+        }
+    }
+
+    pub fn raw_load_op(&self) -> ash::vk::AttachmentLoadOp {
+        match self {
+            VulkanLoadOp::Load => ash::vk::AttachmentLoadOp::LOAD,
+            VulkanLoadOp::Clear => ash::vk::AttachmentLoadOp::CLEAR,
+            VulkanLoadOp::DontCare => ash::vk::AttachmentLoadOp::DONT_CARE,
+        }
     }
 }
 
-impl From<RenderpassAttachment>
-    for (VulkanRenderpassAttachment, VulkanClearValue)
-{
-    fn from(value: RenderpassAttachment) -> Self {
-        (
-            VulkanRenderpassAttachment {
-                attachment_type: value.attachment_type.into(),
-                load_op: value.attachment_type.into(),
-                store_op: value.attachment_type.into(),
-                image_layout: get_image_layout(&value.attachment_type),
-                image_initial_layout: get_image_initial_layout(&value.attachment_type),
-                image_format: value.image_format.into(),
-            },
-            value.clear_value.into(),
-        )
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanRenderpassAttachmentType {
+    Color,
+    Depth,
+}
+
+impl VulkanRenderpassAttachmentType {
+    fn new(value: RenderpassAttachmentType) -> Self {
+        match value {
+            RenderpassAttachmentType::Color => Self::Color,
+            RenderpassAttachmentType::Depth => Self::Depth,
+        }
     }
 }
 
-pub type VulkanClearValue = ash::vk::ClearValue;
-pub type VulkanClearColorValue = ash::vk::ClearColorValue;
-pub type VulkanClearDepthValue = ash::vk::ClearDepthStencilValue;
+#[derive(Debug, Clone)]
+pub struct VulkanRenderpassAttachment {
+    pub attachment_type: VulkanRenderpassAttachmentType,
+    pub load_op: VulkanLoadOp,
+    pub store_op: VulkanStoreOp,
+    pub image_format: VulkanImageFormat,
+    // pub final_layout: VulkanImageLayout,
+}
+
+impl VulkanRenderpassAttachment {
+    pub fn new(value: RenderpassAttachment) -> Self {
+        VulkanRenderpassAttachment {
+            attachment_type: VulkanRenderpassAttachmentType::new(
+                value.attachment_type,
+            ),
+            load_op: VulkanLoadOp::new(value.load_op),
+            store_op: VulkanStoreOp::new(value.store_op),
+            image_format: VulkanImageFormat::new(value.image_format),
+        }
+    }
+
+    fn raw_renderpass_attachment(&self) -> ash::vk::AttachmentDescription {
+        ash::vk::AttachmentDescription {
+            format: self.image_format.raw_image_format(),
+            samples: ash::vk::SampleCountFlags::TYPE_1,
+            load_op: self.load_op.raw_load_op(),
+            store_op: self.store_op.raw_store_op(),
+            final_layout: ash::vk::ImageLayout::GENERAL,
+            ..Default::default()
+        }
+    }
+}
 
 crate::create_counter! {ID_COUNTER}
 impl VulkanRenderpass {
@@ -194,7 +177,6 @@ impl VulkanRenderpass {
         let mut color_attachment_refs = Vec::new();
         let mut depth_attachment_refs = Vec::new();
         let mut renderpass_attachments = Vec::new();
-        let mut depth_id = 0;
         let mut clear_values = Vec::new();
         for (id, (attachment, clear_value)) in attachments.iter().enumerate() {
             match attachment.attachment_type {
@@ -205,7 +187,6 @@ impl VulkanRenderpass {
                     });
                 },
                 VulkanRenderpassAttachmentType::Depth => {
-                    depth_id = id;
                     depth_attachment_refs.push(
                         ash::vk::AttachmentReference {
                             attachment: id as u32,
@@ -214,7 +195,7 @@ impl VulkanRenderpass {
                     );
                 },
             };
-            renderpass_attachments.push(attachment.clone().into());
+            renderpass_attachments.push(attachment.raw_renderpass_attachment());
             clear_values.push(*clear_value);
         }
 
@@ -237,7 +218,7 @@ impl VulkanRenderpass {
 
         let renderpass = match unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .create_render_pass(&renderpass_create_info, None)
         } {
             Ok(val) => val,
@@ -247,9 +228,6 @@ impl VulkanRenderpass {
         Ok(VulkanRenderpass {
             id: ID_COUNTER.next(),
             device_id: device.id(),
-            color_attachment_count: color_attachment_refs.len() as u32,
-            has_depth_attachment: depth_attachment_ref.is_some(),
-            depth_attachment_id: depth_id as u32,
             attachments: attachments.iter().map(|x| x.0.clone()).collect(),
             clear_values,
             renderpass,
@@ -266,7 +244,7 @@ impl VulkanRenderpass {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .destroy_render_pass(*self.get_renderpass_raw(), None);
         }
 
@@ -281,13 +259,35 @@ impl VulkanRenderpass {
 
     pub fn id(&self) -> u32 { self.id }
 
-    pub fn color_attachment_count(&self) -> u32 { self.color_attachment_count }
+    pub fn color_attachment_count(&self) -> u32 {
+        self.attachments
+            .iter()
+            .filter(|x| {
+                x.attachment_type == VulkanRenderpassAttachmentType::Color
+            })
+            .count() as u32
+    }
 
-    pub fn has_depth_attachment(&self) -> bool { self.has_depth_attachment }
+    pub fn has_depth_attachment(&self) -> bool {
+        self.attachments
+            .iter()
+            .find(|x| {
+                x.attachment_type == VulkanRenderpassAttachmentType::Depth
+            })
+            .is_some()
+    }
 
-    pub fn clear_values(&self) -> &[VulkanClearValue] { &self.attachments.iter().map(f) }
+    pub fn clear_values(&self) -> &[VulkanClearValue] { &self.clear_values }
 
-    pub fn depth_attachment_id(&self) -> u32 { self.depth_attachment_id }
+    pub fn depth_attachment_id(&self) -> Option<u32> {
+        self.attachments
+            .iter()
+            .enumerate()
+            .find(|(_, x)| {
+                x.attachment_type == VulkanRenderpassAttachmentType::Depth
+            })
+            .map(|x| x.0 as u32)
+    }
 
     pub fn attachments(&self) -> &[VulkanRenderpassAttachment] {
         &self.attachments

@@ -1,5 +1,5 @@
 use crate::graphics::{
-    pipeline::{PipelineCullingMode, PipelineOptions},
+    pipeline::{PipelineCullingMode, PipelineOptions, PipelineShaderStage},
     renderer::mesh_data::{Vertex, VertexFieldFormat},
     vulkan::{
         descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,
@@ -7,6 +7,37 @@ use crate::graphics::{
         shader::VulkanShaderModule,
     },
 };
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanShaderStage {
+    Fragement,
+    Vertex
+}
+
+impl VulkanShaderStage {
+    pub fn new(value: PipelineShaderStage) -> Self {
+        match value {
+            PipelineShaderStage::Vertex => Self::Vertex,
+            PipelineShaderStage::Fragment => Self::Fragement,
+        }
+    }
+
+    pub fn raw_shader_stage(&self) -> ash::vk::ShaderStageFlags {
+        match self {
+            VulkanShaderStage::Fragement => ash::vk::ShaderStageFlags::FRAGMENT,
+            VulkanShaderStage::Vertex => ash::vk::ShaderStageFlags::VERTEX,
+        }
+    }
+
+    fn raw_combined_shader_stage(usage: &[Self]) -> ash::vk::ShaderStageFlags {
+        usage
+            .iter()
+            .fold(ash::vk::ShaderStageFlags::empty(), |acc, v| {
+                acc | v.raw_shader_stage()
+            })
+    }
+}
 
 pub struct VulkanGraphicsPipeline {
     id: u32,
@@ -28,43 +59,67 @@ pub enum VulkanGraphicsPipelineError {
     DeviceMismatch,
 }
 
-pub type VulkanVertexFieldFormat = ash::vk::Format;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanVertexFormat {
+    Float,
+    Vec2,
+    Vec3,
+    Vec4,
+}
 
-impl From<VertexFieldFormat> for VulkanVertexFieldFormat {
-    fn from(value: VertexFieldFormat) -> Self {
+impl VulkanVertexFormat {
+    pub fn new(value: VertexFieldFormat) -> Self {
         match value {
-            VertexFieldFormat::Float => VulkanVertexFieldFormat::R32_SFLOAT,
-            VertexFieldFormat::Vec2 => VulkanVertexFieldFormat::R32G32_SFLOAT,
-            VertexFieldFormat::Vec3 => {
-                VulkanVertexFieldFormat::R32G32B32_SFLOAT
-            },
-            VertexFieldFormat::Vec4 => {
-                VulkanVertexFieldFormat::R32G32B32A32_SFLOAT
-            },
+            VertexFieldFormat::Float => Self::Float,
+            VertexFieldFormat::Vec2 => Self::Vec2,
+            VertexFieldFormat::Vec3 => Self::Vec3,
+            VertexFieldFormat::Vec4 => Self::Vec4,
+        }
+    }
+
+    pub fn raw_format(&self) -> ash::vk::Format {
+        match self {
+            VulkanVertexFormat::Float => ash::vk::Format::R32_SFLOAT,
+            VulkanVertexFormat::Vec2 => ash::vk::Format::R32G32_SFLOAT,
+            VulkanVertexFormat::Vec3 => ash::vk::Format::R32G32B32_SFLOAT,
+            VulkanVertexFormat::Vec4 => ash::vk::Format::R32G32B32A32_SFLOAT,
         }
     }
 }
 
-pub type CullMode = ash::vk::CullModeFlags;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanCullingMode {
+    None,
+    Back,
+    Front
+}   
+
+impl VulkanCullingMode {
+    fn new(value: PipelineCullingMode) -> Self {
+        match value {
+            PipelineCullingMode::None => Self::None,
+            PipelineCullingMode::CullBack => Self::Back,
+            PipelineCullingMode::CullFront => Self::Front,
+        }
+    }
+
+    fn raw_culling_mode(&self) -> ash::vk::CullModeFlags {
+        match self {
+            VulkanCullingMode::None => ash::vk::CullModeFlags::NONE,
+            VulkanCullingMode::Back => ash::vk::CullModeFlags::BACK,
+            VulkanCullingMode::Front => ash::vk::CullModeFlags::FRONT,
+        }
+    }
+}
 
 pub struct VulkanPipelineOptions {
-    cull_mode: CullMode,
+    cull_mode: VulkanCullingMode,
 }
 
-impl From<PipelineCullingMode> for ash::vk::CullModeFlags {
-    fn from(value: PipelineCullingMode) -> Self {
-        match value {
-            PipelineCullingMode::None => CullMode::NONE,
-            PipelineCullingMode::CullBack => CullMode::BACK,
-            PipelineCullingMode::CullFront => CullMode::FRONT,
-        }
-    }
-}
-
-impl From<PipelineOptions> for VulkanPipelineOptions {
-    fn from(value: PipelineOptions) -> Self {
+impl VulkanPipelineOptions {
+    pub fn new(value: PipelineOptions) -> Self {
         VulkanPipelineOptions {
-            cull_mode: value.culling_mode.into(),
+            cull_mode: VulkanCullingMode::new(value.culling_mode),
         }
     }
 }
@@ -102,7 +157,7 @@ impl VulkanGraphicsPipeline {
 
         let pipeline_layout = match unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .create_pipeline_layout(&layout_create_info, None)
         } {
             Ok(val) => val,
@@ -140,7 +195,7 @@ impl VulkanGraphicsPipeline {
                 front_face: ash::vk::FrontFace::COUNTER_CLOCKWISE,
                 line_width: 1.0,
                 polygon_mode: ash::vk::PolygonMode::FILL,
-                cull_mode: options.cull_mode,
+                cull_mode: options.cull_mode.raw_culling_mode(),
                 ..Default::default()
             };
         let multisample_state_info =
@@ -187,11 +242,11 @@ impl VulkanGraphicsPipeline {
                 ash::vk::VertexInputAttributeDescription {
                     binding: 0,
                     location: idx as u32,
-                    format: field.format.into(),
+                    format: VulkanVertexFormat::new(field.format).raw_format(),
                     offset: current_offset,
                 },
             );
-            current_offset += format_size(field.format.into()).unwrap();
+            current_offset += format_size(VulkanVertexFormat::new(field.format).raw_format()).unwrap();
         }
 
         let vertex_input_binding_descriptions =
@@ -258,7 +313,7 @@ impl VulkanGraphicsPipeline {
         }
 
         let pipeline = match unsafe {
-            device.get_device_raw().create_graphics_pipelines(
+            device.raw_device().create_graphics_pipelines(
                 ash::vk::PipelineCache::null(),
                 &[graphic_pipeline_info],
                 None,

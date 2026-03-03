@@ -32,7 +32,7 @@ impl VulkanFence {
         }
 
         let fence = match unsafe {
-            device.get_device_raw().create_fence(&create_info, None)
+            device.raw_device().create_fence(&create_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanFenceError::CreationError(err)),
@@ -51,7 +51,7 @@ impl VulkanFence {
         }
 
         if let Err(err) = unsafe {
-            device.get_device_raw().wait_for_fences(
+            device.raw_device().wait_for_fences(
                 &[self.fence],
                 true,
                 u64::MAX,
@@ -68,7 +68,7 @@ impl VulkanFence {
         }
 
         if let Err(err) =
-            unsafe { device.get_device_raw().reset_fences(&[self.fence]) }
+            unsafe { device.raw_device().reset_fences(&[self.fence]) }
         {
             return Err(VulkanFenceError::ResetError(err));
         }
@@ -93,7 +93,7 @@ impl VulkanFence {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .destroy_fence(*self.get_fence_raw(), None);
         }
         Ok(())

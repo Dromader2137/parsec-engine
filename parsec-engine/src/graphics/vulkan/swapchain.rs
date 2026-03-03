@@ -1,5 +1,3 @@
-use ash::vk::Extent2D;
-
 use crate::graphics::{
     vulkan::{
         device::VulkanDevice,
@@ -9,7 +7,7 @@ use crate::graphics::{
         physical_device::VulkanPhysicalDevice,
         queue::VulkanQueue,
         semaphore::VulkanSemaphore,
-        surface::VulkanSurface,
+        surface::VulkanSurface, utils::raw_extent_2d,
     },
     window::Window,
 };
@@ -83,30 +81,30 @@ impl VulkanSwapchain {
 
         let desired_image_count = surface.min_image_count();
 
-        let surface_resolution = window.size().into();
+        let surface_resolution = raw_extent_2d(window.size());
         
         let pre_transform = if surface
-            .supported_transforms()
+            .raw_supported_transforms()
             .contains(ash::vk::SurfaceTransformFlagsKHR::IDENTITY)
         {
             ash::vk::SurfaceTransformFlagsKHR::IDENTITY
         } else {
-            surface.current_transform()
+            surface.raw_current_transform()
         };
 
         let present_mode = ash::vk::PresentModeKHR::FIFO;
 
         let swapchain_loader = ash::khr::swapchain::Device::new(
-            instance.get_instance_raw(),
-            device.get_device_raw(),
+            instance.raw_instance(),
+            device.raw_device(),
         );
 
         let mut swapchain_create_info =
             ash::vk::SwapchainCreateInfoKHR::default()
-                .surface(*surface.get_surface_raw())
+                .surface(*surface.raw_surface())
                 .min_image_count(desired_image_count)
-                .image_color_space(surface.color_space())
-                .image_format(surface.format())
+                .image_color_space(ash::vk::ColorSpaceKHR::SRGB_NONLINEAR)
+                .image_format(surface.format().raw_image_format())
                 .image_extent(surface_resolution)
                 .image_usage(ash::vk::ImageUsageFlags::COLOR_ATTACHMENT)
                 .image_sharing_mode(ash::vk::SharingMode::EXCLUSIVE)
@@ -134,7 +132,7 @@ impl VulkanSwapchain {
             Ok(val) => val
                 .into_iter()
                 .map(|x| {
-                    VulkanSwapchainImage::from_raw_image(
+                    VulkanSwapchainImage::new(
                         device,
                         surface.format(),
                         x,

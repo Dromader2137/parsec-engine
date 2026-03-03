@@ -1,5 +1,5 @@
 use crate::graphics::{
-    vulkan::{instance::VulkanInstance, physical_device::VulkanPhysicalDevice},
+    vulkan::{image::VulkanImageFormat, instance::VulkanInstance, physical_device::VulkanPhysicalDevice},
     window::Window,
 };
 
@@ -15,7 +15,7 @@ pub struct VulkanSurface {
     physical_device_id: u32,
     surface: ash::vk::SurfaceKHR,
     surface_loader: ash::khr::surface::Instance,
-    surface_format: ash::vk::SurfaceFormatKHR,
+    surface_format: VulkanImageFormat,
     surface_capabilities: ash::vk::SurfaceCapabilitiesKHR,
 }
 
@@ -51,8 +51,8 @@ impl VulkanInitialSurface {
 
         let surface = unsafe {
             ash_window::create_surface(
-                instance.get_entry_raw(),
-                instance.get_instance_raw(),
+                instance.raw_entry(),
+                instance.raw_instance(),
                 display_handle.as_raw(),
                 window_handle.as_raw(),
                 None,
@@ -61,8 +61,8 @@ impl VulkanInitialSurface {
         };
 
         let surface_loader = ash::khr::surface::Instance::new(
-            instance.get_entry_raw(),
-            instance.get_instance_raw(),
+            instance.raw_entry(),
+            instance.raw_instance(),
         );
 
         Ok(VulkanInitialSurface {
@@ -88,11 +88,11 @@ impl VulkanInitialSurface {
         }
     }
 
-    pub fn get_surface_loader(&self) -> &ash::khr::surface::Instance {
+    pub fn surface_loader_raw(&self) -> &ash::khr::surface::Instance {
         &self.surface_loader
     }
 
-    pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
+    pub fn surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 }
 
 crate::create_counter! {ID_COUNTER}
@@ -111,7 +111,7 @@ impl VulkanSurface {
         let surface_formats = unsafe {
             surface_loader
                 .get_physical_device_surface_formats(
-                    *physical_device.get_physical_device_raw(),
+                    *physical_device.raw_physical_device(),
                     initial_surface.surface,
                 )
                 .map_err(|err| VulkanSurfaceError::FormatsError(err))?
@@ -124,23 +124,25 @@ impl VulkanSurface {
         let surface_capabilities = unsafe {
             surface_loader
                 .get_physical_device_surface_capabilities(
-                    *physical_device.get_physical_device_raw(),
+                    *physical_device.raw_physical_device(),
                     initial_surface.surface,
                 )
                 .map_err(|err| VulkanSurfaceError::CapabilitiesError(err))?
         };
 
         let preferred_formats = [
-            ash::vk::Format::R8G8B8A8_SRGB,
-            ash::vk::Format::B8G8R8A8_SRGB,
+            VulkanImageFormat::RGBA8SRGB,
+            VulkanImageFormat::BGRA8SRGB,
         ];
 
         let surface_format = *preferred_formats
             .iter()
             .find_map(|preffered_format| {
-                surface_formats
+                let found = surface_formats
                     .iter()
-                    .find(|format| format.format == *preffered_format)
+                    .find(|format| format.format == preffered_format.raw_image_format());
+                if found.is_some() { Some(preffered_format) }
+                else { None }
             })
             .ok_or(VulkanSurfaceError::NoSurfaceFormatsAvailable)?;
 
@@ -155,11 +157,11 @@ impl VulkanSurface {
         })
     }
 
-    pub fn get_surface_loader_raw(&self) -> &ash::khr::surface::Instance {
+    pub fn raw_surface_loader(&self) -> &ash::khr::surface::Instance {
         &self.surface_loader
     }
 
-    pub fn get_surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
+    pub fn raw_surface(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 
     pub fn min_image_count(&self) -> u32 {
         self.surface_capabilities.min_image_count
@@ -169,19 +171,15 @@ impl VulkanSurface {
         self.surface_capabilities.max_image_count
     }
 
-    pub fn supported_transforms(&self) -> ash::vk::SurfaceTransformFlagsKHR {
+    pub fn raw_supported_transforms(&self) -> ash::vk::SurfaceTransformFlagsKHR {
         self.surface_capabilities.supported_transforms
     }
 
-    pub fn current_transform(&self) -> ash::vk::SurfaceTransformFlagsKHR {
+    pub fn raw_current_transform(&self) -> ash::vk::SurfaceTransformFlagsKHR {
         self.surface_capabilities.current_transform
     }
 
-    pub fn format(&self) -> ash::vk::Format { self.surface_format.format }
-
-    pub fn color_space(&self) -> ash::vk::ColorSpaceKHR {
-        self.surface_format.color_space
-    }
+    pub fn format(&self) -> VulkanImageFormat { self.surface_format }
 
     pub fn id(&self) -> u32 { self.id }
 

@@ -7,9 +7,21 @@ pub struct Renderpass {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RenderpassAttachmentType {
-    PresentColor,
-    PresentDepth,
-    StoreDepth,
+    Color,
+    Depth,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RenderpassAttachmentLoadOp {
+    Load,
+    Clear,
+    DontCare
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RenderpassAttachmentStoreOp {
+    Store,
+    DontCare
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -21,6 +33,8 @@ pub enum RenderpassClearValue {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RenderpassAttachment {
     pub attachment_type: RenderpassAttachmentType,
+    pub load_op: RenderpassAttachmentLoadOp,
+    pub store_op: RenderpassAttachmentStoreOp,
     pub image_format: ImageFormat,
     pub clear_value: RenderpassClearValue,
 }

@@ -26,7 +26,7 @@ impl VulkanPhysicalDevice {
     ) -> Result<VulkanPhysicalDevice, VulkanPhysicalDeviceError> {
         let physical_devices = unsafe {
             instance
-                .get_instance_raw()
+                .raw_instance()
                 .enumerate_physical_devices()
                 .map_err(|err| VulkanPhysicalDeviceError::CreationError(err))?
         };
@@ -36,7 +36,7 @@ impl VulkanPhysicalDevice {
             .find_map(|p| {
                 unsafe {
                     instance
-                        .get_instance_raw()
+                        .raw_instance()
                         .get_physical_device_queue_family_properties(*p)
                 }
                 .iter()
@@ -64,7 +64,7 @@ impl VulkanPhysicalDevice {
 
         let memory_prop = unsafe {
             instance
-                .get_instance_raw()
+                .raw_instance()
                 .get_physical_device_memory_properties(physical_device)
         };
 
@@ -77,15 +77,15 @@ impl VulkanPhysicalDevice {
         })
     }
 
-    pub fn get_physical_device_raw(&self) -> &ash::vk::PhysicalDevice {
+    pub fn raw_physical_device(&self) -> &ash::vk::PhysicalDevice {
         &self.physical_device
     }
 
-    pub fn get_queue_family_index(&self) -> u32 { self.queue_family_index }
+    pub fn queue_family_index(&self) -> u32 { self.queue_family_index }
 
     pub fn id(&self) -> u32 { self.id }
 
-    pub fn physical_memory_properties(
+    pub fn raw_physical_memory_properties(
         &self,
     ) -> ash::vk::PhysicalDeviceMemoryProperties {
         self.physical_memory_properties

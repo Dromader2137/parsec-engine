@@ -21,7 +21,7 @@ use crate::{
         buffer::{Buffer, BufferUsage},
         command_list::CommandList,
         framebuffer::Framebuffer,
-        image::{Image, ImageFlag, ImageFormat, ImageView},
+        image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView},
         pipeline::{
             PipelineBinding, PipelineBindingType, PipelineCullingMode,
             PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
@@ -37,7 +37,8 @@ use crate::{
             transform_data::{TransformData, TransformDataManager},
         },
         renderpass::{
-            Renderpass, RenderpassAttachment, RenderpassAttachmentType,
+            Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
+            RenderpassAttachmentStoreOp, RenderpassAttachmentType,
             RenderpassClearValue,
         },
         sampler::Sampler,
@@ -47,7 +48,9 @@ use crate::{
         window::Window,
     },
     math::{
-        mat::Matrix4f, uvec::Vec2u, vec::{Vec2f, Vec3f}
+        mat::Matrix4f,
+        uvec::Vec2u,
+        vec::{Vec2f, Vec3f},
     },
     resources::{Resource, Resources},
     utils::identifiable::IdStore,
@@ -183,14 +186,18 @@ pub fn init_renderer(
     let renderpass = backend
         .create_renderpass(&[
             RenderpassAttachment {
-                attachment_type: RenderpassAttachmentType::PresentColor,
+                attachment_type: RenderpassAttachmentType::Color,
                 image_format: surface_format,
                 clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 0.0),
+                load_op: RenderpassAttachmentLoadOp::Clear,
+                store_op: RenderpassAttachmentStoreOp::Store,
             },
             RenderpassAttachment {
-                attachment_type: RenderpassAttachmentType::PresentDepth,
+                attachment_type: RenderpassAttachmentType::Depth,
                 image_format: ImageFormat::D32,
                 clear_value: RenderpassClearValue::Depth(1.0),
+                load_op: RenderpassAttachmentLoadOp::Clear,
+                store_op: RenderpassAttachmentStoreOp::DontCare,
             },
         ])
         .unwrap();
@@ -201,8 +208,8 @@ pub fn init_renderer(
         .map(|img| backend.create_image_view(*img).unwrap())
         .collect::<Vec<_>>();
     let depth_image = backend
-        .create_image(window.size(), ImageFormat::D32, &[
-            ImageFlag::DepthAttachment,
+        .create_image(window.size(), ImageFormat::D32, ImageAspect::Depth, &[
+            ImageUsage::DepthAttachment,
         ])
         .unwrap();
     let depth_image_view = backend.create_image_view(depth_image).unwrap();
@@ -227,9 +234,11 @@ pub fn init_renderer(
 
     let shadow_renderpass = backend
         .create_renderpass(&[RenderpassAttachment {
-            attachment_type: RenderpassAttachmentType::StoreDepth,
+            attachment_type: RenderpassAttachmentType::Depth,
             image_format: ImageFormat::D32,
             clear_value: RenderpassClearValue::Depth(1.0),
+            load_op: RenderpassAttachmentLoadOp::Clear,
+            store_op: RenderpassAttachmentStoreOp::Store,
         }])
         .unwrap();
     let shadow_vertex_shader = backend
@@ -279,10 +288,12 @@ pub fn init_renderer(
     );
     let shadow_size = 8192;
     let shadow_depth_image = backend
-        .create_image(Vec2u::new(shadow_size, shadow_size), ImageFormat::D32, &[
-            ImageFlag::DepthAttachment,
-            ImageFlag::Sampled,
-        ])
+        .create_image(
+            Vec2u::new(shadow_size, shadow_size),
+            ImageFormat::D32,
+            ImageAspect::Depth,
+            &[ImageUsage::DepthAttachment, ImageUsage::Sampled],
+        )
         .unwrap();
     let shadow_depth_view =
         backend.create_image_view(shadow_depth_image).unwrap();
@@ -449,8 +460,8 @@ fn recreate_size_dependent_components(
         .map(|img| backend.create_image_view(*img).unwrap())
         .collect::<Vec<_>>();
     let new_depth_image = backend
-        .create_image(window.size(), ImageFormat::D32, &[
-            ImageFlag::DepthAttachment,
+        .create_image(window.size(), ImageFormat::D32, ImageAspect::Depth, &[
+            ImageUsage::DepthAttachment,
         ])
         .unwrap();
     let new_depth_image_view =
@@ -601,7 +612,9 @@ pub fn render(
         }
     }
 
-    backend.command_end_renderpass(command_list, renderpass.0, framebuffer).unwrap();
+    backend
+        .command_end_renderpass(command_list)
+        .unwrap();
     backend
         .command_begin_renderpass(command_list, renderpass.0, framebuffer)
         .unwrap();
@@ -638,7 +651,9 @@ pub fn render(
         }
     }
 
-    backend.command_end_renderpass(command_list, renderpass.0, framebuffer).unwrap();
+    backend
+        .command_end_renderpass(command_list)
+        .unwrap();
     backend.command_end(command_list).unwrap();
 
     backend

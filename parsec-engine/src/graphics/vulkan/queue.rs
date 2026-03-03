@@ -19,7 +19,7 @@ pub enum VulkanQueueError {
 impl VulkanQueue {
     pub fn present(device: &VulkanDevice, family_index: u32) -> VulkanQueue {
         let raw_queue = unsafe {
-            device.get_device_raw().get_device_queue(family_index, 0)
+            device.raw_device().get_device_queue(family_index, 0)
         };
         VulkanQueue {
             device_id: device.id(),
@@ -62,7 +62,7 @@ impl VulkanQueue {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .queue_submit(
                     self.queue,
                     &[submit_info],

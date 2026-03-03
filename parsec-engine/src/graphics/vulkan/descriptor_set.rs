@@ -1,10 +1,35 @@
 use crate::graphics::{
-    pipeline::{PipelineBindingType, PipelineShaderStage},
+    pipeline::PipelineBindingType,
     vulkan::{
-        buffer::VulkanBuffer, device::VulkanDevice, image::VulkanImageView,
-        sampler::VulkanSampler,
+        buffer::VulkanBuffer, device::VulkanDevice, graphics_pipeline::VulkanShaderStage, image::VulkanImageView, sampler::VulkanSampler
     },
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanDescriptorType {
+    Sampler,
+    CombinedImageSampler,
+    UniformBuffer,
+    StorageBuffer,
+}
+
+impl VulkanDescriptorType {
+    pub fn new(value: PipelineBindingType) -> Self {
+        match value {
+            PipelineBindingType::UniformBuffer => Self::UniformBuffer,
+            PipelineBindingType::TextureSampler => Self::CombinedImageSampler,
+        }
+    }
+
+    pub fn raw_descriptor_type(&self) -> ash::vk::DescriptorType {
+        match self {
+            VulkanDescriptorType::Sampler => ash::vk::DescriptorType::SAMPLER,
+            VulkanDescriptorType::CombinedImageSampler => ash::vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+            VulkanDescriptorType::UniformBuffer => ash::vk::DescriptorType::UNIFORM_BUFFER,
+            VulkanDescriptorType::StorageBuffer => ash::vk::DescriptorType::STORAGE_BUFFER,
+        }
+    }
+}
 
 pub struct VulkanDescriptorPool {
     id: u32,
@@ -19,7 +44,7 @@ pub struct VulkanDescriptorPoolSize {
 pub struct VulkanDescriptorSet {
     id: u32,
     device_id: u32,
-    _descriptor_pool_id: u32,
+    descriptor_pool_id: u32,
     descriptor_layout_id: u32,
     set: ash::vk::DescriptorSet,
 }
@@ -34,7 +59,7 @@ pub struct VulkanDescriptorSetLayout {
 
 #[derive(Clone)]
 pub struct VulkanDescriptorSetBinding {
-    binding_type: DescriptorType,
+    binding_type: VulkanDescriptorType,
     binding: ash::vk::DescriptorSetLayoutBinding<'static>,
 }
 
@@ -52,43 +77,17 @@ pub enum VulkanDescriptorError {
     DeviceMismatch,
 }
 
-pub type DescriptorType = ash::vk::DescriptorType;
-
-impl From<PipelineBindingType> for DescriptorType {
-    fn from(value: PipelineBindingType) -> Self {
-        match value {
-            PipelineBindingType::UniformBuffer => {
-                DescriptorType::UNIFORM_BUFFER
-            },
-            PipelineBindingType::TextureSampler => {
-                DescriptorType::COMBINED_IMAGE_SAMPLER
-            },
-        }
-    }
-}
-
-pub type DescriptorStage = ash::vk::ShaderStageFlags;
-
-impl From<PipelineShaderStage> for DescriptorStage {
-    fn from(value: PipelineShaderStage) -> Self {
-        match value {
-            PipelineShaderStage::Fragment => DescriptorStage::FRAGMENT,
-            PipelineShaderStage::Vertex => DescriptorStage::VERTEX,
-        }
-    }
-}
-
 impl<'a> VulkanDescriptorSetBinding {
     pub fn new(
         binding: u32,
-        descriptor_type: DescriptorType,
-        descriptor_stage: DescriptorStage,
+        descriptor_type: VulkanDescriptorType,
+        descriptor_stage: VulkanShaderStage,
     ) -> VulkanDescriptorSetBinding {
         let binding = ash::vk::DescriptorSetLayoutBinding::default()
             .binding(binding)
             .descriptor_count(1)
-            .descriptor_type(descriptor_type)
-            .stage_flags(descriptor_stage);
+            .descriptor_type(descriptor_type.raw_descriptor_type())
+            .stage_flags(descriptor_stage.raw_shader_stage());
 
         VulkanDescriptorSetBinding {
             binding,
@@ -96,17 +95,17 @@ impl<'a> VulkanDescriptorSetBinding {
         }
     }
 
-    pub fn binding_type(&self) -> DescriptorType { self.binding_type }
+    pub fn binding_type(&self) -> VulkanDescriptorType { self.binding_type }
 }
 
 impl VulkanDescriptorPoolSize {
     pub fn new(
         descriptor_count: u32,
-        descriptor_type: DescriptorType,
+        descriptor_type: VulkanDescriptorType,
     ) -> VulkanDescriptorPoolSize {
         let size = ash::vk::DescriptorPoolSize::default()
-            .descriptor_count(descriptor_count)
-            .ty(descriptor_type);
+            .ty(descriptor_type.raw_descriptor_type())
+            .descriptor_count(descriptor_count);
         VulkanDescriptorPoolSize { size }
     }
 }
@@ -128,7 +127,7 @@ impl VulkanDescriptorPool {
 
         let pool = unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .create_descriptor_pool(&create_info, None)
                 .map_err(|err| VulkanDescriptorError::PoolCreationError(err))?
         };
@@ -158,7 +157,7 @@ impl<'a> VulkanDescriptorSetLayout {
 
         let layout = match unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .create_descriptor_set_layout(&create_info, None)
         } {
             Ok(val) => val,
@@ -207,7 +206,7 @@ impl VulkanDescriptorSet {
 
         let set = match unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .allocate_descriptor_sets(&create_info)
         } {
             Ok(val) => val,
@@ -219,7 +218,7 @@ impl VulkanDescriptorSet {
         Ok(VulkanDescriptorSet {
             id: ID_COUNTER_SET.next(),
             device_id: device.id(),
-            _descriptor_pool_id: descriptor_pool.id(),
+            descriptor_pool_id: descriptor_pool.id(),
             descriptor_layout_id: descriptor_layout.id(),
             set,
         })
@@ -250,7 +249,7 @@ impl VulkanDescriptorSet {
             };
 
         let write_info = ash::vk::WriteDescriptorSet::default()
-            .descriptor_type(binding_type)
+            .descriptor_type(binding_type.raw_descriptor_type())
             .dst_binding(dst_binding)
             .dst_set(self.set)
             .descriptor_count(descriptor_layout.bindings().len() as u32)
@@ -259,7 +258,7 @@ impl VulkanDescriptorSet {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .update_descriptor_sets(&[write_info], &[]);
         }
 
@@ -275,7 +274,7 @@ impl VulkanDescriptorSet {
         dst_binding: u32,
     ) -> Result<(), VulkanDescriptorError> {
         let image_info = [ash::vk::DescriptorImageInfo::default()
-            .image_view(*view.get_image_view_raw())
+            .image_view(*view.raw_image_view())
             .sampler(sampler.sampler_raw())
             .image_layout(ash::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)];
 
@@ -286,7 +285,7 @@ impl VulkanDescriptorSet {
             };
 
         let write_info = ash::vk::WriteDescriptorSet::default()
-            .descriptor_type(binding_type)
+            .descriptor_type(binding_type.raw_descriptor_type())
             .dst_binding(dst_binding)
             .dst_set(self.set)
             .descriptor_count(descriptor_layout.bindings().len() as u32)
@@ -295,7 +294,7 @@ impl VulkanDescriptorSet {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .update_descriptor_sets(&[write_info], &[]);
         }
 
@@ -308,7 +307,7 @@ impl VulkanDescriptorSet {
 
     pub fn device_id(&self) -> u32 { self.device_id }
 
-    pub fn _descriptor_pool_id(&self) -> u32 { self._descriptor_pool_id }
+    pub fn descriptor_pool_id(&self) -> u32 { self.descriptor_pool_id }
 
     pub fn descriptor_layout_id(&self) -> u32 { self.descriptor_layout_id }
 }

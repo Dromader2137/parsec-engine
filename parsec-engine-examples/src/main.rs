@@ -9,7 +9,7 @@ use parsec_engine::{
         GraphicsBundle,
         backend::GraphicsBackend,
         buffer::BufferUsage,
-        image::{ImageFlag, ImageFormat},
+        image::{ImageAspect, ImageFormat, ImageUsage},
         pipeline::{
             PipelineBindingType, PipelineCullingMode, PipelineOptions,
             PipelineShaderStage, PipelineSubbindingLayout,
@@ -112,11 +112,12 @@ fn test_system(
         .create_buffer(image_data, &[BufferUsage::TransferSrc])
         .unwrap();
     let texture_image = backend
-        .create_image(Vec2u::new(width, height), ImageFormat::RGBA8SRGB, &[
-            ImageFlag::Sampled,
-            ImageFlag::ColorBuffer,
-            ImageFlag::TransferDst,
-        ])
+        .create_image(
+            Vec2u::new(width, height),
+            ImageFormat::RGBA8SRGB,
+            ImageAspect::Color,
+            &[ImageUsage::Sampled, ImageUsage::TransferDst],
+        )
         .unwrap();
     backend
         .load_image_from_buffer(texture_buffer, texture_image)

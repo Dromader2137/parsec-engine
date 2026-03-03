@@ -24,7 +24,7 @@ impl VulkanSampler {
 
         let sampler = unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .create_sampler(&sampler_info, None)
                 .map_err(|err| VulkanSamplerError::SamplerCreationError(err))?
         };
@@ -46,7 +46,7 @@ impl VulkanSampler {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .destroy_sampler(self.sampler_raw(), None);
         }
         Ok(())

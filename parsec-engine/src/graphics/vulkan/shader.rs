@@ -43,7 +43,7 @@ impl VulkanShaderModule {
 
         let shader_module = match unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .create_shader_module(&create_info, None)
         } {
             Ok(val) => val,
@@ -68,7 +68,7 @@ impl VulkanShaderModule {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .destroy_shader_module(*self.get_shader_module_raw(), None);
         }
         Ok(())

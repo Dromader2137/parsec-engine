@@ -23,7 +23,7 @@ impl VulkanSemaphore {
         let create_info = ash::vk::SemaphoreCreateInfo::default();
 
         let semaphore = match unsafe {
-            device.get_device_raw().create_semaphore(&create_info, None)
+            device.raw_device().create_semaphore(&create_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanSemaphoreError::CreationError(err)),
@@ -54,7 +54,7 @@ impl VulkanSemaphore {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .destroy_semaphore(*self.get_semaphore_raw(), None);
         }
         Ok(())

@@ -2,12 +2,10 @@ use crate::{
     graphics::vulkan::{
         device::VulkanDevice,
         image::{VulkanImage, VulkanImageView},
-        renderpass::VulkanRenderpass, utils::VulkanResult,
+        renderpass::VulkanRenderpass,
     },
     math::uvec::Vec2u,
 };
-
-pub type VulkanRawFramebuffer = ash::vk::Framebuffer;
 
 pub struct VulkanFramebuffer {
     id: u32,
@@ -15,13 +13,13 @@ pub struct VulkanFramebuffer {
     renderpass_id: u32,
     attached_images_ids: Vec<u32>,
     dimensions: Vec2u,
-    raw_framebuffer: VulkanRawFramebuffer,
+    raw_framebuffer: ash::vk::Framebuffer,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum VulkanFramebufferError {
     #[error("Failed to create framebuffer: {0}")]
-    CreationError(VulkanResult),
+    CreationError(ash::vk::Result),
     #[error("Framebuffer created on different device")]
     DeviceMismatch,
 }
@@ -38,7 +36,7 @@ impl VulkanFramebuffer {
         let mut raw_attachments = Vec::new();
         for (attachment_view, attachment_image) in attachments.iter() {
             attached_images_ids.push(attachment_image.id());
-            raw_attachments.push(*attachment_view.get_image_view_raw());
+            raw_attachments.push(*attachment_view.raw_image_view());
         }
 
         let frame_buffer_create_info =
@@ -51,7 +49,7 @@ impl VulkanFramebuffer {
 
         let raw_framebuffer = match unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .create_framebuffer(&frame_buffer_create_info, None)
         } {
             Ok(val) => val,
@@ -78,13 +76,13 @@ impl VulkanFramebuffer {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .destroy_framebuffer(*self.raw_framebuffer(), None);
         }
         Ok(())
     }
 
-    pub fn raw_framebuffer(&self) -> &VulkanRawFramebuffer {
+    pub fn raw_framebuffer(&self) -> &ash::vk::Framebuffer {
         &self.raw_framebuffer
     }
 

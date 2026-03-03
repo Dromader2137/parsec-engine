@@ -2,7 +2,63 @@ use std::fmt::Debug;
 
 use crate::graphics::{buffer::BufferUsage, vulkan::device::VulkanDevice};
 
-#[allow(unused)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanBufferUsage {
+    TransferSrc,
+    TransferDst,
+    UniformBuffer,
+    StorageBuffer,
+    IndexBuffer,
+    VertexBuffer,
+    IndirectBuffer,
+}
+
+impl VulkanBufferUsage {
+    pub fn new(value: BufferUsage) -> Self {
+        match value {
+            BufferUsage::TransferSrc => Self::TransferSrc,
+            BufferUsage::TransferDst => Self::TransferDst,
+            BufferUsage::Uniform => Self::UniformBuffer,
+            BufferUsage::Index => Self::IndexBuffer,
+            BufferUsage::Vertex => Self::VertexBuffer,
+        }
+    }
+
+    pub fn raw_buffer_usage(&self) -> ash::vk::BufferUsageFlags {
+        match self {
+            VulkanBufferUsage::TransferSrc => {
+                ash::vk::BufferUsageFlags::TRANSFER_SRC
+            },
+            VulkanBufferUsage::TransferDst => {
+                ash::vk::BufferUsageFlags::TRANSFER_DST
+            },
+            VulkanBufferUsage::UniformBuffer => {
+                ash::vk::BufferUsageFlags::UNIFORM_BUFFER
+            },
+            VulkanBufferUsage::StorageBuffer => {
+                ash::vk::BufferUsageFlags::STORAGE_BUFFER
+            },
+            VulkanBufferUsage::IndexBuffer => {
+                ash::vk::BufferUsageFlags::INDEX_BUFFER
+            },
+            VulkanBufferUsage::VertexBuffer => {
+                ash::vk::BufferUsageFlags::VERTEX_BUFFER
+            },
+            VulkanBufferUsage::IndirectBuffer => {
+                ash::vk::BufferUsageFlags::INDIRECT_BUFFER
+            },
+        }
+    }
+    
+    fn raw_combined_buffer_usage(usage: &[Self]) -> ash::vk::BufferUsageFlags {
+        usage
+            .iter()
+            .fold(ash::vk::BufferUsageFlags::empty(), |acc, v| {
+                acc | v.raw_buffer_usage()
+            })
+    }
+}
+
 pub struct VulkanBuffer {
     id: u32,
     device_id: u32,
@@ -42,47 +98,29 @@ pub enum VulkanBufferError {
     DeviceMismatch,
 }
 
-pub type VulkanBufferUsage = ash::vk::BufferUsageFlags;
-
-impl From<BufferUsage> for VulkanBufferUsage {
-    fn from(value: BufferUsage) -> Self {
-        match value {
-            BufferUsage::Uniform => VulkanBufferUsage::UNIFORM_BUFFER,
-            BufferUsage::Index => VulkanBufferUsage::INDEX_BUFFER,
-            BufferUsage::Vertex => VulkanBufferUsage::VERTEX_BUFFER,
-            BufferUsage::TransferSrc => VulkanBufferUsage::TRANSFER_SRC,
-            BufferUsage::TransferDst => VulkanBufferUsage::TRANSFER_DST,
-        }
-    }
-}
-
 crate::create_counter! {ID_COUNTER}
 impl VulkanBuffer {
     pub fn from_vec<T: Clone + Copy>(
         device: &VulkanDevice,
         data: &[T],
-        usage: VulkanBufferUsage,
+        usage: &[VulkanBufferUsage],
     ) -> Result<VulkanBuffer, VulkanBufferError> {
         let size = data.len() * size_of::<T>();
 
         let index_buffer_info = ash::vk::BufferCreateInfo::default()
             .size(size as u64)
-            .usage(usage.into())
+            .usage(VulkanBufferUsage::raw_combined_buffer_usage(usage))
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
         let buffer = match unsafe {
-            device
-                .get_device_raw()
-                .create_buffer(&index_buffer_info, None)
+            device.raw_device().create_buffer(&index_buffer_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanBufferError::CreationError(err)),
         };
 
         let memory_req = unsafe {
-            device
-                .get_device_raw()
-                .get_buffer_memory_requirements(buffer)
+            device.raw_device().get_buffer_memory_requirements(buffer)
         };
         let memory_index = match find_memorytype_index(
             &memory_req,
@@ -100,16 +138,14 @@ impl VulkanBuffer {
             ..Default::default()
         };
         let memory = match unsafe {
-            device
-                .get_device_raw()
-                .allocate_memory(&allocate_info, None)
+            device.raw_device().allocate_memory(&allocate_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanBufferError::AllocationError(err)),
         };
 
         let memory_ptr = match unsafe {
-            device.get_device_raw().map_memory(
+            device.raw_device().map_memory(
                 memory,
                 0,
                 memory_req.size,
@@ -129,12 +165,10 @@ impl VulkanBuffer {
         };
 
         slice.copy_from_slice(&data);
-        unsafe { device.get_device_raw().unmap_memory(memory) };
-        if let Err(err) = unsafe {
-            device
-                .get_device_raw()
-                .bind_buffer_memory(buffer, memory, 0)
-        } {
+        unsafe { device.raw_device().unmap_memory(memory) };
+        if let Err(err) =
+            unsafe { device.raw_device().bind_buffer_memory(buffer, memory, 0) }
+        {
             return Err(VulkanBufferError::BindError(err));
         }
 
@@ -169,7 +203,7 @@ impl VulkanBuffer {
         }
 
         let memory_ptr = match unsafe {
-            device.get_device_raw().map_memory(
+            device.raw_device().map_memory(
                 self.memory,
                 0,
                 self.memory_size,
@@ -190,7 +224,7 @@ impl VulkanBuffer {
 
         slice.copy_from_slice(&data);
 
-        unsafe { device.get_device_raw().unmap_memory(self.memory) };
+        unsafe { device.raw_device().unmap_memory(self.memory) };
 
         Ok(())
     }
@@ -205,10 +239,10 @@ impl VulkanBuffer {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .destroy_buffer(*self.get_buffer_raw(), None);
             device
-                .get_device_raw()
+                .raw_device()
                 .free_memory(*self.get_memory_raw(), None);
         }
         Ok(())
@@ -228,7 +262,7 @@ pub fn find_memorytype_index(
     flags: ash::vk::MemoryPropertyFlags,
     device: &VulkanDevice,
 ) -> Option<u32> {
-    let memory_prop = device.memory_properties();
+    let memory_prop = device.raw_memory_properties();
     memory_prop.memory_types[..memory_prop.memory_type_count as _]
         .iter()
         .enumerate()

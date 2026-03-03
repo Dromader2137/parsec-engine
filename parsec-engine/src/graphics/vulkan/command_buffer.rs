@@ -1,95 +1,63 @@
 use std::collections::HashMap;
 
 use crate::{
-    graphics::{
-        pipeline::PipelineStage,
-        vulkan::{
-            buffer::VulkanBuffer,
-            descriptor_set::VulkanDescriptorSet,
-            device::VulkanDevice,
-            framebuffer::VulkanFramebuffer,
-            graphics_pipeline::VulkanGraphicsPipeline,
-            image::{
-                VulkanImage, VulkanImageError, VulkanImageLayout,
-                VulkanOwnedImage,
-            },
-            physical_device::VulkanPhysicalDevice,
-            renderpass::VulkanRenderpass,
-            utils::VulkanResult,
-        },
+    graphics::vulkan::{
+        buffer::VulkanBuffer,
+        descriptor_set::VulkanDescriptorSet,
+        device::VulkanDevice,
+        framebuffer::VulkanFramebuffer,
+        graphics_pipeline::VulkanGraphicsPipeline,
+        image::{VulkanImage, VulkanImageLayout, VulkanOwnedImage},
+        physical_device::VulkanPhysicalDevice,
+        renderpass::VulkanRenderpass,
+        utils::raw_rect_2d,
     },
-    math::uvec::Vec2u,
+    math::{ivec::Vec2i, uvec::Vec2u},
 };
-
-pub type VulkanAccess = ash::vk::AccessFlags;
-
-pub type RawVulkanMemoryBarrier = ash::vk::MemoryBarrier<'static>;
-pub type RawVulkanBufferMemoryBarrier = ash::vk::BufferMemoryBarrier<'static>;
-pub type RawVulkanImageMemoryBarrier<'a> = ash::vk::ImageMemoryBarrier<'a>;
-
-pub type VulkanPipelineStage = ash::vk::PipelineStageFlags;
-pub type VulkanRawCommandBuffer = ash::vk::CommandBuffer;
-pub type VulkanRawCommandPool = ash::vk::CommandPool;
-
-pub struct VulkanImageMemoryBarrier;
-impl VulkanImageMemoryBarrier {
-    pub fn raw_image_barrier<'a>(
-        image: &mut dyn VulkanImage,
-        new_layout: VulkanImageLayout,
-        new_access: VulkanAccess,
-    ) -> Result<RawVulkanImageMemoryBarrier<'a>, VulkanImageError> {
-        let old_layout = image.set_layout(new_layout)?;
-        let old_access = image.set_access(new_access)?;
-
-        Ok(RawVulkanImageMemoryBarrier::default()
-            .image(*image.raw_image())
-            .subresource_range(image.subresource_range())
-            // .old_layout(old_layout)
-            .new_layout(new_layout)
-            .src_access_mask(old_access)
-            .dst_access_mask(new_access))
-    }
-}
 
 pub struct VulkanCommandPool {
     id: u32,
     device_id: u32,
-    raw_command_pool: VulkanRawCommandPool,
+    raw_command_pool: ash::vk::CommandPool,
 }
 
 pub struct VulkanCommandBufferImageState {
     image_id: u32,
-    last_pipeline_stage: VulkanPipelineStage,
-    last_access: VulkanAccess,
+    last_pipeline_stage: ash::vk::PipelineStageFlags,
+    last_access: ash::vk::AccessFlags,
 }
 
 pub struct VulkanCommandBuffer {
     id: u32,
     device_id: u32,
     image_state: HashMap<u32, VulkanCommandBufferImageState>,
-    raw_command_buffer: VulkanRawCommandBuffer,
+    raw_command_buffer: ash::vk::CommandBuffer,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum VulkanCommandBufferError {
     #[error("Failed to create Command Buffer: {0}")]
-    CreationError(VulkanResult),
+    CreationError(ash::vk::Result),
     #[error("Failed to begin Command Buffer: {0}")]
-    BeginError(VulkanResult),
+    BeginError(ash::vk::Result),
     #[error("Failed to end Command Buffer: {0}")]
-    EndError(VulkanResult),
+    EndError(ash::vk::Result),
     #[error("Failed to reset Command Buffer: {0}")]
-    ResetError(VulkanResult),
+    ResetError(ash::vk::Result),
     #[error("Command Buffer created on a different Device")]
     DeviceMismatch,
     #[error("Renderpass doesn't match")]
     RenderpassMismatch,
+    #[error("Viewport size must be non-zero")]
+    InvalidViewportSize,
+    #[error("Scissor size must be non-zero")]
+    InvalidScissorSize,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum VulkanCommandPoolError {
     #[error("Failed to create command pool: {0}")]
-    CreationError(VulkanResult),
+    CreationError(ash::vk::Result),
     #[error("Device created on different physical device")]
     PhysicalDeviceMismatch,
 }
@@ -106,12 +74,10 @@ impl VulkanCommandPool {
 
         let pool_info = ash::vk::CommandPoolCreateInfo::default()
             .flags(ash::vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(physical_device.get_queue_family_index());
+            .queue_family_index(physical_device.queue_family_index());
 
         let raw_command_pool = match unsafe {
-            device
-                .get_device_raw()
-                .create_command_pool(&pool_info, None)
+            device.raw_device().create_command_pool(&pool_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanCommandPoolError::CreationError(err)),
@@ -124,13 +90,233 @@ impl VulkanCommandPool {
         })
     }
 
-    pub fn raw_command_pool(&self) -> &VulkanRawCommandPool {
+    pub fn raw_command_pool(&self) -> &ash::vk::CommandPool {
         &self.raw_command_pool
     }
 
     pub fn id(&self) -> u32 { self.id }
 
     pub fn device_id(&self) -> u32 { self.device_id }
+}
+
+pub enum VulkanPipelineStage {
+    TopOfPipe,
+    VertexInput,
+    VertexShader,
+    EarlyFragmentTests,
+    FragmentShader,
+    LateFragmentTests,
+    BottomOfPipe,
+    Transfer,
+    Host,
+}
+
+impl VulkanPipelineStage {
+    fn raw_pipeline_stage(&self) -> ash::vk::PipelineStageFlags {
+        match self {
+            VulkanPipelineStage::TopOfPipe => {
+                ash::vk::PipelineStageFlags::TOP_OF_PIPE
+            },
+            VulkanPipelineStage::VertexInput => {
+                ash::vk::PipelineStageFlags::VERTEX_INPUT
+            },
+            VulkanPipelineStage::VertexShader => {
+                ash::vk::PipelineStageFlags::VERTEX_SHADER
+            },
+            VulkanPipelineStage::EarlyFragmentTests => {
+                ash::vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+            },
+            VulkanPipelineStage::FragmentShader => {
+                ash::vk::PipelineStageFlags::FRAGMENT_SHADER
+            },
+            VulkanPipelineStage::LateFragmentTests => {
+                ash::vk::PipelineStageFlags::LATE_FRAGMENT_TESTS
+            },
+            VulkanPipelineStage::BottomOfPipe => {
+                ash::vk::PipelineStageFlags::BOTTOM_OF_PIPE
+            },
+            VulkanPipelineStage::Transfer => {
+                ash::vk::PipelineStageFlags::TRANSFER
+            },
+            VulkanPipelineStage::Host => ash::vk::PipelineStageFlags::HOST,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VulkanAccess {
+    IndirectCommandRead,
+    IndexRead,
+    VertexAttributeRead,
+    UniformRead,
+    InputAttachmentRead,
+    ShaderRead,
+    ShaderWrite,
+    ColorAttachmentRead,
+    ColorAttachmentWrite,
+    DepthAttachmentRead,
+    DepthAttachmentWrite,
+    TransferRead,
+    TransferWrite,
+    HostRead,
+    HostWrite,
+    MemoryRead,
+    MemoryWrite,
+    None,
+}
+
+impl VulkanAccess {
+    fn raw_access_flag(&self) -> ash::vk::AccessFlags {
+        match self {
+            VulkanAccess::IndirectCommandRead => {
+                ash::vk::AccessFlags::INDIRECT_COMMAND_READ
+            },
+            VulkanAccess::IndexRead => ash::vk::AccessFlags::INDEX_READ,
+            VulkanAccess::VertexAttributeRead => {
+                ash::vk::AccessFlags::VERTEX_ATTRIBUTE_READ
+            },
+            VulkanAccess::UniformRead => ash::vk::AccessFlags::UNIFORM_READ,
+            VulkanAccess::InputAttachmentRead => {
+                ash::vk::AccessFlags::INPUT_ATTACHMENT_READ
+            },
+            VulkanAccess::ShaderRead => ash::vk::AccessFlags::SHADER_READ,
+            VulkanAccess::ShaderWrite => ash::vk::AccessFlags::SHADER_WRITE,
+            VulkanAccess::ColorAttachmentRead => {
+                ash::vk::AccessFlags::COLOR_ATTACHMENT_READ
+            },
+            VulkanAccess::ColorAttachmentWrite => {
+                ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+            },
+            VulkanAccess::DepthAttachmentRead => {
+                ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+            },
+            VulkanAccess::DepthAttachmentWrite => {
+                ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE
+            },
+            VulkanAccess::TransferRead => ash::vk::AccessFlags::TRANSFER_READ,
+            VulkanAccess::TransferWrite => ash::vk::AccessFlags::TRANSFER_WRITE,
+            VulkanAccess::HostRead => ash::vk::AccessFlags::HOST_READ,
+            VulkanAccess::HostWrite => ash::vk::AccessFlags::HOST_WRITE,
+            VulkanAccess::MemoryRead => ash::vk::AccessFlags::MEMORY_READ,
+            VulkanAccess::MemoryWrite => ash::vk::AccessFlags::MEMORY_WRITE,
+            VulkanAccess::None => ash::vk::AccessFlags::NONE,
+        }
+    }
+
+    fn raw_combined_access_flag(access: &[Self]) -> ash::vk::AccessFlags {
+        access.iter().fold(ash::vk::AccessFlags::empty(), |acc, x| {
+            acc | x.raw_access_flag()
+        })
+    }
+}
+
+pub struct VulkanMemoryBarrier<'a> {
+    src_access: &'a [VulkanAccess],
+    dst_access: &'a [VulkanAccess],
+}
+
+impl<'a> VulkanMemoryBarrier<'a> {
+    pub fn new(
+        src_access: &'a [VulkanAccess],
+        dst_access: &'a [VulkanAccess],
+    ) -> Self {
+        Self {
+            src_access,
+            dst_access,
+        }
+    }
+
+    fn raw_memory_barrier(&self) -> ash::vk::MemoryBarrier {
+        ash::vk::MemoryBarrier {
+            src_access_mask: VulkanAccess::raw_combined_access_flag(
+                self.src_access,
+            ),
+            dst_access_mask: VulkanAccess::raw_combined_access_flag(
+                self.dst_access,
+            ),
+            ..Default::default()
+        }
+    }
+}
+
+pub struct VulkanBufferMemoryBarrier<'buffer, 'a> {
+    src_access: &'a [VulkanAccess],
+    dst_access: &'a [VulkanAccess],
+    buffer: &'buffer VulkanBuffer,
+}
+
+impl<'buffer, 'a> VulkanBufferMemoryBarrier<'buffer, 'a> {
+    pub fn new(
+        src_access: &'a [VulkanAccess],
+        dst_access: &'a [VulkanAccess],
+        buffer: &'buffer VulkanBuffer,
+    ) -> Self {
+        Self {
+            src_access,
+            dst_access,
+            buffer,
+        }
+    }
+
+    fn raw_buffer_memory_barrier(&self) -> ash::vk::BufferMemoryBarrier<'_> {
+        ash::vk::BufferMemoryBarrier {
+            src_access_mask: VulkanAccess::raw_combined_access_flag(
+                self.src_access,
+            ),
+            dst_access_mask: VulkanAccess::raw_combined_access_flag(
+                self.dst_access,
+            ),
+            buffer: *self.buffer.get_buffer_raw(),
+            ..Default::default()
+        }
+    }
+}
+
+pub struct VulkanImageMemoryBarrier<'image, 'a> {
+    src_access: &'a [VulkanAccess],
+    dst_access: &'a [VulkanAccess],
+    src_layout: VulkanImageLayout,
+    dst_layout: VulkanImageLayout,
+    image: &'image dyn VulkanImage,
+}
+
+impl<'image, 'a> VulkanImageMemoryBarrier<'image, 'a> {
+    pub fn new(
+        src_access: &'a [VulkanAccess],
+        dst_access: &'a [VulkanAccess],
+        src_layout: VulkanImageLayout,
+        dst_layout: VulkanImageLayout,
+        image: &'image dyn VulkanImage,
+    ) -> Self {
+        Self {
+            src_access,
+            dst_access,
+            src_layout,
+            dst_layout,
+            image,
+        }
+    }
+
+    fn raw_image_memory_barrier(&self) -> ash::vk::ImageMemoryBarrier<'_> {
+        ash::vk::ImageMemoryBarrier {
+            subresource_range: ash::vk::ImageSubresourceRange {
+                aspect_mask: self.image.aspect().raw_image_aspect(),
+                level_count: 1,
+                layer_count: 1,
+                ..Default::default()
+            },
+            src_access_mask: VulkanAccess::raw_combined_access_flag(
+                self.src_access,
+            ),
+            dst_access_mask: VulkanAccess::raw_combined_access_flag(
+                self.dst_access,
+            ),
+            old_layout: self.src_layout.raw_image_layout(),
+            new_layout: self.dst_layout.raw_image_layout(),
+            image: *self.image.raw_image(),
+            ..Default::default()
+        }
+    }
 }
 
 crate::create_counter! {COMMAND_BUFFER_ID_COUNTER}
@@ -149,9 +335,7 @@ impl VulkanCommandBuffer {
             .level(ash::vk::CommandBufferLevel::PRIMARY);
 
         let command_buffer = match unsafe {
-            device
-                .get_device_raw()
-                .allocate_command_buffers(&create_info)
+            device.raw_device().allocate_command_buffers(&create_info)
         } {
             Ok(val) => val,
             Err(err) => {
@@ -180,7 +364,7 @@ impl VulkanCommandBuffer {
 
         if let Err(err) = unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .begin_command_buffer(self.raw_command_buffer, &begin_info)
         } {
             return Err(VulkanCommandBufferError::BeginError(err));
@@ -199,7 +383,7 @@ impl VulkanCommandBuffer {
 
         if let Err(err) = unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .end_command_buffer(self.raw_command_buffer)
         } {
             return Err(VulkanCommandBufferError::EndError(err));
@@ -224,21 +408,20 @@ impl VulkanCommandBuffer {
             return Err(VulkanCommandBufferError::RenderpassMismatch);
         }
 
-        let clear_values = renderpass.clear_values();
-        let attached_images = framebuffer.attached_images_id();
-
-        for (attachment, attached_image) in renderpass.attachments().iter().zip(attached_images.iter()) {
-            
-        }
+        let clear_values = renderpass
+            .clear_values()
+            .iter()
+            .map(|v| v.raw_clear_value())
+            .collect::<Vec<_>>();
 
         let begin_info = ash::vk::RenderPassBeginInfo::default()
             .render_pass(*renderpass.get_renderpass_raw())
             .framebuffer(*framebuffer.raw_framebuffer())
-            .render_area(framebuffer.dimensions().into())
+            .render_area(raw_rect_2d(framebuffer.dimensions(), Vec2i::ZERO))
             .clear_values(&clear_values);
 
         unsafe {
-            device.get_device_raw().cmd_begin_render_pass(
+            device.raw_device().cmd_begin_render_pass(
                 self.raw_command_buffer,
                 &begin_info,
                 ash::vk::SubpassContents::INLINE,
@@ -258,7 +441,7 @@ impl VulkanCommandBuffer {
 
         unsafe {
             device
-                .get_device_raw()
+                .raw_device()
                 .cmd_end_render_pass(self.raw_command_buffer)
         };
 
@@ -277,6 +460,10 @@ impl VulkanCommandBuffer {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
+        if dimensions.x == 0 && dimensions.y == 0 {
+            return Err(VulkanCommandBufferError::InvalidViewportSize);
+        }
+
         let viewports = [ash::vk::Viewport {
             x: 0.0,
             y: 0.0,
@@ -286,7 +473,7 @@ impl VulkanCommandBuffer {
             max_depth: 1.0,
         }];
         unsafe {
-            device.get_device_raw().cmd_set_viewport(
+            device.raw_device().cmd_set_viewport(
                 self.raw_command_buffer,
                 0,
                 &viewports,
@@ -300,6 +487,7 @@ impl VulkanCommandBuffer {
         &self,
         device: &VulkanDevice,
         dimensions: Vec2u,
+        offset: Vec2i,
         renderpass: &VulkanRenderpass,
     ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id()
@@ -308,9 +496,13 @@ impl VulkanCommandBuffer {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
-        let scissors = [dimensions.into()];
+        if dimensions.x == 0 && dimensions.y == 0 {
+            return Err(VulkanCommandBufferError::InvalidScissorSize);
+        }
+
+        let scissors = [raw_rect_2d(dimensions, offset)];
         unsafe {
-            device.get_device_raw().cmd_set_scissor(
+            device.raw_device().cmd_set_scissor(
                 self.raw_command_buffer,
                 0,
                 &scissors,
@@ -332,7 +524,7 @@ impl VulkanCommandBuffer {
         }
 
         unsafe {
-            device.get_device_raw().cmd_bind_pipeline(
+            device.raw_device().cmd_bind_pipeline(
                 self.raw_command_buffer,
                 ash::vk::PipelineBindPoint::GRAPHICS,
                 *pipeline.get_pipeline_raw(),
@@ -342,7 +534,7 @@ impl VulkanCommandBuffer {
         Ok(())
     }
 
-    pub fn _draw(
+    pub fn draw(
         &self,
         device: &VulkanDevice,
         vertex_count: u32,
@@ -355,7 +547,7 @@ impl VulkanCommandBuffer {
         }
 
         unsafe {
-            device.get_device_raw().cmd_draw(
+            device.raw_device().cmd_draw(
                 self.raw_command_buffer,
                 vertex_count,
                 instance_count,
@@ -381,7 +573,7 @@ impl VulkanCommandBuffer {
         }
 
         unsafe {
-            device.get_device_raw().cmd_draw_indexed(
+            device.raw_device().cmd_draw_indexed(
                 self.raw_command_buffer,
                 index_count,
                 instance_count,
@@ -403,7 +595,7 @@ impl VulkanCommandBuffer {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
         unsafe {
-            device.get_device_raw().cmd_bind_vertex_buffers(
+            device.raw_device().cmd_bind_vertex_buffers(
                 self.raw_command_buffer,
                 0,
                 &[*buffer.get_buffer_raw()],
@@ -424,7 +616,7 @@ impl VulkanCommandBuffer {
         }
 
         unsafe {
-            device.get_device_raw().cmd_bind_index_buffer(
+            device.raw_device().cmd_bind_index_buffer(
                 self.raw_command_buffer,
                 *buffer.get_buffer_raw(),
                 0,
@@ -450,7 +642,7 @@ impl VulkanCommandBuffer {
         }
 
         unsafe {
-            device.get_device_raw().cmd_bind_descriptor_sets(
+            device.raw_device().cmd_bind_descriptor_sets(
                 self.raw_command_buffer,
                 ash::vk::PipelineBindPoint::GRAPHICS,
                 *pipeline.get_layout_raw(),
@@ -481,11 +673,11 @@ impl VulkanCommandBuffer {
             .image_subresource(
                 ash::vk::ImageSubresourceLayers::default()
                     .layer_count(1)
-                    .aspect_mask(image.aspect_flags()),
+                    .aspect_mask(image.aspect().raw_image_aspect()),
             );
 
         unsafe {
-            device.get_device_raw().cmd_copy_buffer_to_image(
+            device.raw_device().cmd_copy_buffer_to_image(
                 self.raw_command_buffer,
                 *buffer.get_buffer_raw(),
                 *image.raw_image(),
@@ -502,23 +694,32 @@ impl VulkanCommandBuffer {
         device: &VulkanDevice,
         src_stage: VulkanPipelineStage,
         dst_stage: VulkanPipelineStage,
-        memory_barriers: &[RawVulkanMemoryBarrier],
-        buffer_memory_barriers: &[RawVulkanBufferMemoryBarrier],
-        image_memory_barriers: &[RawVulkanImageMemoryBarrier],
+        memory_barriers: &[VulkanMemoryBarrier],
+        buffer_memory_barriers: &[VulkanBufferMemoryBarrier],
+        image_memory_barriers: &[VulkanImageMemoryBarrier],
     ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
         unsafe {
-            device.get_device_raw().cmd_pipeline_barrier(
+            device.raw_device().cmd_pipeline_barrier(
                 self.raw_command_buffer,
-                src_stage,
-                dst_stage,
+                src_stage.raw_pipeline_stage(),
+                dst_stage.raw_pipeline_stage(),
                 ash::vk::DependencyFlags::empty(),
-                memory_barriers,
-                buffer_memory_barriers,
-                image_memory_barriers,
+                &memory_barriers
+                    .iter()
+                    .map(|x| x.raw_memory_barrier())
+                    .collect::<Vec<_>>(),
+                &buffer_memory_barriers
+                    .iter()
+                    .map(|x| x.raw_buffer_memory_barrier())
+                    .collect::<Vec<_>>(),
+                &image_memory_barriers
+                    .iter()
+                    .map(|x| x.raw_image_memory_barrier())
+                    .collect::<Vec<_>>(),
             );
         }
         Ok(())
@@ -533,7 +734,7 @@ impl VulkanCommandBuffer {
         }
 
         if let Err(err) = unsafe {
-            device.get_device_raw().reset_command_buffer(
+            device.raw_device().reset_command_buffer(
                 self.raw_command_buffer,
                 ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES,
             )
@@ -544,23 +745,9 @@ impl VulkanCommandBuffer {
         Ok(())
     }
 
-    pub fn raw_command_buffer(&self) -> &VulkanRawCommandBuffer {
+    pub fn raw_command_buffer(&self) -> &ash::vk::CommandBuffer {
         &self.raw_command_buffer
     }
 
     pub fn id(&self) -> u32 { self.id }
-}
-
-impl From<PipelineStage> for VulkanPipelineStage {
-    fn from(value: PipelineStage) -> Self {
-        match value {
-            PipelineStage::TopOfPipe => VulkanPipelineStage::TOP_OF_PIPE,
-            PipelineStage::BottomOfPipe => VulkanPipelineStage::BOTTOM_OF_PIPE,
-            PipelineStage::Transfer => VulkanPipelineStage::TRANSFER,
-            PipelineStage::VertexShader => VulkanPipelineStage::VERTEX_SHADER,
-            PipelineStage::FragmentShader => {
-                VulkanPipelineStage::FRAGMENT_SHADER
-            },
-        }
-    }
 }

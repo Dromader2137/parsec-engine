@@ -3,10 +3,10 @@ use crate::{graphics::{
     command_list::{CommandList, CommandListError},
     fence::{Fence, FenceError},
     framebuffer::{Framebuffer, FramebufferError},
-    image::{Image, ImageError, ImageFlag, ImageFormat, ImageView},
+    image::{Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView},
     pipeline::{
         Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
-        PipelineOptions, PipelineStage, PipelineSubbindingLayout,
+        PipelineOptions, PipelineSubbindingLayout,
     },
     renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
     sampler::{Sampler, SamplerError},
@@ -107,8 +107,6 @@ pub trait GraphicsBackend: Sized {
     fn command_end_renderpass(
         &mut self,
         command_list: CommandList,
-        renderpass: Renderpass,
-        framebuffer: Framebuffer,
     ) -> Result<(), CommandListError>;
     fn command_bind_pipeline(
         &mut self,
@@ -161,7 +159,8 @@ pub trait GraphicsBackend: Sized {
         &mut self,
         size: Vec2u,
         format: ImageFormat,
-        image_usage: &[ImageFlag],
+        aspect: ImageAspect,
+        usage: &[ImageUsage],
     ) -> Result<Image, ImageError>;
     fn load_image_from_buffer(
         &mut self,

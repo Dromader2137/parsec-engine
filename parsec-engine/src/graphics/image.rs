@@ -1,6 +1,25 @@
+use crate::math::uvec::Vec2u;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Image {
     id: u32,
+}
+
+impl Image {
+    pub fn new(id: u32) -> Image { Image { id } }
+
+    pub fn id(&self) -> u32 { self.id }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ImageView {
+    id: u32,
+}
+
+impl ImageView {
+    pub fn new(id: u32) -> ImageView { ImageView { id } }
+
+    pub fn id(&self) -> u32 { self.id }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -27,18 +46,18 @@ pub enum ImageFormat {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ImageFlag {
+pub enum ImageUsage {
     DepthAttachment,
     ColorAttachment,
-    ColorBuffer,
     Sampled,
     TransferSrc,
     TransferDst,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ImageView {
-    id: u32,
+pub enum ImageAspect {
+    Color,
+    Depth
 }
 
 #[derive(Debug)]
@@ -52,16 +71,23 @@ pub enum ImageError {
     SwapchainImageNotFound,
     ImageViewNotFound,
     BufferNotFound,
+    InvalidImageSize
 }
 
-impl Image {
-    pub fn new(id: u32) -> Image { Image { id } }
-
-    pub fn id(&self) -> u32 { self.id }
+pub struct ImageSize {
+    size: Vec2u
 }
 
-impl ImageView {
-    pub fn new(id: u32) -> ImageView { ImageView { id } }
+impl ImageSize {
+    pub fn new(size: Vec2u) -> Result<ImageSize, ImageError> {
+        if size.x == 0 || size.y == 0 {
+            return Err(ImageError::InvalidImageSize)
+        }
 
-    pub fn id(&self) -> u32 { self.id }
+        Ok(ImageSize { size })
+    }
+
+    pub fn get_size(&self) -> Vec2u {
+        self.size
+    }
 }

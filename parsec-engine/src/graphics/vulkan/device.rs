@@ -42,7 +42,7 @@ impl VulkanDevice {
         let priorities = [1.0];
 
         let queue_info = ash::vk::DeviceQueueCreateInfo::default()
-            .queue_family_index(physical_device.get_queue_family_index())
+            .queue_family_index(physical_device.queue_family_index())
             .queue_priorities(&priorities);
 
         let device_create_info = ash::vk::DeviceCreateInfo::default()
@@ -52,9 +52,9 @@ impl VulkanDevice {
 
         let device = unsafe {
             instance
-                .get_instance_raw()
+                .raw_instance()
                 .create_device(
-                    *physical_device.get_physical_device_raw(),
+                    *physical_device.raw_physical_device(),
                     &device_create_info,
                     None,
                 )
@@ -66,7 +66,7 @@ impl VulkanDevice {
             physical_device_id: physical_device.id(),
             surface_id: surface.id(),
             device,
-            memory_properties: physical_device.physical_memory_properties(),
+            memory_properties: physical_device.raw_physical_memory_properties(),
         })
     }
 
@@ -77,7 +77,7 @@ impl VulkanDevice {
         Ok(())
     }
 
-    pub fn get_device_raw(&self) -> &ash::Device { &self.device }
+    pub fn raw_device(&self) -> &ash::Device { &self.device }
 
     pub fn id(&self) -> u32 { self.id }
 
@@ -85,7 +85,7 @@ impl VulkanDevice {
 
     pub fn surface_id(&self) -> u32 { self.surface_id }
 
-    pub fn memory_properties(&self) -> ash::vk::PhysicalDeviceMemoryProperties {
+    pub fn raw_memory_properties(&self) -> ash::vk::PhysicalDeviceMemoryProperties {
         self.memory_properties
     }
 }
