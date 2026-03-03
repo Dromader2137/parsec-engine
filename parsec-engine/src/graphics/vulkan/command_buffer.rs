@@ -2,13 +2,18 @@ use std::collections::HashMap;
 
 use crate::{
     graphics::vulkan::{
+        barriers::{
+            VulkanBufferMemoryBarrier, VulkanImageMemoryBarrier,
+            VulkanMemoryBarrier,
+        },
         buffer::VulkanBuffer,
         descriptor_set::VulkanDescriptorSet,
         device::VulkanDevice,
         framebuffer::VulkanFramebuffer,
         graphics_pipeline::VulkanGraphicsPipeline,
-        image::{VulkanImage, VulkanImageLayout, VulkanOwnedImage},
+        image::{VulkanImage, VulkanOwnedImage},
         physical_device::VulkanPhysicalDevice,
+        pipeline_stage::VulkanPipelineStage,
         renderpass::VulkanRenderpass,
         utils::raw_rect_2d,
     },
@@ -97,226 +102,6 @@ impl VulkanCommandPool {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn device_id(&self) -> u32 { self.device_id }
-}
-
-pub enum VulkanPipelineStage {
-    TopOfPipe,
-    VertexInput,
-    VertexShader,
-    EarlyFragmentTests,
-    FragmentShader,
-    LateFragmentTests,
-    BottomOfPipe,
-    Transfer,
-    Host,
-}
-
-impl VulkanPipelineStage {
-    fn raw_pipeline_stage(&self) -> ash::vk::PipelineStageFlags {
-        match self {
-            VulkanPipelineStage::TopOfPipe => {
-                ash::vk::PipelineStageFlags::TOP_OF_PIPE
-            },
-            VulkanPipelineStage::VertexInput => {
-                ash::vk::PipelineStageFlags::VERTEX_INPUT
-            },
-            VulkanPipelineStage::VertexShader => {
-                ash::vk::PipelineStageFlags::VERTEX_SHADER
-            },
-            VulkanPipelineStage::EarlyFragmentTests => {
-                ash::vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
-            },
-            VulkanPipelineStage::FragmentShader => {
-                ash::vk::PipelineStageFlags::FRAGMENT_SHADER
-            },
-            VulkanPipelineStage::LateFragmentTests => {
-                ash::vk::PipelineStageFlags::LATE_FRAGMENT_TESTS
-            },
-            VulkanPipelineStage::BottomOfPipe => {
-                ash::vk::PipelineStageFlags::BOTTOM_OF_PIPE
-            },
-            VulkanPipelineStage::Transfer => {
-                ash::vk::PipelineStageFlags::TRANSFER
-            },
-            VulkanPipelineStage::Host => ash::vk::PipelineStageFlags::HOST,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VulkanAccess {
-    IndirectCommandRead,
-    IndexRead,
-    VertexAttributeRead,
-    UniformRead,
-    InputAttachmentRead,
-    ShaderRead,
-    ShaderWrite,
-    ColorAttachmentRead,
-    ColorAttachmentWrite,
-    DepthAttachmentRead,
-    DepthAttachmentWrite,
-    TransferRead,
-    TransferWrite,
-    HostRead,
-    HostWrite,
-    MemoryRead,
-    MemoryWrite,
-    None,
-}
-
-impl VulkanAccess {
-    fn raw_access_flag(&self) -> ash::vk::AccessFlags {
-        match self {
-            VulkanAccess::IndirectCommandRead => {
-                ash::vk::AccessFlags::INDIRECT_COMMAND_READ
-            },
-            VulkanAccess::IndexRead => ash::vk::AccessFlags::INDEX_READ,
-            VulkanAccess::VertexAttributeRead => {
-                ash::vk::AccessFlags::VERTEX_ATTRIBUTE_READ
-            },
-            VulkanAccess::UniformRead => ash::vk::AccessFlags::UNIFORM_READ,
-            VulkanAccess::InputAttachmentRead => {
-                ash::vk::AccessFlags::INPUT_ATTACHMENT_READ
-            },
-            VulkanAccess::ShaderRead => ash::vk::AccessFlags::SHADER_READ,
-            VulkanAccess::ShaderWrite => ash::vk::AccessFlags::SHADER_WRITE,
-            VulkanAccess::ColorAttachmentRead => {
-                ash::vk::AccessFlags::COLOR_ATTACHMENT_READ
-            },
-            VulkanAccess::ColorAttachmentWrite => {
-                ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE
-            },
-            VulkanAccess::DepthAttachmentRead => {
-                ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-            },
-            VulkanAccess::DepthAttachmentWrite => {
-                ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE
-            },
-            VulkanAccess::TransferRead => ash::vk::AccessFlags::TRANSFER_READ,
-            VulkanAccess::TransferWrite => ash::vk::AccessFlags::TRANSFER_WRITE,
-            VulkanAccess::HostRead => ash::vk::AccessFlags::HOST_READ,
-            VulkanAccess::HostWrite => ash::vk::AccessFlags::HOST_WRITE,
-            VulkanAccess::MemoryRead => ash::vk::AccessFlags::MEMORY_READ,
-            VulkanAccess::MemoryWrite => ash::vk::AccessFlags::MEMORY_WRITE,
-            VulkanAccess::None => ash::vk::AccessFlags::NONE,
-        }
-    }
-
-    fn raw_combined_access_flag(access: &[Self]) -> ash::vk::AccessFlags {
-        access.iter().fold(ash::vk::AccessFlags::empty(), |acc, x| {
-            acc | x.raw_access_flag()
-        })
-    }
-}
-
-pub struct VulkanMemoryBarrier<'a> {
-    src_access: &'a [VulkanAccess],
-    dst_access: &'a [VulkanAccess],
-}
-
-impl<'a> VulkanMemoryBarrier<'a> {
-    pub fn new(
-        src_access: &'a [VulkanAccess],
-        dst_access: &'a [VulkanAccess],
-    ) -> Self {
-        Self {
-            src_access,
-            dst_access,
-        }
-    }
-
-    fn raw_memory_barrier(&self) -> ash::vk::MemoryBarrier {
-        ash::vk::MemoryBarrier {
-            src_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.src_access,
-            ),
-            dst_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.dst_access,
-            ),
-            ..Default::default()
-        }
-    }
-}
-
-pub struct VulkanBufferMemoryBarrier<'buffer, 'a> {
-    src_access: &'a [VulkanAccess],
-    dst_access: &'a [VulkanAccess],
-    buffer: &'buffer VulkanBuffer,
-}
-
-impl<'buffer, 'a> VulkanBufferMemoryBarrier<'buffer, 'a> {
-    pub fn new(
-        src_access: &'a [VulkanAccess],
-        dst_access: &'a [VulkanAccess],
-        buffer: &'buffer VulkanBuffer,
-    ) -> Self {
-        Self {
-            src_access,
-            dst_access,
-            buffer,
-        }
-    }
-
-    fn raw_buffer_memory_barrier(&self) -> ash::vk::BufferMemoryBarrier<'_> {
-        ash::vk::BufferMemoryBarrier {
-            src_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.src_access,
-            ),
-            dst_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.dst_access,
-            ),
-            buffer: *self.buffer.get_buffer_raw(),
-            ..Default::default()
-        }
-    }
-}
-
-pub struct VulkanImageMemoryBarrier<'image, 'a> {
-    src_access: &'a [VulkanAccess],
-    dst_access: &'a [VulkanAccess],
-    src_layout: VulkanImageLayout,
-    dst_layout: VulkanImageLayout,
-    image: &'image dyn VulkanImage,
-}
-
-impl<'image, 'a> VulkanImageMemoryBarrier<'image, 'a> {
-    pub fn new(
-        src_access: &'a [VulkanAccess],
-        dst_access: &'a [VulkanAccess],
-        src_layout: VulkanImageLayout,
-        dst_layout: VulkanImageLayout,
-        image: &'image dyn VulkanImage,
-    ) -> Self {
-        Self {
-            src_access,
-            dst_access,
-            src_layout,
-            dst_layout,
-            image,
-        }
-    }
-
-    fn raw_image_memory_barrier(&self) -> ash::vk::ImageMemoryBarrier<'_> {
-        ash::vk::ImageMemoryBarrier {
-            subresource_range: ash::vk::ImageSubresourceRange {
-                aspect_mask: self.image.aspect().raw_image_aspect(),
-                level_count: 1,
-                layer_count: 1,
-                ..Default::default()
-            },
-            src_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.src_access,
-            ),
-            dst_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.dst_access,
-            ),
-            old_layout: self.src_layout.raw_image_layout(),
-            new_layout: self.dst_layout.raw_image_layout(),
-            image: *self.image.raw_image(),
-            ..Default::default()
-        }
-    }
 }
 
 crate::create_counter! {COMMAND_BUFFER_ID_COUNTER}

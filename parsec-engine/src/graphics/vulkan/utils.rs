@@ -1,4 +1,4 @@
-use crate::math::{ivec::Vec2i, uvec::{Vec2u, Vec3u}};
+use crate::math::{ivec::Vec2i, uvec::Vec2u};
 
 pub fn raw_extent_2d(dimensions: Vec2u) -> ash::vk::Extent2D {
     ash::vk::Extent2D {

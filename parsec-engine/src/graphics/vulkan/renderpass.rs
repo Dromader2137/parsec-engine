@@ -5,7 +5,7 @@ use crate::{
         },
         vulkan::{
             device::VulkanDevice,
-            image::{VulkanImageFormat, VulkanImageLayout},
+            image::VulkanImageFormat,
             surface::VulkanSurface,
         },
     },
