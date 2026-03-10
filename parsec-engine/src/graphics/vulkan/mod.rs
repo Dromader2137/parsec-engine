@@ -372,7 +372,7 @@ impl GraphicsBackend for VulkanBackend {
     ) -> Result<(), SamplerError> {
         let ds = self
             .descriptor_sets
-            .get(&pipeline_binding.id())
+            .get_mut(&pipeline_binding.id())
             .ok_or(SamplerError::PipelineBindingNotFound)?;
         let dsl = self
             .descriptor_set_layouts
@@ -527,7 +527,7 @@ impl GraphicsBackend for VulkanBackend {
             .get(&pipeline.id())
             .ok_or(CommandListError::PipelineNotFound)?;
         command_buffer
-            .bind_descriptor_set(&self.device, ds, pip, binding_index)
+            .bind_descriptor_set(&self.device, ds, pip, &self.owned_images, binding_index)
             .map_err(|err| CommandListError::CommandListBindError(err.into()))
     }
 

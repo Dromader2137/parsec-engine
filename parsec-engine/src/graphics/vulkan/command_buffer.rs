@@ -33,11 +33,33 @@ pub struct VulkanCommandBufferImageState {
     last_access: Vec<VulkanAccess>,
 }
 
-pub struct VulkanCommandBuffer {
+enum VulkanCommand<'a> {
+    Begin,
+    End,
+    BeginRenderpass(&'a VulkanRenderpass, &'a VulkanFramebuffer),
+    EndRenderpass,
+    SetViewport(Vec2u),
+    SetScissor(Vec2u, Vec2i),
+    BindGraphicsPipeline(&'a VulkanGraphicsPipeline),
+    Draw(u32, u32, u32, u32),
+    DrawIndexed(u32, u32, u32, i32, u32),
+    BindVertexBuffer(&'a VulkanBuffer),
+    BindIndexBuffer(&'a VulkanBuffer),
+    BindDescriptorSet(&'a VulkanDescriptorSet, u32),
+    CopyBufferToImage(&'a VulkanBuffer, &'a VulkanOwnedImage),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VulkanCommandBufferState {
+    NotStarted,
+    Normal,
+    Renderpass,
+}
+
+pub struct VulkanCommandBuffer<'a> {
     id: u32,
     device_id: u32,
-    image_state: HashMap<u32, VulkanCommandBufferImageState>,
-    raw_command_buffer: ash::vk::CommandBuffer,
+    commands: Vec<VulkanCommand<'a>>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -45,9 +67,9 @@ pub enum VulkanCommandBufferError {
     #[error("Failed to create Command Buffer: {0}")]
     CreationError(ash::vk::Result),
     #[error("Failed to begin Command Buffer: {0}")]
-    BeginError(ash::vk::Result),
+    RawBeginError(ash::vk::Result),
     #[error("Failed to end Command Buffer: {0}")]
-    EndError(ash::vk::Result),
+    RawEndError(ash::vk::Result),
     #[error("Failed to reset Command Buffer: {0}")]
     ResetError(ash::vk::Result),
     #[error("Command Buffer created on a different Device")]
@@ -58,6 +80,9 @@ pub enum VulkanCommandBufferError {
     InvalidViewportSize,
     #[error("Scissor size must be non-zero")]
     InvalidScissorSize,
+    #[error("Used image does not exist in the provided image map")]
+    ImageNotFound,
+    IncorrectState(VulkanCommandBufferState),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -106,11 +131,11 @@ impl VulkanCommandPool {
 }
 
 crate::create_counter! {COMMAND_BUFFER_ID_COUNTER}
-impl VulkanCommandBuffer {
-    pub fn new(
-        device: &VulkanDevice,
-        command_pool: &VulkanCommandPool,
-    ) -> Result<VulkanCommandBuffer, VulkanCommandBufferError> {
+impl VulkanCommandBuffer<'_> {
+    pub fn new<'a>(
+        device: &'a VulkanDevice,
+        command_pool: &'a VulkanCommandPool,
+    ) -> Result<VulkanCommandBuffer<'a>, VulkanCommandBufferError> {
         if device.id() != command_pool.device_id() {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
@@ -132,95 +157,25 @@ impl VulkanCommandBuffer {
         Ok(VulkanCommandBuffer {
             id: COMMAND_BUFFER_ID_COUNTER.next(),
             device_id: device.id(),
-            image_state: HashMap::new(),
-            raw_command_buffer: command_buffer,
+            commands: Vec::new(),
         })
     }
 
-    pub fn begin(
-        &self,
-        device: &VulkanDevice,
-    ) -> Result<(), VulkanCommandBufferError> {
-        if self.device_id != device.id() {
-            return Err(VulkanCommandBufferError::DeviceMismatch);
-        }
+    pub fn begin(&mut self) { self.commands.push(VulkanCommand::Begin); }
 
-        let begin_info = ash::vk::CommandBufferBeginInfo::default()
-            .flags(ash::vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
+    pub fn end(&mut self) { self.commands.push(VulkanCommand::End); }
 
-        if let Err(err) = unsafe {
-            device
-                .raw_device()
-                .begin_command_buffer(self.raw_command_buffer, &begin_info)
-        } {
-            return Err(VulkanCommandBufferError::BeginError(err));
-        };
-
-        Ok(())
+    pub fn begin_renderpass<'a: 'b, 'b>(
+        &'a mut self,
+        renderpass: &'b VulkanRenderpass,
+        framebuffer: &'b VulkanFramebuffer,
+    ) {
+        self.commands.push(VulkanCommand::BeginRenderpass(renderpass, framebuffer));
     }
 
-    pub fn end(
-        &self,
-        device: &VulkanDevice,
-    ) -> Result<(), VulkanCommandBufferError> {
-        if self.device_id != device.id() {
-            return Err(VulkanCommandBufferError::DeviceMismatch);
-        }
+    pub fn end_renderpass(&mut self) -> Result<(), VulkanCommandBufferError> {
+        self.commands.push(VulkanCommand::EndRenderpass);
 
-        if let Err(err) = unsafe {
-            device
-                .raw_device()
-                .end_command_buffer(self.raw_command_buffer)
-        } {
-            return Err(VulkanCommandBufferError::EndError(err));
-        };
-
-        Ok(())
-    }
-
-    pub fn begin_renderpass(
-        &self,
-        device: &VulkanDevice,
-        framebuffer: &VulkanFramebuffer,
-        renderpass: &VulkanRenderpass,
-    ) -> Result<(), VulkanCommandBufferError> {
-        if self.device_id != device.id()
-            || self.device_id != renderpass.device_id()
-        {
-            return Err(VulkanCommandBufferError::DeviceMismatch);
-        }
-
-        if renderpass.id() != framebuffer.renderpass_id() {
-            return Err(VulkanCommandBufferError::RenderpassMismatch);
-        }
-
-        let clear_values = renderpass
-            .clear_values()
-            .iter()
-            .map(|v| v.raw_clear_value())
-            .collect::<Vec<_>>();
-
-        let begin_info = ash::vk::RenderPassBeginInfo::default()
-            .render_pass(*renderpass.get_renderpass_raw())
-            .framebuffer(*framebuffer.raw_framebuffer())
-            .render_area(raw_rect_2d(framebuffer.dimensions(), Vec2i::ZERO))
-            .clear_values(&clear_values);
-
-        unsafe {
-            device.raw_device().cmd_begin_render_pass(
-                self.raw_command_buffer,
-                &begin_info,
-                ash::vk::SubpassContents::INLINE,
-            )
-        };
-
-        Ok(())
-    }
-
-    pub fn end_renderpass(
-        &self,
-        device: &VulkanDevice,
-    ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
@@ -235,19 +190,19 @@ impl VulkanCommandBuffer {
     }
 
     pub fn set_viewports(
-        &self,
-        device: &VulkanDevice,
+        &mut self,
         dimensions: Vec2u,
-        renderpass: &VulkanRenderpass,
     ) -> Result<(), VulkanCommandBufferError> {
+        if dimensions.x == 0 && dimensions.y == 0 {
+            return Err(VulkanCommandBufferError::InvalidViewportSize);
+        }
+
+        self.commands.push(VulkanCommand::SetViewport(dimensions));
+
         if self.device_id != device.id()
             || self.device_id != renderpass.device_id()
         {
             return Err(VulkanCommandBufferError::DeviceMismatch);
-        }
-
-        if dimensions.x == 0 && dimensions.y == 0 {
-            return Err(VulkanCommandBufferError::InvalidViewportSize);
         }
 
         let viewports = [ash::vk::Viewport {
@@ -270,20 +225,21 @@ impl VulkanCommandBuffer {
     }
 
     pub fn set_scissor(
-        &self,
-        device: &VulkanDevice,
+        &mut self,
         dimensions: Vec2u,
         offset: Vec2i,
-        renderpass: &VulkanRenderpass,
     ) -> Result<(), VulkanCommandBufferError> {
+        if dimensions.x == 0 && dimensions.y == 0 {
+            return Err(VulkanCommandBufferError::InvalidScissorSize);
+        }
+
+        self.commands
+            .push(VulkanCommand::SetScissor(dimensions, offset));
+
         if self.device_id != device.id()
             || self.device_id != renderpass.device_id()
         {
             return Err(VulkanCommandBufferError::DeviceMismatch);
-        }
-
-        if dimensions.x == 0 && dimensions.y == 0 {
-            return Err(VulkanCommandBufferError::InvalidScissorSize);
         }
 
         let scissors = [raw_rect_2d(dimensions, offset)];
@@ -299,10 +255,12 @@ impl VulkanCommandBuffer {
     }
 
     pub fn bind_graphics_pipeline(
-        &self,
-        device: &VulkanDevice,
+        &mut self,
         pipeline: &VulkanGraphicsPipeline,
     ) -> Result<(), VulkanCommandBufferError> {
+        self.commands
+            .push(VulkanCommand::BindGraphicsPipeline(pipeline));
+
         if self.device_id != device.id()
             || self.device_id != pipeline.device_id()
         {
@@ -321,7 +279,7 @@ impl VulkanCommandBuffer {
     }
 
     pub fn draw(
-        &self,
+        &mut self,
         device: &VulkanDevice,
         vertex_count: u32,
         instance_count: u32,
@@ -331,6 +289,13 @@ impl VulkanCommandBuffer {
         if self.device_id != device.id() {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
+
+        self.commands.push(VulkanCommand::Draw(
+            vertex_count,
+            instance_count,
+            first_vertex,
+            first_instance,
+        ));
 
         unsafe {
             device.raw_device().cmd_draw(
@@ -346,7 +311,7 @@ impl VulkanCommandBuffer {
     }
 
     pub fn draw_indexed(
-        &self,
+        &mut self,
         device: &VulkanDevice,
         index_count: u32,
         instance_count: u32,
@@ -357,6 +322,14 @@ impl VulkanCommandBuffer {
         if self.device_id != device.id() {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
+
+        self.commands.push(VulkanCommand::DrawIndexed(
+            instance_count,
+            instance_count,
+            first_index,
+            vertex_offset,
+            first_instance,
+        ));
 
         unsafe {
             device.raw_device().cmd_draw_indexed(
@@ -373,10 +346,11 @@ impl VulkanCommandBuffer {
     }
 
     pub fn bind_vertex_buffer(
-        &self,
-        device: &VulkanDevice,
+        &mut self,
         buffer: &VulkanBuffer,
     ) -> Result<(), VulkanCommandBufferError> {
+        self.commands.push(VulkanCommand::BindVertexBuffer(buffer));
+
         if self.device_id != device.id() {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
@@ -393,10 +367,11 @@ impl VulkanCommandBuffer {
     }
 
     pub fn bind_index_buffer(
-        &self,
-        device: &VulkanDevice,
+        &mut self,
         buffer: &VulkanBuffer,
     ) -> Result<(), VulkanCommandBufferError> {
+        self.commands.push(VulkanCommand::BindIndexBuffer(buffer));
+
         if self.device_id != device.id() {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
@@ -415,16 +390,40 @@ impl VulkanCommandBuffer {
 
     pub fn bind_descriptor_set(
         &self,
-        device: &VulkanDevice,
         descriptor_set: &VulkanDescriptorSet,
-        pipeline: &VulkanGraphicsPipeline,
         set_index: u32,
     ) -> Result<(), VulkanCommandBufferError> {
+        self.commands
+            .push(VulkanCommand::BindDescriptorSet(descriptor_set, set_index));
+
         if self.device_id != device.id()
             || self.device_id != pipeline.device_id()
             || self.device_id != descriptor_set.device_id()
         {
             return Err(VulkanCommandBufferError::DeviceMismatch);
+        }
+
+        let image_ids = descriptor_set.bound_image_view_ids();
+
+        for image_id in image_ids.iter() {
+            let (access, layout, stage) = self.get_image_state(*image_id);
+            let image = images
+                .get(image_id)
+                .ok_or(VulkanCommandBufferError::ImageNotFound)?;
+            self.pipeline_barrier(
+                device,
+                stage,
+                VulkanPipelineStage::VertexShader,
+                &[],
+                &[],
+                &[VulkanImageMemoryBarrier::new(
+                    access,
+                    &[VulkanAccess::ShaderRead],
+                    layout,
+                    VulkanImageLayout::ShaderReadOnlyOptimal,
+                    image,
+                )],
+            )?;
         }
 
         unsafe {
@@ -443,10 +442,12 @@ impl VulkanCommandBuffer {
 
     pub fn copy_buffer_to_image(
         &mut self,
-        device: &VulkanDevice,
         buffer: &VulkanBuffer,
         image: &VulkanOwnedImage,
     ) -> Result<(), VulkanCommandBufferError> {
+        self.commands
+            .push(VulkanCommand::CopyBufferToImage(buffer, image));
+
         if self.device_id != device.id()
             || buffer.device_id() != self.device_id
             || image.device_id() != self.device_id
@@ -454,18 +455,7 @@ impl VulkanCommandBuffer {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
-        let (access, layout, stage) = match self.image_state.get(&image.id()) {
-            Some(image_state) => (
-                image_state.last_access.as_slice(),
-                image_state.last_layout,
-                image_state.last_pipeline_stage,
-            ),
-            None => (
-                &[] as &[VulkanAccess],
-                VulkanImageLayout::Undefined,
-                VulkanPipelineStage::BottomOfPipe,
-            ),
-        };
+        let (access, layout, stage) = self.get_image_state(image.id());
 
         self.pipeline_barrier(
             device,
@@ -566,9 +556,164 @@ impl VulkanCommandBuffer {
         Ok(())
     }
 
-    pub fn raw_command_buffer(&self) -> &ash::vk::CommandBuffer {
-        &self.raw_command_buffer
+    pub fn build(
+        &mut self,
+        device: &VulkanDevice,
+        command_pool: &VulkanCommandPool,
+    ) -> Result<(), VulkanCommandBufferError> {
+        let mut build =
+            VulkanCommandBufferBuildData::new(device, command_pool)?;
+
+        for command in self.commands.iter() {
+            match command {
+                VulkanCommand::Begin => build.begin()?,
+                VulkanCommand::End => build.end()?,
+                VulkanCommand::BeginRenderpass(renderpass, framebuffer) => {
+                    todo!()
+                },
+                VulkanCommand::EndRenderpass => todo!(),
+                VulkanCommand::SetViewport(vec2u) => todo!(),
+                VulkanCommand::SetScissor(vec2u, vec2i) => todo!(),
+                VulkanCommand::BindGraphicsPipeline(
+                    vulkan_graphics_pipeline,
+                ) => todo!(),
+                VulkanCommand::Draw(_, _, _, _) => todo!(),
+                VulkanCommand::DrawIndexed(_, _, _, _, _) => todo!(),
+                VulkanCommand::BindVertexBuffer(vulkan_buffer) => todo!(),
+                VulkanCommand::BindIndexBuffer(vulkan_buffer) => todo!(),
+                VulkanCommand::BindDescriptorSet(vulkan_descriptor_set, _) => {
+                    todo!()
+                },
+                VulkanCommand::CopyBufferToImage(
+                    vulkan_buffer,
+                    vulkan_owned_image,
+                ) => todo!(),
+            };
+        }
+
+        Ok(())
     }
 
     pub fn id(&self) -> u32 { self.id }
+
+    fn get_image_state(
+        &self,
+        image_id: u32,
+    ) -> (&[VulkanAccess], VulkanImageLayout, VulkanPipelineStage) {
+        match self.image_state.get(&image_id) {
+            Some(image_state) => (
+                image_state.last_access.as_slice(),
+                image_state.last_layout,
+                image_state.last_pipeline_stage,
+            ),
+            None => (
+                &[] as &[VulkanAccess],
+                VulkanImageLayout::Undefined,
+                VulkanPipelineStage::BottomOfPipe,
+            ),
+        }
+    }
+}
+
+struct VulkanCommandBufferBuildData<'a> {
+    device: &'a VulkanDevice,
+    state: VulkanCommandBufferState,
+    command_buffer: ash::vk::CommandBuffer,
+}
+
+impl VulkanCommandBufferBuildData<'_> {
+    fn new<'a>(
+        device: &'a VulkanDevice,
+        command_pool: &VulkanCommandPool,
+    ) -> Result<VulkanCommandBufferBuildData<'a>, VulkanCommandBufferError>
+    {
+        let create_info = ash::vk::CommandBufferAllocateInfo::default()
+            .command_buffer_count(1)
+            .command_pool(*command_pool.raw_command_pool())
+            .level(ash::vk::CommandBufferLevel::PRIMARY);
+
+        let command_buffer = match unsafe {
+            device.raw_device().allocate_command_buffers(&create_info)
+        } {
+            Ok(val) => val,
+            Err(err) => {
+                return Err(VulkanCommandBufferError::CreationError(err));
+            },
+        }[0];
+
+        Ok(VulkanCommandBufferBuildData {
+            device,
+            state: VulkanCommandBufferState::NotStarted,
+            command_buffer,
+        })
+    }
+
+    fn begin(&mut self) -> Result<(), VulkanCommandBufferError> {
+        if self.state != VulkanCommandBufferState::NotStarted {
+            return Err(VulkanCommandBufferError::IncorrectState(self.state));
+        }
+
+        let begin_info = ash::vk::CommandBufferBeginInfo::default()
+            .flags(ash::vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
+
+        unsafe {
+            self.device
+                .raw_device()
+                .begin_command_buffer(self.command_buffer, &begin_info)
+                .map_err(|err| VulkanCommandBufferError::RawBeginError(err))
+        }
+    }
+
+    fn end(&mut self) -> Result<(), VulkanCommandBufferError> {
+        if self.state == VulkanCommandBufferState::NotStarted {
+            return Err(VulkanCommandBufferError::IncorrectState(self.state));
+        }
+
+        unsafe {
+            self.device
+                .raw_device()
+                .end_command_buffer(self.command_buffer)
+                .map_err(|err| VulkanCommandBufferError::RawEndError(err))
+        }
+    }
+
+    fn begin_renderpass(
+        &mut self,
+        renderpass: &VulkanRenderpass,
+        framebuffer: &VulkanFramebuffer,
+    ) -> Result<(), VulkanCommandBufferError> {
+        if self.device.id() != renderpass.device_id() {
+            return Err(VulkanCommandBufferError::DeviceMismatch);
+        }
+
+        if renderpass.id() != framebuffer.renderpass_id() {
+            return Err(VulkanCommandBufferError::RenderpassMismatch);
+        }
+
+        if self.state != VulkanCommandBufferState::Normal {
+            return Err(VulkanCommandBufferError::IncorrectState(self.state));
+        }
+
+        let clear_values = renderpass
+            .clear_values()
+            .iter()
+            .map(|v| v.raw_clear_value())
+            .collect::<Vec<_>>();
+
+        let begin_info = ash::vk::RenderPassBeginInfo::default()
+            .render_pass(*renderpass.get_renderpass_raw())
+            .framebuffer(*framebuffer.raw_framebuffer())
+            .render_area(raw_rect_2d(framebuffer.dimensions(), Vec2i::ZERO))
+            .clear_values(&clear_values);
+
+        unsafe {
+            self.device.raw_device().cmd_begin_render_pass(
+                self.command_buffer,
+                &begin_info,
+                ash::vk::SubpassContents::INLINE,
+            )
+        };
+            
+        Ok(())
+    }
 }

@@ -1,11 +1,12 @@
 use crate::{
     graphics::{
         renderpass::{
-            RenderpassAttachment, RenderpassAttachmentLoadOp, RenderpassAttachmentStoreOp, RenderpassAttachmentType, RenderpassClearValue
+            RenderpassAttachment, RenderpassAttachmentLoadOp,
+            RenderpassAttachmentStoreOp, RenderpassAttachmentType,
+            RenderpassClearValue,
         },
         vulkan::{
-            device::VulkanDevice,
-            image::VulkanImageFormat,
+            device::VulkanDevice, image::VulkanImageFormat,
             surface::VulkanSurface,
         },
     },
@@ -157,7 +158,7 @@ impl VulkanRenderpassAttachment {
             samples: ash::vk::SampleCountFlags::TYPE_1,
             load_op: self.load_op.raw_load_op(),
             store_op: self.store_op.raw_store_op(),
-            final_layout: ash::vk::ImageLayout::GENERAL,
+            final_layout: ash::vk::ImageLayout::PRESENT_SRC_KHR,
             ..Default::default()
         }
     }

@@ -46,6 +46,7 @@ pub struct VulkanDescriptorSet {
     device_id: u32,
     descriptor_pool_id: u32,
     descriptor_layout_id: u32,
+    bound_image_ids: Vec<u32>,
     set: ash::vk::DescriptorSet,
 }
 
@@ -220,6 +221,7 @@ impl VulkanDescriptorSet {
             device_id: device.id(),
             descriptor_pool_id: descriptor_pool.id(),
             descriptor_layout_id: descriptor_layout.id(),
+            bound_image_ids: Vec::new(),
             set,
         })
     }
@@ -266,7 +268,7 @@ impl VulkanDescriptorSet {
     }
 
     pub fn bind_image_view(
-        &self,
+        &mut self,
         view: &VulkanImageView,
         sampler: &VulkanSampler,
         device: &VulkanDevice,
@@ -298,6 +300,8 @@ impl VulkanDescriptorSet {
                 .update_descriptor_sets(&[write_info], &[]);
         }
 
+        self.bound_image_ids.push(view.image_id());
+
         Ok(())
     }
 
@@ -310,4 +314,8 @@ impl VulkanDescriptorSet {
     pub fn descriptor_pool_id(&self) -> u32 { self.descriptor_pool_id }
 
     pub fn descriptor_layout_id(&self) -> u32 { self.descriptor_layout_id }
+
+    pub fn bound_image_view_ids(&self) -> &[u32] {
+        &self.bound_image_ids
+    }
 }
