@@ -315,7 +315,7 @@ impl VulkanDescriptorSet {
 
     pub fn descriptor_layout_id(&self) -> u32 { self.descriptor_layout_id }
 
-    pub fn bound_image_view_ids(&self) -> &[u32] {
+    pub fn bound_image_ids(&self) -> &[u32] {
         &self.bound_image_ids
     }
 }
