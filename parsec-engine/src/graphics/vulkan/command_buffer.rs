@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     graphics::vulkan::{
+        access::VulkanAccess,
         barriers::{
             VulkanBufferMemoryBarrier, VulkanImageMemoryBarrier,
             VulkanMemoryBarrier,
@@ -11,7 +12,7 @@ use crate::{
         device::VulkanDevice,
         framebuffer::VulkanFramebuffer,
         graphics_pipeline::VulkanGraphicsPipeline,
-        image::{VulkanImage, VulkanOwnedImage},
+        image::{VulkanImage, VulkanImageLayout, VulkanOwnedImage},
         physical_device::VulkanPhysicalDevice,
         pipeline_stage::VulkanPipelineStage,
         renderpass::VulkanRenderpass,
@@ -27,9 +28,9 @@ pub struct VulkanCommandPool {
 }
 
 pub struct VulkanCommandBufferImageState {
-    image_id: u32,
-    last_pipeline_stage: ash::vk::PipelineStageFlags,
-    last_access: ash::vk::AccessFlags,
+    last_pipeline_stage: VulkanPipelineStage,
+    last_layout: VulkanImageLayout,
+    last_access: Vec<VulkanAccess>,
 }
 
 pub struct VulkanCommandBuffer {
@@ -441,7 +442,7 @@ impl VulkanCommandBuffer {
     }
 
     pub fn copy_buffer_to_image(
-        &self,
+        &mut self,
         device: &VulkanDevice,
         buffer: &VulkanBuffer,
         image: &VulkanOwnedImage,
@@ -452,6 +453,34 @@ impl VulkanCommandBuffer {
         {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
+
+        let (access, layout, stage) = match self.image_state.get(&image.id()) {
+            Some(image_state) => (
+                image_state.last_access.as_slice(),
+                image_state.last_layout,
+                image_state.last_pipeline_stage,
+            ),
+            None => (
+                &[] as &[VulkanAccess],
+                VulkanImageLayout::Undefined,
+                VulkanPipelineStage::BottomOfPipe,
+            ),
+        };
+
+        self.pipeline_barrier(
+            device,
+            stage,
+            VulkanPipelineStage::Transfer,
+            &[],
+            &[],
+            &[VulkanImageMemoryBarrier::new(
+                access,
+                &[VulkanAccess::TransferWrite],
+                layout,
+                VulkanImageLayout::TransferDstOptimal,
+                image,
+            )],
+        )?;
 
         let buffer_image_copy = ash::vk::BufferImageCopy::default()
             .image_extent(image.extent())
@@ -471,10 +500,17 @@ impl VulkanCommandBuffer {
             )
         };
 
+        self.image_state
+            .insert(image.id(), VulkanCommandBufferImageState {
+                last_pipeline_stage: VulkanPipelineStage::Transfer,
+                last_layout: VulkanImageLayout::TransferDstOptimal,
+                last_access: vec![VulkanAccess::TransferWrite],
+            });
+
         Ok(())
     }
 
-    pub fn pipeline_barrier(
+    fn pipeline_barrier(
         &self,
         device: &VulkanDevice,
         src_stage: VulkanPipelineStage,

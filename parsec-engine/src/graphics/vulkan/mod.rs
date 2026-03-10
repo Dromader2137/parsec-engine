@@ -745,42 +745,12 @@ impl GraphicsBackend for VulkanBackend {
             .owned_images
             .get_mut(&image.id())
             .ok_or(ImageError::ImageNotFound)?;
-        let cmd = VulkanCommandBuffer::new(&self.device, &self.command_pool)
+        let mut cmd = VulkanCommandBuffer::new(&self.device, &self.command_pool)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         cmd.begin(&self.device)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        cmd.pipeline_barrier(
-            &self.device,
-            VulkanPipelineStage::BottomOfPipe,
-            VulkanPipelineStage::Transfer,
-            &[],
-            &[],
-            &[VulkanImageMemoryBarrier::new(
-                &[],
-                &[VulkanAccess::TransferWrite],
-                VulkanImageLayout::Undefined,
-                VulkanImageLayout::TransferDstOptimal,
-                img,
-            )],
-        )
-        .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         cmd.copy_buffer_to_image(&self.device, buf, img)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        cmd.pipeline_barrier(
-            &self.device,
-            VulkanPipelineStage::Transfer,
-            VulkanPipelineStage::FragmentShader,
-            &[],
-            &[],
-            &[VulkanImageMemoryBarrier::new(
-                &[VulkanAccess::TransferWrite],
-                &[VulkanAccess::ShaderRead],
-                VulkanImageLayout::TransferDstOptimal,
-                VulkanImageLayout::ShaderReadOnlyOptimal,
-                img,
-            )],
-        )
-        .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         cmd.end(&self.device)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         self.present_queue
