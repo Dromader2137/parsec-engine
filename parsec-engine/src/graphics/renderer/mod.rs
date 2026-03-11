@@ -19,7 +19,7 @@ use crate::{
     graphics::{
         backend::GraphicsBackend,
         buffer::{Buffer, BufferUsage},
-        command_list::CommandList,
+        command_list::{Command, CommandList},
         framebuffer::Framebuffer,
         image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView},
         pipeline::{
@@ -518,7 +518,7 @@ pub fn render(
     depth_view: Resource<RendererDepthImageView>,
     renderpass: Resource<RendererMainRenderpass>,
     framebuffers: Resource<RendererFramebuffers>,
-    command_lists: Resource<Vec<CommandList>>,
+    mut command_lists: Resource<Vec<CommandList>>,
     draw_queue: Resource<Vec<Draw>>,
     meshes_data: Resource<IdStore<MeshData<DefaultVertex>>>,
     materials_data: Resource<IdStore<MaterialData>>,
@@ -566,18 +566,15 @@ pub fn render(
         .reset_fence(frame_sync[current_frame.0 as usize].command_buffer_fence)
         .unwrap();
 
-    let command_list = command_lists[current_frame.0 as usize];
+    let command_list = &mut command_lists[current_frame.0 as usize];
     let framebuffer = framebuffers.0[present_index as usize];
 
-    backend.command_reset(command_list).unwrap();
-    backend.command_begin(command_list).unwrap();
-    backend
-        .command_begin_renderpass(
-            command_list,
-            shadowpass_data.renderpass,
-            shadowpass_data.framebuffer,
-        )
-        .unwrap();
+    command_list.reset();
+    command_list.cmd(Command::Begin);
+    command_list.cmd(Command::BeginRenderpass(
+        shadowpass_data.renderpass,
+        shadowpass_data.framebuffer,
+    ));
 
     for draw in draw_queue.iter() {
         match draw {
@@ -598,7 +595,6 @@ pub fn render(
                     transforms_data.get(*camera_transform).unwrap();
                 let transform = transforms_data.get(*transform).unwrap();
                 material.bind(
-                    backend.deref_mut(),
                     command_list,
                     material_base,
                     camera,
@@ -607,17 +603,16 @@ pub fn render(
                     shadowpass_data.light_dir_binding,
                     shadowpass_data.image_binding,
                 );
-                mesh.record_commands(backend.deref_mut(), command_list);
+                mesh.record_commands(command_list);
             },
         }
     }
 
-    backend
-        .command_end_renderpass(command_list)
-        .unwrap();
-    backend
-        .command_begin_renderpass(command_list, renderpass.0, framebuffer)
-        .unwrap();
+    command_list.cmd(Command::EndRenderpass);
+    command_list.cmd(Command::BeginRenderpass(
+        renderpass.0,
+        framebuffer,
+    ));
 
     for draw in draw_queue.iter() {
         match draw {
@@ -637,7 +632,6 @@ pub fn render(
                     transforms_data.get(*camera_transform).unwrap();
                 let transform = transforms_data.get(*transform).unwrap();
                 material.bind(
-                    backend.deref_mut(),
                     command_list,
                     material_base,
                     camera,
@@ -646,19 +640,17 @@ pub fn render(
                     shadowpass_data.light_dir_binding,
                     shadowpass_data.image_binding,
                 );
-                mesh.record_commands(backend.deref_mut(), command_list);
+                mesh.record_commands(command_list);
             },
         }
     }
 
-    backend
-        .command_end_renderpass(command_list)
-        .unwrap();
-    backend.command_end(command_list).unwrap();
+    command_list.cmd(Command::EndRenderpass);
+    command_list.cmd(Command::End);
 
     backend
         .submit_commands(
-            command_list,
+            &command_list,
             &[frame_sync[current_frame.0 as usize].image_available_semaphore],
             &[image_sync[present_index as usize].rendering_complete_semaphore],
             frame_sync[current_frame.0 as usize].command_buffer_fence,

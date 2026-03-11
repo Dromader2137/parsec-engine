@@ -86,49 +86,9 @@ pub trait GraphicsBackend: Sized {
     ) -> Result<(), SamplerError>;
 
     fn create_command_list(&mut self) -> Result<CommandList, CommandListError>;
-    fn command_begin(
-        &mut self,
-        command_list: CommandList,
-    ) -> Result<(), CommandListError>;
-    fn command_end(
-        &mut self,
-        command_list: CommandList,
-    ) -> Result<(), CommandListError>;
-    fn command_reset(
-        &mut self,
-        command_list: CommandList,
-    ) -> Result<(), CommandListError>;
-    fn command_begin_renderpass(
-        &mut self,
-        command_list: CommandList,
-        renderpass: Renderpass,
-        framebuffer: Framebuffer,
-    ) -> Result<(), CommandListError>;
-    fn command_end_renderpass(
-        &mut self,
-        command_list: CommandList,
-    ) -> Result<(), CommandListError>;
-    fn command_bind_pipeline(
-        &mut self,
-        command_list: CommandList,
-        pipeline: Pipeline,
-    ) -> Result<(), CommandListError>;
-    fn command_bind_pipeline_binding(
-        &mut self,
-        command_list: CommandList,
-        pipeline: Pipeline,
-        binding: PipelineBinding,
-        binding_index: u32,
-    ) -> Result<(), CommandListError>;
-    fn command_draw(
-        &mut self,
-        command_list: CommandList,
-        vertex_buffer: Buffer,
-        index_buffer: Buffer,
-    ) -> Result<(), CommandListError>;
     fn submit_commands(
         &mut self,
-        command_list: CommandList,
+        command_list: &CommandList,
         wait_semaphores: &[Semaphore],
         signal_semaphores: &[Semaphore],
         signal_fence: Fence,

@@ -1,7 +1,7 @@
 use crate::{
     graphics::{
         backend::GraphicsBackend,
-        command_list::CommandList,
+        command_list::{Command, CommandList},
         pipeline::{
             Pipeline, PipelineBinding, PipelineBindingLayout, PipelineOptions,
             PipelineSubbindingLayout,
@@ -93,8 +93,7 @@ impl MaterialData {
 
     pub fn bind(
         &self,
-        backend: &mut impl GraphicsBackend,
-        command_list: CommandList,
+        command_list: &mut CommandList,
         material_base: &MaterialBase,
         camera: &CameraData,
         camera_transform: &TransformData,
@@ -102,9 +101,8 @@ impl MaterialData {
         light_binding: PipelineBinding,
         shadowmap_binding: PipelineBinding,
     ) {
-        backend
-            .command_bind_pipeline(command_list, material_base.pipeline)
-            .unwrap();
+        command_list
+            .cmd(Command::BindGraphicsPipeline(material_base.pipeline));
         for (set_index, binding) in self.descriptor_sets.iter().enumerate() {
             let pipeline_binding = match binding {
                 MaterialPipelineBinding::View => {
@@ -118,14 +116,12 @@ impl MaterialData {
                 MaterialPipelineBinding::ShadowMap => shadowmap_binding,
                 MaterialPipelineBinding::Generic(bind) => *bind,
             };
-            backend
-                .command_bind_pipeline_binding(
-                    command_list,
-                    material_base.pipeline,
+            command_list.cmd(
+                Command::BindPipelineBinding(
                     pipeline_binding,
                     set_index as u32,
                 )
-                .unwrap();
+            );
         }
     }
 

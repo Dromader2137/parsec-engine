@@ -7,7 +7,7 @@ use crate::{
     graphics::{
         backend::{BackendInitError, GraphicsBackend},
         buffer::{Buffer, BufferError, BufferUsage},
-        command_list::{CommandList, CommandListError},
+        command_list::{Command, CommandList, CommandListError},
         fence::{Fence, FenceError},
         framebuffer::{Framebuffer, FramebufferError},
         image::{
@@ -24,30 +24,52 @@ use crate::{
         shader::{Shader, ShaderError, ShaderType},
         swapchain::{Swapchain, SwapchainError},
         vulkan::{
-            access::VulkanAccess, barriers::VulkanImageMemoryBarrier, buffer::{VulkanBuffer, VulkanBufferUsage}, command_buffer::{
-                VulkanCommandBuffer, VulkanCommandPool,
-            }, descriptor_set::{
+            access::VulkanAccess,
+            barriers::VulkanImageMemoryBarrier,
+            buffer::{VulkanBuffer, VulkanBufferUsage},
+            command_buffer::{
+                VulkanCommandBuffer, VulkanCommandBufferBuilder,
+                VulkanCommandPool,
+            },
+            descriptor_set::{
                 VulkanDescriptorPool, VulkanDescriptorPoolSize,
                 VulkanDescriptorSet, VulkanDescriptorSetBinding,
                 VulkanDescriptorSetLayout, VulkanDescriptorType,
-            }, device::VulkanDevice, fence::VulkanFence, framebuffer::VulkanFramebuffer, graphics_pipeline::{
+            },
+            device::VulkanDevice,
+            fence::VulkanFence,
+            framebuffer::VulkanFramebuffer,
+            graphics_pipeline::{
                 VulkanGraphicsPipeline, VulkanPipelineOptions,
                 VulkanShaderStage,
-            }, image::{
+            },
+            image::{
                 VulkanImage, VulkanImageAspect, VulkanImageFormat,
                 VulkanImageLayout, VulkanImageSize, VulkanImageUsage,
                 VulkanImageView, VulkanOwnedImage, VulkanSwapchainImage,
-            }, instance::VulkanInstance, physical_device::VulkanPhysicalDevice, pipeline_stage::VulkanPipelineStage, queue::VulkanQueue, renderpass::{
+            },
+            instance::VulkanInstance,
+            physical_device::VulkanPhysicalDevice,
+            pipeline_stage::VulkanPipelineStage,
+            queue::VulkanQueue,
+            renderpass::{
                 VulkanClearValue, VulkanRenderpass, VulkanRenderpassAttachment,
-            }, sampler::VulkanSampler, semaphore::VulkanSemaphore, shader::VulkanShaderModule, surface::{VulkanInitialSurface, VulkanSurface}, swapchain::{VulkanSwapchain, VulkanSwapchainError}
+            },
+            sampler::VulkanSampler,
+            semaphore::VulkanSemaphore,
+            shader::VulkanShaderModule,
+            surface::{VulkanInitialSurface, VulkanSurface},
+            swapchain::{VulkanSwapchain, VulkanSwapchainError},
         },
         window::Window,
     },
     math::{ivec::Vec2i, uvec::Vec2u},
 };
 
+mod access;
 mod allocation;
 mod allocator;
+mod barriers;
 mod buffer;
 mod command_buffer;
 mod descriptor_set;
@@ -59,6 +81,7 @@ mod graphics_pipeline;
 mod image;
 mod instance;
 mod physical_device;
+mod pipeline_stage;
 mod queue;
 mod renderpass;
 mod sampler;
@@ -67,9 +90,6 @@ pub mod shader;
 mod surface;
 mod swapchain;
 mod utils;
-mod access;
-mod barriers;
-mod pipeline_stage;
 
 #[allow(unused)]
 pub struct VulkanBackend {
@@ -402,171 +422,171 @@ impl GraphicsBackend for VulkanBackend {
         Ok(CommandList::new(command_buffer_id))
     }
 
-    fn command_begin(
-        &mut self,
-        command_list: CommandList,
-    ) -> Result<(), CommandListError> {
-        let command_buffer = self
-            .command_buffers
-            .get(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
-        command_buffer
-            .begin(&self.device)
-            .map_err(|err| CommandListError::CommandListBeginError(err.into()))
-    }
-
-    fn command_end(
-        &mut self,
-        command_list: CommandList,
-    ) -> Result<(), CommandListError> {
-        let command_buffer = self
-            .command_buffers
-            .get(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
-        command_buffer
-            .end(&self.device)
-            .map_err(|err| CommandListError::CommandListEndError(err.into()))
-    }
-
-    fn command_reset(
-        &mut self,
-        command_list: CommandList,
-    ) -> Result<(), CommandListError> {
-        let command_buffer = self
-            .command_buffers
-            .get(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
-        command_buffer
-            .reset(&self.device)
-            .map_err(|err| CommandListError::CommandListResetError(err.into()))
-    }
-
-    fn command_begin_renderpass(
-        &mut self,
-        command_list: CommandList,
-        renderpass: Renderpass,
-        framebuffer: Framebuffer,
-    ) -> Result<(), CommandListError> {
-        let command_buffer = self
-            .command_buffers
-            .get(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
-        let fra = self
-            .framebuffers
-            .get(&framebuffer.id())
-            .ok_or(CommandListError::FramebufferNotFound)?;
-        let ren = self
-            .renderpasses
-            .get(&renderpass.id())
-            .ok_or(CommandListError::RenderpassNotFound)?;
-        command_buffer
-            .begin_renderpass(&self.device, fra, ren)
-            .map_err(|err| {
-                CommandListError::CommandListRenderpassBeginError(err.into())
-            })?;
-        command_buffer
-            .set_viewports(&self.device, fra.dimensions(), ren)
-            .map_err(|err| {
-                CommandListError::CommandListRenderpassBeginError(err.into())
-            })?;
-        command_buffer
-            .set_scissor(&self.device, fra.dimensions(), Vec2i::ZERO, ren)
-            .map_err(|err| {
-                CommandListError::CommandListRenderpassBeginError(err.into())
-            })
-    }
-
-    fn command_end_renderpass(
-        &mut self,
-        command_list: CommandList,
-    ) -> Result<(), CommandListError> {
-        let command_buffer = self
-            .command_buffers
-            .get(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
-        command_buffer.end_renderpass(&self.device).map_err(|err| {
-            CommandListError::CommandListRenderpassEndError(err.into())
-        })
-    }
-
-    fn command_bind_pipeline(
-        &mut self,
-        command_list: CommandList,
-        pipeline: Pipeline,
-    ) -> Result<(), CommandListError> {
-        let command_buffer = self
-            .command_buffers
-            .get(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
-        let pip = self
-            .pipelines
-            .get(&pipeline.id())
-            .ok_or(CommandListError::PipelineNotFound)?;
-        command_buffer
-            .bind_graphics_pipeline(&self.device, pip)
-            .map_err(|err| CommandListError::CommandListBindError(err.into()))
-    }
-
-    fn command_bind_pipeline_binding(
-        &mut self,
-        command_list: CommandList,
-        pipeline: Pipeline,
-        binding: PipelineBinding,
-        binding_index: u32,
-    ) -> Result<(), CommandListError> {
-        let command_buffer = self
-            .command_buffers
-            .get(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
-        let ds = self
-            .descriptor_sets
-            .get(&binding.id())
-            .ok_or(CommandListError::PipelineLayoutNotFound)?;
-        let pip = self
-            .pipelines
-            .get(&pipeline.id())
-            .ok_or(CommandListError::PipelineNotFound)?;
-        command_buffer
-            .bind_descriptor_set(&self.device, ds, pip, &self.owned_images, binding_index)
-            .map_err(|err| CommandListError::CommandListBindError(err.into()))
-    }
-
-    fn command_draw(
-        &mut self,
-        command_list: CommandList,
-        vertex_buffer: Buffer,
-        index_buffer: Buffer,
-    ) -> Result<(), CommandListError> {
-        let command_buffer = self
-            .command_buffers
-            .get(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
-        let vb = self
-            .buffers
-            .get(&vertex_buffer.id())
-            .ok_or(CommandListError::BufferNotFound)?;
-        let ib = self
-            .buffers
-            .get(&index_buffer.id())
-            .ok_or(CommandListError::BufferNotFound)?;
-        command_buffer
-            .bind_vertex_buffer(&self.device, vb)
-            .map_err(|err| {
-                CommandListError::CommandListDrawError(err.into())
-            })?;
-        command_buffer
-            .bind_index_buffer(&self.device, ib)
-            .map_err(|err| {
-                CommandListError::CommandListDrawError(err.into())
-            })?;
-        command_buffer
-            .draw_indexed(&self.device, ib.len, 1, 0, 0, 1)
-            .map_err(|err| CommandListError::CommandListDrawError(err.into()))
-    }
+    // fn command_begin(
+    //     &mut self,
+    //     command_list: CommandList,
+    // ) -> Result<(), CommandListError> {
+    //     let command_buffer = self
+    //         .command_buffers
+    //         .get(&command_list.id())
+    //         .ok_or(CommandListError::CommandListNotFound)?;
+    //     command_buffer
+    //         .begin(&self.device)
+    //         .map_err(|err| CommandListError::CommandListBeginError(err.into()))
+    // }
+    //
+    // fn command_end(
+    //     &mut self,
+    //     command_list: CommandList,
+    // ) -> Result<(), CommandListError> {
+    //     let command_buffer = self
+    //         .command_buffers
+    //         .get(&command_list.id())
+    //         .ok_or(CommandListError::CommandListNotFound)?;
+    //     command_buffer
+    //         .end(&self.device)
+    //         .map_err(|err| CommandListError::CommandListEndError(err.into()))
+    // }
+    //
+    // fn command_reset(
+    //     &mut self,
+    //     command_list: CommandList,
+    // ) -> Result<(), CommandListError> {
+    //     let command_buffer = self
+    //         .command_buffers
+    //         .get(&command_list.id())
+    //         .ok_or(CommandListError::CommandListNotFound)?;
+    //     command_buffer
+    //         .reset(&self.device)
+    //         .map_err(|err| CommandListError::CommandListResetError(err.into()))
+    // }
+    //
+    // fn command_begin_renderpass(
+    //     &mut self,
+    //     command_list: CommandList,
+    //     renderpass: Renderpass,
+    //     framebuffer: Framebuffer,
+    // ) -> Result<(), CommandListError> {
+    //     let command_buffer = self
+    //         .command_buffers
+    //         .get(&command_list.id())
+    //         .ok_or(CommandListError::CommandListNotFound)?;
+    //     let fra = self
+    //         .framebuffers
+    //         .get(&framebuffer.id())
+    //         .ok_or(CommandListError::FramebufferNotFound)?;
+    //     let ren = self
+    //         .renderpasses
+    //         .get(&renderpass.id())
+    //         .ok_or(CommandListError::RenderpassNotFound)?;
+    //     command_buffer
+    //         .begin_renderpass(&self.device, fra, ren)
+    //         .map_err(|err| {
+    //             CommandListError::CommandListRenderpassBeginError(err.into())
+    //         })?;
+    //     command_buffer
+    //         .set_viewports(&self.device, fra.dimensions(), ren)
+    //         .map_err(|err| {
+    //             CommandListError::CommandListRenderpassBeginError(err.into())
+    //         })?;
+    //     command_buffer
+    //         .set_scissor(&self.device, fra.dimensions(), Vec2i::ZERO, ren)
+    //         .map_err(|err| {
+    //             CommandListError::CommandListRenderpassBeginError(err.into())
+    //         })
+    // }
+    //
+    // fn command_end_renderpass(
+    //     &mut self,
+    //     command_list: CommandList,
+    // ) -> Result<(), CommandListError> {
+    //     let command_buffer = self
+    //         .command_buffers
+    //         .get(&command_list.id())
+    //         .ok_or(CommandListError::CommandListNotFound)?;
+    //     command_buffer.end_renderpass(&self.device).map_err(|err| {
+    //         CommandListError::CommandListRenderpassEndError(err.into())
+    //     })
+    // }
+    //
+    // fn command_bind_pipeline(
+    //     &mut self,
+    //     command_list: CommandList,
+    //     pipeline: Pipeline,
+    // ) -> Result<(), CommandListError> {
+    //     let command_buffer = self
+    //         .command_buffers
+    //         .get(&command_list.id())
+    //         .ok_or(CommandListError::CommandListNotFound)?;
+    //     let pip = self
+    //         .pipelines
+    //         .get(&pipeline.id())
+    //         .ok_or(CommandListError::PipelineNotFound)?;
+    //     command_buffer
+    //         .bind_graphics_pipeline(&self.device, pip)
+    //         .map_err(|err| CommandListError::CommandListBindError(err.into()))
+    // }
+    //
+    // fn command_bind_pipeline_binding(
+    //     &mut self,
+    //     command_list: CommandList,
+    //     pipeline: Pipeline,
+    //     binding: PipelineBinding,
+    //     binding_index: u32,
+    // ) -> Result<(), CommandListError> {
+    //     let command_buffer = self
+    //         .command_buffers
+    //         .get(&command_list.id())
+    //         .ok_or(CommandListError::CommandListNotFound)?;
+    //     let ds = self
+    //         .descriptor_sets
+    //         .get(&binding.id())
+    //         .ok_or(CommandListError::PipelineLayoutNotFound)?;
+    //     let pip = self
+    //         .pipelines
+    //         .get(&pipeline.id())
+    //         .ok_or(CommandListError::PipelineNotFound)?;
+    //     command_buffer
+    //         .bind_descriptor_set(&self.device, ds, pip, &self.owned_images, binding_index)
+    //         .map_err(|err| CommandListError::CommandListBindError(err.into()))
+    // }
+    //
+    // fn command_draw(
+    //     &mut self,
+    //     command_list: CommandList,
+    //     vertex_buffer: Buffer,
+    //     index_buffer: Buffer,
+    // ) -> Result<(), CommandListError> {
+    //     let command_buffer = self
+    //         .command_buffers
+    //         .get(&command_list.id())
+    //         .ok_or(CommandListError::CommandListNotFound)?;
+    //     let vb = self
+    //         .buffers
+    //         .get(&vertex_buffer.id())
+    //         .ok_or(CommandListError::BufferNotFound)?;
+    //     let ib = self
+    //         .buffers
+    //         .get(&index_buffer.id())
+    //         .ok_or(CommandListError::BufferNotFound)?;
+    //     command_buffer
+    //         .bind_vertex_buffer(&self.device, vb)
+    //         .map_err(|err| {
+    //             CommandListError::CommandListDrawError(err.into())
+    //         })?;
+    //     command_buffer
+    //         .bind_index_buffer(&self.device, ib)
+    //         .map_err(|err| {
+    //             CommandListError::CommandListDrawError(err.into())
+    //         })?;
+    //     command_buffer
+    //         .draw_indexed(&self.device, ib.len, 1, 0, 0, 1)
+    //         .map_err(|err| CommandListError::CommandListDrawError(err.into()))
+    // }
 
     fn submit_commands(
         &mut self,
-        command_list: CommandList,
+        command_list: &CommandList,
         wait_semaphores: &[Semaphore],
         signal_semaphores: &[Semaphore],
         signal_fence: Fence,
@@ -575,6 +595,11 @@ impl GraphicsBackend for VulkanBackend {
             .command_buffers
             .get(&command_list.id())
             .ok_or(CommandListError::CommandListNotFound)?;
+        let mut builder =
+            VulkanCommandBufferBuilder::new(&self.device, &command_buffer)
+                .map_err(|err| {
+                    CommandListError::CommandListCreationError(err.into())
+                })?;
         let ws = wait_semaphores
             .iter()
             .map(|x| {
@@ -595,6 +620,107 @@ impl GraphicsBackend for VulkanBackend {
             .fences
             .get(&signal_fence.id())
             .ok_or(CommandListError::FenceNotFound)?;
+
+        for command in command_list.commands().iter() {
+            match command {
+                Command::Begin => builder.begin().map_err(|err| {
+                    CommandListError::CommandListBeginError(err.into())
+                })?,
+                Command::End => builder.end().map_err(|err| {
+                    CommandListError::CommandListEndError(err.into())
+                })?,
+                Command::BeginRenderpass(renderpass, framebuffer) => {
+                    let r = self.renderpasses.get(&renderpass.id()).unwrap();
+                    let f = self.framebuffers.get(&framebuffer.id()).unwrap();
+                    builder.begin_renderpass(r, f).map_err(|err| {
+                        CommandListError::CommandListRenderpassBeginError(
+                            err.into(),
+                        )
+                    })?;
+                    builder.set_viewports(f.dimensions()).map_err(|err| {
+                        CommandListError::CommandListRenderpassBeginError(
+                            err.into(),
+                        )
+                    })?;
+                    builder.set_scissor(f.dimensions(), Vec2i::ZERO).map_err(|err| {
+                        CommandListError::CommandListRenderpassBeginError(
+                            err.into(),
+                        )
+                    })?
+                },
+                Command::SetViewport(dimension) => {
+                    builder.set_viewports(*dimension).map_err(|err| {
+                        CommandListError::CommandListRenderpassBeginError(
+                            err.into(),
+                        )
+                    })?
+                },
+                Command::SetScissor(dimension, offest) => {
+                    builder.set_scissor(*dimension, *offest).map_err(|err| {
+                        CommandListError::CommandListRenderpassBeginError(
+                            err.into(),
+                        )
+                    })?
+                },
+                Command::EndRenderpass => builder
+                    .end_renderpass(&self.owned_images)
+                    .map_err(|err| {
+                        CommandListError::CommandListRenderpassEndError(
+                            err.into(),
+                        )
+                    })?,
+                Command::BindGraphicsPipeline(pipeline) => {
+                    let p = self.pipelines.get(&pipeline.id()).unwrap();
+                    builder.bind_graphics_pipeline(p).map_err(|err| {
+                        CommandListError::CommandListBindError(err.into())
+                    })?
+                },
+                Command::BindPipelineBinding(pipeline_binding, idx) => {
+                    let ds = self
+                        .descriptor_sets
+                        .get(&pipeline_binding.id())
+                        .unwrap();
+                    builder.bind_descriptor_set(ds, *idx).map_err(|err| {
+                        CommandListError::CommandListBindError(err.into())
+                    })?
+                },
+                Command::BindVertexBuffer(buffer) => {
+                    let b = self.buffers.get(&buffer.id()).unwrap();
+
+                    builder.bind_vertex_buffer(b).map_err(|err| {
+                        CommandListError::CommandListBindError(err.into())
+                    })?
+                },
+                Command::BindIndexBuffer(buffer) => {
+                    let b = self.buffers.get(&buffer.id()).unwrap();
+
+                    builder.bind_index_buffer(b).map_err(|err| {
+                        CommandListError::CommandListBindError(err.into())
+                    })?
+                },
+                Command::Draw(vc, ic, fv, fi) => {
+                    builder.draw(*vc, *ic, *fv, *fi).map_err(|err| {
+                        CommandListError::CommandListDrawError(err.into())
+                    })?;
+                },
+                Command::DrawIndexed(idc, inc, fid, vo, fin) => {
+                    builder.draw_indexed(*idc, *inc, *fid, *vo, *fin).map_err(
+                        |err| {
+                            CommandListError::CommandListDrawError(err.into())
+                        },
+                    )?;
+                },
+                Command::CopyBufferToImage(buffer, image) => {
+                    let b = self.buffers.get(&buffer.id()).unwrap();
+                    let i = self.owned_images.get(&image.id()).unwrap();
+                    builder.copy_buffer_to_image(b, i).map_err(|err| {
+                        CommandListError::CommandListCopyToImageError(
+                            err.into(),
+                        )
+                    })?
+                },
+            };
+        }
 
         self.present_queue
             .submit(&self.device, &ws, &ss, &[command_buffer], &fen)
@@ -745,13 +871,16 @@ impl GraphicsBackend for VulkanBackend {
             .owned_images
             .get_mut(&image.id())
             .ok_or(ImageError::ImageNotFound)?;
-        let mut cmd = VulkanCommandBuffer::new(&self.device, &self.command_pool)
+        let cmd =
+            VulkanCommandBuffer::new(&self.device, &self.command_pool)
+                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        let mut builder = VulkanCommandBufferBuilder::new(&self.device, &cmd)
+                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        builder.begin()
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        cmd.begin(&self.device)
+        builder.copy_buffer_to_image(buf, img)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        cmd.copy_buffer_to_image(&self.device, buf, img)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        cmd.end(&self.device)
+        builder.end()
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         self.present_queue
             .submit(

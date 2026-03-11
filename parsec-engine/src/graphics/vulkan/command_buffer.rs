@@ -58,11 +58,10 @@ enum VulkanCommandBufferState {
     Ended,
 }
 
-pub struct VulkanCommandBuffer<'a> {
+pub struct VulkanCommandBuffer {
     id: u32,
     device_id: u32,
-    commands: Vec<VulkanCommand<'a>>,
-    raw_command_buffer: Option<ash::vk::CommandBuffer>,
+    raw_command_buffer: ash::vk::CommandBuffer,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -141,127 +140,32 @@ impl VulkanCommandPool {
 }
 
 crate::create_counter! {COMMAND_BUFFER_ID_COUNTER}
-impl<'a> VulkanCommandBuffer<'a> {
+impl VulkanCommandBuffer {
     pub fn new(
         device: &VulkanDevice,
+        command_pool: &VulkanCommandPool,
     ) -> Result<Self, VulkanCommandBufferError> {
+        if device.id() != command_pool.device_id() {
+            return Err(VulkanCommandBufferError::DeviceMismatch);
+        }
+
+        let create_info = ash::vk::CommandBufferAllocateInfo::default()
+            .command_buffer_count(1)
+            .command_pool(*command_pool.raw_command_pool())
+            .level(ash::vk::CommandBufferLevel::PRIMARY);
+
+        let command_buffer = unsafe {
+            device
+                .raw_device()
+                .allocate_command_buffers(&create_info)
+                .map_err(|err| VulkanCommandBufferError::CreationError(err))?[0]
+        };
+
         Ok(Self {
             id: COMMAND_BUFFER_ID_COUNTER.next(),
             device_id: device.id(),
-            commands: Vec::new(),
-            raw_command_buffer: None, 
+            raw_command_buffer: command_buffer,
         })
-    }
-
-    pub fn begin(&mut self) { self.commands.push(VulkanCommand::Begin); }
-
-    pub fn end(&mut self) { self.commands.push(VulkanCommand::End); }
-
-    pub fn begin_renderpass<'b: 'a>(
-        &mut self,
-        renderpass: &'b VulkanRenderpass,
-        framebuffer: &'b VulkanFramebuffer,
-    ) {
-        self.commands
-            .push(VulkanCommand::BeginRenderpass(renderpass, framebuffer));
-    }
-
-    pub fn end_renderpass(&mut self) {
-        self.commands.push(VulkanCommand::EndRenderpass);
-    }
-
-    pub fn set_viewports(
-        &mut self,
-        dimensions: Vec2u,
-    ) -> Result<(), VulkanCommandBufferError> {
-        if dimensions.x == 0 && dimensions.y == 0 {
-            return Err(VulkanCommandBufferError::InvalidViewportSize);
-        }
-
-        self.commands.push(VulkanCommand::SetViewport(dimensions));
-
-        Ok(())
-    }
-
-    pub fn set_scissor(
-        &mut self,
-        dimensions: Vec2u,
-        offset: Vec2i,
-    ) -> Result<(), VulkanCommandBufferError> {
-        if dimensions.x == 0 && dimensions.y == 0 {
-            return Err(VulkanCommandBufferError::InvalidScissorSize);
-        }
-
-        self.commands
-            .push(VulkanCommand::SetScissor(dimensions, offset));
-
-        Ok(())
-    }
-
-    pub fn bind_graphics_pipeline<'b: 'a>(
-        &mut self,
-        pipeline: &'b VulkanGraphicsPipeline,
-    ) {
-        self.commands
-            .push(VulkanCommand::BindGraphicsPipeline(pipeline));
-    }
-
-    pub fn draw(
-        &mut self,
-        vertex_count: u32,
-        instance_count: u32,
-        first_vertex: u32,
-        first_instance: u32,
-    ) {
-        self.commands.push(VulkanCommand::Draw(
-            vertex_count,
-            instance_count,
-            first_vertex,
-            first_instance,
-        ));
-    }
-
-    pub fn draw_indexed(
-        &mut self,
-        index_count: u32,
-        instance_count: u32,
-        first_index: u32,
-        vertex_offset: i32,
-        first_instance: u32,
-    ) {
-        self.commands.push(VulkanCommand::DrawIndexed(
-            instance_count,
-            instance_count,
-            first_index,
-            vertex_offset,
-            first_instance,
-        ));
-    }
-
-    pub fn bind_vertex_buffer<'b: 'a>(&mut self, buffer: &'b VulkanBuffer) {
-        self.commands.push(VulkanCommand::BindVertexBuffer(buffer));
-    }
-
-    pub fn bind_index_buffer<'b: 'a>(&mut self, buffer: &'b VulkanBuffer) {
-        self.commands.push(VulkanCommand::BindIndexBuffer(buffer));
-    }
-
-    pub fn bind_descriptor_set<'b: 'a>(
-        &mut self,
-        descriptor_set: &'b VulkanDescriptorSet,
-        set_index: u32,
-    ) {
-        self.commands
-            .push(VulkanCommand::BindDescriptorSet(descriptor_set, set_index));
-    }
-
-    pub fn copy_buffer_to_image<'b: 'a>(
-        &mut self,
-        buffer: &'b VulkanBuffer,
-        image: &'b VulkanOwnedImage,
-    ) {
-        self.commands
-            .push(VulkanCommand::CopyBufferToImage(buffer, image));
     }
 
     pub fn reset(
@@ -272,132 +176,55 @@ impl<'a> VulkanCommandBuffer<'a> {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
-        let command_buffer = match self.raw_command_buffer {
-            Some(val) => val,
-            None => return Ok(()),
-        };
-
-        if let Err(err) = unsafe {
+        unsafe {
             device.raw_device().reset_command_buffer(
-                command_buffer,
+                self.raw_command_buffer,
                 ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-            )
-        } {
-            return Err(VulkanCommandBufferError::ResetError(err));
+            ).map_err(|err| VulkanCommandBufferError::ResetError(err))
         }
-
-        Ok(())
-    }
-
-    pub fn build(
-        &mut self,
-        device: &VulkanDevice,
-        command_pool: &VulkanCommandPool,
-        image_map: &HashMap<u32, VulkanOwnedImage>
-    ) -> Result<(), VulkanCommandBufferError> {
-        let command_buffer = match self.raw_command_buffer {
-            Some(val) => val,
-            None => {
-                if device.id() != command_pool.device_id() {
-                    return Err(VulkanCommandBufferError::DeviceMismatch);
-                }
-
-                let create_info = ash::vk::CommandBufferAllocateInfo::default()
-                    .command_buffer_count(1)
-                    .command_pool(*command_pool.raw_command_pool())
-                    .level(ash::vk::CommandBufferLevel::PRIMARY);
-
-                unsafe {
-                    device
-                        .raw_device()
-                        .allocate_command_buffers(&create_info)
-                        .map_err(|err| {
-                        VulkanCommandBufferError::CreationError(err)
-                    })?[0]
-                }
-            },
-        };
-
-        let mut build =
-            VulkanCommandBufferBuildData::new(device, command_buffer)?;
-
-        let mut command_index = 0;
-
-        while command_index >= 0 && command_index < self.commands.len() {
-            let command = &self.commands[command_index];
-            match command {
-                VulkanCommand::Begin => build.begin()?,
-                VulkanCommand::End => build.end()?,
-                VulkanCommand::BeginRenderpass(renderpass, framebuffer) => {
-                    build.begin_renderpass(renderpass, framebuffer)?;
-                },
-                VulkanCommand::EndRenderpass => {
-                    build.end_renderpass(image_map)?;
-                },
-                VulkanCommand::SetViewport(dimensions) => {
-                    build.set_viewports(*dimensions)?;
-                },
-                VulkanCommand::SetScissor(dimensions, offset) => {
-                    build.set_scissor(*dimensions, *offset)?;
-                },
-                VulkanCommand::BindGraphicsPipeline(pipeline) => {
-                    build.bind_graphics_pipeline(pipeline)?;
-                },
-                VulkanCommand::Draw(vc, ic, fv, fi) => {
-                    build.draw(*vc, *ic, *fv, *fi)?;
-                },
-                VulkanCommand::DrawIndexed(idc, inc, fid, vo, fin) => {
-                    build.draw_indexed(*idc, *inc, *fid, *vo, *fin)?;
-                },
-                VulkanCommand::BindVertexBuffer(buffer) => {
-                    build.bind_vertex_buffer(buffer)?;
-                },
-                VulkanCommand::BindIndexBuffer(buffer) => {
-                    build.bind_index_buffer(buffer)?;
-                },
-                VulkanCommand::BindDescriptorSet(set, idx) => {
-                    build.bind_descriptor_set(set, *idx)?;
-                },
-                VulkanCommand::CopyBufferToImage(buffer, image) => {
-                    build.copy_buffer_to_image(buffer, image)?;
-                },
-            };
-            command_index += 1;
-        }
-
-        Ok(())
     }
 
     pub fn id(&self) -> u32 { self.id }
+
+    pub fn raw_command_buffer(&self) -> &ash::vk::CommandBuffer {
+        &self.raw_command_buffer
+    }
 }
 
-struct VulkanCommandBufferBuildData<'a> {
+pub struct VulkanCommandBufferBuilder<'a> {
     device: &'a VulkanDevice,
+    command_buffer: &'a VulkanCommandBuffer,
+    
     state: VulkanCommandBufferState,
     current_renderpass_commands: Vec<VulkanCommand<'a>>,
     bound_pipeline: Option<&'a VulkanGraphicsPipeline>,
     image_state: HashMap<u32, VulkanCommandBufferImageState>,
     descriptor_set_images: Vec<u32>,
-    command_buffer: ash::vk::CommandBuffer,
 }
 
-impl<'a> VulkanCommandBufferBuildData<'a> {
-    fn new<'b: 'a>(
+impl<'a> VulkanCommandBufferBuilder<'a> {
+    pub fn new<'b: 'a>(
         device: &'b VulkanDevice,
-        raw_command_buffer: ash::vk::CommandBuffer,
+        command_buffer: &'b VulkanCommandBuffer
     ) -> Result<Self, VulkanCommandBufferError> {
+        if device.id() != command_buffer.device_id {
+            return Err(VulkanCommandBufferError::DeviceMismatch);
+        }
+
+        command_buffer.reset(device)?;
+
         Ok(Self {
             device,
+            command_buffer,
             state: VulkanCommandBufferState::NotStarted,
             current_renderpass_commands: Vec::new(),
             bound_pipeline: None,
             image_state: HashMap::new(),
             descriptor_set_images: Vec::new(),
-            command_buffer: raw_command_buffer,
         })
     }
 
-    fn begin(&mut self) -> Result<(), VulkanCommandBufferError> {
+    pub fn begin(&mut self) -> Result<(), VulkanCommandBufferError> {
         if self.state != VulkanCommandBufferState::NotStarted {
             return Err(VulkanCommandBufferError::IncorrectState(self.state));
         }
@@ -408,7 +235,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         unsafe {
             self.device
                 .raw_device()
-                .begin_command_buffer(self.command_buffer, &begin_info)
+                .begin_command_buffer(self.command_buffer.raw_command_buffer, &begin_info)
                 .map_err(|err| VulkanCommandBufferError::RawBeginError(err))?;
         }
 
@@ -417,7 +244,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         Ok(())
     }
 
-    fn end(&mut self) -> Result<(), VulkanCommandBufferError> {
+    pub fn end(&mut self) -> Result<(), VulkanCommandBufferError> {
         if self.state == VulkanCommandBufferState::NotStarted {
             return Err(VulkanCommandBufferError::IncorrectState(self.state));
         }
@@ -425,7 +252,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         unsafe {
             self.device
                 .raw_device()
-                .end_command_buffer(self.command_buffer)
+                .end_command_buffer(self.command_buffer.raw_command_buffer)
                 .map_err(|err| VulkanCommandBufferError::RawEndError(err))?
         };
 
@@ -434,7 +261,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         Ok(())
     }
 
-    fn begin_renderpass<'b: 'a>(
+    pub fn begin_renderpass<'b: 'a>(
         &mut self,
         renderpass: &'b VulkanRenderpass,
         framebuffer: &'b VulkanFramebuffer,
@@ -478,14 +305,14 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
 
         unsafe {
             self.device.raw_device().cmd_begin_render_pass(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 &begin_info,
                 ash::vk::SubpassContents::INLINE,
             )
         };
     }
 
-    fn end_renderpass(
+    pub fn end_renderpass(
         &mut self,
         image_map: &HashMap<u32, VulkanOwnedImage>,
     ) -> Result<(), VulkanCommandBufferError> {
@@ -552,7 +379,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         unsafe {
             self.device
                 .raw_device()
-                .cmd_end_render_pass(self.command_buffer);
+                .cmd_end_render_pass(self.command_buffer.raw_command_buffer);
         }
 
         self.state = VulkanCommandBufferState::Normal;
@@ -560,7 +387,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         Ok(())
     }
 
-    fn set_viewports(
+    pub fn set_viewports(
         &mut self,
         dimensions: Vec2u,
     ) -> Result<(), VulkanCommandBufferError> {
@@ -586,14 +413,14 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
 
         unsafe {
             self.device.raw_device().cmd_set_viewport(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 0,
                 &viewports,
             )
         };
     }
 
-    fn set_scissor(
+    pub fn set_scissor(
         &mut self,
         dimensions: Vec2u,
         offset: Vec2i,
@@ -612,7 +439,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         let scissors = [raw_rect_2d(dimensions, offset)];
         unsafe {
             self.device.raw_device().cmd_set_scissor(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 0,
                 &scissors,
             )
@@ -637,13 +464,13 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         Ok(())
     }
 
-    pub fn bind_graphics_pipeline_backtrack<'b: 'a>(
+    fn bind_graphics_pipeline_backtrack<'b: 'a>(
         &mut self,
         pipeline: &'b VulkanGraphicsPipeline,
     ) {
         unsafe {
             self.device.raw_device().cmd_bind_pipeline(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 ash::vk::PipelineBindPoint::GRAPHICS,
                 *pipeline.get_pipeline_raw(),
             )
@@ -673,7 +500,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         Ok(())
     }
 
-    pub fn draw_backtrack(
+    fn draw_backtrack(
         &mut self,
         vertex_count: u32,
         instance_count: u32,
@@ -682,7 +509,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
     ) {
         unsafe {
             self.device.raw_device().cmd_draw(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 vertex_count,
                 instance_count,
                 first_vertex,
@@ -691,7 +518,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         };
     }
 
-    fn draw_indexed(
+    pub fn draw_indexed(
         &mut self,
         index_count: u32,
         instance_count: u32,
@@ -725,7 +552,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
     ) {
         unsafe {
             self.device.raw_device().cmd_draw_indexed(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 index_count,
                 instance_count,
                 first_index,
@@ -735,7 +562,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         };
     }
 
-    fn bind_vertex_buffer<'b: 'a>(
+    pub fn bind_vertex_buffer<'b: 'a>(
         &mut self,
         buffer: &'b VulkanBuffer,
     ) -> Result<(), VulkanCommandBufferError> {
@@ -752,7 +579,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
     fn bind_vertex_buffer_backtrack(&mut self, buffer: &VulkanBuffer) {
         unsafe {
             self.device.raw_device().cmd_bind_vertex_buffers(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 0,
                 &[*buffer.get_buffer_raw()],
                 &[0],
@@ -760,7 +587,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         };
     }
 
-    fn bind_index_buffer<'b: 'a>(
+    pub fn bind_index_buffer<'b: 'a>(
         &mut self,
         buffer: &'b VulkanBuffer,
     ) -> Result<(), VulkanCommandBufferError> {
@@ -780,7 +607,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
     ) {
         unsafe {
             self.device.raw_device().cmd_bind_index_buffer(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 *buffer.get_buffer_raw(),
                 0,
                 ash::vk::IndexType::UINT32,
@@ -788,7 +615,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
         };
     }
 
-    fn bind_descriptor_set<'b: 'a>(
+    pub fn bind_descriptor_set<'b: 'a>(
         &mut self,
         descriptor_set: &'b VulkanDescriptorSet,
         set_index: u32,
@@ -821,7 +648,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
 
         unsafe {
             self.device.raw_device().cmd_bind_descriptor_sets(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 ash::vk::PipelineBindPoint::GRAPHICS,
                 *pipeline.get_layout_raw(),
                 set_index,
@@ -874,7 +701,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
 
         unsafe {
             self.device.raw_device().cmd_copy_buffer_to_image(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 *buffer.get_buffer_raw(),
                 *image.raw_image(),
                 ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL,
@@ -902,7 +729,7 @@ impl<'a> VulkanCommandBufferBuildData<'a> {
     ) -> Result<(), VulkanCommandBufferError> {
         unsafe {
             self.device.raw_device().cmd_pipeline_barrier(
-                self.command_buffer,
+                self.command_buffer.raw_command_buffer,
                 src_stage.raw_pipeline_stage(),
                 dst_stage.raw_pipeline_stage(),
                 ash::vk::DependencyFlags::empty(),

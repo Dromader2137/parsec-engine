@@ -5,7 +5,7 @@ use crate::{
     graphics::{
         backend::GraphicsBackend,
         buffer::{Buffer, BufferUsage},
-        command_list::CommandList,
+        command_list::{Command, CommandList},
         renderer::{DefaultVertex, assets::mesh::Mesh},
         vulkan::VulkanBackend,
     },
@@ -35,6 +35,7 @@ pub trait Vertex: Clone + Copy {
 pub struct MeshBuffer<V: Vertex> {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
+    len: u32,
     _marker: PhantomData<V>,
 }
 
@@ -51,18 +52,21 @@ impl<V: Vertex> MeshBuffer<V> {
             index_buffer: backend
                 .create_buffer(indices, &[BufferUsage::Index])
                 .unwrap(),
+            len: indices.len() as u32,
             _marker: PhantomData::default(),
         }
     }
 
     pub fn record_draw_commands(
         &self,
-        backend: &mut impl GraphicsBackend,
-        command_list: CommandList,
+        command_list: &mut CommandList,
     ) {
-        backend
-            .command_draw(command_list, self.vertex_buffer, self.index_buffer)
-            .unwrap();
+        command_list
+            .cmd(Command::BindVertexBuffer(self.vertex_buffer));
+        command_list
+            .cmd(Command::BindIndexBuffer(self.index_buffer));
+        command_list
+            .cmd(Command::DrawIndexed(self.len, 1, 0, 0 , 1));
     }
 }
 
@@ -87,10 +91,9 @@ impl<V: Vertex> MeshData<V> {
 
     pub fn record_commands(
         &self,
-        backend: &mut impl GraphicsBackend,
-        command_list: CommandList,
+        command_list: &mut CommandList,
     ) {
-        self.buffer.record_draw_commands(backend, command_list);
+        self.buffer.record_draw_commands(command_list);
     }
 }
 
