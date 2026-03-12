@@ -7,6 +7,7 @@ pub enum VulkanPipelineStage {
     FragmentShader,
     LateFragmentTests,
     BottomOfPipe,
+    ColorAttachmentOutput,
     Transfer,
     Host,
 }
@@ -35,6 +36,9 @@ impl VulkanPipelineStage {
             VulkanPipelineStage::BottomOfPipe => {
                 ash::vk::PipelineStageFlags::BOTTOM_OF_PIPE
             },
+            VulkanPipelineStage::ColorAttachmentOutput => {
+                ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+            }
             VulkanPipelineStage::Transfer => {
                 ash::vk::PipelineStageFlags::TRANSFER
             },

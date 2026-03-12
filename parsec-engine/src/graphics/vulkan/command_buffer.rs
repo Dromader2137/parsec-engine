@@ -209,6 +209,7 @@ pub struct VulkanCommandBufferBuilder<'a> {
     state: VulkanCommandBufferState,
     current_renderpass_commands: Vec<VulkanCommand<'a>>,
     bound_pipeline: Option<&'a VulkanGraphicsPipeline>,
+    bound_framebuffer: Option<&'a VulkanFramebuffer>,
     descriptor_set_images: HashSet<u32>,
 }
 
@@ -243,6 +244,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             state: VulkanCommandBufferState::NotStarted,
             current_renderpass_commands: Vec::new(),
             bound_pipeline: None,
+            bound_framebuffer: None,
             descriptor_set_images: HashSet::new(),
         })
     }
@@ -304,6 +306,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             return Err(VulkanCommandBufferError::IncorrectState(self.state));
         }
 
+        self.bound_framebuffer = Some(framebuffer);
         self.current_renderpass_commands =
             vec![VulkanCommand::BeginRenderpass(renderpass, framebuffer)];
 

@@ -1,4 +1,4 @@
-use crate::graphics::{vulkan::handle::VulkanHandle, window::Window};
+use crate::graphics::{window::Window};
 
 pub struct VulkanInstance {
     id: u32,
@@ -24,7 +24,7 @@ pub enum VulkanInstanceError {
 
 crate::create_counter! {ID_COUNTER}
 impl VulkanInstance {
-    pub fn new(window: &Window) -> Result<VulkanHandle<VulkanInstance>, VulkanInstanceError> {
+    pub fn new(window: &Window) -> Result<VulkanInstance, VulkanInstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
             Ok(val) => val,
             Err(err) => return Err(VulkanInstanceError::EntryError(err)),
@@ -77,11 +77,11 @@ impl VulkanInstance {
             },
         };
 
-        Ok(VulkanHandle::new(VulkanInstance {
+        Ok(VulkanInstance {
             id: ID_COUNTER.next(),
             entry,
             instance,
-        }))
+        })
     }
 
     pub fn raw_instance(&self) -> &ash::Instance { &self.instance }
