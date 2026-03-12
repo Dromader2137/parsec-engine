@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     graphics::vulkan::{
@@ -28,8 +28,8 @@ pub struct VulkanCommandPool {
 }
 
 pub struct VulkanCommandBufferImageState {
-    last_pipeline_stage: VulkanPipelineStage,
-    last_layout: VulkanImageLayout,
+    last_pipeline_stage: Vec<VulkanPipelineStage>,
+    pub last_layout: VulkanImageLayout,
     last_access: Vec<VulkanAccess>,
 }
 
@@ -51,7 +51,7 @@ enum VulkanCommand<'a> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum VulkanCommandBufferState {
+pub enum VulkanCommandBufferState {
     NotStarted,
     Normal,
     Renderpass,
@@ -61,6 +61,7 @@ enum VulkanCommandBufferState {
 pub struct VulkanCommandBuffer {
     id: u32,
     device_id: u32,
+    image_state: HashMap<u32, VulkanCommandBufferImageState>,
     raw_command_buffer: ash::vk::CommandBuffer,
 }
 
@@ -164,23 +165,29 @@ impl VulkanCommandBuffer {
         Ok(Self {
             id: COMMAND_BUFFER_ID_COUNTER.next(),
             device_id: device.id(),
+            image_state: HashMap::new(),
             raw_command_buffer: command_buffer,
         })
     }
 
     pub fn reset(
-        &self,
+        &mut self,
         device: &VulkanDevice,
     ) -> Result<(), VulkanCommandBufferError> {
         if self.device_id != device.id() {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
+        self.image_state.clear();
+
         unsafe {
-            device.raw_device().reset_command_buffer(
-                self.raw_command_buffer,
-                ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-            ).map_err(|err| VulkanCommandBufferError::ResetError(err))
+            device
+                .raw_device()
+                .reset_command_buffer(
+                    self.raw_command_buffer,
+                    ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES,
+                )
+                .map_err(|err| VulkanCommandBufferError::ResetError(err))
         }
     }
 
@@ -189,23 +196,27 @@ impl VulkanCommandBuffer {
     pub fn raw_command_buffer(&self) -> &ash::vk::CommandBuffer {
         &self.raw_command_buffer
     }
+
+    pub fn image_state(&self) -> &HashMap<u32, VulkanCommandBufferImageState> {
+        &self.image_state
+    }
 }
 
 pub struct VulkanCommandBufferBuilder<'a> {
     device: &'a VulkanDevice,
-    command_buffer: &'a VulkanCommandBuffer,
-    
+    command_buffer: &'a mut VulkanCommandBuffer,
+
     state: VulkanCommandBufferState,
     current_renderpass_commands: Vec<VulkanCommand<'a>>,
     bound_pipeline: Option<&'a VulkanGraphicsPipeline>,
-    image_state: HashMap<u32, VulkanCommandBufferImageState>,
-    descriptor_set_images: Vec<u32>,
+    descriptor_set_images: HashSet<u32>,
 }
 
 impl<'a> VulkanCommandBufferBuilder<'a> {
     pub fn new<'b: 'a>(
         device: &'b VulkanDevice,
-        command_buffer: &'b VulkanCommandBuffer
+        command_buffer: &'b mut VulkanCommandBuffer,
+        image_map: &HashMap<u32, VulkanOwnedImage>,
     ) -> Result<Self, VulkanCommandBufferError> {
         if device.id() != command_buffer.device_id {
             return Err(VulkanCommandBufferError::DeviceMismatch);
@@ -213,14 +224,26 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
 
         command_buffer.reset(device)?;
 
+        for (img_id, image) in image_map.iter() {
+            command_buffer.image_state.insert(
+                *img_id,
+                VulkanCommandBufferImageState {
+                    last_pipeline_stage: vec![
+                        VulkanPipelineStage::BottomOfPipe,
+                    ],
+                    last_layout: image.last_known_layout,
+                    last_access: Vec::new(),
+                },
+            );
+        }
+
         Ok(Self {
             device,
             command_buffer,
             state: VulkanCommandBufferState::NotStarted,
             current_renderpass_commands: Vec::new(),
             bound_pipeline: None,
-            image_state: HashMap::new(),
-            descriptor_set_images: Vec::new(),
+            descriptor_set_images: HashSet::new(),
         })
     }
 
@@ -235,7 +258,10 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         unsafe {
             self.device
                 .raw_device()
-                .begin_command_buffer(self.command_buffer.raw_command_buffer, &begin_info)
+                .begin_command_buffer(
+                    self.command_buffer.raw_command_buffer,
+                    &begin_info,
+                )
                 .map_err(|err| VulkanCommandBufferError::RawBeginError(err))?;
         }
 
@@ -327,7 +353,10 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
                 .ok_or(VulkanCommandBufferError::ImageNotFound)?;
             self.pipeline_barrier(
                 stage,
-                VulkanPipelineStage::VertexShader,
+                &[
+                    VulkanPipelineStage::FragmentShader,
+                    VulkanPipelineStage::VertexShader,
+                ],
                 &[],
                 &[],
                 &[VulkanImageMemoryBarrier::new(
@@ -338,7 +367,26 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
                     image,
                 )],
             )?;
+            self.command_buffer.image_state.insert(
+                *image_id,
+                VulkanCommandBufferImageState {
+                    last_pipeline_stage: vec![
+                        VulkanPipelineStage::FragmentShader,
+                        VulkanPipelineStage::VertexShader,
+                    ],
+                    last_layout: VulkanImageLayout::ShaderReadOnlyOptimal,
+                    last_access: vec![VulkanAccess::ShaderRead],
+                },
+            );
         }
+
+        self.pipeline_barrier(
+            &[VulkanPipelineStage::BottomOfPipe],
+            &[VulkanPipelineStage::TopOfPipe],
+            &[],
+            &[],
+            &[],
+        )?;
 
         let commands = self.current_renderpass_commands.clone();
         for command in commands.into_iter() {
@@ -382,6 +430,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
                 .cmd_end_render_pass(self.command_buffer.raw_command_buffer);
         }
 
+        self.descriptor_set_images.clear();
         self.state = VulkanCommandBufferState::Normal;
 
         Ok(())
@@ -628,8 +677,9 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             return Err(VulkanCommandBufferError::DeviceMismatch);
         }
 
-        self.descriptor_set_images
-            .extend_from_slice(descriptor_set.bound_image_ids());
+        for image_id in descriptor_set.bound_image_ids().iter() {
+            self.descriptor_set_images.insert(*image_id);
+        }
 
         self.current_renderpass_commands
             .push(VulkanCommand::BindDescriptorSet(descriptor_set, set_index));
@@ -679,7 +729,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
 
         self.pipeline_barrier(
             stage,
-            VulkanPipelineStage::Transfer,
+            &[VulkanPipelineStage::Transfer],
             &[],
             &[],
             &[VulkanImageMemoryBarrier::new(
@@ -709,20 +759,22 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             )
         };
 
-        self.image_state
-            .insert(image.id(), VulkanCommandBufferImageState {
-                last_pipeline_stage: VulkanPipelineStage::Transfer,
+        self.command_buffer.image_state.insert(
+            image.id(),
+            VulkanCommandBufferImageState {
+                last_pipeline_stage: vec![VulkanPipelineStage::Transfer],
                 last_layout: VulkanImageLayout::TransferDstOptimal,
                 last_access: vec![VulkanAccess::TransferWrite],
-            });
+            },
+        );
 
         Ok(())
     }
 
     fn pipeline_barrier(
         &self,
-        src_stage: VulkanPipelineStage,
-        dst_stage: VulkanPipelineStage,
+        src_stage: &[VulkanPipelineStage],
+        dst_stage: &[VulkanPipelineStage],
         memory_barriers: &[VulkanMemoryBarrier],
         buffer_memory_barriers: &[VulkanBufferMemoryBarrier],
         image_memory_barriers: &[VulkanImageMemoryBarrier],
@@ -730,8 +782,8 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         unsafe {
             self.device.raw_device().cmd_pipeline_barrier(
                 self.command_buffer.raw_command_buffer,
-                src_stage.raw_pipeline_stage(),
-                dst_stage.raw_pipeline_stage(),
+                VulkanPipelineStage::raw_combined_stage(src_stage),
+                VulkanPipelineStage::raw_combined_stage(dst_stage),
                 ash::vk::DependencyFlags::empty(),
                 &memory_barriers
                     .iter()
@@ -753,18 +805,16 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
     fn get_image_state(
         &self,
         image_id: u32,
-    ) -> (&[VulkanAccess], VulkanImageLayout, VulkanPipelineStage) {
-        match self.image_state.get(&image_id) {
+    ) -> (&[VulkanAccess], VulkanImageLayout, &[VulkanPipelineStage]) {
+        match self.command_buffer.image_state.get(&image_id) {
             Some(image_state) => (
                 image_state.last_access.as_slice(),
                 image_state.last_layout,
-                image_state.last_pipeline_stage,
+                &image_state.last_pipeline_stage,
             ),
-            None => (
-                &[] as &[VulkanAccess],
-                VulkanImageLayout::Undefined,
+            None => (&[] as &[VulkanAccess], VulkanImageLayout::Undefined, &[
                 VulkanPipelineStage::BottomOfPipe,
-            ),
+            ]),
         }
     }
 }

@@ -286,7 +286,7 @@ pub fn init_renderer(
             culling_mode: PipelineCullingMode::CullBack,
         },
     );
-    let shadow_size = 8192;
+    let shadow_size = 2048;
     let shadow_depth_image = backend
         .create_image(
             Vec2u::new(shadow_size, shadow_size),

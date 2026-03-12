@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+
 use crate::graphics::vulkan::{
-    command_buffer::VulkanCommandBuffer, device::VulkanDevice,
-    fence::VulkanFence, semaphore::VulkanSemaphore,
+    command_buffer::VulkanCommandBuffer, device::VulkanDevice, fence::VulkanFence, image::VulkanOwnedImage, semaphore::VulkanSemaphore
 };
 
 pub struct VulkanQueue {
@@ -34,12 +35,13 @@ impl VulkanQueue {
         signal_semaphores: &[&VulkanSemaphore],
         command_buffers: &[&VulkanCommandBuffer],
         submit_fence: &VulkanFence,
+        image_map: &mut HashMap<u32, VulkanOwnedImage>,
     ) -> Result<(), VulkanQueueError> {
         if device.id() != self.device_id {
             return Err(VulkanQueueError::DeviceMismatch);
         }
 
-        let command_buffers = command_buffers
+        let raw_command_buffers = command_buffers
             .iter()
             .map(|x| *x.raw_command_buffer())
             .collect::<Vec<_>>();
@@ -56,7 +58,7 @@ impl VulkanQueue {
             .wait_dst_stage_mask(&[
                 ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             ])
-            .command_buffers(&command_buffers)
+            .command_buffers(&raw_command_buffers)
             .wait_semaphores(&wait_semaphores)
             .signal_semaphores(&signal_semaphores);
 
@@ -68,8 +70,16 @@ impl VulkanQueue {
                     &[submit_info],
                     *submit_fence.get_fence_raw(),
                 )
-                .map_err(|err| VulkanQueueError::SubmitError(err))
+                .map_err(|err| VulkanQueueError::SubmitError(err))?;
         }
+
+        for image_state in command_buffers.iter().map(|x| x.image_state()).flatten() {
+            if let Some(image) = image_map.get_mut(image_state.0) {
+                image.last_known_layout = image_state.1.last_layout;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn get_queue_raw(&self) -> &ash::vk::Queue { &self.queue }

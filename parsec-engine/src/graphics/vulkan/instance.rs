@@ -1,18 +1,14 @@
-use std::borrow::Cow;
-
-use crate::graphics::window::Window;
+use crate::graphics::{vulkan::handle::VulkanHandle, window::Window};
 
 pub struct VulkanInstance {
     id: u32,
     entry: ash::Entry,
     instance: ash::Instance,
-    _debug_utils_loader: ash::ext::debug_utils::Instance,
-    _debug_call_back: Option<ash::vk::DebugUtilsMessengerEXT>,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum VulkanInstanceError {
-    #[error("Failed to load vulkan entry: {0}")]
+    #[error("Failed to load Vulkan entry: {0}")]
     EntryError(ash::LoadingError),
     #[error("Failed to create instance: {0}")]
     InstanceCreationError(ash::vk::Result),
@@ -26,48 +22,16 @@ pub enum VulkanInstanceError {
     DebugCreationError(ash::vk::Result),
 }
 
-unsafe extern "system" fn vulkan_debug_callback(
-    message_severity: ash::vk::DebugUtilsMessageSeverityFlagsEXT,
-    message_type: ash::vk::DebugUtilsMessageTypeFlagsEXT,
-    p_callback_data: *const ash::vk::DebugUtilsMessengerCallbackDataEXT<'_>,
-    _user_data: *mut std::os::raw::c_void,
-) -> ash::vk::Bool32 {
-    unsafe {
-        let callback_data = *p_callback_data;
-        let message_id_number = callback_data.message_id_number;
-
-        let message_id_name = if callback_data.p_message_id_name.is_null() {
-            std::borrow::Cow::from("")
-        } else {
-            std::ffi::CStr::from_ptr(callback_data.p_message_id_name)
-                .to_string_lossy()
-        };
-
-        let message = if callback_data.p_message.is_null() {
-            Cow::from("")
-        } else {
-            std::ffi::CStr::from_ptr(callback_data.p_message).to_string_lossy()
-        };
-
-        println!(
-            "{message_severity:?}: {message_type:?} [{message_id_name} \
-             ({message_id_number})] : {message} ",
-        );
-
-        ash::vk::FALSE
-    }
-}
-
 crate::create_counter! {ID_COUNTER}
 impl VulkanInstance {
-    pub fn new(window: &Window) -> Result<VulkanInstance, VulkanInstanceError> {
+    pub fn new(window: &Window) -> Result<VulkanHandle<VulkanInstance>, VulkanInstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
             Ok(val) => val,
             Err(err) => return Err(VulkanInstanceError::EntryError(err)),
         };
 
         let app_info = ash::vk::ApplicationInfo::default()
-            .api_version(ash::vk::make_api_version(0, 1, 0, 0));
+            .api_version(ash::vk::make_api_version(0, 1, 1, 0));
 
         let display_handle = match window.raw_display_handle() {
             Ok(val) => val,
@@ -113,45 +77,11 @@ impl VulkanInstance {
             },
         };
 
-        let debug_utils_loader =
-            ash::ext::debug_utils::Instance::new(&entry, &instance);
-        let debug_call_back = match cfg!(debug_assertions) && false {
-            true => {
-                let debug_info = ash::vk::DebugUtilsMessengerCreateInfoEXT::default()
-                    .message_severity(
-                        ash::vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                            | ash::vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                            | ash::vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
-                    )
-                    .message_type(
-                        ash::vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-                            | ash::vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
-                            | ash::vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
-                    )
-                    .pfn_user_callback(Some(vulkan_debug_callback));
-
-                match unsafe {
-                    debug_utils_loader
-                        .create_debug_utils_messenger(&debug_info, None)
-                } {
-                    Ok(val) => Some(val),
-                    Err(err) => {
-                        return Err(VulkanInstanceError::DebugCreationError(
-                            err,
-                        ));
-                    },
-                }
-            },
-            false => None,
-        };
-
-        Ok(VulkanInstance {
+        Ok(VulkanHandle::new(VulkanInstance {
             id: ID_COUNTER.next(),
             entry,
             instance,
-            _debug_utils_loader: debug_utils_loader,
-            _debug_call_back: debug_call_back,
-        })
+        }))
     }
 
     pub fn raw_instance(&self) -> &ash::Instance { &self.instance }
@@ -163,12 +93,6 @@ impl VulkanInstance {
 
 impl Drop for VulkanInstance {
     fn drop(&mut self) {
-        if let Some(messanger) = self._debug_call_back {
-            unsafe {
-                self._debug_utils_loader
-                    .destroy_debug_utils_messenger(messanger, None)
-            };
-        }
         unsafe { self.instance.destroy_instance(None) };
     }
 }

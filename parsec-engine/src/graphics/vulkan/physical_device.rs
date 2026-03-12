@@ -1,5 +1,5 @@
 use crate::graphics::vulkan::{
-    instance::VulkanInstance, surface::VulkanInitialSurface,
+    handle::VulkanHandle, instance::VulkanInstance, surface::VulkanInitialSurface
 };
 
 pub struct VulkanPhysicalDevice {
@@ -21,9 +21,9 @@ pub enum VulkanPhysicalDeviceError {
 crate::create_counter! {ID_COUNTER}
 impl VulkanPhysicalDevice {
     pub fn new(
-        instance: &VulkanInstance,
-        initial_surface: &VulkanInitialSurface,
-    ) -> Result<VulkanPhysicalDevice, VulkanPhysicalDeviceError> {
+        instance: VulkanHandle<VulkanInstance>,
+        initial_surface: VulkanHandle<VulkanInitialSurface>,
+    ) -> Result<VulkanHandle<VulkanPhysicalDevice>, VulkanPhysicalDeviceError> {
         let physical_devices = unsafe {
             instance
                 .raw_instance()

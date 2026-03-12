@@ -90,6 +90,7 @@ pub mod shader;
 mod surface;
 mod swapchain;
 mod utils;
+mod handle;
 
 #[allow(unused)]
 pub struct VulkanBackend {
@@ -422,168 +423,6 @@ impl GraphicsBackend for VulkanBackend {
         Ok(CommandList::new(command_buffer_id))
     }
 
-    // fn command_begin(
-    //     &mut self,
-    //     command_list: CommandList,
-    // ) -> Result<(), CommandListError> {
-    //     let command_buffer = self
-    //         .command_buffers
-    //         .get(&command_list.id())
-    //         .ok_or(CommandListError::CommandListNotFound)?;
-    //     command_buffer
-    //         .begin(&self.device)
-    //         .map_err(|err| CommandListError::CommandListBeginError(err.into()))
-    // }
-    //
-    // fn command_end(
-    //     &mut self,
-    //     command_list: CommandList,
-    // ) -> Result<(), CommandListError> {
-    //     let command_buffer = self
-    //         .command_buffers
-    //         .get(&command_list.id())
-    //         .ok_or(CommandListError::CommandListNotFound)?;
-    //     command_buffer
-    //         .end(&self.device)
-    //         .map_err(|err| CommandListError::CommandListEndError(err.into()))
-    // }
-    //
-    // fn command_reset(
-    //     &mut self,
-    //     command_list: CommandList,
-    // ) -> Result<(), CommandListError> {
-    //     let command_buffer = self
-    //         .command_buffers
-    //         .get(&command_list.id())
-    //         .ok_or(CommandListError::CommandListNotFound)?;
-    //     command_buffer
-    //         .reset(&self.device)
-    //         .map_err(|err| CommandListError::CommandListResetError(err.into()))
-    // }
-    //
-    // fn command_begin_renderpass(
-    //     &mut self,
-    //     command_list: CommandList,
-    //     renderpass: Renderpass,
-    //     framebuffer: Framebuffer,
-    // ) -> Result<(), CommandListError> {
-    //     let command_buffer = self
-    //         .command_buffers
-    //         .get(&command_list.id())
-    //         .ok_or(CommandListError::CommandListNotFound)?;
-    //     let fra = self
-    //         .framebuffers
-    //         .get(&framebuffer.id())
-    //         .ok_or(CommandListError::FramebufferNotFound)?;
-    //     let ren = self
-    //         .renderpasses
-    //         .get(&renderpass.id())
-    //         .ok_or(CommandListError::RenderpassNotFound)?;
-    //     command_buffer
-    //         .begin_renderpass(&self.device, fra, ren)
-    //         .map_err(|err| {
-    //             CommandListError::CommandListRenderpassBeginError(err.into())
-    //         })?;
-    //     command_buffer
-    //         .set_viewports(&self.device, fra.dimensions(), ren)
-    //         .map_err(|err| {
-    //             CommandListError::CommandListRenderpassBeginError(err.into())
-    //         })?;
-    //     command_buffer
-    //         .set_scissor(&self.device, fra.dimensions(), Vec2i::ZERO, ren)
-    //         .map_err(|err| {
-    //             CommandListError::CommandListRenderpassBeginError(err.into())
-    //         })
-    // }
-    //
-    // fn command_end_renderpass(
-    //     &mut self,
-    //     command_list: CommandList,
-    // ) -> Result<(), CommandListError> {
-    //     let command_buffer = self
-    //         .command_buffers
-    //         .get(&command_list.id())
-    //         .ok_or(CommandListError::CommandListNotFound)?;
-    //     command_buffer.end_renderpass(&self.device).map_err(|err| {
-    //         CommandListError::CommandListRenderpassEndError(err.into())
-    //     })
-    // }
-    //
-    // fn command_bind_pipeline(
-    //     &mut self,
-    //     command_list: CommandList,
-    //     pipeline: Pipeline,
-    // ) -> Result<(), CommandListError> {
-    //     let command_buffer = self
-    //         .command_buffers
-    //         .get(&command_list.id())
-    //         .ok_or(CommandListError::CommandListNotFound)?;
-    //     let pip = self
-    //         .pipelines
-    //         .get(&pipeline.id())
-    //         .ok_or(CommandListError::PipelineNotFound)?;
-    //     command_buffer
-    //         .bind_graphics_pipeline(&self.device, pip)
-    //         .map_err(|err| CommandListError::CommandListBindError(err.into()))
-    // }
-    //
-    // fn command_bind_pipeline_binding(
-    //     &mut self,
-    //     command_list: CommandList,
-    //     pipeline: Pipeline,
-    //     binding: PipelineBinding,
-    //     binding_index: u32,
-    // ) -> Result<(), CommandListError> {
-    //     let command_buffer = self
-    //         .command_buffers
-    //         .get(&command_list.id())
-    //         .ok_or(CommandListError::CommandListNotFound)?;
-    //     let ds = self
-    //         .descriptor_sets
-    //         .get(&binding.id())
-    //         .ok_or(CommandListError::PipelineLayoutNotFound)?;
-    //     let pip = self
-    //         .pipelines
-    //         .get(&pipeline.id())
-    //         .ok_or(CommandListError::PipelineNotFound)?;
-    //     command_buffer
-    //         .bind_descriptor_set(&self.device, ds, pip, &self.owned_images, binding_index)
-    //         .map_err(|err| CommandListError::CommandListBindError(err.into()))
-    // }
-    //
-    // fn command_draw(
-    //     &mut self,
-    //     command_list: CommandList,
-    //     vertex_buffer: Buffer,
-    //     index_buffer: Buffer,
-    // ) -> Result<(), CommandListError> {
-    //     let command_buffer = self
-    //         .command_buffers
-    //         .get(&command_list.id())
-    //         .ok_or(CommandListError::CommandListNotFound)?;
-    //     let vb = self
-    //         .buffers
-    //         .get(&vertex_buffer.id())
-    //         .ok_or(CommandListError::BufferNotFound)?;
-    //     let ib = self
-    //         .buffers
-    //         .get(&index_buffer.id())
-    //         .ok_or(CommandListError::BufferNotFound)?;
-    //     command_buffer
-    //         .bind_vertex_buffer(&self.device, vb)
-    //         .map_err(|err| {
-    //             CommandListError::CommandListDrawError(err.into())
-    //         })?;
-    //     command_buffer
-    //         .bind_index_buffer(&self.device, ib)
-    //         .map_err(|err| {
-    //             CommandListError::CommandListDrawError(err.into())
-    //         })?;
-    //     command_buffer
-    //         .draw_indexed(&self.device, ib.len, 1, 0, 0, 1)
-    //         .map_err(|err| CommandListError::CommandListDrawError(err.into()))
-    // }
-
     fn submit_commands(
         &mut self,
         command_list: &CommandList,
@@ -593,13 +432,16 @@ impl GraphicsBackend for VulkanBackend {
     ) -> Result<(), CommandListError> {
         let command_buffer = self
             .command_buffers
-            .get(&command_list.id())
+            .get_mut(&command_list.id())
             .ok_or(CommandListError::CommandListNotFound)?;
-        let mut builder =
-            VulkanCommandBufferBuilder::new(&self.device, &command_buffer)
-                .map_err(|err| {
-                    CommandListError::CommandListCreationError(err.into())
-                })?;
+        let mut builder = VulkanCommandBufferBuilder::new(
+            &self.device,
+            command_buffer,
+            &self.owned_images,
+        )
+        .map_err(|err| {
+            CommandListError::CommandListCreationError(err.into())
+        })?;
         let ws = wait_semaphores
             .iter()
             .map(|x| {
@@ -642,11 +484,13 @@ impl GraphicsBackend for VulkanBackend {
                             err.into(),
                         )
                     })?;
-                    builder.set_scissor(f.dimensions(), Vec2i::ZERO).map_err(|err| {
-                        CommandListError::CommandListRenderpassBeginError(
-                            err.into(),
-                        )
-                    })?
+                    builder.set_scissor(f.dimensions(), Vec2i::ZERO).map_err(
+                        |err| {
+                            CommandListError::CommandListRenderpassBeginError(
+                                err.into(),
+                            )
+                        },
+                    )?
                 },
                 Command::SetViewport(dimension) => {
                     builder.set_viewports(*dimension).map_err(|err| {
@@ -723,7 +567,14 @@ impl GraphicsBackend for VulkanBackend {
         }
 
         self.present_queue
-            .submit(&self.device, &ws, &ss, &[command_buffer], &fen)
+            .submit(
+                &self.device,
+                &ws,
+                &ss,
+                &[command_buffer],
+                &fen,
+                &mut self.owned_images,
+            )
             .map_err(|err| CommandListError::CommandListSubmitError(err.into()))
     }
 
@@ -867,20 +718,27 @@ impl GraphicsBackend for VulkanBackend {
             .buffers
             .get(&buffer.id())
             .ok_or(ImageError::BufferNotFound)?;
+        let mut cmd =
+            VulkanCommandBuffer::new(&self.device, &self.command_pool)
+                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        let mut builder = VulkanCommandBufferBuilder::new(
+            &self.device,
+            &mut cmd,
+            &self.owned_images,
+        )
+        .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         let img = self
             .owned_images
             .get_mut(&image.id())
             .ok_or(ImageError::ImageNotFound)?;
-        let cmd =
-            VulkanCommandBuffer::new(&self.device, &self.command_pool)
-                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        let mut builder = VulkanCommandBufferBuilder::new(&self.device, &cmd)
-                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        builder.begin()
+        builder
+            .begin()
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        builder.copy_buffer_to_image(buf, img)
+        builder
+            .copy_buffer_to_image(buf, img)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        builder.end()
+        builder
+            .end()
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         self.present_queue
             .submit(
@@ -889,6 +747,7 @@ impl GraphicsBackend for VulkanBackend {
                 &[],
                 &[&cmd],
                 &VulkanFence::null(&self.device),
+                &mut self.owned_images,
             )
             .map_err(|err| ImageError::ImageLoadError(err.into()))
     }

@@ -4,3 +4,5 @@ shaders/*.spv
 renderdoc/
 *.obj
 *.png
+log
+*.log

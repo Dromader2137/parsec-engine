@@ -268,6 +268,7 @@ pub struct VulkanOwnedImage {
     format: VulkanImageFormat,
     usage: Vec<VulkanImageUsage>,
     aspect: VulkanImageAspect,
+    pub last_known_layout: VulkanImageLayout,
     image: ash::vk::Image,
     memory: ash::vk::DeviceMemory,
     size: u64,
@@ -436,6 +437,7 @@ impl VulkanOwnedImage {
             format,
             usage: usage.to_vec(),
             aspect,
+            last_known_layout: VulkanImageLayout::Undefined,
             memory: image_memory,
             size: format_size
                 * size.raw_size().x as u64
