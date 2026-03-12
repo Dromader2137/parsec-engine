@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    generational_arena::arena::StandardArena, graphics::{
+    graphics::{
         backend::{BackendInitError, GraphicsBackend},
         buffer::{Buffer, BufferError, BufferUsage},
         command_list::{Command, CommandList, CommandListError},
@@ -62,7 +62,8 @@ use crate::{
             swapchain::{VulkanSwapchain, VulkanSwapchainError},
         },
         window::Window,
-    }, math::{ivec::Vec2i, uvec::Vec2u}
+    },
+    math::{ivec::Vec2i, uvec::Vec2u},
 };
 
 mod access;
@@ -89,32 +90,31 @@ pub mod shader;
 mod surface;
 mod swapchain;
 mod utils;
-mod handle;
 
 #[allow(unused)]
 pub struct VulkanBackend {
     instance: VulkanInstance,
-    physical_device: StandardArena<VulkanPhysicalDevice>,
-    surface: StandardArena<VulkanSurface>,
-    device: StandardArena<VulkanDevice>,
-    command_pool: StandardArena<VulkanCommandPool>,
-    present_queue: StandardArena<VulkanQueue>,
-    descriptor_pool: StandardArena<VulkanDescriptorPool>,
-    swapchains: StandardArena<VulkanSwapchain>,
-    swapchain_images: StandardArena<VulkanSwapchainImage>,
-    owned_images: StandardArena<VulkanOwnedImage>,
-    image_views: StandardArena<VulkanImageView>,
-    samplers: StandardArena<VulkanSampler>,
-    framebuffers: StandardArena<VulkanFramebuffer>,
-    fences: StandardArena<VulkanFence>,
-    semaphores: StandardArena<VulkanSemaphore>,
-    command_buffers: StandardArena<VulkanCommandBuffer>,
-    buffers: StandardArena<VulkanBuffer>,
-    shaders: StandardArena<VulkanShaderModule>,
-    pipelines: StandardArena<VulkanGraphicsPipeline>,
-    renderpasses: StandardArena<VulkanRenderpass>,
-    descriptor_sets: StandardArena<VulkanDescriptorSet>,
-    descriptor_set_layouts: StandardArena<VulkanDescriptorSetLayout>,
+    physical_device: VulkanPhysicalDevice,
+    surface: VulkanSurface,
+    device: VulkanDevice,
+    command_pool: VulkanCommandPool,
+    present_queue: VulkanQueue,
+    descriptor_pool: VulkanDescriptorPool,
+    swapchains: HashMap<u32, VulkanSwapchain>,
+    swapchain_images: HashMap<u32, VulkanSwapchainImage>,
+    owned_images: HashMap<u32, VulkanOwnedImage>,
+    image_views: HashMap<u32, VulkanImageView>,
+    samplers: HashMap<u32, VulkanSampler>,
+    framebuffers: HashMap<u32, VulkanFramebuffer>,
+    fences: HashMap<u32, VulkanFence>,
+    semaphores: HashMap<u32, VulkanSemaphore>,
+    command_buffers: HashMap<u32, VulkanCommandBuffer>,
+    buffers: HashMap<u32, VulkanBuffer>,
+    shaders: HashMap<u32, VulkanShaderModule>,
+    pipelines: HashMap<u32, VulkanGraphicsPipeline>,
+    renderpasses: HashMap<u32, VulkanRenderpass>,
+    descriptor_sets: HashMap<u32, VulkanDescriptorSet>,
+    descriptor_set_layouts: HashMap<u32, VulkanDescriptorSetLayout>,
 }
 
 impl GraphicsBackend for VulkanBackend {
