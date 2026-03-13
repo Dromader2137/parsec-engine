@@ -22,7 +22,7 @@ pub enum BackendInitError {
 }
 
 pub trait GraphicsBackend: Sized {
-    fn init(window: &Window) -> Result<Self, BackendInitError>;
+    fn init(&mut self, window: &Window) -> Result<Self, BackendInitError>;
     fn wait_idle(&self);
 
     fn get_surface_format(&self) -> ImageFormat;

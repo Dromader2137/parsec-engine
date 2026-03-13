@@ -1,6 +1,6 @@
-use crate::graphics::vulkan::{
-    instance::VulkanInstance, surface::VulkanInitialSurface
-};
+use crate::{arena::handle::Handle, graphics::vulkan::{
+    VulkanBackend, instance::VulkanInstance, surface::VulkanInitialSurface
+}};
 
 pub struct VulkanPhysicalDevice {
     id: u32,
@@ -21,9 +21,12 @@ pub enum VulkanPhysicalDeviceError {
 crate::create_counter! {ID_COUNTER}
 impl VulkanPhysicalDevice {
     pub fn new(
-        instance: &VulkanInstance,
+        arenas: &mut VulkanBackend,
+        instance: Handle<VulkanInstance>,
         initial_surface: &VulkanInitialSurface,
-    ) -> Result<VulkanPhysicalDevice, VulkanPhysicalDeviceError> {
+    ) -> Result<Weak<VulkanPhysicalDevice>, VulkanPhysicalDeviceError> {
+        let instance = arenas.instances.get_mut(instance);
+
         let physical_devices = unsafe {
             instance
                 .raw_instance()
@@ -68,13 +71,16 @@ impl VulkanPhysicalDevice {
                 .get_physical_device_memory_properties(physical_device)
         };
 
-        Ok(VulkanPhysicalDevice {
+        let physical_device = VulkanPhysicalDevice {
             id: ID_COUNTER.next(),
             instance_id: instance.id(),
             physical_device,
             physical_memory_properties: memory_prop,
             queue_family_index,
-        })
+        };
+
+        let handle = arenas.physical_devices.add(physical_device);
+        instance.physical_devices.push(handle);
     }
 
     pub fn raw_physical_device(&self) -> &ash::vk::PhysicalDevice {
