@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    arena::{Arena, handle::Handle},
+    arena::{Arena, ArenaFor, handle::Handle},
     graphics::{
         backend::{BackendInitError, GraphicsBackend},
         buffer::{Buffer, BufferError, BufferUsage},
@@ -149,21 +149,38 @@ impl VulkanBackend {
     }
 }
 
+impl ArenaFor<VulkanInstance> for VulkanBackend {
+    fn arena_for(&mut self) -> &mut Arena<VulkanInstance> {
+        &mut self.instances
+    }
+}
+
+impl ArenaFor<VulkanPhysicalDevice> for VulkanBackend {
+    fn arena_for(&mut self) -> &mut Arena<VulkanPhysicalDevice> {
+        &mut self.physical_devices
+    }
+}
+
 impl GraphicsBackend for VulkanBackend {
-    fn init(&mut self, window: &Window) -> Result<Self, BackendInitError> {
+    fn init(&mut self, window: &Window) -> Result<(), BackendInitError> {
         let instance = VulkanInstance::new(self, &window)
             .map_err(|err| BackendInitError::InitError(err.into()))?;
-        let initial_surface = VulkanInitialSurface::new(&instance, &window)
-            .map_err(|err| BackendInitError::InitError(err.into()))?;
+        let initial_surface =
+            VulkanInitialSurface::new(self, instance, &window)
+                .map_err(|err| BackendInitError::InitError(err.into()))?;
         let physical_device =
             VulkanPhysicalDevice::new(self, instance, &initial_surface)
                 .map_err(|err| BackendInitError::InitError(err.into()))?;
         let surface = VulkanSurface::from_initial_surface(
+            self,
             initial_surface,
-            &physical_device,
+            instance,
+            physical_device
+                .upgrade(self)
+                .expect("Physical device not initialized!"),
         )
         .map_err(|err| BackendInitError::InitError(err.into()))?;
-        let device = VulkanDevice::new(&instance, &physical_device, &surface)
+        let device = VulkanDevice::new(self, physical_device, surface)
             .map_err(|err| BackendInitError::InitError(err.into()))?;
         let command_pool = VulkanCommandPool::new(&physical_device, &device)
             .map_err(|err| BackendInitError::InitError(err.into()))?;
@@ -180,30 +197,9 @@ impl GraphicsBackend for VulkanBackend {
             ),
         ])
         .map_err(|err| BackendInitError::InitError(err.into()))?;
-        Ok(VulkanBackend {
-            instance,
-            physical_device,
-            surface,
-            device,
-            command_pool,
-            present_queue,
-            descriptor_pool,
-            swapchains: HashMap::new(),
-            swapchain_images: HashMap::new(),
-            owned_images: HashMap::new(),
-            image_views: HashMap::new(),
-            samplers: HashMap::new(),
-            framebuffers: HashMap::new(),
-            fences: HashMap::new(),
-            semaphores: HashMap::new(),
-            command_buffers: HashMap::new(),
-            buffers: HashMap::new(),
-            shaders: HashMap::new(),
-            pipelines: HashMap::new(),
-            renderpasses: HashMap::new(),
-            descriptor_sets: HashMap::new(),
-            descriptor_set_layouts: HashMap::new(),
-        })
+
+        self.instance = instance;
+        Ok(())
     }
 
     fn wait_idle(&self) { self.device.wait_idle().unwrap(); }

@@ -1,10 +1,13 @@
-use crate::{arena::handle::Handle, graphics::vulkan::{
-    VulkanBackend, instance::VulkanInstance, surface::VulkanInitialSurface
-}};
+use crate::{
+    arena::handle::{Handle, WeakHandle},
+    graphics::vulkan::{
+        VulkanBackend, device::VulkanDevice, instance::VulkanInstance, surface::VulkanInitialSurface
+    },
+};
 
 pub struct VulkanPhysicalDevice {
-    id: u32,
-    instance_id: u32,
+    instance: Handle<VulkanInstance>,
+    devices: Vec<Handle<VulkanDevice>>,
     physical_device: ash::vk::PhysicalDevice,
     physical_memory_properties: ash::vk::PhysicalDeviceMemoryProperties,
     queue_family_index: u32,
@@ -22,10 +25,11 @@ crate::create_counter! {ID_COUNTER}
 impl VulkanPhysicalDevice {
     pub fn new(
         arenas: &mut VulkanBackend,
-        instance: Handle<VulkanInstance>,
+        instance_handle: Handle<VulkanInstance>,
         initial_surface: &VulkanInitialSurface,
-    ) -> Result<Weak<VulkanPhysicalDevice>, VulkanPhysicalDeviceError> {
-        let instance = arenas.instances.get_mut(instance);
+    ) -> Result<WeakHandle<VulkanPhysicalDevice>, VulkanPhysicalDeviceError>
+    {
+        let instance = arenas.instances.get_mut(instance_handle.clone());
 
         let physical_devices = unsafe {
             instance
@@ -72,15 +76,15 @@ impl VulkanPhysicalDevice {
         };
 
         let physical_device = VulkanPhysicalDevice {
-            id: ID_COUNTER.next(),
-            instance_id: instance.id(),
+            instance: instance_handle.clone(),
             physical_device,
             physical_memory_properties: memory_prop,
             queue_family_index,
         };
 
         let handle = arenas.physical_devices.add(physical_device);
-        instance.physical_devices.push(handle);
+        instance.physical_devices.push(handle.clone());
+        Ok(handle.downgrade())
     }
 
     pub fn raw_physical_device(&self) -> &ash::vk::PhysicalDevice {
@@ -89,13 +93,11 @@ impl VulkanPhysicalDevice {
 
     pub fn queue_family_index(&self) -> u32 { self.queue_family_index }
 
-    pub fn id(&self) -> u32 { self.id }
-
     pub fn raw_physical_memory_properties(
         &self,
     ) -> ash::vk::PhysicalDeviceMemoryProperties {
         self.physical_memory_properties
     }
 
-    pub fn instance_id(&self) -> u32 { self.instance_id }
+    pub fn instance(&self) -> Handle<VulkanInstance> { self.instance.clone() }
 }

@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, atomic::AtomicUsize},
+};
 
 use crate::arena::handle::{Handle, WeakHandle};
 
@@ -7,7 +10,7 @@ pub mod handle;
 struct ArenaObjectData<T> {
     object: T,
     generation: u32,
-    strong_ref_count: u32,
+    strong_ref_count: Arc<AtomicUsize>,
 }
 
 impl<T> ArenaObjectData<T> {
@@ -15,7 +18,7 @@ impl<T> ArenaObjectData<T> {
         Self {
             object,
             generation: 1,
-            strong_ref_count: 1,
+            strong_ref_count: Arc::new(AtomicUsize::default()),
         }
     }
 }
@@ -35,9 +38,10 @@ impl<T> Arena<T> {
 
     pub fn add(&mut self, value: T) -> Handle<T> {
         let object_data = ArenaObjectData::new(value);
+        let ref_counter = object_data.strong_ref_count.clone();
         self.objects.insert(self.id_counter, object_data);
         self.id_counter += 1;
-        Handle::new(self.id_counter - 1, 1)
+        Handle::new(self.id_counter - 1, 1, ref_counter)
     }
 
     pub fn get(&self, handle: Handle<T>) -> &T {
@@ -47,7 +51,7 @@ impl<T> Arena<T> {
             .expect("Strong reference has to be valid!");
         &object_data.object
     }
-    
+
     pub fn get_mut(&mut self, handle: Handle<T>) -> &mut T {
         let object_data = self
             .objects
@@ -57,15 +61,15 @@ impl<T> Arena<T> {
     }
 
     pub fn upgrade(&mut self, weak_handle: WeakHandle<T>) -> Option<Handle<T>> {
-        let strong_handle = &weak_handle.0;
-        let object_data = self
-            .objects
-            .get_mut(&strong_handle.id)?;
-        if object_data.generation != strong_handle.generation {
+        let object_data = self.objects.get_mut(&weak_handle.id)?;
+        if object_data.generation != weak_handle.generation {
             None
         } else {
-            object_data.strong_ref_count += 1;
-            Some(*strong_handle)
+            Some(Handle::new(
+                weak_handle.id,
+                weak_handle.generation,
+                object_data.strong_ref_count.clone(),
+            ))
         }
     }
 }

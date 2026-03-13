@@ -1,6 +1,12 @@
-use crate::graphics::{
-    vulkan::{image::VulkanImageFormat, instance::VulkanInstance, physical_device::VulkanPhysicalDevice},
-    window::Window,
+use crate::{
+    arena::handle::{Handle, WeakHandle},
+    graphics::{
+        vulkan::{
+            VulkanBackend, image::VulkanImageFormat, instance::VulkanInstance,
+            physical_device::VulkanPhysicalDevice,
+        },
+        window::Window,
+    },
 };
 
 pub struct VulkanInitialSurface {
@@ -10,12 +16,12 @@ pub struct VulkanInitialSurface {
 }
 
 pub struct VulkanSurface {
-    id: u32,
+    instance: Handle<VulkanInstance>,
+    devices: Vec<Handle<VulkanDevice>>,
     window_id: u32,
-    physical_device_id: u32,
+    surface_format: VulkanImageFormat,
     surface: ash::vk::SurfaceKHR,
     surface_loader: ash::khr::surface::Instance,
-    surface_format: VulkanImageFormat,
     surface_capabilities: ash::vk::SurfaceCapabilitiesKHR,
 }
 
@@ -39,9 +45,12 @@ pub enum VulkanSurfaceError {
 
 impl VulkanInitialSurface {
     pub fn new(
-        instance: &VulkanInstance,
+        arenas: &mut VulkanBackend,
+        instance_handle: Handle<VulkanInstance>,
         window: &Window,
     ) -> Result<VulkanInitialSurface, VulkanSurfaceError> {
+        let instance = arenas.instances.get(instance_handle);
+
         let display_handle = window
             .raw_display_handle()
             .map_err(|err| VulkanSurfaceError::DisplayHandleError(err))?;
@@ -98,9 +107,15 @@ impl VulkanInitialSurface {
 crate::create_counter! {ID_COUNTER}
 impl VulkanSurface {
     pub fn from_initial_surface(
+        arenas: &mut VulkanBackend,
         initial_surface: VulkanInitialSurface,
-        physical_device: &VulkanPhysicalDevice,
-    ) -> Result<VulkanSurface, VulkanSurfaceError> {
+        instance_handle: Handle<VulkanInstance>,
+        physical_device_handle: Handle<VulkanPhysicalDevice>,
+    ) -> Result<WeakHandle<VulkanSurface>, VulkanSurfaceError> {
+        let physical_device =
+            arenas.physical_devices.get(physical_device_handle);
+        let instance = arenas.instances.get_mut(instance_handle.clone());
+
         let VulkanInitialSurface {
             surface_loader,
             surface,
@@ -130,31 +145,35 @@ impl VulkanSurface {
                 .map_err(|err| VulkanSurfaceError::CapabilitiesError(err))?
         };
 
-        let preferred_formats = [
-            VulkanImageFormat::RGBA8SRGB,
-            VulkanImageFormat::BGRA8SRGB,
-        ];
+        let preferred_formats =
+            [VulkanImageFormat::RGBA8SRGB, VulkanImageFormat::BGRA8SRGB];
 
         let surface_format = *preferred_formats
             .iter()
             .find_map(|preffered_format| {
-                let found = surface_formats
-                    .iter()
-                    .find(|format| format.format == preffered_format.raw_image_format());
-                if found.is_some() { Some(preffered_format) }
-                else { None }
+                let found = surface_formats.iter().find(|format| {
+                    format.format == preffered_format.raw_image_format()
+                });
+                if found.is_some() {
+                    Some(preffered_format)
+                } else {
+                    None
+                }
             })
             .ok_or(VulkanSurfaceError::NoSurfaceFormatsAvailable)?;
 
-        Ok(VulkanSurface {
-            id: ID_COUNTER.next(),
+        let surface = VulkanSurface {
+            instance: instance_handle.clone(),
             window_id,
-            physical_device_id: physical_device.id(),
             surface,
             surface_loader,
             surface_format,
             surface_capabilities,
-        })
+        };
+
+        let handle = arenas.surfaces.add(surface);
+        instance.surfaces.push(handle.clone());
+        Ok(handle.downgrade())
     }
 
     pub fn raw_surface_loader(&self) -> &ash::khr::surface::Instance {
@@ -171,7 +190,9 @@ impl VulkanSurface {
         self.surface_capabilities.max_image_count
     }
 
-    pub fn raw_supported_transforms(&self) -> ash::vk::SurfaceTransformFlagsKHR {
+    pub fn raw_supported_transforms(
+        &self,
+    ) -> ash::vk::SurfaceTransformFlagsKHR {
         self.surface_capabilities.supported_transforms
     }
 
@@ -181,9 +202,7 @@ impl VulkanSurface {
 
     pub fn format(&self) -> VulkanImageFormat { self.surface_format }
 
-    pub fn id(&self) -> u32 { self.id }
-
-    pub fn physical_device_id(&self) -> u32 { self.physical_device_id }
-
     pub fn window_id(&self) -> u32 { self.window_id }
+
+    pub fn instance(&self) -> Handle<VulkanInstance> { self.instance.clone() }
 }
