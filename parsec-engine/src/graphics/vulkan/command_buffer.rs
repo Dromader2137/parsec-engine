@@ -1,9 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    arena::handle::Handle,
     graphics::vulkan::{
-        VulkanBackend,
         access::VulkanAccess,
         barriers::{
             VulkanBufferMemoryBarrier, VulkanImageMemoryBarrier,
@@ -15,6 +13,7 @@ use crate::{
         framebuffer::VulkanFramebuffer,
         graphics_pipeline::VulkanGraphicsPipeline,
         image::{VulkanImage, VulkanImageLayout, VulkanOwnedImage},
+        physical_device::VulkanPhysicalDevice,
         pipeline_stage::VulkanPipelineStage,
         renderpass::VulkanRenderpass,
         utils::raw_rect_2d,
@@ -23,8 +22,8 @@ use crate::{
 };
 
 pub struct VulkanCommandPool {
-    device_handle: Handle<VulkanDevice>,
-    command_buffer_handles: Vec<Handle<VulkanCommandBuffer>>,
+    id: u32,
+    device_id: u32,
     raw_command_pool: ash::vk::CommandPool,
 }
 
@@ -60,7 +59,8 @@ pub enum VulkanCommandBufferState {
 }
 
 pub struct VulkanCommandBuffer {
-    command_pool_handle: Handle<VulkanCommandPool>,
+    id: u32,
+    device_id: u32,
     image_state: HashMap<u32, VulkanCommandBufferImageState>,
     raw_command_buffer: ash::vk::CommandBuffer,
 }
@@ -103,14 +103,15 @@ pub enum VulkanCommandPoolError {
     PhysicalDeviceMismatch,
 }
 
+crate::create_counter! {ID_COUNTER_POOL}
 impl VulkanCommandPool {
     pub fn new(
-        arenas: &mut VulkanBackend,
-        device_handle: Handle<VulkanDevice>,
+        physical_device: &VulkanPhysicalDevice,
+        device: &VulkanDevice,
     ) -> Result<VulkanCommandPool, VulkanCommandPoolError> {
-        let device = arenas.devices.get_mut(device_handle.clone());
-        let physical_device =
-            arenas.physical_devices.get(device.physical_device_handle());
+        if physical_device.id() != device.physical_device_id() {
+            return Err(VulkanCommandPoolError::PhysicalDeviceMismatch);
+        }
 
         let pool_info = ash::vk::CommandPoolCreateInfo::default()
             .flags(ash::vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
@@ -124,8 +125,8 @@ impl VulkanCommandPool {
         };
 
         Ok(VulkanCommandPool {
-            device_handle,
-            command_buffer_handles: Vec::new(),
+            id: ID_COUNTER_POOL.next(),
+            device_id: device.id(),
             raw_command_pool,
         })
     }
@@ -134,19 +135,20 @@ impl VulkanCommandPool {
         &self.raw_command_pool
     }
 
-    pub fn device_handle(&self) -> Handle<VulkanDevice> {
-        self.device_handle.clone()
-    }
+    pub fn id(&self) -> u32 { self.id }
+
+    pub fn device_id(&self) -> u32 { self.device_id }
 }
 
+crate::create_counter! {COMMAND_BUFFER_ID_COUNTER}
 impl VulkanCommandBuffer {
     pub fn new(
-        arenas: &mut VulkanBackend,
-        command_pool_handle: Handle<VulkanCommandPool>,
+        device: &VulkanDevice,
+        command_pool: &VulkanCommandPool,
     ) -> Result<Self, VulkanCommandBufferError> {
-        let command_pool =
-            arenas.command_pools.get_mut(command_pool_handle.clone());
-        let device = arenas.devices.get(command_pool.device_handle.clone());
+        if device.id() != command_pool.device_id() {
+            return Err(VulkanCommandBufferError::DeviceMismatch);
+        }
 
         let create_info = ash::vk::CommandBufferAllocateInfo::default()
             .command_buffer_count(1)
@@ -161,7 +163,8 @@ impl VulkanCommandBuffer {
         };
 
         Ok(Self {
-            command_pool_handle,
+            id: COMMAND_BUFFER_ID_COUNTER.next(),
+            device_id: device.id(),
             image_state: HashMap::new(),
             raw_command_buffer: command_buffer,
         })

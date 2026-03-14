@@ -77,7 +77,6 @@ impl VulkanPhysicalDevice {
 
         let physical_device = VulkanPhysicalDevice {
             instance: instance_handle.clone(),
-            devices: Vec::new(),
             physical_device,
             physical_memory_properties: memory_prop,
             queue_family_index,
@@ -101,8 +100,4 @@ impl VulkanPhysicalDevice {
     }
 
     pub fn instance(&self) -> Handle<VulkanInstance> { self.instance.clone() }
-
-    pub fn add_device(&mut self, device: Handle<VulkanDevice>) {
-        self.devices.push(device);
-    }
 }

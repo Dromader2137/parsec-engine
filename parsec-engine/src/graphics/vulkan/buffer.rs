@@ -1,12 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{
-    arena::handle::{Handle, WeakHandle},
-    graphics::{
-        buffer::BufferUsage,
-        vulkan::{VulkanBackend, device::VulkanDevice},
-    },
-};
+use crate::graphics::{buffer::BufferUsage, vulkan::device::VulkanDevice};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VulkanBufferUsage {
@@ -55,7 +49,7 @@ impl VulkanBufferUsage {
             },
         }
     }
-
+    
     fn raw_combined_buffer_usage(usage: &[Self]) -> ash::vk::BufferUsageFlags {
         usage
             .iter()
@@ -66,7 +60,8 @@ impl VulkanBufferUsage {
 }
 
 pub struct VulkanBuffer {
-    device_handle: Handle<VulkanDevice>,
+    id: u32,
+    device_id: u32,
     buffer: ash::vk::Buffer,
     memory: ash::vk::DeviceMemory,
     memory_size: ash::vk::DeviceSize,
@@ -103,15 +98,13 @@ pub enum VulkanBufferError {
     DeviceMismatch,
 }
 
+crate::create_counter! {ID_COUNTER}
 impl VulkanBuffer {
     pub fn from_vec<T: Clone + Copy>(
-        arenas: &mut VulkanBackend,
-        device_handle: Handle<VulkanDevice>,
+        device: &VulkanDevice,
         data: &[T],
         usage: &[VulkanBufferUsage],
-    ) -> Result<WeakHandle<VulkanBuffer>, VulkanBufferError> {
-        let device = arenas.devices.get_mut(device_handle.clone());
-
+    ) -> Result<VulkanBuffer, VulkanBufferError> {
         let size = data.len() * size_of::<T>();
 
         let index_buffer_info = ash::vk::BufferCreateInfo::default()
@@ -179,26 +172,25 @@ impl VulkanBuffer {
             return Err(VulkanBufferError::BindError(err));
         }
 
-        let buffer = VulkanBuffer {
-            device_handle,
+        Ok(VulkanBuffer {
+            id: ID_COUNTER.next(),
+            device_id: device.id(),
             buffer,
             memory,
             memory_size: memory_req.size,
             size: size as u64,
             len: data.len() as u32,
-        };
-
-        let handle = arenas.buffers.add(buffer);
-        device.add_buffer(handle.clone());
-        Ok(handle.downgrade())
+        })
     }
 
     pub fn update<T: Clone + Copy>(
         &self,
-        arenas: &mut VulkanBackend,
+        device: &VulkanDevice,
         data: &[T],
     ) -> Result<(), VulkanBufferError> {
-        let device = arenas.devices.get(self.device_handle.clone());
+        if self.device_id != device.id() {
+            return Err(VulkanBufferError::DeviceMismatch);
+        }
 
         let size = (data.len() * size_of::<T>()) as u64;
 
@@ -239,9 +231,11 @@ impl VulkanBuffer {
 
     pub fn delete_buffer(
         self,
-        arenas: &mut VulkanBackend,
+        device: &VulkanDevice,
     ) -> Result<(), VulkanBufferError> {
-        let device = arenas.devices.get(self.device_handle.clone());
+        if self.device_id != device.id() {
+            return Err(VulkanBufferError::DeviceMismatch);
+        }
 
         unsafe {
             device
@@ -258,9 +252,9 @@ impl VulkanBuffer {
 
     pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory { &self.memory }
 
-    pub fn device_handle(&self) -> Handle<VulkanDevice> {
-        self.device_handle.clone()
-    }
+    pub fn device_id(&self) -> u32 { self.device_id }
+
+    pub fn id(&self) -> u32 { self.id }
 }
 
 pub fn find_memorytype_index(

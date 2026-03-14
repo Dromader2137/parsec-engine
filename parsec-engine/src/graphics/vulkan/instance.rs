@@ -4,7 +4,7 @@ pub struct VulkanInstance {
     id: u32,
     entry: ash::Entry,
     instance: ash::Instance,
-    physical_devices: Vec<Handle<VulkanPhysicalDevice>>,
+    pub physical_devices: Vec<Handle<VulkanPhysicalDevice>>,
     pub surfaces: Vec<Handle<VulkanSurface>>
 }
 

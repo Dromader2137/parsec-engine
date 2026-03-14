@@ -1,15 +1,14 @@
 use crate::{
-    arena::handle::{Handle, WeakHandle},
+    arena::handle::Handle,
     graphics::vulkan::{
-        VulkanBackend, buffer::VulkanBuffer, command_buffer::VulkanCommandPool, physical_device::VulkanPhysicalDevice, surface::VulkanSurface
+        VulkanBackend, instance::VulkanInstance,
+        physical_device::VulkanPhysicalDevice, surface::VulkanSurface,
     },
 };
 
 pub struct VulkanDevice {
     physical_device_handle: Handle<VulkanPhysicalDevice>,
     surface_handle: Handle<VulkanSurface>,
-    buffer_handles: Vec<Handle<VulkanBuffer>>,
-    command_pool_handles: Vec<Handle<VulkanCommandPool>>,
     device: ash::Device,
     memory_properties: ash::vk::PhysicalDeviceMemoryProperties,
 }
@@ -24,16 +23,16 @@ pub enum VulkanDeviceError {
     PhysicalDeviceMismatch,
 }
 
+crate::create_counter! {ID_COUNTER}
 impl VulkanDevice {
     pub fn new(
         arenas: &mut VulkanBackend,
         physical_device_handle: Handle<VulkanPhysicalDevice>,
         surface_handle: Handle<VulkanSurface>,
     ) -> Result<WeakHandle<VulkanDevice>, VulkanDeviceError> {
-        let physical_device = arenas
-            .physical_devices
-            .get_mut(physical_device_handle.clone());
-        let surface = arenas.surfaces.get_mut(surface_handle.clone());
+        let physical_device =
+            arenas.physical_devices.get(physical_device_handle.clone());
+        let surface = arenas.surfaces.get(surface_handle.clone());
 
         if surface.instance() != physical_device.instance() {
             return Err(VulkanDeviceError::PhysicalDeviceMismatch);
@@ -73,16 +72,12 @@ impl VulkanDevice {
         let device = VulkanDevice {
             physical_device_handle,
             surface_handle,
-            buffer_handles: Vec::new(),
-            command_pool_handles: Vec::new(),
             device,
             memory_properties: physical_device.raw_physical_memory_properties(),
         };
 
         let handle = arenas.devices.add(device);
-        physical_device.add_device(handle.clone());
-        surface.add_device(handle.clone());
-        Ok(handle.downgrade())
+        
     }
 
     pub fn wait_idle(&self) -> Result<(), VulkanDeviceError> {
@@ -100,35 +95,9 @@ impl VulkanDevice {
         self.memory_properties
     }
 
-    pub fn physical_device_handle(&self) -> Handle<VulkanPhysicalDevice> {
+    pub fn physical_device(&self) -> Handle<VulkanPhysicalDevice> {
         self.physical_device_handle.clone()
     }
 
-    pub fn surface_handle(&self) -> Handle<VulkanSurface> {
-        self.surface_handle.clone()
-    }
-
-    pub fn add_buffer(&mut self, buffer: Handle<VulkanBuffer>) {
-        self.buffer_handles.push(buffer);
-    }
-
-    pub fn buffer_handles(&self) -> &[Handle<VulkanBuffer>] {
-        &self.buffer_handles
-    }
-
-    pub fn buffer_handles_mut(&mut self) -> &mut [Handle<VulkanBuffer>] {
-        &mut self.buffer_handles
-    }
-    
-    pub fn add_command_pool(&mut self, command_pool: Handle<VulkanCommandPool>) {
-        self.command_pool_handles.push(command_pool);
-    }
-
-    pub fn command_pool_handles(&self) -> &[Handle<VulkanCommandPool>] {
-        &self.command_pool_handles
-    }
-
-    pub fn command_pool_handles_mut(&mut self) -> &mut [Handle<VulkanCommandPool>] {
-        &mut self.command_pool_handles
-    }
+    pub fn surface(&self) -> Handle<VulkanSurface> { self.surface_handle.clone() }
 }
