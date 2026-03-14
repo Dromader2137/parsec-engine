@@ -1,11 +1,9 @@
-use crate::{arena::handle::{Handle, WeakHandle}, graphics::{vulkan::{VulkanBackend, physical_device::VulkanPhysicalDevice, surface::VulkanSurface}, window::Window}};
+use crate::graphics::{window::Window};
 
 pub struct VulkanInstance {
     id: u32,
     entry: ash::Entry,
     instance: ash::Instance,
-    pub physical_devices: Vec<Handle<VulkanPhysicalDevice>>,
-    pub surfaces: Vec<Handle<VulkanSurface>>
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -26,10 +24,7 @@ pub enum VulkanInstanceError {
 
 crate::create_counter! {ID_COUNTER}
 impl VulkanInstance {
-    pub fn new(
-        arenas: &mut VulkanBackend,
-        window: &Window
-    ) -> Result<Handle<VulkanInstance>, VulkanInstanceError> {
+    pub fn new(window: &Window) -> Result<VulkanInstance, VulkanInstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
             Ok(val) => val,
             Err(err) => return Err(VulkanInstanceError::EntryError(err)),
@@ -81,16 +76,12 @@ impl VulkanInstance {
                 return Err(VulkanInstanceError::InstanceCreationError(err));
             },
         };
-        
-        let ret = VulkanInstance {
+
+        Ok(VulkanInstance {
             id: ID_COUNTER.next(),
             entry,
             instance,
-            physical_devices: Vec::new(),
-            surfaces: Vec::new()
-        };
-
-        Ok(arenas.instances.add(ret))
+        })
     }
 
     pub fn raw_instance(&self) -> &ash::Instance { &self.instance }

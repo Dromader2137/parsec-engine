@@ -4,7 +4,6 @@
 use std::collections::HashMap;
 
 use crate::{
-    arena::{Arena, handle::Handle},
     graphics::{
         backend::{BackendInitError, GraphicsBackend},
         buffer::{Buffer, BufferError, BufferUsage},
@@ -94,69 +93,38 @@ mod utils;
 
 #[allow(unused)]
 pub struct VulkanBackend {
-    instance: Option<Handle<VulkanInstance>>,
-    instances: Arena<VulkanInstance>,
-    physical_devices: Arena<VulkanPhysicalDevice>,
-    surfaces: Arena<VulkanSurface>,
-    devices: Arena<VulkanDevice>,
-    command_pools: Arena<VulkanCommandPool>,
-    present_queues: Arena<VulkanQueue>,
-    descriptor_pools: Arena<VulkanDescriptorPool>,
-    swapchains: Arena<VulkanSwapchain>,
-    swapchain_images: Arena<VulkanSwapchainImage>,
-    owned_images: Arena<VulkanOwnedImage>,
-    image_views: Arena<VulkanImageView>,
-    samplers: Arena<VulkanSampler>,
-    framebuffers: Arena<VulkanFramebuffer>,
-    fences: Arena<VulkanFence>,
-    semaphores: Arena<VulkanSemaphore>,
-    command_buffers: Arena<VulkanCommandBuffer>,
-    buffers: Arena<VulkanBuffer>,
-    shaders: Arena<VulkanShaderModule>,
-    pipelines: Arena<VulkanGraphicsPipeline>,
-    renderpasses: Arena<VulkanRenderpass>,
-    descriptor_sets: Arena<VulkanDescriptorSet>,
-    descriptor_set_layouts: Arena<VulkanDescriptorSetLayout>,
-}
-
-impl VulkanBackend {
-    fn new() -> VulkanBackend {
-        VulkanBackend {
-            instance: None,
-            instances: Arena::new(),
-            physical_devices: Arena::new(),
-            surfaces: Arena::new(),
-            devices: Arena::new(),
-            command_pools: Arena::new(),
-            present_queues: Arena::new(),
-            descriptor_pools: Arena::new(),
-            swapchains: Arena::new(),
-            swapchain_images: Arena::new(),
-            owned_images: Arena::new(),
-            image_views: Arena::new(),
-            samplers: Arena::new(),
-            framebuffers: Arena::new(),
-            fences: Arena::new(),
-            semaphores: Arena::new(),
-            command_buffers: Arena::new(),
-            buffers: Arena::new(),
-            shaders: Arena::new(),
-            pipelines: Arena::new(),
-            renderpasses: Arena::new(),
-            descriptor_sets: Arena::new(),
-            descriptor_set_layouts: Arena::new(),
-        }
-    }
+    instance: VulkanInstance,
+    physical_device: VulkanPhysicalDevice,
+    surface: VulkanSurface,
+    device: VulkanDevice,
+    command_pool: VulkanCommandPool,
+    present_queue: VulkanQueue,
+    descriptor_pool: VulkanDescriptorPool,
+    swapchains: HashMap<u32, VulkanSwapchain>,
+    swapchain_images: HashMap<u32, VulkanSwapchainImage>,
+    owned_images: HashMap<u32, VulkanOwnedImage>,
+    image_views: HashMap<u32, VulkanImageView>,
+    samplers: HashMap<u32, VulkanSampler>,
+    framebuffers: HashMap<u32, VulkanFramebuffer>,
+    fences: HashMap<u32, VulkanFence>,
+    semaphores: HashMap<u32, VulkanSemaphore>,
+    command_buffers: HashMap<u32, VulkanCommandBuffer>,
+    buffers: HashMap<u32, VulkanBuffer>,
+    shaders: HashMap<u32, VulkanShaderModule>,
+    pipelines: HashMap<u32, VulkanGraphicsPipeline>,
+    renderpasses: HashMap<u32, VulkanRenderpass>,
+    descriptor_sets: HashMap<u32, VulkanDescriptorSet>,
+    descriptor_set_layouts: HashMap<u32, VulkanDescriptorSetLayout>,
 }
 
 impl GraphicsBackend for VulkanBackend {
-    fn init(&mut self, window: &Window) -> Result<Self, BackendInitError> {
-        let instance = VulkanInstance::new(self, &window)
+    fn init(window: &Window) -> Result<Self, BackendInitError> {
+        let instance = VulkanInstance::new(&window)
             .map_err(|err| BackendInitError::InitError(err.into()))?;
         let initial_surface = VulkanInitialSurface::new(&instance, &window)
             .map_err(|err| BackendInitError::InitError(err.into()))?;
         let physical_device =
-            VulkanPhysicalDevice::new(self, instance, &initial_surface)
+            VulkanPhysicalDevice::new(&instance, &initial_surface)
                 .map_err(|err| BackendInitError::InitError(err.into()))?;
         let surface = VulkanSurface::from_initial_surface(
             initial_surface,
