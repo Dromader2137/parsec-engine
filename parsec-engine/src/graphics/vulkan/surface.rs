@@ -2,8 +2,8 @@ use crate::{
     arena::handle::{Handle, WeakHandle},
     graphics::{
         vulkan::{
-            VulkanBackend, image::VulkanImageFormat, instance::VulkanInstance,
-            physical_device::VulkanPhysicalDevice,
+            VulkanBackend, device::VulkanDevice, image::VulkanImageFormat,
+            instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
         },
         window::Window,
     },
@@ -205,4 +205,8 @@ impl VulkanSurface {
     pub fn window_id(&self) -> u32 { self.window_id }
 
     pub fn instance(&self) -> Handle<VulkanInstance> { self.instance.clone() }
+
+    pub fn add_device(&mut self, device: Handle<VulkanDevice>) {
+        self.devices.push(device);
+    }
 }
