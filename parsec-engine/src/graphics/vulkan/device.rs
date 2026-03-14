@@ -1,14 +1,12 @@
-use crate::{
-    arena::handle::Handle,
-    graphics::vulkan::{
-        VulkanBackend, instance::VulkanInstance,
-        physical_device::VulkanPhysicalDevice, surface::VulkanSurface,
-    },
+use crate::graphics::vulkan::{
+    instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
+    surface::VulkanSurface,
 };
 
 pub struct VulkanDevice {
-    physical_device_handle: Handle<VulkanPhysicalDevice>,
-    surface_handle: Handle<VulkanSurface>,
+    id: u32,
+    physical_device_id: u32,
+    surface_id: u32,
     device: ash::Device,
     memory_properties: ash::vk::PhysicalDeviceMemoryProperties,
 }
@@ -26,19 +24,13 @@ pub enum VulkanDeviceError {
 crate::create_counter! {ID_COUNTER}
 impl VulkanDevice {
     pub fn new(
-        arenas: &mut VulkanBackend,
-        physical_device_handle: Handle<VulkanPhysicalDevice>,
-        surface_handle: Handle<VulkanSurface>,
-    ) -> Result<WeakHandle<VulkanDevice>, VulkanDeviceError> {
-        let physical_device =
-            arenas.physical_devices.get(physical_device_handle.clone());
-        let surface = arenas.surfaces.get(surface_handle.clone());
-
-        if surface.instance() != physical_device.instance() {
+        instance: &VulkanInstance,
+        physical_device: &VulkanPhysicalDevice,
+        surface: &VulkanSurface,
+    ) -> Result<VulkanDevice, VulkanDeviceError> {
+        if surface.physical_device_id() != physical_device.id() {
             return Err(VulkanDeviceError::PhysicalDeviceMismatch);
         }
-
-        let instance = arenas.instances.get(physical_device.instance());
 
         let device_extension_names_raw = [ash::khr::swapchain::NAME.as_ptr()];
 
@@ -69,15 +61,13 @@ impl VulkanDevice {
                 .map_err(|err| VulkanDeviceError::DeviceCreationError(err))?
         };
 
-        let device = VulkanDevice {
-            physical_device_handle,
-            surface_handle,
+        Ok(VulkanDevice {
+            id: ID_COUNTER.next(),
+            physical_device_id: physical_device.id(),
+            surface_id: surface.id(),
             device,
             memory_properties: physical_device.raw_physical_memory_properties(),
-        };
-
-        let handle = arenas.devices.add(device);
-        
+        })
     }
 
     pub fn wait_idle(&self) -> Result<(), VulkanDeviceError> {
@@ -89,15 +79,13 @@ impl VulkanDevice {
 
     pub fn raw_device(&self) -> &ash::Device { &self.device }
 
-    pub fn raw_memory_properties(
-        &self,
-    ) -> ash::vk::PhysicalDeviceMemoryProperties {
+    pub fn id(&self) -> u32 { self.id }
+
+    pub fn physical_device_id(&self) -> u32 { self.physical_device_id }
+
+    pub fn surface_id(&self) -> u32 { self.surface_id }
+
+    pub fn raw_memory_properties(&self) -> ash::vk::PhysicalDeviceMemoryProperties {
         self.memory_properties
     }
-
-    pub fn physical_device(&self) -> Handle<VulkanPhysicalDevice> {
-        self.physical_device_handle.clone()
-    }
-
-    pub fn surface(&self) -> Handle<VulkanSurface> { self.surface_handle.clone() }
 }
