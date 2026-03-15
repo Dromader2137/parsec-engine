@@ -24,42 +24,23 @@ use crate::{
         shader::{Shader, ShaderError, ShaderType},
         swapchain::{Swapchain, SwapchainError},
         vulkan::{
-            access::VulkanAccess,
-            barriers::VulkanImageMemoryBarrier,
-            buffer::{VulkanBuffer, VulkanBufferUsage},
-            command_buffer::{
+            allocator::VulkanAllocator, buffer::{VulkanBuffer, VulkanBufferUsage}, command_buffer::{
                 VulkanCommandBuffer, VulkanCommandBufferBuilder,
                 VulkanCommandPool,
-            },
-            descriptor_set::{
+            }, descriptor_set::{
                 VulkanDescriptorPool, VulkanDescriptorPoolSize,
                 VulkanDescriptorSet, VulkanDescriptorSetBinding,
                 VulkanDescriptorSetLayout, VulkanDescriptorType,
-            },
-            device::VulkanDevice,
-            fence::VulkanFence,
-            framebuffer::VulkanFramebuffer,
-            graphics_pipeline::{
+            }, device::VulkanDevice, fence::VulkanFence, framebuffer::VulkanFramebuffer, graphics_pipeline::{
                 VulkanGraphicsPipeline, VulkanPipelineOptions,
                 VulkanShaderStage,
-            },
-            image::{
+            }, image::{
                 VulkanImage, VulkanImageAspect, VulkanImageFormat,
-                VulkanImageLayout, VulkanImageSize, VulkanImageUsage,
+                VulkanImageSize, VulkanImageUsage,
                 VulkanImageView, VulkanOwnedImage, VulkanSwapchainImage,
-            },
-            instance::VulkanInstance,
-            physical_device::VulkanPhysicalDevice,
-            pipeline_stage::VulkanPipelineStage,
-            queue::VulkanQueue,
-            renderpass::{
+            }, instance::VulkanInstance, physical_device::VulkanPhysicalDevice, queue::VulkanQueue, renderpass::{
                 VulkanClearValue, VulkanRenderpass, VulkanRenderpassAttachment,
-            },
-            sampler::VulkanSampler,
-            semaphore::VulkanSemaphore,
-            shader::VulkanShaderModule,
-            surface::{VulkanInitialSurface, VulkanSurface},
-            swapchain::{VulkanSwapchain, VulkanSwapchainError},
+            }, sampler::VulkanSampler, semaphore::VulkanSemaphore, shader::VulkanShaderModule, surface::{VulkanInitialSurface, VulkanSurface}, swapchain::{VulkanSwapchain, VulkanSwapchainError}
         },
         window::Window,
     },
@@ -100,6 +81,7 @@ pub struct VulkanBackend {
     command_pool: VulkanCommandPool,
     present_queue: VulkanQueue,
     descriptor_pool: VulkanDescriptorPool,
+    allocator: VulkanAllocator,
     swapchains: HashMap<u32, VulkanSwapchain>,
     swapchain_images: HashMap<u32, VulkanSwapchainImage>,
     owned_images: HashMap<u32, VulkanOwnedImage>,
