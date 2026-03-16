@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use crate::graphics::vulkan::{
-    allocation::{VulkanAllocation, VulkanAllocationError}, device::VulkanDevice,
+    allocation::{VulkanAllocation, VulkanAllocationError},
+    device::VulkanDevice, memory::VulkanMemory,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -68,12 +69,12 @@ impl VulkanAllocator {
         }
     }
 
-    pub fn allocate(
+    pub fn get_memory(
         &mut self,
         device: &VulkanDevice,
         memory_type: VulkanMemoryProperties,
         memory_requirements: VulkanMemoryRequirements,
-    ) -> Result<(), VulkanAllocationError> {
+    ) -> Result<(VulkanMemory, u64), VulkanAllocationError> {
         let memory_ids =
             find_memorytype_indices(&memory_requirements, &memory_type, device);
 
@@ -86,9 +87,24 @@ impl VulkanAllocator {
             .find(|x| !self.allocations_by_type[**x as usize].is_empty())
             .unwrap_or(&memory_ids[0]);
 
-        let allocations = &self.allocations_by_type[memory_id as usize];
+        let allocations = &mut self.allocations_by_type[memory_id as usize];
 
-        
+        for allocation in allocations.iter_mut() {
+            if let Some(offset_mem) =
+                allocation.try_get_free_memory(memory_requirements)
+            {
+                return Ok(offset_mem);
+            }
+        }
+
+        allocations.push(VulkanAllocation::new(device, memory_id, 1 << 26)?);
+
+        let allocation = allocations
+            .last_mut()
+            .expect("There always is an allocation at this point!");
+
+        allocation.try_get_free_memory(memory_requirements)
+            .ok_or(VulkanAllocationError::UnableToAllocateThisSize)
     }
 }
 

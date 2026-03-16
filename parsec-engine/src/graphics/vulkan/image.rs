@@ -2,7 +2,7 @@ use crate::{
     graphics::{
         image::{ImageAspect, ImageFormat, ImageUsage},
         vulkan::{
-            buffer::find_memorytype_index, device::VulkanDevice,
+            device::VulkanDevice,
             format_size::format_size, utils::raw_extent_2d,
         },
     },

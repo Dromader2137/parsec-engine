@@ -1,17 +1,18 @@
 use crate::graphics::vulkan::{
     allocator::{VulkanMemoryProperties, VulkanMemoryRequirements},
     device::VulkanDevice,
+    memory::{VulkanMemory, VulkanMemoryError},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct VulkanMemoryBlock {
     start: u64,
-    size: u64,
+    end: u64,
 }
 
 pub struct VulkanAllocation {
-    memory: ash::vk::DeviceMemory,
+    memory: VulkanMemory,
     memory_index: u32,
-    memory_size: u64,
     memory_blocks: Vec<VulkanMemoryBlock>,
 }
 
@@ -21,40 +22,53 @@ impl VulkanAllocation {
         memory_index: u32,
         memory_size: u64,
     ) -> Result<VulkanAllocation, VulkanAllocationError> {
-        let allocate_info = ash::vk::MemoryAllocateInfo {
-            allocation_size: memory_size,
-            memory_type_index: memory_index,
-            ..Default::default()
-        };
-
-        let memory = unsafe {
-            device
-                .raw_device()
-                .allocate_memory(&allocate_info, None)
-                .map_err(|err| {
-                    VulkanAllocationError::AllocateMemoryError(err)
-                })?
-        };
+        let memory = VulkanMemory::new(device, memory_index, memory_size)
+            .map_err(|err| VulkanAllocationError::AllocateMemoryError(err))?;
 
         Ok(VulkanAllocation {
             memory,
             memory_index,
-            memory_size,
             memory_blocks: vec![VulkanMemoryBlock {
                 start: 0,
-                size: memory_size,
+                end: memory_size - 1,
             }],
         })
     }
 
-    pub fn try_bind_buffer_memory(
-
-    ) -> Result<>
+    /// (memory, offset)
+    pub fn try_get_free_memory(
+        &mut self,
+        req: VulkanMemoryRequirements,
+    ) -> Option<(VulkanMemory, u64)> {
+        for idx in (0..self.memory_blocks.len()).rev() {
+            let block = self.memory_blocks[idx];
+            let start = block.start.next_multiple_of(req.alignment);
+            let end = start + req.size.next_multiple_of(req.alignment) - 1;
+            if end > block.end {
+                continue;
+            }
+            self.memory_blocks.remove(idx);
+            if block.end != end {
+                self.memory_blocks.push(VulkanMemoryBlock {
+                    start: end + 1,
+                    end: block.end,
+                });
+            }
+            if block.start != start {
+                self.memory_blocks.push(VulkanMemoryBlock {
+                    start: block.start,
+                    end: start - 1,
+                });
+            }
+            return Some((self.memory.clone(), start))
+        }
+        None
+    }
 }
-
 
 #[derive(Debug)]
 pub enum VulkanAllocationError {
     UnableToFindSuitableMemory,
-    AllocateMemoryError(ash::vk::Result),
+    AllocateMemoryError(VulkanMemoryError),
+    UnableToAllocateThisSize,
 }

@@ -71,6 +71,7 @@ pub mod shader;
 mod surface;
 mod swapchain;
 mod utils;
+mod memory;
 
 #[allow(unused)]
 pub struct VulkanBackend {
