@@ -24,23 +24,40 @@ use crate::{
         shader::{Shader, ShaderError, ShaderType},
         swapchain::{Swapchain, SwapchainError},
         vulkan::{
-            allocator::VulkanAllocator, buffer::{VulkanBuffer, VulkanBufferUsage}, command_buffer::{
+            allocator::{VulkanAllocator, VulkanMemoryProperties},
+            buffer::{VulkanBuffer, VulkanBufferUsage},
+            command_buffer::{
                 VulkanCommandBuffer, VulkanCommandBufferBuilder,
                 VulkanCommandPool,
-            }, descriptor_set::{
+            },
+            descriptor_set::{
                 VulkanDescriptorPool, VulkanDescriptorPoolSize,
                 VulkanDescriptorSet, VulkanDescriptorSetBinding,
                 VulkanDescriptorSetLayout, VulkanDescriptorType,
-            }, device::VulkanDevice, fence::VulkanFence, framebuffer::VulkanFramebuffer, graphics_pipeline::{
+            },
+            device::VulkanDevice,
+            fence::VulkanFence,
+            framebuffer::VulkanFramebuffer,
+            graphics_pipeline::{
                 VulkanGraphicsPipeline, VulkanPipelineOptions,
                 VulkanShaderStage,
-            }, image::{
+            },
+            image::{
                 VulkanImage, VulkanImageAspect, VulkanImageFormat,
-                VulkanImageSize, VulkanImageUsage,
-                VulkanImageView, VulkanOwnedImage, VulkanSwapchainImage,
-            }, instance::VulkanInstance, physical_device::VulkanPhysicalDevice, queue::VulkanQueue, renderpass::{
+                VulkanImageSize, VulkanImageUsage, VulkanImageView,
+                VulkanOwnedImage, VulkanSwapchainImage,
+            },
+            instance::VulkanInstance,
+            physical_device::VulkanPhysicalDevice,
+            queue::VulkanQueue,
+            renderpass::{
                 VulkanClearValue, VulkanRenderpass, VulkanRenderpassAttachment,
-            }, sampler::VulkanSampler, semaphore::VulkanSemaphore, shader::VulkanShaderModule, surface::{VulkanInitialSurface, VulkanSurface}, swapchain::{VulkanSwapchain, VulkanSwapchainError}
+            },
+            sampler::VulkanSampler,
+            semaphore::VulkanSemaphore,
+            shader::VulkanShaderModule,
+            surface::{VulkanInitialSurface, VulkanSurface},
+            swapchain::{VulkanSwapchain, VulkanSwapchainError},
         },
         window::Window,
     },
@@ -61,6 +78,7 @@ mod framebuffer;
 mod graphics_pipeline;
 mod image;
 mod instance;
+mod memory;
 mod physical_device;
 mod pipeline_stage;
 mod queue;
@@ -71,7 +89,6 @@ pub mod shader;
 mod surface;
 mod swapchain;
 mod utils;
-mod memory;
 
 #[allow(unused)]
 pub struct VulkanBackend {
@@ -131,6 +148,8 @@ impl GraphicsBackend for VulkanBackend {
             ),
         ])
         .map_err(|err| BackendInitError::InitError(err.into()))?;
+        let allocator = VulkanAllocator::new();
+
         Ok(VulkanBackend {
             instance,
             physical_device,
@@ -139,6 +158,7 @@ impl GraphicsBackend for VulkanBackend {
             command_pool,
             present_queue,
             descriptor_pool,
+            allocator,
             swapchains: HashMap::new(),
             swapchain_images: HashMap::new(),
             owned_images: HashMap::new(),
@@ -172,8 +192,14 @@ impl GraphicsBackend for VulkanBackend {
             .iter()
             .map(|x| VulkanBufferUsage::new(*x))
             .collect();
-        let buffer = VulkanBuffer::from_vec(&self.device, data, &usage)
-            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+        let buffer = VulkanBuffer::from_vec(
+            &self.device,
+            &mut self.allocator,
+            data,
+            &usage,
+            VulkanMemoryProperties::DeviceHostVisible,
+        )
+        .map_err(|err| BufferError::BufferCreationError(err.into()))?;
         let buffer_id = buffer.id();
         self.buffers.insert(buffer_id, buffer);
         Ok(Buffer::new(buffer_id))
@@ -666,10 +692,12 @@ impl GraphicsBackend for VulkanBackend {
             VulkanImageSize::new(size).ok_or(ImageError::InvalidImageSize)?;
         let image = VulkanOwnedImage::new(
             &self.device,
+            &mut self.allocator,
             size,
             VulkanImageFormat::new(format),
             &usage,
             aspect,
+            VulkanMemoryProperties::Device
         )
         .map_err(|err| ImageError::ImageCreationError(err.into()))?;
         let image_id = image.id();

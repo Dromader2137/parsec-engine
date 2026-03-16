@@ -2,8 +2,10 @@ use crate::{
     graphics::{
         image::{ImageAspect, ImageFormat, ImageUsage},
         vulkan::{
-            device::VulkanDevice,
-            format_size::format_size, utils::raw_extent_2d,
+            allocation::VulkanAllocationError, allocator::{
+                VulkanAllocator, VulkanMemoryProperties,
+                VulkanMemoryRequirements,
+            }, buffer::VulkanBufferError, device::VulkanDevice, format_size::format_size, memory::VulkanMemory, utils::raw_extent_2d
         },
     },
     math::uvec::Vec2u,
@@ -218,7 +220,7 @@ impl VulkanImageLayout {
             },
             VulkanImageLayout::PresentSrcKHR => {
                 ash::vk::ImageLayout::PRESENT_SRC_KHR
-            }
+            },
             VulkanImageLayout::Preinitialized => {
                 ash::vk::ImageLayout::PREINITIALIZED
             },
@@ -270,7 +272,7 @@ pub struct VulkanOwnedImage {
     aspect: VulkanImageAspect,
     pub last_known_layout: VulkanImageLayout,
     image: ash::vk::Image,
-    memory: ash::vk::DeviceMemory,
+    memory: VulkanMemory,
     size: u64,
 }
 
@@ -310,8 +312,8 @@ pub enum VulkanImageError {
     ViewCreationError(ash::vk::Result),
     #[error("Unable to find suitable memory for image allocation")]
     UnableToFindSuitableMemory,
-    #[error("Failed to allocate memory: {0}")]
-    AllocationError(ash::vk::Result),
+    #[error("Failed to allocate memory: {0:?}")]
+    AllocationError(VulkanAllocationError),
     #[error("Failed to bind memory to image: {0}")]
     BindError(ash::vk::Result),
     #[error("Image format not supported")]
@@ -379,10 +381,12 @@ impl VulkanSwapchainImage {
 impl VulkanOwnedImage {
     pub fn new(
         device: &VulkanDevice,
+        allocator: &mut VulkanAllocator,
         size: VulkanImageSize,
         format: VulkanImageFormat,
         usage: &[VulkanImageUsage],
         aspect: VulkanImageAspect,
+        memory_properties: VulkanMemoryProperties,
     ) -> Result<VulkanOwnedImage, VulkanImageError> {
         let create_info = get_image_create_info(format, size, usage);
 
@@ -392,34 +396,19 @@ impl VulkanOwnedImage {
             Ok(val) => val,
             Err(err) => return Err(VulkanImageError::CreationError(err)),
         };
-        let memory_req =
-            unsafe { device.raw_device().get_image_memory_requirements(image) };
-        let memory_index = match find_memorytype_index(
-            &memory_req,
-            ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            device,
-        ) {
-            Some(val) => val,
-            None => return Err(VulkanImageError::UnableToFindSuitableMemory),
-        };
-
-        let image_allocate_info = ash::vk::MemoryAllocateInfo::default()
-            .allocation_size(memory_req.size)
-            .memory_type_index(memory_index);
-
-        let image_memory = match unsafe {
-            device
-                .raw_device()
-                .allocate_memory(&image_allocate_info, None)
-        } {
-            Ok(val) => val,
-            Err(err) => return Err(VulkanImageError::AllocationError(err)),
-        };
+        let memory_requirements =
+            VulkanMemoryRequirements::from_raw_requirements(unsafe {
+                device.raw_device().get_image_memory_requirements(image)
+            });
+        
+        let (memory, memory_offset) = allocator
+            .get_memory(device, memory_properties, memory_requirements)
+            .map_err(|err| VulkanImageError::AllocationError(err))?;
 
         if let Err(err) = unsafe {
             device
                 .raw_device()
-                .bind_image_memory(image, image_memory, 0)
+                .bind_image_memory(image, memory.raw_memory(), memory_offset)
         } {
             return Err(VulkanImageError::BindError(err));
         };
@@ -438,7 +427,7 @@ impl VulkanOwnedImage {
             usage: usage.to_vec(),
             aspect,
             last_known_layout: VulkanImageLayout::Undefined,
-            memory: image_memory,
+            memory,
             size: format_size
                 * size.raw_size().x as u64
                 * size.raw_size().y as u64,
@@ -455,14 +444,9 @@ impl VulkanOwnedImage {
 
         unsafe {
             device.raw_device().destroy_image(*self.raw_image(), None);
-            device
-                .raw_device()
-                .free_memory(*self.get_memory_raw(), None);
         }
         Ok(())
     }
-
-    pub fn get_memory_raw(&self) -> &ash::vk::DeviceMemory { &self.memory }
 
     pub fn device_id(&self) -> u32 { self.device_id }
 

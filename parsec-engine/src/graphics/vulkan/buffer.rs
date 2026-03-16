@@ -143,8 +143,10 @@ impl VulkanBuffer {
         let memory_ptr = match unsafe {
             device.raw_device().map_memory(
                 memory.raw_memory(),
-                0,
-                memory_requirements.size,
+                memory_offset,
+                memory_requirements
+                    .size
+                    .next_multiple_of(memory_requirements.alignment),
                 ash::vk::MemoryMapFlags::empty(),
             )
         } {
@@ -205,7 +207,7 @@ impl VulkanBuffer {
         let memory_ptr = match unsafe {
             device.raw_device().map_memory(
                 self.memory.raw_memory(),
-                0,
+                self.memory_offset,
                 self.size,
                 ash::vk::MemoryMapFlags::empty(),
             )
