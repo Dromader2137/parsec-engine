@@ -24,40 +24,23 @@ use crate::{
         shader::{Shader, ShaderError, ShaderType},
         swapchain::{Swapchain, SwapchainError},
         vulkan::{
-            allocator::{VulkanAllocator, VulkanMemoryProperties},
-            buffer::{VulkanBuffer, VulkanBufferUsage},
-            command_buffer::{
+            allocator::{VulkanAllocator, VulkanMemoryProperties}, buffer::{VulkanBuffer, VulkanBufferUsage}, command_buffer::{
                 VulkanCommandBuffer, VulkanCommandBufferBuilder,
                 VulkanCommandPool,
-            },
-            descriptor_set::{
+            }, descriptor_set::{
                 VulkanDescriptorPool, VulkanDescriptorPoolSize,
                 VulkanDescriptorSet, VulkanDescriptorSetBinding,
                 VulkanDescriptorSetLayout, VulkanDescriptorType,
-            },
-            device::VulkanDevice,
-            fence::VulkanFence,
-            framebuffer::VulkanFramebuffer,
-            graphics_pipeline::{
+            }, device::VulkanDevice, fence::VulkanFence, framebuffer::VulkanFramebuffer, graphics_pipeline::{
                 VulkanGraphicsPipeline, VulkanPipelineOptions,
                 VulkanShaderStage,
-            },
-            image::{
+            }, image::{
                 VulkanImage, VulkanImageAspect, VulkanImageFormat,
                 VulkanImageSize, VulkanImageUsage, VulkanImageView,
                 VulkanOwnedImage, VulkanSwapchainImage,
-            },
-            instance::VulkanInstance,
-            physical_device::VulkanPhysicalDevice,
-            queue::VulkanQueue,
-            renderpass::{
+            }, instance::VulkanInstance, physical_device::VulkanPhysicalDevice, pipeline_stage::VulkanPipelineStage, queue::VulkanQueue, renderpass::{
                 VulkanClearValue, VulkanRenderpass, VulkanRenderpassAttachment,
-            },
-            sampler::VulkanSampler,
-            semaphore::VulkanSemaphore,
-            shader::VulkanShaderModule,
-            surface::{VulkanInitialSurface, VulkanSurface},
-            swapchain::{VulkanSwapchain, VulkanSwapchainError},
+            }, sampler::VulkanSampler, semaphore::VulkanSemaphore, shader::VulkanShaderModule, surface::{VulkanInitialSurface, VulkanSurface}, swapchain::{VulkanSwapchain, VulkanSwapchainError}
         },
         window::Window,
     },
@@ -581,6 +564,7 @@ impl GraphicsBackend for VulkanBackend {
                 &ss,
                 &[command_buffer],
                 &fen,
+                VulkanPipelineStage::ColorAttachmentOutput,
                 &mut self.owned_images,
             )
             .map_err(|err| CommandListError::CommandListSubmitError(err.into()))
@@ -697,7 +681,7 @@ impl GraphicsBackend for VulkanBackend {
             VulkanImageFormat::new(format),
             &usage,
             aspect,
-            VulkanMemoryProperties::Device
+            VulkanMemoryProperties::Device,
         )
         .map_err(|err| ImageError::ImageCreationError(err.into()))?;
         let image_id = image.id();
@@ -750,15 +734,21 @@ impl GraphicsBackend for VulkanBackend {
         builder
             .end()
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        let fence = VulkanFence::new(&self.device, false)
+            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         self.present_queue
             .submit(
                 &self.device,
                 &[],
                 &[],
                 &[&cmd],
-                &VulkanFence::null(&self.device),
+                &fence,
+                VulkanPipelineStage::Transfer,
                 &mut self.owned_images,
             )
+            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        fence
+            .wait(&self.device)
             .map_err(|err| ImageError::ImageLoadError(err.into()))
     }
 

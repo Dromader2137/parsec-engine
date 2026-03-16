@@ -1,3 +1,5 @@
+use core::cmp::Ord;
+
 use crate::graphics::{
     vulkan::{
         device::VulkanDevice,
@@ -79,7 +81,7 @@ impl VulkanSwapchain {
             }
         }
 
-        let desired_image_count = surface.min_image_count();
+        let desired_image_count = surface.min_image_count().max(3);
 
         let surface_resolution = raw_extent_2d(window.size());
         

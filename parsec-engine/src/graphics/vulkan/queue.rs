@@ -1,7 +1,10 @@
+use core::result::Result::Err;
 use std::collections::HashMap;
 
 use crate::graphics::vulkan::{
-    command_buffer::VulkanCommandBuffer, device::VulkanDevice, fence::VulkanFence, image::VulkanOwnedImage, semaphore::VulkanSemaphore
+    command_buffer::VulkanCommandBuffer, device::VulkanDevice,
+    fence::VulkanFence, image::VulkanOwnedImage,
+    pipeline_stage::VulkanPipelineStage, semaphore::VulkanSemaphore,
 };
 
 pub struct VulkanQueue {
@@ -19,9 +22,8 @@ pub enum VulkanQueueError {
 
 impl VulkanQueue {
     pub fn present(device: &VulkanDevice, family_index: u32) -> VulkanQueue {
-        let raw_queue = unsafe {
-            device.raw_device().get_device_queue(family_index, 0)
-        };
+        let raw_queue =
+            unsafe { device.raw_device().get_device_queue(family_index, 0) };
         VulkanQueue {
             device_id: device.id(),
             queue: raw_queue,
@@ -35,6 +37,7 @@ impl VulkanQueue {
         signal_semaphores: &[&VulkanSemaphore],
         command_buffers: &[&VulkanCommandBuffer],
         submit_fence: &VulkanFence,
+        wait_dst_stage: VulkanPipelineStage,
         image_map: &mut HashMap<u32, VulkanOwnedImage>,
     ) -> Result<(), VulkanQueueError> {
         if device.id() != self.device_id {
@@ -54,10 +57,9 @@ impl VulkanQueue {
             .map(|x| *x.get_semaphore_raw())
             .collect::<Vec<_>>();
 
+        let pipeline_stage = &[wait_dst_stage.raw_pipeline_stage()];
         let submit_info = ash::vk::SubmitInfo::default()
-            .wait_dst_stage_mask(&[
-                ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ])
+            .wait_dst_stage_mask(pipeline_stage)
             .command_buffers(&raw_command_buffers)
             .wait_semaphores(&wait_semaphores)
             .signal_semaphores(&signal_semaphores);
@@ -73,7 +75,9 @@ impl VulkanQueue {
                 .map_err(|err| VulkanQueueError::SubmitError(err))?;
         }
 
-        for image_state in command_buffers.iter().map(|x| x.image_state()).flatten() {
+        for image_state in
+            command_buffers.iter().map(|x| x.image_state()).flatten()
+        {
             if let Some(image) = image_map.get_mut(image_state.0) {
                 image.last_known_layout = image_state.1.last_layout;
             }

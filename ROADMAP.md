@@ -4,8 +4,8 @@
 
 These are blocking issues that will prevent the abstraction from scaling to real workloads.
 
-### 1.1 GPU Memory Suballocator
-- Implement a suballocator in `allocator.rs`/`allocation.rs` (or integrate `gpu-allocator`)
+### 1.1 GPU Memory Suballocator (DONE)
+- Implement a suballocator in `allocator.rs`/`allocation.rs`
 - Replace per-resource `vkAllocateMemory` calls in `buffer.rs` and `image.rs` with suballocations
 - Vulkan drivers guarantee only ~4096 simultaneous allocations; a non-trivial scene will hit this limit
 
@@ -21,7 +21,7 @@ These are blocking issues that will prevent the abstraction from scaling to real
 - Keep `HOST_VISIBLE` only for small, frequently-updated uniform buffers
 - This is required for discrete GPU compatibility (HOST_VISIBLE + DEVICE_LOCAL is 256MB or 0 without ReBAR)
 
-### 1.4 Synchronization Fixes
+### 1.4 Synchronization Fixes (DONE)
 - Fix `load_image_from_buffer`: submit with a real fence and wait, or call `vkQueueWaitIdle`
 - Make `wait_dst_stage_mask` dynamic based on actual submission content instead of hardcoded `COLOR_ATTACHMENT_OUTPUT`
 
