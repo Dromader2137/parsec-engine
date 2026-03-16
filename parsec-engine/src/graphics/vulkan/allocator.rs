@@ -23,10 +23,17 @@ impl VulkanMemoryProperties {
                 ash::vk::MemoryPropertyFlags::DEVICE_LOCAL
             },
             VulkanMemoryProperties::DeviceHostVisible => {
-                ash::vk::MemoryPropertyFlags::HOST_VISIBLE
+                ash::vk::MemoryPropertyFlags::DEVICE_LOCAL
                     | ash::vk::MemoryPropertyFlags::HOST_VISIBLE
                     | ash::vk::MemoryPropertyFlags::HOST_COHERENT
             },
+        }
+    }
+
+    pub fn excluded_memory_properties(&self) -> ash::vk::MemoryPropertyFlags {
+        match self {
+            VulkanMemoryProperties::Device => ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
+            _ => ash::vk::MemoryPropertyFlags::empty(),
         }
     }
 }
@@ -115,6 +122,7 @@ fn find_memorytype_indices(
 ) -> Vec<u32> {
     let device_memory_prop = device.raw_memory_properties();
     let memory_prop = memory_type.raw_memory_properties();
+    let excluded_prop = memory_type.excluded_memory_properties();
     let memory_req = memory_requirements.raw_memory_requirements();
     device_memory_prop.memory_types[..device_memory_prop.memory_type_count as _]
         .iter()
@@ -122,6 +130,7 @@ fn find_memorytype_indices(
         .filter(|(index, memory_type)| {
             (1 << index) & memory_req.memory_type_bits != 0
                 && memory_type.property_flags & memory_prop == memory_prop
+                && memory_type.property_flags & excluded_prop == ash::vk::MemoryPropertyFlags::empty()
         })
         .map(|(index, _memory_type)| index as _)
         .collect()
