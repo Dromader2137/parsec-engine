@@ -25,7 +25,8 @@ use crate::{
         swapchain::{Swapchain, SwapchainError},
         vulkan::{
             allocator::{VulkanAllocator, VulkanMemoryProperties},
-            buffer::{VulkanBuffer, VulkanBufferUsage},
+            buffer::VulkanBuffer,
+            buffer_usage::VulkanBufferUsage,
             command_buffer::{
                 VulkanCommandBuffer, VulkanCommandBufferBuilder,
                 VulkanCommandPool,
@@ -70,6 +71,7 @@ mod allocation;
 mod allocator;
 mod barriers;
 mod buffer;
+mod buffer_usage;
 mod command_buffer;
 mod descriptor_set;
 mod device;
