@@ -622,6 +622,15 @@ impl GraphicsBackend for VulkanBackend {
                         )
                     })?
                 },
+                Command::CopyBufferToBuffer(src, dst) => {
+                    let s = self.buffers.get(&src.id()).unwrap();
+                    let d = self.buffers.get(&dst.id()).unwrap();
+                    builder.copy_buffer_to_buffer(s, d).map_err(|err| {
+                        CommandListError::CommandListCopyToBufferError(
+                            err.into(),
+                        )
+                    })?
+                },
             };
         }
 

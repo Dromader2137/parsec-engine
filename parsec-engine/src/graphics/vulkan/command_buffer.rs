@@ -726,6 +726,28 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         Ok(())
     }
 
+    pub fn copy_buffer_to_buffer(
+        &mut self,
+        src: &VulkanBuffer,
+        dst: &VulkanBuffer,
+    ) -> Result<(), VulkanCommandBufferError> {
+        if self.state != VulkanCommandBufferState::Normal {
+            return Err(VulkanCommandBufferError::IncorrectState(self.state));
+        }
+
+        let buffer_copy = ash::vk::BufferCopy::default().size(src.size);
+
+        unsafe {
+            self.device.raw_handle().cmd_copy_buffer(
+                self.command_buffer.raw_command_buffer,
+                *src.get_buffer_raw(),
+                *dst.get_buffer_raw(),
+                &[buffer_copy],
+            )
+        };
+        Ok(())
+    }
+
     fn pipeline_barrier(
         &self,
         src_stage: &[VulkanPipelineStage],

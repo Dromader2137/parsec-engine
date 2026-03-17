@@ -27,6 +27,7 @@ pub enum CommandListError {
     CommandListBindError(anyhow::Error),
     CommandListSubmitError(anyhow::Error),
     CommandListCopyToImageError(anyhow::Error),
+    CommandListCopyToBufferError(anyhow::Error),
     CommandListBarrier(anyhow::Error),
     CommandListNotFound,
     FramebufferNotFound,
@@ -54,6 +55,7 @@ pub enum Command {
     Draw(u32, u32, u32, u32),
     DrawIndexed(u32, u32, u32, i32, u32),
     CopyBufferToImage(Buffer, Image),
+    CopyBufferToBuffer(Buffer, Buffer),
 }
 
 pub struct ImageBarrier {}
