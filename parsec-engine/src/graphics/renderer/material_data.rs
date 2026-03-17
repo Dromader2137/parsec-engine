@@ -101,8 +101,7 @@ impl MaterialData {
         light_binding: PipelineBinding,
         shadowmap_binding: PipelineBinding,
     ) {
-        command_list
-            .cmd(Command::BindGraphicsPipeline(material_base.pipeline));
+        command_list.cmd(Command::BindGraphicsPipeline(material_base.pipeline));
         for (set_index, binding) in self.descriptor_sets.iter().enumerate() {
             let pipeline_binding = match binding {
                 MaterialPipelineBinding::View => {
@@ -116,12 +115,10 @@ impl MaterialData {
                 MaterialPipelineBinding::ShadowMap => shadowmap_binding,
                 MaterialPipelineBinding::Generic(bind) => *bind,
             };
-            command_list.cmd(
-                Command::BindPipelineBinding(
-                    pipeline_binding,
-                    set_index as u32,
-                )
-            );
+            command_list.cmd(Command::BindPipelineBinding(
+                pipeline_binding,
+                set_index as u32,
+            ));
         }
     }
 

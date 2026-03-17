@@ -24,23 +24,41 @@ use crate::{
         shader::{Shader, ShaderError, ShaderType},
         swapchain::{Swapchain, SwapchainError},
         vulkan::{
-            allocator::{VulkanAllocator, VulkanMemoryProperties}, buffer::{VulkanBuffer, VulkanBufferUsage}, command_buffer::{
+            allocator::{VulkanAllocator, VulkanMemoryProperties},
+            buffer::{VulkanBuffer, VulkanBufferUsage},
+            command_buffer::{
                 VulkanCommandBuffer, VulkanCommandBufferBuilder,
                 VulkanCommandPool,
-            }, descriptor_set::{
+            },
+            descriptor_set::{
                 VulkanDescriptorPool, VulkanDescriptorPoolSize,
                 VulkanDescriptorSet, VulkanDescriptorSetBinding,
                 VulkanDescriptorSetLayout, VulkanDescriptorType,
-            }, device::VulkanDevice, fence::VulkanFence, framebuffer::VulkanFramebuffer, graphics_pipeline::{
+            },
+            device::VulkanDevice,
+            fence::VulkanFence,
+            framebuffer::VulkanFramebuffer,
+            graphics_pipeline::{
                 VulkanGraphicsPipeline, VulkanPipelineOptions,
                 VulkanShaderStage,
-            }, image::{
+            },
+            image::{
                 VulkanImage, VulkanImageAspect, VulkanImageFormat,
                 VulkanImageSize, VulkanImageUsage, VulkanImageView,
                 VulkanOwnedImage, VulkanSwapchainImage,
-            }, instance::VulkanInstance, physical_device::VulkanPhysicalDevice, pipeline_stage::VulkanPipelineStage, queue::VulkanQueue, renderpass::{
+            },
+            instance::VulkanInstance,
+            physical_device::VulkanPhysicalDevice,
+            pipeline_stage::VulkanPipelineStage,
+            queue::VulkanQueue,
+            renderpass::{
                 VulkanClearValue, VulkanRenderpass, VulkanRenderpassAttachment,
-            }, sampler::VulkanSampler, semaphore::VulkanSemaphore, shader::VulkanShaderModule, surface::{VulkanInitialSurface, VulkanSurface}, swapchain::{VulkanSwapchain, VulkanSwapchainError}
+            },
+            sampler::VulkanSampler,
+            semaphore::VulkanSemaphore,
+            shader::VulkanShaderModule,
+            surface::{VulkanInitialSurface, VulkanSurface},
+            swapchain::{VulkanSwapchain, VulkanSwapchainError},
         },
         window::Window,
     },
@@ -100,6 +118,60 @@ pub struct VulkanBackend {
     descriptor_set_layouts: HashMap<u32, VulkanDescriptorSetLayout>,
 }
 
+impl Drop for VulkanBackend {
+    fn drop(&mut self) {
+        self.device.wait_idle().unwrap();
+
+        for (_, framebuffer) in self.framebuffers.drain() {
+            framebuffer.destroy(&self.device);
+        }
+        for (_, renderpass) in self.renderpasses.drain() {
+            renderpass.destroy(&self.device);
+        }
+        for (_, pipeline) in self.pipelines.drain() {
+            pipeline.destroy(&self.device);
+        }
+        for (_, shader) in self.shaders.drain() {
+            shader.destroy(&self.device);
+        }
+        for (_, layout) in self.descriptor_set_layouts.drain() {
+            layout.destroy(&self.device);
+        }
+        self.descriptor_sets.clear();
+        self.descriptor_pool.destroy(&self.device);
+        for (_, sampler) in self.samplers.drain() {
+            sampler.destroy(&self.device);
+        }
+        for (_, image_view) in self.image_views.drain() {
+            image_view.destroy(&self.device);
+        }
+        for (_, image) in self.owned_images.drain() {
+            image.destroy(&self.device);
+        }
+        for (_, buffer) in self.buffers.drain() {
+            buffer.destroy(&self.device);
+        }
+        for (_, fence) in self.fences.drain() {
+            fence.destroy(&self.device);
+        }
+        for (_, semaphore) in self.semaphores.drain() {
+            semaphore.destroy(&self.device);
+        }
+        for (_, swapchain) in self.swapchains.drain() {
+            swapchain.destroy();
+        }
+        self.swapchain_images.clear();
+
+        self.allocator.free_all(&self.device);
+
+        self.command_buffers.clear();
+        self.command_pool.destroy(&self.device);
+
+        self.surface.destroy();
+        self.device.destroy();
+    }
+}
+
 impl GraphicsBackend for VulkanBackend {
     fn init(window: &Window) -> Result<Self, BackendInitError> {
         let instance = VulkanInstance::new(&window)
@@ -114,7 +186,7 @@ impl GraphicsBackend for VulkanBackend {
             &physical_device,
         )
         .map_err(|err| BackendInitError::InitError(err.into()))?;
-        let device = VulkanDevice::new(&instance, &physical_device, &surface)
+        let device = VulkanDevice::new(&instance, &physical_device)
             .map_err(|err| BackendInitError::InitError(err.into()))?;
         let command_pool = VulkanCommandPool::new(&physical_device, &device)
             .map_err(|err| BackendInitError::InitError(err.into()))?;
@@ -209,9 +281,8 @@ impl GraphicsBackend for VulkanBackend {
             .buffers
             .remove(&buffer.id())
             .ok_or(BufferError::BufferNotFound)?;
-        buffer
-            .delete_buffer(&self.device)
-            .map_err(|err| BufferError::BufferDeletionError(err.into()))
+        buffer.destroy(&self.device);
+        Ok(())
     }
 
     fn create_shader(
@@ -232,9 +303,8 @@ impl GraphicsBackend for VulkanBackend {
             .shaders
             .remove(&shader.id())
             .ok_or(ShaderError::ShaderNotFound)?;
-        shader
-            .delete_shader(&self.device)
-            .map_err(|err| ShaderError::ShaderDeletionError(err.into()))
+        shader.destroy(&self.device);
+        Ok(())
     }
 
     fn create_renderpass(
@@ -242,7 +312,6 @@ impl GraphicsBackend for VulkanBackend {
         attachments: &[RenderpassAttachment],
     ) -> Result<Renderpass, RenderpassError> {
         let renderpass = VulkanRenderpass::new(
-            &self.surface,
             &self.device,
             &attachments
                 .iter()
@@ -268,9 +337,8 @@ impl GraphicsBackend for VulkanBackend {
             .renderpasses
             .remove(&renderpass.id())
             .ok_or(RenderpassError::RenderpassNotFound)?;
-        renderpass
-            .delete_renderpass(&self.device)
-            .map_err(|err| RenderpassError::RenderpassDeletionError(err.into()))
+        renderpass.destroy(&self.device);
+        Ok(())
     }
 
     fn create_pipeline_binding_layout(
@@ -584,7 +652,6 @@ impl GraphicsBackend for VulkanBackend {
         };
         let (swapchain, swapchain_images) = VulkanSwapchain::new(
             &self.instance,
-            &self.physical_device,
             window,
             &self.surface,
             &self.device,
@@ -607,9 +674,11 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         swapchain: Swapchain,
     ) -> Result<(), SwapchainError> {
-        self.swapchains
+        let swapchain = self
+            .swapchains
             .remove(&swapchain.id())
             .ok_or(SwapchainError::SwapchainNotFound)?;
+        swapchain.destroy();
         Ok(())
     }
 
@@ -626,7 +695,7 @@ impl GraphicsBackend for VulkanBackend {
         self.swapchains
             .get(&swapchain.id())
             .ok_or(SwapchainError::SwapchainNotFound)?
-            .acquire_next_image(ss, &VulkanFence::null(&self.device))
+            .acquire_next_image(ss, &VulkanFence::null())
             .map_err(|err| match err {
                 VulkanSwapchainError::OutOfDate => {
                     SwapchainError::SwapchainOutOfDate
@@ -692,9 +761,8 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_image(&mut self, image: Image) -> Result<(), ImageError> {
         let result = self.owned_images.remove(&image.id());
         if let Some(image) = result {
-            image
-                .delete_image(&self.device)
-                .map_err(|err| ImageError::ImageDeletionError(err.into()))
+            image.destroy(&self.device);
+            Ok(())
         } else {
             self.swapchain_images
                 .remove(&image.id())
@@ -790,9 +858,8 @@ impl GraphicsBackend for VulkanBackend {
             .image_views
             .remove(&image_view.id())
             .ok_or(ImageError::ImageViewNotFound)?;
-        image_view
-            .delete_image_view(&self.device)
-            .map_err(|err| ImageError::ImageDeletionError(err.into()))
+        image_view.destroy(&self.device);
+        Ok(())
     }
 
     fn create_image_sampler(&mut self) -> Result<Sampler, SamplerError> {
@@ -811,9 +878,8 @@ impl GraphicsBackend for VulkanBackend {
             .samplers
             .remove(&sampler.id())
             .ok_or(SamplerError::SamplerNotFound)?;
-        sampler
-            .delete_sampler(&self.device)
-            .map_err(|err| SamplerError::SamplerDeletionError(err.into()))
+        sampler.destroy(&self.device);
+        Ok(())
     }
 
     fn create_framebuffer(
@@ -865,9 +931,8 @@ impl GraphicsBackend for VulkanBackend {
             .framebuffers
             .remove(&framebuffer.id())
             .ok_or(FramebufferError::FramebufferNotFound)?;
-        framebuffer.delete_framebuffer(&self.device).map_err(|err| {
-            FramebufferError::FramebufferDeletionError(err.into())
-        })
+        framebuffer.destroy(&self.device);
+        Ok(())
     }
 
     fn create_fence(&mut self, signaled: bool) -> Result<Fence, FenceError> {
@@ -903,9 +968,8 @@ impl GraphicsBackend for VulkanBackend {
             .fences
             .remove(&fence.id())
             .ok_or(FenceError::FenceNotFound)?;
-        fence
-            .delete_fence(&self.device)
-            .map_err(|err| FenceError::FenceWaitError(err.into()))
+        fence.destroy(&self.device);
+        Ok(())
     }
 
     fn create_semaphore(&mut self) -> Result<Semaphore, SemaphoreError> {
@@ -925,8 +989,7 @@ impl GraphicsBackend for VulkanBackend {
             .semaphores
             .remove(&semaphore.id())
             .ok_or(SemaphoreError::SemaphoreNotFound)?;
-        semaphore
-            .delete_semaphore(&self.device)
-            .map_err(|err| SemaphoreError::SemaphoreDeletionError(err.into()))
+        semaphore.destroy(&self.device);
+        Ok(())
     }
 }

@@ -1,7 +1,6 @@
-use crate::graphics::{window::Window};
+use crate::graphics::window::Window;
 
 pub struct VulkanInstance {
-    id: u32,
     entry: ash::Entry,
     instance: ash::Instance,
 }
@@ -22,7 +21,6 @@ pub enum VulkanInstanceError {
     DebugCreationError(ash::vk::Result),
 }
 
-crate::create_counter! {ID_COUNTER}
 impl VulkanInstance {
     pub fn new(window: &Window) -> Result<VulkanInstance, VulkanInstanceError> {
         let entry = match unsafe { ash::Entry::load() } {
@@ -54,18 +52,11 @@ impl VulkanInstance {
             .to_vec();
         extension_names.push(ash::ext::debug_utils::NAME.as_ptr());
 
-        let layer_names = match cfg!(debug_assertions) {
-            true => vec![c"VK_LAYER_KHRONOS_validation"],
-            false => vec![],
-        };
-        let layers_names_raw: Vec<*const std::ffi::c_char> = layer_names
-            .iter()
-            .map(|raw_name| raw_name.as_ptr())
-            .collect();
+        let layer_names_raw = [];
 
         let create_info = ash::vk::InstanceCreateInfo::default()
             .application_info(&app_info)
-            .enabled_layer_names(&layers_names_raw)
+            .enabled_layer_names(&layer_names_raw)
             .enabled_extension_names(&extension_names);
 
         let instance = match unsafe {
@@ -77,22 +68,14 @@ impl VulkanInstance {
             },
         };
 
-        Ok(VulkanInstance {
-            id: ID_COUNTER.next(),
-            entry,
-            instance,
-        })
+        Ok(VulkanInstance { entry, instance })
     }
 
-    pub fn raw_instance(&self) -> &ash::Instance { &self.instance }
+    pub fn raw_handle(&self) -> &ash::Instance { &self.instance }
 
     pub fn raw_entry(&self) -> &ash::Entry { &self.entry }
-
-    pub fn id(&self) -> u32 { self.id }
 }
 
 impl Drop for VulkanInstance {
-    fn drop(&mut self) {
-        unsafe { self.instance.destroy_instance(None) };
-    }
+    fn drop(&mut self) { unsafe { self.instance.destroy_instance(None) }; }
 }

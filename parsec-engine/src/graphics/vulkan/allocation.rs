@@ -1,5 +1,5 @@
 use crate::graphics::vulkan::{
-    allocator::{VulkanMemoryProperties, VulkanMemoryRequirements},
+    allocator::VulkanMemoryRequirements,
     device::VulkanDevice,
     memory::{VulkanMemory, VulkanMemoryError},
 };
@@ -12,7 +12,6 @@ struct VulkanMemoryBlock {
 
 pub struct VulkanAllocation {
     memory: VulkanMemory,
-    memory_index: u32,
     memory_blocks: Vec<VulkanMemoryBlock>,
 }
 
@@ -27,7 +26,6 @@ impl VulkanAllocation {
 
         Ok(VulkanAllocation {
             memory,
-            memory_index,
             memory_blocks: vec![VulkanMemoryBlock {
                 start: 0,
                 end: memory_size - 1,
@@ -36,6 +34,14 @@ impl VulkanAllocation {
     }
 
     /// (memory, offset)
+    pub fn free(self, device: &VulkanDevice) {
+        unsafe {
+            device
+                .raw_handle()
+                .free_memory(self.memory.raw_memory(), None)
+        };
+    }
+
     pub fn try_get_free_memory(
         &mut self,
         req: VulkanMemoryRequirements,
@@ -60,7 +66,7 @@ impl VulkanAllocation {
                     end: start - 1,
                 });
             }
-            return Some((self.memory.clone(), start))
+            return Some((self.memory.clone(), start));
         }
         None
     }

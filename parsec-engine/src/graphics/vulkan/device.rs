@@ -1,12 +1,8 @@
 use crate::graphics::vulkan::{
     instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
-    surface::VulkanSurface,
 };
 
 pub struct VulkanDevice {
-    id: u32,
-    physical_device_id: u32,
-    surface_id: u32,
     device: ash::Device,
     memory_properties: ash::vk::PhysicalDeviceMemoryProperties,
 }
@@ -17,21 +13,13 @@ pub enum VulkanDeviceError {
     DeviceCreationError(ash::vk::Result),
     #[error("Failed to wait for device to be idle: {0}")]
     WaitIdleError(ash::vk::Result),
-    #[error("Device created on different physical device")]
-    PhysicalDeviceMismatch,
 }
 
-crate::create_counter! {ID_COUNTER}
 impl VulkanDevice {
     pub fn new(
         instance: &VulkanInstance,
         physical_device: &VulkanPhysicalDevice,
-        surface: &VulkanSurface,
     ) -> Result<VulkanDevice, VulkanDeviceError> {
-        if surface.physical_device_id() != physical_device.id() {
-            return Err(VulkanDeviceError::PhysicalDeviceMismatch);
-        }
-
         let device_extension_names_raw = [ash::khr::swapchain::NAME.as_ptr()];
 
         let features = ash::vk::PhysicalDeviceFeatures {
@@ -52,9 +40,9 @@ impl VulkanDevice {
 
         let device = unsafe {
             instance
-                .raw_instance()
+                .raw_handle()
                 .create_device(
-                    *physical_device.raw_physical_device(),
+                    *physical_device.raw_handle(),
                     &device_create_info,
                     None,
                 )
@@ -62,9 +50,6 @@ impl VulkanDevice {
         };
 
         Ok(VulkanDevice {
-            id: ID_COUNTER.next(),
-            physical_device_id: physical_device.id(),
-            surface_id: surface.id(),
             device,
             memory_properties: physical_device.raw_physical_memory_properties(),
         })
@@ -77,15 +62,13 @@ impl VulkanDevice {
         Ok(())
     }
 
-    pub fn raw_device(&self) -> &ash::Device { &self.device }
+    pub fn destroy(&self) { unsafe { self.device.destroy_device(None) } }
 
-    pub fn id(&self) -> u32 { self.id }
+    pub fn raw_handle(&self) -> &ash::Device { &self.device }
 
-    pub fn physical_device_id(&self) -> u32 { self.physical_device_id }
-
-    pub fn surface_id(&self) -> u32 { self.surface_id }
-
-    pub fn raw_memory_properties(&self) -> ash::vk::PhysicalDeviceMemoryProperties {
+    pub fn raw_memory_properties(
+        &self,
+    ) -> ash::vk::PhysicalDeviceMemoryProperties {
         self.memory_properties
     }
 }

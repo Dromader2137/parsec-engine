@@ -15,13 +15,13 @@ pub enum RenderpassAttachmentType {
 pub enum RenderpassAttachmentLoadOp {
     Load,
     Clear,
-    DontCare
+    DontCare,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RenderpassAttachmentStoreOp {
     Store,
-    DontCare
+    DontCare,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

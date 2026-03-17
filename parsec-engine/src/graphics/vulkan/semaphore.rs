@@ -3,7 +3,6 @@ use crate::graphics::vulkan::device::VulkanDevice;
 #[derive(Clone)]
 pub struct VulkanSemaphore {
     id: u32,
-    device_id: u32,
     semaphore: ash::vk::Semaphore,
 }
 
@@ -11,8 +10,6 @@ pub struct VulkanSemaphore {
 pub enum VulkanSemaphoreError {
     #[error("Failed to create semaphore: {0}")]
     CreationError(ash::vk::Result),
-    #[error("Semaphore created on different device")]
-    DeviceMismatch,
 }
 
 crate::create_counter! {ID_COUNTER}
@@ -23,7 +20,7 @@ impl VulkanSemaphore {
         let create_info = ash::vk::SemaphoreCreateInfo::default();
 
         let semaphore = match unsafe {
-            device.raw_device().create_semaphore(&create_info, None)
+            device.raw_handle().create_semaphore(&create_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanSemaphoreError::CreationError(err)),
@@ -31,38 +28,26 @@ impl VulkanSemaphore {
 
         Ok(VulkanSemaphore {
             id: ID_COUNTER.next(),
-            device_id: device.id(),
             semaphore,
         })
     }
 
-    pub fn _null(device: &VulkanDevice) -> VulkanSemaphore {
+    pub fn _null() -> VulkanSemaphore {
         VulkanSemaphore {
             id: ID_COUNTER.next(),
-            device_id: device.id(),
             semaphore: ash::vk::Semaphore::null(),
         }
     }
 
-    pub fn delete_semaphore(
-        self,
-        device: &VulkanDevice,
-    ) -> Result<(), VulkanSemaphoreError> {
-        if self.device_id != device.id() {
-            return Err(VulkanSemaphoreError::DeviceMismatch);
-        }
-
+    pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_device()
-                .destroy_semaphore(*self.get_semaphore_raw(), None);
+                .raw_handle()
+                .destroy_semaphore(*self.get_semaphore_raw(), None)
         }
-        Ok(())
     }
 
     pub fn get_semaphore_raw(&self) -> &ash::vk::Semaphore { &self.semaphore }
-
-    pub fn device_id(&self) -> u32 { self.device_id }
 
     pub fn id(&self) -> u32 { self.id }
 }

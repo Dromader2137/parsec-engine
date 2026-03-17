@@ -1,20 +1,25 @@
-use crate::{graphics::{
-    buffer::{Buffer, BufferError, BufferUsage},
-    command_list::{CommandList, CommandListError},
-    fence::{Fence, FenceError},
-    framebuffer::{Framebuffer, FramebufferError},
-    image::{Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView},
-    pipeline::{
-        Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
-        PipelineOptions, PipelineSubbindingLayout,
+use crate::{
+    graphics::{
+        buffer::{Buffer, BufferError, BufferUsage},
+        command_list::{CommandList, CommandListError},
+        fence::{Fence, FenceError},
+        framebuffer::{Framebuffer, FramebufferError},
+        image::{
+            Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView,
+        },
+        pipeline::{
+            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
+            PipelineOptions, PipelineSubbindingLayout,
+        },
+        renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
+        sampler::{Sampler, SamplerError},
+        semaphore::{Semaphore, SemaphoreError},
+        shader::{Shader, ShaderError, ShaderType},
+        swapchain::{Swapchain, SwapchainError},
+        window::Window,
     },
-    renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
-    sampler::{Sampler, SamplerError},
-    semaphore::{Semaphore, SemaphoreError},
-    shader::{Shader, ShaderError, ShaderType},
-    swapchain::{Swapchain, SwapchainError},
-    window::Window,
-}, math::uvec::Vec2u};
+    math::uvec::Vec2u,
+};
 
 #[derive(Debug)]
 pub enum BackendInitError {

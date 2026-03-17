@@ -3,7 +3,7 @@
 //! # Vulkan API abstraction layers:
 //!
 //! ## Bindings layer
-//! 
+//!
 //! This layer is entirely provided by the [`ash`] crate.
 //!
 //! ## Wrapper layer
@@ -16,8 +16,8 @@
 //! Graphics back-end trait that lets higher level abstractions use different graphics APIs.
 //!
 //! ## Renderer layer
-//! 
-//! Renderer that automatically manages images, buffers, etc. 
+//!
+//! Renderer that automatically manages images, buffers, etc.
 //!
 //! Layers can only use types and functions provided by the layer directly below it
 

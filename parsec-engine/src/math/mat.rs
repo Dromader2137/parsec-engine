@@ -143,12 +143,12 @@ impl Matrix4f {
     }
 
     // pub fn invert(self) -> Matrix4f {
-        // let mut ret = Matrix4f::indentity();
-        // for i in 0..=2 {
-        //     for j in i + 1..=3 {
-        //         let delta = self.0[j][i] / self.0[i][i];
-        //     }
-        // }
-        // Matrix4f::indentity()
+    // let mut ret = Matrix4f::indentity();
+    // for i in 0..=2 {
+    //     for j in i + 1..=3 {
+    //         let delta = self.0[j][i] / self.0[i][i];
+    //     }
+    // }
+    // Matrix4f::indentity()
     // }
 }

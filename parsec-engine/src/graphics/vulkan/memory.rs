@@ -3,7 +3,7 @@ use crate::graphics::vulkan::device::VulkanDevice;
 #[derive(Debug, Clone)]
 pub struct VulkanMemory {
     memory: ash::vk::DeviceMemory,
-    size: u64
+    size: u64,
 }
 
 impl VulkanMemory {
@@ -20,23 +20,20 @@ impl VulkanMemory {
 
         let memory = unsafe {
             device
-                .raw_device()
+                .raw_handle()
                 .allocate_memory(&allocate_info, None)
-                .map_err(|err| {
-                    VulkanMemoryError::AllocateMemoryError(err)
-                })?
+                .map_err(|err| VulkanMemoryError::AllocateMemoryError(err))?
         };
 
-        Ok(VulkanMemory { memory , size: memory_size })
+        Ok(VulkanMemory {
+            memory,
+            size: memory_size,
+        })
     }
 
-    pub fn size(&self) -> u64 {
-        self.size
-    }
+    pub fn size(&self) -> u64 { self.size }
 
-    pub fn raw_memory(&self) -> ash::vk::DeviceMemory {
-        self.memory
-    }
+    pub fn raw_memory(&self) -> ash::vk::DeviceMemory { self.memory }
 }
 
 #[derive(Debug)]

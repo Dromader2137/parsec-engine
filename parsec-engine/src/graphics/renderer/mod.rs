@@ -609,10 +609,7 @@ pub fn render(
     }
 
     command_list.cmd(Command::EndRenderpass);
-    command_list.cmd(Command::BeginRenderpass(
-        renderpass.0,
-        framebuffer,
-    ));
+    command_list.cmd(Command::BeginRenderpass(renderpass.0, framebuffer));
 
     for draw in draw_queue.iter() {
         match draw {

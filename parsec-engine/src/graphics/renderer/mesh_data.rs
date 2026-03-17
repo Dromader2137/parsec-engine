@@ -57,16 +57,10 @@ impl<V: Vertex> MeshBuffer<V> {
         }
     }
 
-    pub fn record_draw_commands(
-        &self,
-        command_list: &mut CommandList,
-    ) {
-        command_list
-            .cmd(Command::BindVertexBuffer(self.vertex_buffer));
-        command_list
-            .cmd(Command::BindIndexBuffer(self.index_buffer));
-        command_list
-            .cmd(Command::DrawIndexed(self.len, 1, 0, 0 , 1));
+    pub fn record_draw_commands(&self, command_list: &mut CommandList) {
+        command_list.cmd(Command::BindVertexBuffer(self.vertex_buffer));
+        command_list.cmd(Command::BindIndexBuffer(self.index_buffer));
+        command_list.cmd(Command::DrawIndexed(self.len, 1, 0, 0, 1));
     }
 }
 
@@ -89,10 +83,7 @@ impl<V: Vertex> MeshData<V> {
         }
     }
 
-    pub fn record_commands(
-        &self,
-        command_list: &mut CommandList,
-    ) {
+    pub fn record_commands(&self, command_list: &mut CommandList) {
         self.buffer.record_draw_commands(command_list);
     }
 }

@@ -6,17 +6,16 @@ use crate::graphics::{
         fence::VulkanFence,
         image::{VulkanImage, VulkanSwapchainImage},
         instance::VulkanInstance,
-        physical_device::VulkanPhysicalDevice,
         queue::VulkanQueue,
         semaphore::VulkanSemaphore,
-        surface::VulkanSurface, utils::raw_extent_2d,
+        surface::VulkanSurface,
+        utils::raw_extent_2d,
     },
     window::Window,
 };
 
 pub struct VulkanSwapchain {
     id: u32,
-    device_id: u32,
     _swapchain_image_ids: Vec<u32>,
     swapchain: ash::vk::SwapchainKHR,
     swapchain_loader: ash::khr::swapchain::Device,
@@ -32,16 +31,6 @@ pub enum VulkanSwapchainError {
     NextImageError(ash::vk::Result),
     #[error("Failed to present image: {0}")]
     PresentError(ash::vk::Result),
-    #[error("Physical device created on another instance")]
-    InstanceMismatch,
-    #[error("Surface created for another window")]
-    WindowMismatch,
-    #[error("Device created on another physical device")]
-    PhysicalDeviceMismatch,
-    #[error("Device created for another surface")]
-    SurfaceMismatch,
-    #[error("Swapchaing created on another surface")]
-    DeviceMismatch,
     #[error("Swapchain out of date")]
     OutOfDate,
 }
@@ -50,7 +39,6 @@ crate::create_counter! {ID_COUNTER}
 impl VulkanSwapchain {
     pub fn new(
         instance: &VulkanInstance,
-        physical_device: &VulkanPhysicalDevice,
         window: &Window,
         surface: &VulkanSurface,
         device: &VulkanDevice,
@@ -59,32 +47,10 @@ impl VulkanSwapchain {
         (VulkanSwapchain, Vec<VulkanSwapchainImage>),
         VulkanSwapchainError,
     > {
-        if physical_device.instance_id() != instance.id() {
-            return Err(VulkanSwapchainError::InstanceMismatch);
-        }
-
-        if surface.window_id() != window.id() {
-            return Err(VulkanSwapchainError::WindowMismatch);
-        }
-
-        if device.physical_device_id() != physical_device.id() {
-            return Err(VulkanSwapchainError::PhysicalDeviceMismatch);
-        }
-
-        if device.surface_id() != surface.id() {
-            return Err(VulkanSwapchainError::SurfaceMismatch);
-        }
-
-        if let Some(swapchain) = old_swapchain {
-            if swapchain.device_id() != device.id() {
-                return Err(VulkanSwapchainError::DeviceMismatch);
-            }
-        }
-
         let desired_image_count = surface.min_image_count().max(3);
 
         let surface_resolution = raw_extent_2d(window.size());
-        
+
         let pre_transform = if surface
             .raw_supported_transforms()
             .contains(ash::vk::SurfaceTransformFlagsKHR::IDENTITY)
@@ -97,13 +63,13 @@ impl VulkanSwapchain {
         let present_mode = ash::vk::PresentModeKHR::FIFO;
 
         let swapchain_loader = ash::khr::swapchain::Device::new(
-            instance.raw_instance(),
-            device.raw_device(),
+            instance.raw_handle(),
+            device.raw_handle(),
         );
 
         let mut swapchain_create_info =
             ash::vk::SwapchainCreateInfoKHR::default()
-                .surface(*surface.raw_surface())
+                .surface(*surface.raw_handle())
                 .min_image_count(desired_image_count)
                 .image_color_space(ash::vk::ColorSpaceKHR::SRGB_NONLINEAR)
                 .image_format(surface.format().raw_image_format())
@@ -133,13 +99,7 @@ impl VulkanSwapchain {
         } {
             Ok(val) => val
                 .into_iter()
-                .map(|x| {
-                    VulkanSwapchainImage::new(
-                        device,
-                        surface.format(),
-                        x,
-                    )
-                })
+                .map(|x| VulkanSwapchainImage::new(surface.format(), x))
                 .collect::<Vec<_>>(),
             Err(err) => {
                 return Err(VulkanSwapchainError::ImageAcquisitionError(err));
@@ -149,7 +109,6 @@ impl VulkanSwapchain {
         Ok((
             VulkanSwapchain {
                 id: ID_COUNTER.next(),
-                device_id: device.id(),
                 swapchain,
                 _swapchain_image_ids: swapchain_images
                     .iter()
@@ -166,12 +125,6 @@ impl VulkanSwapchain {
         semaphore: &VulkanSemaphore,
         fence: &VulkanFence,
     ) -> Result<(u32, bool), VulkanSwapchainError> {
-        if semaphore.device_id() != self.device_id
-            || fence.device_id() != self.device_id
-        {
-            return Err(VulkanSwapchainError::DeviceMismatch);
-        }
-
         match unsafe {
             self.swapchain_loader.acquire_next_image(
                 self.swapchain,
@@ -197,16 +150,6 @@ impl VulkanSwapchain {
         wait_semaphores: &[&VulkanSemaphore],
         image_index: u32,
     ) -> Result<(), VulkanSwapchainError> {
-        if present_queue.device_id() != self.device_id {
-            return Err(VulkanSwapchainError::DeviceMismatch);
-        }
-
-        for semaphore in wait_semaphores.iter() {
-            if semaphore.device_id() != self.device_id {
-                return Err(VulkanSwapchainError::DeviceMismatch);
-            }
-        }
-
         let wait_semaphores = wait_semaphores
             .iter()
             .map(|x| *x.get_semaphore_raw())
@@ -233,6 +176,13 @@ impl VulkanSwapchain {
         Ok(())
     }
 
+    pub fn destroy(&self) {
+        unsafe {
+            self.swapchain_loader
+                .destroy_swapchain(self.swapchain, None)
+        }
+    }
+
     pub fn get_swapchain_raw(&self) -> &ash::vk::SwapchainKHR {
         &self.swapchain
     }
@@ -240,8 +190,6 @@ impl VulkanSwapchain {
     pub fn _get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
         &self.swapchain_loader
     }
-
-    pub fn device_id(&self) -> u32 { self.device_id }
 
     pub fn id(&self) -> u32 { self.id }
 

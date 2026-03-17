@@ -1,11 +1,14 @@
 use crate::graphics::{
     pipeline::PipelineBindingType,
     vulkan::{
-        buffer::VulkanBuffer, device::VulkanDevice, graphics_pipeline::VulkanShaderStage, image::VulkanImageView, sampler::VulkanSampler
+        buffer::VulkanBuffer, device::VulkanDevice,
+        graphics_pipeline::VulkanShaderStage, image::VulkanImageView,
+        sampler::VulkanSampler,
     },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(unused)]
 pub enum VulkanDescriptorType {
     Sampler,
     CombinedImageSampler,
@@ -24,16 +27,20 @@ impl VulkanDescriptorType {
     pub fn raw_descriptor_type(&self) -> ash::vk::DescriptorType {
         match self {
             VulkanDescriptorType::Sampler => ash::vk::DescriptorType::SAMPLER,
-            VulkanDescriptorType::CombinedImageSampler => ash::vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-            VulkanDescriptorType::UniformBuffer => ash::vk::DescriptorType::UNIFORM_BUFFER,
-            VulkanDescriptorType::StorageBuffer => ash::vk::DescriptorType::STORAGE_BUFFER,
+            VulkanDescriptorType::CombinedImageSampler => {
+                ash::vk::DescriptorType::COMBINED_IMAGE_SAMPLER
+            },
+            VulkanDescriptorType::UniformBuffer => {
+                ash::vk::DescriptorType::UNIFORM_BUFFER
+            },
+            VulkanDescriptorType::StorageBuffer => {
+                ash::vk::DescriptorType::STORAGE_BUFFER
+            },
         }
     }
 }
 
 pub struct VulkanDescriptorPool {
-    id: u32,
-    device_id: u32,
     pool: ash::vk::DescriptorPool,
 }
 
@@ -43,8 +50,6 @@ pub struct VulkanDescriptorPoolSize {
 
 pub struct VulkanDescriptorSet {
     id: u32,
-    device_id: u32,
-    descriptor_pool_id: u32,
     descriptor_layout_id: u32,
     bound_image_ids: Vec<u32>,
     set: ash::vk::DescriptorSet,
@@ -53,7 +58,6 @@ pub struct VulkanDescriptorSet {
 #[derive(Clone)]
 pub struct VulkanDescriptorSetLayout {
     id: u32,
-    device_id: u32,
     layout: ash::vk::DescriptorSetLayout,
     bindings: Vec<VulkanDescriptorSetBinding>,
 }
@@ -74,8 +78,6 @@ pub enum VulkanDescriptorError {
     SetLayoutCreationError(ash::vk::Result),
     #[error("Failed to bind: binding doesn't exist")]
     BindingDoesntExist,
-    #[error("Descriptor pool/set/layout created on a different device")]
-    DeviceMismatch,
 }
 
 impl<'a> VulkanDescriptorSetBinding {
@@ -111,7 +113,6 @@ impl VulkanDescriptorPoolSize {
     }
 }
 
-crate::create_counter! {ID_COUNTER_POOL}
 impl VulkanDescriptorPool {
     pub fn new(
         device: &VulkanDevice,
@@ -128,21 +129,19 @@ impl VulkanDescriptorPool {
 
         let pool = unsafe {
             device
-                .raw_device()
+                .raw_handle()
                 .create_descriptor_pool(&create_info, None)
                 .map_err(|err| VulkanDescriptorError::PoolCreationError(err))?
         };
 
-        Ok(VulkanDescriptorPool {
-            id: ID_COUNTER_POOL.next(),
-            device_id: device.id(),
-            pool,
-        })
+        Ok(VulkanDescriptorPool { pool })
     }
 
-    pub fn get_pool_raw(&self) -> &ash::vk::DescriptorPool { &self.pool }
+    pub fn destroy(&self, device: &VulkanDevice) {
+        unsafe { device.raw_handle().destroy_descriptor_pool(self.pool, None) }
+    }
 
-    pub fn id(&self) -> u32 { self.id }
+    pub fn raw(&self) -> &ash::vk::DescriptorPool { &self.pool }
 }
 
 crate::create_counter! {ID_COUNTER_LAYOUT}
@@ -158,7 +157,7 @@ impl<'a> VulkanDescriptorSetLayout {
 
         let layout = match unsafe {
             device
-                .raw_device()
+                .raw_handle()
                 .create_descriptor_set_layout(&create_info, None)
         } {
             Ok(val) => val,
@@ -169,10 +168,17 @@ impl<'a> VulkanDescriptorSetLayout {
 
         Ok(VulkanDescriptorSetLayout {
             id: ID_COUNTER_LAYOUT.next(),
-            device_id: device.id(),
             layout,
             bindings,
         })
+    }
+
+    pub fn destroy(self, device: &VulkanDevice) {
+        unsafe {
+            device
+                .raw_handle()
+                .destroy_descriptor_set_layout(self.layout, None)
+        }
     }
 
     pub fn get_layout_raw(&self) -> &ash::vk::DescriptorSetLayout {
@@ -180,8 +186,6 @@ impl<'a> VulkanDescriptorSetLayout {
     }
 
     pub fn id(&self) -> u32 { self.id }
-
-    pub fn device_id(&self) -> u32 { self.device_id }
 
     pub fn bindings(&self) -> &[VulkanDescriptorSetBinding] { &self.bindings }
 }
@@ -193,22 +197,14 @@ impl VulkanDescriptorSet {
         descriptor_layout: &VulkanDescriptorSetLayout,
         descriptor_pool: &VulkanDescriptorPool,
     ) -> Result<VulkanDescriptorSet, VulkanDescriptorError> {
-        if device.id() != descriptor_layout.device_id
-            || device.id() != descriptor_pool.device_id
-        {
-            return Err(VulkanDescriptorError::DeviceMismatch);
-        }
-
         let layout_raw = [*descriptor_layout.get_layout_raw()];
 
         let create_info = ash::vk::DescriptorSetAllocateInfo::default()
-            .descriptor_pool(*descriptor_pool.get_pool_raw())
+            .descriptor_pool(*descriptor_pool.raw())
             .set_layouts(&layout_raw);
 
         let set = match unsafe {
-            device
-                .raw_device()
-                .allocate_descriptor_sets(&create_info)
+            device.raw_handle().allocate_descriptor_sets(&create_info)
         } {
             Ok(val) => val,
             Err(err) => {
@@ -218,8 +214,6 @@ impl VulkanDescriptorSet {
 
         Ok(VulkanDescriptorSet {
             id: ID_COUNTER_SET.next(),
-            device_id: device.id(),
-            descriptor_pool_id: descriptor_pool.id(),
             descriptor_layout_id: descriptor_layout.id(),
             bound_image_ids: Vec::new(),
             set,
@@ -233,12 +227,6 @@ impl VulkanDescriptorSet {
         descriptor_layout: &VulkanDescriptorSetLayout,
         dst_binding: u32,
     ) -> Result<(), VulkanDescriptorError> {
-        if device.id() != descriptor_layout.device_id
-            || device.id() != buffer.device_id()
-        {
-            return Err(VulkanDescriptorError::DeviceMismatch);
-        }
-
         let buffer_info = [ash::vk::DescriptorBufferInfo::default()
             .buffer(*buffer.get_buffer_raw())
             .offset(0)
@@ -260,7 +248,7 @@ impl VulkanDescriptorSet {
 
         unsafe {
             device
-                .raw_device()
+                .raw_handle()
                 .update_descriptor_sets(&[write_info], &[]);
         }
 
@@ -296,7 +284,7 @@ impl VulkanDescriptorSet {
 
         unsafe {
             device
-                .raw_device()
+                .raw_handle()
                 .update_descriptor_sets(&[write_info], &[]);
         }
 
@@ -305,17 +293,11 @@ impl VulkanDescriptorSet {
         Ok(())
     }
 
-    pub fn get_set_raw(&self) -> &ash::vk::DescriptorSet { &self.set }
+    pub fn raw_descriptor_set(&self) -> &ash::vk::DescriptorSet { &self.set }
 
     pub fn id(&self) -> u32 { self.id }
 
-    pub fn device_id(&self) -> u32 { self.device_id }
-
-    pub fn descriptor_pool_id(&self) -> u32 { self.descriptor_pool_id }
-
     pub fn descriptor_layout_id(&self) -> u32 { self.descriptor_layout_id }
 
-    pub fn bound_image_ids(&self) -> &[u32] {
-        &self.bound_image_ids
-    }
+    pub fn bound_image_ids(&self) -> &[u32] { &self.bound_image_ids }
 }

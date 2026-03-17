@@ -1,4 +1,8 @@
-use crate::graphics::vulkan::{access::VulkanAccess, buffer::VulkanBuffer, image::{VulkanImage, VulkanImageLayout}};
+use crate::graphics::vulkan::{
+    access::VulkanAccess,
+    buffer::VulkanBuffer,
+    image::{VulkanImage, VulkanImageLayout},
+};
 
 pub struct VulkanMemoryBarrier<'a> {
     src_access: &'a [VulkanAccess],
@@ -48,7 +52,9 @@ impl<'buffer, 'a> VulkanBufferMemoryBarrier<'buffer, 'a> {
         }
     }
 
-    pub fn raw_buffer_memory_barrier(&self) -> ash::vk::BufferMemoryBarrier<'_> {
+    pub fn raw_buffer_memory_barrier(
+        &self,
+    ) -> ash::vk::BufferMemoryBarrier<'_> {
         ash::vk::BufferMemoryBarrier {
             src_access_mask: VulkanAccess::raw_combined_access_flag(
                 self.src_access,
@@ -108,4 +114,3 @@ impl<'image, 'a> VulkanImageMemoryBarrier<'image, 'a> {
         }
     }
 }
-

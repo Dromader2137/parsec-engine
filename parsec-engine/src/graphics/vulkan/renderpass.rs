@@ -5,17 +5,13 @@ use crate::{
             RenderpassAttachmentStoreOp, RenderpassAttachmentType,
             RenderpassClearValue,
         },
-        vulkan::{
-            device::VulkanDevice, image::VulkanImageFormat,
-            surface::VulkanSurface,
-        },
+        vulkan::{device::VulkanDevice, image::VulkanImageFormat},
     },
     math::vec::Vec4f,
 };
 
 pub struct VulkanRenderpass {
     id: u32,
-    device_id: u32,
     attachments: Vec<VulkanRenderpassAttachment>,
     clear_values: Vec<VulkanClearValue>,
     renderpass: ash::vk::RenderPass,
@@ -25,13 +21,6 @@ pub struct VulkanRenderpass {
 pub enum VulkanRenderpassError {
     #[error("Failed to create a renderpass: {0}")]
     CreationError(ash::vk::Result),
-    #[error(
-        "Device used for creating a renderpass was created for a different \
-         surface"
-    )]
-    SurfaceMismatch,
-    #[error("Renderpass created on a different device")]
-    DeviceMismatch,
     #[error("Only one depth attachment is allowed")]
     OnlyOneDepthAttachmentAllowed,
 }
@@ -167,14 +156,9 @@ impl VulkanRenderpassAttachment {
 crate::create_counter! {ID_COUNTER}
 impl VulkanRenderpass {
     pub fn new(
-        surface: &VulkanSurface,
         device: &VulkanDevice,
         attachments: &[(VulkanRenderpassAttachment, VulkanClearValue)],
     ) -> Result<VulkanRenderpass, VulkanRenderpassError> {
-        if device.surface_id() != surface.id() {
-            return Err(VulkanRenderpassError::SurfaceMismatch);
-        }
-
         let mut color_attachment_refs = Vec::new();
         let mut depth_attachment_refs = Vec::new();
         let mut renderpass_attachments = Vec::new();
@@ -219,7 +203,7 @@ impl VulkanRenderpass {
 
         let renderpass = match unsafe {
             device
-                .raw_device()
+                .raw_handle()
                 .create_render_pass(&renderpass_create_info, None)
         } {
             Ok(val) => val,
@@ -228,35 +212,21 @@ impl VulkanRenderpass {
 
         Ok(VulkanRenderpass {
             id: ID_COUNTER.next(),
-            device_id: device.id(),
             attachments: attachments.iter().map(|x| x.0.clone()).collect(),
             clear_values,
             renderpass,
         })
     }
 
-    pub fn delete_renderpass(
-        self,
-        device: &VulkanDevice,
-    ) -> Result<(), VulkanRenderpassError> {
-        if self.device_id != device.id() {
-            return Err(VulkanRenderpassError::DeviceMismatch);
-        }
-
+    pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_device()
-                .destroy_render_pass(*self.get_renderpass_raw(), None);
+                .raw_handle()
+                .destroy_render_pass(self.renderpass, None)
         }
-
-        Ok(())
     }
 
-    pub fn get_renderpass_raw(&self) -> &ash::vk::RenderPass {
-        &self.renderpass
-    }
-
-    pub fn device_id(&self) -> u32 { self.device_id }
+    pub fn raw_handle(&self) -> &ash::vk::RenderPass { &self.renderpass }
 
     pub fn id(&self) -> u32 { self.id }
 

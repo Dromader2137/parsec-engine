@@ -1,18 +1,17 @@
 use crate::graphics::{
-    vulkan::{image::VulkanImageFormat, instance::VulkanInstance, physical_device::VulkanPhysicalDevice},
+    vulkan::{
+        image::VulkanImageFormat, instance::VulkanInstance,
+        physical_device::VulkanPhysicalDevice,
+    },
     window::Window,
 };
 
 pub struct VulkanInitialSurface {
-    window_id: u32,
     surface_loader: ash::khr::surface::Instance,
     surface: ash::vk::SurfaceKHR,
 }
 
 pub struct VulkanSurface {
-    id: u32,
-    window_id: u32,
-    physical_device_id: u32,
     surface: ash::vk::SurfaceKHR,
     surface_loader: ash::khr::surface::Instance,
     surface_format: VulkanImageFormat,
@@ -52,7 +51,7 @@ impl VulkanInitialSurface {
         let surface = unsafe {
             ash_window::create_surface(
                 instance.raw_entry(),
-                instance.raw_instance(),
+                instance.raw_handle(),
                 display_handle.as_raw(),
                 window_handle.as_raw(),
                 None,
@@ -62,11 +61,10 @@ impl VulkanInitialSurface {
 
         let surface_loader = ash::khr::surface::Instance::new(
             instance.raw_entry(),
-            instance.raw_instance(),
+            instance.raw_handle(),
         );
 
         Ok(VulkanInitialSurface {
-            window_id: window.id(),
             surface,
             surface_loader,
         })
@@ -95,7 +93,6 @@ impl VulkanInitialSurface {
     pub fn surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 }
 
-crate::create_counter! {ID_COUNTER}
 impl VulkanSurface {
     pub fn from_initial_surface(
         initial_surface: VulkanInitialSurface,
@@ -104,15 +101,13 @@ impl VulkanSurface {
         let VulkanInitialSurface {
             surface_loader,
             surface,
-            window_id,
-            ..
         } = initial_surface;
 
         let surface_formats = unsafe {
             surface_loader
                 .get_physical_device_surface_formats(
-                    *physical_device.raw_physical_device(),
-                    initial_surface.surface,
+                    *physical_device.raw_handle(),
+                    surface,
                 )
                 .map_err(|err| VulkanSurfaceError::FormatsError(err))?
         };
@@ -124,32 +119,30 @@ impl VulkanSurface {
         let surface_capabilities = unsafe {
             surface_loader
                 .get_physical_device_surface_capabilities(
-                    *physical_device.raw_physical_device(),
-                    initial_surface.surface,
+                    *physical_device.raw_handle(),
+                    surface,
                 )
                 .map_err(|err| VulkanSurfaceError::CapabilitiesError(err))?
         };
 
-        let preferred_formats = [
-            VulkanImageFormat::RGBA8SRGB,
-            VulkanImageFormat::BGRA8SRGB,
-        ];
+        let preferred_formats =
+            [VulkanImageFormat::RGBA8SRGB, VulkanImageFormat::BGRA8SRGB];
 
         let surface_format = *preferred_formats
             .iter()
             .find_map(|preffered_format| {
-                let found = surface_formats
-                    .iter()
-                    .find(|format| format.format == preffered_format.raw_image_format());
-                if found.is_some() { Some(preffered_format) }
-                else { None }
+                let found = surface_formats.iter().find(|format| {
+                    format.format == preffered_format.raw_image_format()
+                });
+                if found.is_some() {
+                    Some(preffered_format)
+                } else {
+                    None
+                }
             })
             .ok_or(VulkanSurfaceError::NoSurfaceFormatsAvailable)?;
 
         Ok(VulkanSurface {
-            id: ID_COUNTER.next(),
-            window_id,
-            physical_device_id: physical_device.id(),
             surface,
             surface_loader,
             surface_format,
@@ -157,11 +150,15 @@ impl VulkanSurface {
         })
     }
 
+    pub fn destroy(&self) {
+        unsafe { self.surface_loader.destroy_surface(self.surface, None) }
+    }
+
     pub fn raw_surface_loader(&self) -> &ash::khr::surface::Instance {
         &self.surface_loader
     }
 
-    pub fn raw_surface(&self) -> &ash::vk::SurfaceKHR { &self.surface }
+    pub fn raw_handle(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 
     pub fn min_image_count(&self) -> u32 {
         self.surface_capabilities.min_image_count
@@ -171,7 +168,9 @@ impl VulkanSurface {
         self.surface_capabilities.max_image_count
     }
 
-    pub fn raw_supported_transforms(&self) -> ash::vk::SurfaceTransformFlagsKHR {
+    pub fn raw_supported_transforms(
+        &self,
+    ) -> ash::vk::SurfaceTransformFlagsKHR {
         self.surface_capabilities.supported_transforms
     }
 
@@ -180,10 +179,4 @@ impl VulkanSurface {
     }
 
     pub fn format(&self) -> VulkanImageFormat { self.surface_format }
-
-    pub fn id(&self) -> u32 { self.id }
-
-    pub fn physical_device_id(&self) -> u32 { self.physical_device_id }
-
-    pub fn window_id(&self) -> u32 { self.window_id }
 }

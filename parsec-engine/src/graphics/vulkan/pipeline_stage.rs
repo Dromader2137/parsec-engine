@@ -1,4 +1,5 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(unused)]
 pub enum VulkanPipelineStage {
     TopOfPipe,
     VertexInput,
@@ -38,17 +39,19 @@ impl VulkanPipelineStage {
             },
             VulkanPipelineStage::ColorAttachmentOutput => {
                 ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
-            }
+            },
             VulkanPipelineStage::Transfer => {
                 ash::vk::PipelineStageFlags::TRANSFER
             },
             VulkanPipelineStage::Host => ash::vk::PipelineStageFlags::HOST,
         }
     }
-    
+
     pub fn raw_combined_stage(stages: &[Self]) -> ash::vk::PipelineStageFlags {
-        stages.iter().fold(ash::vk::PipelineStageFlags::empty(), |acc, x| {
-            acc | x.raw_pipeline_stage()
-        })
+        stages
+            .iter()
+            .fold(ash::vk::PipelineStageFlags::empty(), |acc, x| {
+                acc | x.raw_pipeline_stage()
+            })
     }
 }

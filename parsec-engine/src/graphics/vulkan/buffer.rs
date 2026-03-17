@@ -13,6 +13,7 @@ use crate::graphics::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(unused)]
 pub enum VulkanBufferUsage {
     TransferSrc,
     TransferDst,
@@ -71,7 +72,6 @@ impl VulkanBufferUsage {
 
 pub struct VulkanBuffer {
     id: u32,
-    device_id: u32,
     buffer: ash::vk::Buffer,
     memory: VulkanMemory,
     memory_offset: u64,
@@ -92,8 +92,6 @@ impl Debug for VulkanBuffer {
 pub enum VulkanBufferError {
     #[error("Failed to create a Vulkan buffer: {0}")]
     CreationError(ash::vk::Result),
-    #[error("Failed to find suitable memory for a Vulkan buffer")]
-    UnableToFindSuitableMemory,
     #[error("Failed to allocate memory for a Vulkan buffer: {0:?}")]
     AllocationError(VulkanAllocationError),
     #[error("Failed to bind a Vulkan buffer: {0}")]
@@ -104,8 +102,6 @@ pub enum VulkanBufferError {
     SizaMismatch,
     #[error("New data len doesen't match current buffer len")]
     LenMismatch,
-    #[error("Buffers created to different devices")]
-    DeviceMismatch,
 }
 
 crate::create_counter! {ID_COUNTER}
@@ -125,7 +121,7 @@ impl VulkanBuffer {
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
         let buffer = match unsafe {
-            device.raw_device().create_buffer(&index_buffer_info, None)
+            device.raw_handle().create_buffer(&index_buffer_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanBufferError::CreationError(err)),
@@ -133,7 +129,7 @@ impl VulkanBuffer {
 
         let memory_requirements =
             VulkanMemoryRequirements::from_raw_requirements(unsafe {
-                device.raw_device().get_buffer_memory_requirements(buffer)
+                device.raw_handle().get_buffer_memory_requirements(buffer)
             });
 
         let (memory, memory_offset) = allocator
@@ -141,7 +137,7 @@ impl VulkanBuffer {
             .map_err(|err| VulkanBufferError::AllocationError(err))?;
 
         let memory_ptr = match unsafe {
-            device.raw_device().map_memory(
+            device.raw_handle().map_memory(
                 memory.raw_memory(),
                 memory_offset,
                 memory_requirements
@@ -163,9 +159,9 @@ impl VulkanBuffer {
         };
 
         slice.copy_from_slice(&data);
-        unsafe { device.raw_device().unmap_memory(memory.raw_memory()) };
+        unsafe { device.raw_handle().unmap_memory(memory.raw_memory()) };
         if let Err(err) = unsafe {
-            device.raw_device().bind_buffer_memory(
+            device.raw_handle().bind_buffer_memory(
                 buffer,
                 memory.raw_memory(),
                 memory_offset,
@@ -176,7 +172,6 @@ impl VulkanBuffer {
 
         Ok(VulkanBuffer {
             id: ID_COUNTER.next(),
-            device_id: device.id(),
             buffer,
             memory,
             size: size as u64,
@@ -190,10 +185,6 @@ impl VulkanBuffer {
         device: &VulkanDevice,
         data: &[T],
     ) -> Result<(), VulkanBufferError> {
-        if self.device_id != device.id() {
-            return Err(VulkanBufferError::DeviceMismatch);
-        }
-
         let size = (data.len() * size_of::<T>()) as u64;
 
         if data.len() as u32 != self.len {
@@ -205,7 +196,7 @@ impl VulkanBuffer {
         }
 
         let memory_ptr = match unsafe {
-            device.raw_device().map_memory(
+            device.raw_handle().map_memory(
                 self.memory.raw_memory(),
                 self.memory_offset,
                 self.size,
@@ -226,30 +217,20 @@ impl VulkanBuffer {
 
         slice.copy_from_slice(&data);
 
-        unsafe { device.raw_device().unmap_memory(self.memory.raw_memory()) };
+        unsafe { device.raw_handle().unmap_memory(self.memory.raw_memory()) };
 
         Ok(())
     }
 
-    pub fn delete_buffer(
-        self,
-        device: &VulkanDevice,
-    ) -> Result<(), VulkanBufferError> {
-        if self.device_id != device.id() {
-            return Err(VulkanBufferError::DeviceMismatch);
-        }
-
+    pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_device()
-                .destroy_buffer(*self.get_buffer_raw(), None);
+                .raw_handle()
+                .destroy_buffer(*self.get_buffer_raw(), None)
         }
-        Ok(())
     }
 
     pub fn get_buffer_raw(&self) -> &ash::vk::Buffer { &self.buffer }
-
-    pub fn device_id(&self) -> u32 { self.device_id }
 
     pub fn id(&self) -> u32 { self.id }
 }

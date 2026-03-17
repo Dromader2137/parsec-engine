@@ -1,4 +1,3 @@
-use core::result::Result::Err;
 use std::collections::HashMap;
 
 use crate::graphics::vulkan::{
@@ -8,7 +7,6 @@ use crate::graphics::vulkan::{
 };
 
 pub struct VulkanQueue {
-    device_id: u32,
     queue: ash::vk::Queue,
 }
 
@@ -16,18 +14,13 @@ pub struct VulkanQueue {
 pub enum VulkanQueueError {
     #[error("Failed to submit Queue: {0}")]
     SubmitError(ash::vk::Result),
-    #[error("Queue created on a different Device")]
-    DeviceMismatch,
 }
 
 impl VulkanQueue {
     pub fn present(device: &VulkanDevice, family_index: u32) -> VulkanQueue {
         let raw_queue =
-            unsafe { device.raw_device().get_device_queue(family_index, 0) };
-        VulkanQueue {
-            device_id: device.id(),
-            queue: raw_queue,
-        }
+            unsafe { device.raw_handle().get_device_queue(family_index, 0) };
+        VulkanQueue { queue: raw_queue }
     }
 
     pub fn submit(
@@ -40,10 +33,6 @@ impl VulkanQueue {
         wait_dst_stage: VulkanPipelineStage,
         image_map: &mut HashMap<u32, VulkanOwnedImage>,
     ) -> Result<(), VulkanQueueError> {
-        if device.id() != self.device_id {
-            return Err(VulkanQueueError::DeviceMismatch);
-        }
-
         let raw_command_buffers = command_buffers
             .iter()
             .map(|x| *x.raw_command_buffer())
@@ -66,7 +55,7 @@ impl VulkanQueue {
 
         unsafe {
             device
-                .raw_device()
+                .raw_handle()
                 .queue_submit(
                     self.queue,
                     &[submit_info],
@@ -87,6 +76,4 @@ impl VulkanQueue {
     }
 
     pub fn get_queue_raw(&self) -> &ash::vk::Queue { &self.queue }
-
-    pub fn device_id(&self) -> u32 { self.device_id }
 }

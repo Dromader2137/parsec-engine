@@ -1,10 +1,8 @@
 use crate::graphics::vulkan::{
-    instance::VulkanInstance, surface::VulkanInitialSurface
+    instance::VulkanInstance, surface::VulkanInitialSurface,
 };
 
 pub struct VulkanPhysicalDevice {
-    id: u32,
-    instance_id: u32,
     physical_device: ash::vk::PhysicalDevice,
     physical_memory_properties: ash::vk::PhysicalDeviceMemoryProperties,
     queue_family_index: u32,
@@ -18,7 +16,6 @@ pub enum VulkanPhysicalDeviceError {
     SuitableDeviceNotFound,
 }
 
-crate::create_counter! {ID_COUNTER}
 impl VulkanPhysicalDevice {
     pub fn new(
         instance: &VulkanInstance,
@@ -26,7 +23,7 @@ impl VulkanPhysicalDevice {
     ) -> Result<VulkanPhysicalDevice, VulkanPhysicalDeviceError> {
         let physical_devices = unsafe {
             instance
-                .raw_instance()
+                .raw_handle()
                 .enumerate_physical_devices()
                 .map_err(|err| VulkanPhysicalDeviceError::CreationError(err))?
         };
@@ -36,7 +33,7 @@ impl VulkanPhysicalDevice {
             .find_map(|p| {
                 unsafe {
                     instance
-                        .raw_instance()
+                        .raw_handle()
                         .get_physical_device_queue_family_properties(*p)
                 }
                 .iter()
@@ -64,32 +61,26 @@ impl VulkanPhysicalDevice {
 
         let memory_prop = unsafe {
             instance
-                .raw_instance()
+                .raw_handle()
                 .get_physical_device_memory_properties(physical_device)
         };
 
         Ok(VulkanPhysicalDevice {
-            id: ID_COUNTER.next(),
-            instance_id: instance.id(),
             physical_device,
             physical_memory_properties: memory_prop,
             queue_family_index,
         })
     }
 
-    pub fn raw_physical_device(&self) -> &ash::vk::PhysicalDevice {
+    pub fn raw_handle(&self) -> &ash::vk::PhysicalDevice {
         &self.physical_device
     }
 
     pub fn queue_family_index(&self) -> u32 { self.queue_family_index }
-
-    pub fn id(&self) -> u32 { self.id }
 
     pub fn raw_physical_memory_properties(
         &self,
     ) -> ash::vk::PhysicalDeviceMemoryProperties {
         self.physical_memory_properties
     }
-
-    pub fn instance_id(&self) -> u32 { self.instance_id }
 }

@@ -1,4 +1,5 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(unused)]
 pub enum VulkanAccess {
     IndirectCommandRead,
     IndexRead,
@@ -64,4 +65,3 @@ impl VulkanAccess {
         })
     }
 }
-

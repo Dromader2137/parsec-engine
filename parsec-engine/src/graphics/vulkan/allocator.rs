@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-
 use crate::graphics::vulkan::{
     allocation::{VulkanAllocation, VulkanAllocationError},
-    device::VulkanDevice, memory::VulkanMemory,
+    device::VulkanDevice,
+    memory::VulkanMemory,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(unused)]
 pub enum VulkanMemoryProperties {
     Host,
     Device,
@@ -32,7 +32,9 @@ impl VulkanMemoryProperties {
 
     pub fn excluded_memory_properties(&self) -> ash::vk::MemoryPropertyFlags {
         match self {
-            VulkanMemoryProperties::Device => ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
+            VulkanMemoryProperties::Device => {
+                ash::vk::MemoryPropertyFlags::HOST_VISIBLE
+            },
             _ => ash::vk::MemoryPropertyFlags::empty(),
         }
     }
@@ -110,8 +112,17 @@ impl VulkanAllocator {
             .last_mut()
             .expect("There always is an allocation at this point!");
 
-        allocation.try_get_free_memory(memory_requirements)
+        allocation
+            .try_get_free_memory(memory_requirements)
             .ok_or(VulkanAllocationError::UnableToAllocateThisSize)
+    }
+
+    pub fn free_all(&mut self, device: &VulkanDevice) {
+        for allocations in self.allocations_by_type.iter_mut() {
+            for allocation in allocations.drain(..) {
+                allocation.free(device);
+            }
+        }
     }
 }
 
@@ -130,7 +141,8 @@ fn find_memorytype_indices(
         .filter(|(index, memory_type)| {
             (1 << index) & memory_req.memory_type_bits != 0
                 && memory_type.property_flags & memory_prop == memory_prop
-                && memory_type.property_flags & excluded_prop == ash::vk::MemoryPropertyFlags::empty()
+                && memory_type.property_flags & excluded_prop
+                    == ash::vk::MemoryPropertyFlags::empty()
         })
         .map(|(index, _memory_type)| index as _)
         .collect()

@@ -9,7 +9,7 @@ These are blocking issues that will prevent the abstraction from scaling to real
 - Replace per-resource `vkAllocateMemory` calls in `buffer.rs` and `image.rs` with suballocations
 - Vulkan drivers guarantee only ~4096 simultaneous allocations; a non-trivial scene will hit this limit
 
-### 1.2 Resource Cleanup / Drop
+### 1.2 Resource Cleanup / Drop (DONE)
 - Implement `Drop` for `VulkanBackend` that destroys all resources in its HashMaps
 - Implement `Drop` for individual wrapper types (or ensure the backend always cleans up)
 - Fix `delete_swapchain` to actually call `vkDestroySwapchainKHR`

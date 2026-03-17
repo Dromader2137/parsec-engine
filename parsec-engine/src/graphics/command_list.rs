@@ -1,10 +1,13 @@
-use crate::{graphics::{
-    buffer::Buffer,
-    framebuffer::Framebuffer,
-    image::Image,
-    pipeline::{Pipeline, PipelineBinding},
-    renderpass::Renderpass,
-}, math::{ivec::Vec2i, uvec::Vec2u}};
+use crate::{
+    graphics::{
+        buffer::Buffer,
+        framebuffer::Framebuffer,
+        image::Image,
+        pipeline::{Pipeline, PipelineBinding},
+        renderpass::Renderpass,
+    },
+    math::{ivec::Vec2i, uvec::Vec2u},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommandList {
@@ -66,10 +69,8 @@ impl CommandList {
     pub fn reset(&mut self) { self.commands.clear(); }
 
     pub fn cmd(&mut self, command: Command) { self.commands.push(command); }
-    
+
     pub fn id(&self) -> u32 { self.id }
 
-    pub fn commands(&self) -> &[Command] {
-        &self.commands
-    }
+    pub fn commands(&self) -> &[Command] { &self.commands }
 }

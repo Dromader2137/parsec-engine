@@ -3,7 +3,6 @@ use crate::graphics::vulkan::device::VulkanDevice;
 #[derive(Debug)]
 pub struct VulkanSampler {
     id: u32,
-    device_id: u32,
     sampler: ash::vk::Sampler,
 }
 
@@ -11,8 +10,6 @@ pub struct VulkanSampler {
 pub enum VulkanSamplerError {
     #[error("Failed to create a Vulkan sampler: {0}")]
     SamplerCreationError(ash::vk::Result),
-    #[error("Vulkan sampler created on a different device")]
-    DeviceMismatch,
 }
 
 crate::create_counter! {ID_COUNTER}
@@ -24,32 +21,23 @@ impl VulkanSampler {
 
         let sampler = unsafe {
             device
-                .raw_device()
+                .raw_handle()
                 .create_sampler(&sampler_info, None)
                 .map_err(|err| VulkanSamplerError::SamplerCreationError(err))?
         };
 
         Ok(VulkanSampler {
             id: ID_COUNTER.next(),
-            device_id: device.id(),
             sampler,
         })
     }
 
-    pub fn delete_sampler(
-        self,
-        device: &VulkanDevice,
-    ) -> Result<(), VulkanSamplerError> {
-        if self.device_id != device.id() {
-            return Err(VulkanSamplerError::DeviceMismatch);
-        }
-
+    pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_device()
-                .destroy_sampler(self.sampler_raw(), None);
+                .raw_handle()
+                .destroy_sampler(self.sampler_raw(), None)
         }
-        Ok(())
     }
 
     pub fn sampler_raw(&self) -> ash::vk::Sampler { self.sampler }

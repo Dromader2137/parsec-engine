@@ -8,11 +8,10 @@ use crate::graphics::{
     },
 };
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VulkanShaderStage {
     Fragement,
-    Vertex
+    Vertex,
 }
 
 impl VulkanShaderStage {
@@ -41,7 +40,6 @@ impl VulkanShaderStage {
 
 pub struct VulkanGraphicsPipeline {
     id: u32,
-    device_id: u32,
     _vertex_shader_id: u32,
     _fragment_shader_id: u32,
     _descriptor_set_layout_ids: Vec<u32>,
@@ -55,8 +53,6 @@ pub enum VulkanGraphicsPipelineError {
     LayoutError(ash::vk::Result),
     #[error("Failed to create Pipeline: {0}")]
     CreationError(ash::vk::Result),
-    #[error("Pipeline created on a different device")]
-    DeviceMismatch,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,8 +87,8 @@ impl VulkanVertexFormat {
 pub enum VulkanCullingMode {
     None,
     Back,
-    Front
-}   
+    Front,
+}
 
 impl VulkanCullingMode {
     fn new(value: PipelineCullingMode) -> Self {
@@ -134,19 +130,6 @@ impl VulkanGraphicsPipeline {
         descriptor_set_layouts: &Vec<VulkanDescriptorSetLayout>,
         options: VulkanPipelineOptions,
     ) -> Result<VulkanGraphicsPipeline, VulkanGraphicsPipelineError> {
-        if device.id() != renderpass.device_id()
-            || device.id() != vertex_shader.device_id()
-            || device.id() != fragment_shader.device_id()
-        {
-            return Err(VulkanGraphicsPipelineError::DeviceMismatch);
-        }
-
-        for layout in descriptor_set_layouts.iter() {
-            if layout.device_id() != device.id() {
-                return Err(VulkanGraphicsPipelineError::DeviceMismatch);
-            }
-        }
-
         let set_layouts: Vec<_> = descriptor_set_layouts
             .iter()
             .map(|x| *x.get_layout_raw())
@@ -157,7 +140,7 @@ impl VulkanGraphicsPipeline {
 
         let pipeline_layout = match unsafe {
             device
-                .raw_device()
+                .raw_handle()
                 .create_pipeline_layout(&layout_create_info, None)
         } {
             Ok(val) => val,
@@ -169,13 +152,13 @@ impl VulkanGraphicsPipeline {
         let shader_entry_name = c"main";
         let shader_stage_create_infos = [
             ash::vk::PipelineShaderStageCreateInfo {
-                module: *vertex_shader.get_shader_module_raw(),
+                module: *vertex_shader.raw_handle(),
                 p_name: shader_entry_name.as_ptr(),
                 stage: ash::vk::ShaderStageFlags::VERTEX,
                 ..Default::default()
             },
             ash::vk::PipelineShaderStageCreateInfo {
-                module: *fragment_shader.get_shader_module_raw(),
+                module: *fragment_shader.raw_handle(),
                 p_name: shader_entry_name.as_ptr(),
                 stage: ash::vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
@@ -207,8 +190,7 @@ impl VulkanGraphicsPipeline {
         let color_attachment_count = renderpass.color_attachment_count();
         let depth_attachment = renderpass.has_depth_attachment();
 
-        let color_blend_attachment_states =
-            vec![
+        let color_blend_attachment_states = vec![
                 ash::vk::PipelineColorBlendAttachmentState {
                     blend_enable: 0,
                     src_color_blend_factor: ash::vk::BlendFactor::SRC_COLOR,
@@ -246,7 +228,9 @@ impl VulkanGraphicsPipeline {
                     offset: current_offset,
                 },
             );
-            current_offset += format_size(VulkanVertexFormat::new(field.format).raw_format()).unwrap();
+            current_offset +=
+                format_size(VulkanVertexFormat::new(field.format).raw_format())
+                    .unwrap();
         }
 
         let vertex_input_binding_descriptions =
@@ -300,7 +284,7 @@ impl VulkanGraphicsPipeline {
                 .multisample_state(&multisample_state_info)
                 .dynamic_state(&dynamic_state_info)
                 .layout(pipeline_layout)
-                .render_pass(*renderpass.get_renderpass_raw());
+                .render_pass(*renderpass.raw_handle());
 
         if color_attachment_count > 0 {
             graphic_pipeline_info =
@@ -313,7 +297,7 @@ impl VulkanGraphicsPipeline {
         }
 
         let pipeline = match unsafe {
-            device.raw_device().create_graphics_pipelines(
+            device.raw_handle().create_graphics_pipelines(
                 ash::vk::PipelineCache::null(),
                 &[graphic_pipeline_info],
                 None,
@@ -327,7 +311,6 @@ impl VulkanGraphicsPipeline {
 
         Ok(VulkanGraphicsPipeline {
             id: ID_COUNTER.next(),
-            device_id: device.id(),
             _vertex_shader_id: vertex_shader.id(),
             _fragment_shader_id: fragment_shader.id(),
             _descriptor_set_layout_ids: descriptor_set_layouts
@@ -337,6 +320,17 @@ impl VulkanGraphicsPipeline {
             graphics_pipeline: pipeline,
             graphics_pipeline_layout: pipeline_layout,
         })
+    }
+
+    pub fn destroy(self, device: &VulkanDevice) {
+        unsafe {
+            device
+                .raw_handle()
+                .destroy_pipeline(self.graphics_pipeline, None);
+            device
+                .raw_handle()
+                .destroy_pipeline_layout(self.graphics_pipeline_layout, None);
+        }
     }
 
     pub fn get_pipeline_raw(&self) -> &ash::vk::Pipeline {
@@ -356,6 +350,4 @@ impl VulkanGraphicsPipeline {
     pub fn _descriptor_set_layout_ids(&self) -> &[u32] {
         &self._descriptor_set_layout_ids
     }
-
-    pub fn device_id(&self) -> u32 { self.device_id }
 }

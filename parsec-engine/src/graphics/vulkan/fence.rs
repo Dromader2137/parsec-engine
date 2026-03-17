@@ -3,7 +3,6 @@ use crate::graphics::vulkan::device::VulkanDevice;
 #[derive(Clone)]
 pub struct VulkanFence {
     id: u32,
-    device_id: u32,
     fence: ash::vk::Fence,
 }
 
@@ -15,8 +14,6 @@ pub enum VulkanFenceError {
     WaitError(ash::vk::Result),
     #[error("Failed to reset fence: {0}")]
     ResetError(ash::vk::Result),
-    #[error("Fence created on different device")]
-    DeviceMismatch,
 }
 
 crate::create_counter! {ID_COUNTER}
@@ -32,7 +29,7 @@ impl VulkanFence {
         }
 
         let fence = match unsafe {
-            device.raw_device().create_fence(&create_info, None)
+            device.raw_handle().create_fence(&create_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanFenceError::CreationError(err)),
@@ -40,22 +37,15 @@ impl VulkanFence {
 
         Ok(VulkanFence {
             id: ID_COUNTER.next(),
-            device_id: device.id(),
             fence,
         })
     }
 
     pub fn wait(&self, device: &VulkanDevice) -> Result<(), VulkanFenceError> {
-        if device.id() != self.device_id {
-            return Err(VulkanFenceError::DeviceMismatch);
-        }
-
         if let Err(err) = unsafe {
-            device.raw_device().wait_for_fences(
-                &[self.fence],
-                true,
-                u64::MAX,
-            )
+            device
+                .raw_handle()
+                .wait_for_fences(&[self.fence], true, u64::MAX)
         } {
             return Err(VulkanFenceError::WaitError(err));
         }
@@ -63,45 +53,30 @@ impl VulkanFence {
     }
 
     pub fn reset(&self, device: &VulkanDevice) -> Result<(), VulkanFenceError> {
-        if device.id() != self.device_id {
-            return Err(VulkanFenceError::DeviceMismatch);
-        }
-
         if let Err(err) =
-            unsafe { device.raw_device().reset_fences(&[self.fence]) }
+            unsafe { device.raw_handle().reset_fences(&[self.fence]) }
         {
             return Err(VulkanFenceError::ResetError(err));
         }
         Ok(())
     }
 
-    pub fn null(device: &VulkanDevice) -> VulkanFence {
+    pub fn null() -> VulkanFence {
         VulkanFence {
             id: ID_COUNTER.next(),
-            device_id: device.id(),
             fence: ash::vk::Fence::null(),
         }
     }
 
-    pub fn delete_fence(
-        self,
-        device: &VulkanDevice,
-    ) -> Result<(), VulkanFenceError> {
-        if self.device_id != device.id() {
-            return Err(VulkanFenceError::DeviceMismatch);
-        }
-
+    pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_device()
-                .destroy_fence(*self.get_fence_raw(), None);
+                .raw_handle()
+                .destroy_fence(*self.get_fence_raw(), None)
         }
-        Ok(())
     }
 
     pub fn get_fence_raw(&self) -> &ash::vk::Fence { &self.fence }
-
-    pub fn device_id(&self) -> u32 { self.device_id }
 
     pub fn id(&self) -> u32 { self.id }
 }

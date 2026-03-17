@@ -57,7 +57,7 @@ pub enum ImageUsage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ImageAspect {
     Color,
-    Depth
+    Depth,
 }
 
 #[derive(Debug)]
@@ -71,23 +71,21 @@ pub enum ImageError {
     SwapchainImageNotFound,
     ImageViewNotFound,
     BufferNotFound,
-    InvalidImageSize
+    InvalidImageSize,
 }
 
 pub struct ImageSize {
-    size: Vec2u
+    size: Vec2u,
 }
 
 impl ImageSize {
     pub fn new(size: Vec2u) -> Result<ImageSize, ImageError> {
         if size.x == 0 || size.y == 0 {
-            return Err(ImageError::InvalidImageSize)
+            return Err(ImageError::InvalidImageSize);
         }
 
         Ok(ImageSize { size })
     }
 
-    pub fn get_size(&self) -> Vec2u {
-        self.size
-    }
+    pub fn get_size(&self) -> Vec2u { self.size }
 }
