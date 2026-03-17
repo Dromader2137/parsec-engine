@@ -29,7 +29,7 @@ impl VulkanShaderStage {
         }
     }
 
-    fn raw_combined_shader_stage(usage: &[Self]) -> ash::vk::ShaderStageFlags {
+    pub fn raw_combined_shader_stage(usage: &[Self]) -> ash::vk::ShaderStageFlags {
         usage
             .iter()
             .fold(ash::vk::ShaderStageFlags::empty(), |acc, v| {

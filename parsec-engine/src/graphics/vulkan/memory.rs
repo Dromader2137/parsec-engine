@@ -1,14 +1,18 @@
-use crate::graphics::vulkan::device::VulkanDevice;
+use crate::graphics::vulkan::{
+    allocator::VulkanMemoryProperties, device::VulkanDevice,
+};
 
 #[derive(Debug, Clone)]
 pub struct VulkanMemory {
-    memory: ash::vk::DeviceMemory,
     size: u64,
+    properties: VulkanMemoryProperties,
+    raw_memory: ash::vk::DeviceMemory,
 }
 
 impl VulkanMemory {
     pub fn new(
         device: &VulkanDevice,
+        memory_properties: VulkanMemoryProperties,
         memory_index: u32,
         memory_size: u64,
     ) -> Result<VulkanMemory, VulkanMemoryError> {
@@ -26,14 +30,17 @@ impl VulkanMemory {
         };
 
         Ok(VulkanMemory {
-            memory,
+            raw_memory: memory,
+            properties: memory_properties,
             size: memory_size,
         })
     }
 
     pub fn size(&self) -> u64 { self.size }
 
-    pub fn raw_memory(&self) -> ash::vk::DeviceMemory { self.memory }
+    pub fn raw_memory(&self) -> ash::vk::DeviceMemory { self.raw_memory }
+
+    pub fn properties(&self) -> VulkanMemoryProperties { self.properties }
 }
 
 #[derive(Debug)]

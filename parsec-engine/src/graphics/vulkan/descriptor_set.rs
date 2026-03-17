@@ -84,13 +84,15 @@ impl<'a> VulkanDescriptorSetBinding {
     pub fn new(
         binding: u32,
         descriptor_type: VulkanDescriptorType,
-        descriptor_stage: VulkanShaderStage,
+        descriptor_stage: &[VulkanShaderStage],
     ) -> VulkanDescriptorSetBinding {
         let binding = ash::vk::DescriptorSetLayoutBinding::default()
             .binding(binding)
             .descriptor_count(1)
             .descriptor_type(descriptor_type.raw_descriptor_type())
-            .stage_flags(descriptor_stage.raw_shader_stage());
+            .stage_flags(VulkanShaderStage::raw_combined_shader_stage(
+                descriptor_stage,
+            ));
 
         VulkanDescriptorSetBinding {
             binding,
@@ -230,7 +232,7 @@ impl VulkanDescriptorSet {
         let buffer_info = [ash::vk::DescriptorBufferInfo::default()
             .buffer(*buffer.get_buffer_raw())
             .offset(0)
-            .range(buffer.size)];
+            .range(buffer.size())];
 
         let binding_type =
             match descriptor_layout.bindings().get(dst_binding as usize) {

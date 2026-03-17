@@ -52,7 +52,7 @@ impl CameraData {
         let projection_binding_layout = backend
             .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
-                shader_stage: PipelineShaderStage::Vertex,
+                shader_stages: vec![PipelineShaderStage::Vertex],
             }])
             .unwrap();
         let projection_binding = backend

@@ -1,5 +1,5 @@
 use crate::graphics::vulkan::{
-    allocator::VulkanMemoryRequirements,
+    allocator::{VulkanMemoryProperties, VulkanMemoryRequirements},
     device::VulkanDevice,
     memory::{VulkanMemory, VulkanMemoryError},
 };
@@ -18,11 +18,17 @@ pub struct VulkanAllocation {
 impl VulkanAllocation {
     pub fn new(
         device: &VulkanDevice,
+        memory_properties: VulkanMemoryProperties,
         memory_index: u32,
         memory_size: u64,
     ) -> Result<VulkanAllocation, VulkanAllocationError> {
-        let memory = VulkanMemory::new(device, memory_index, memory_size)
-            .map_err(|err| VulkanAllocationError::AllocateMemoryError(err))?;
+        let memory = VulkanMemory::new(
+            device,
+            memory_properties,
+            memory_index,
+            memory_size,
+        )
+        .map_err(|err| VulkanAllocationError::AllocateMemoryError(err))?;
 
         Ok(VulkanAllocation {
             memory,

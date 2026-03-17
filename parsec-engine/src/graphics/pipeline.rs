@@ -15,7 +15,7 @@ pub struct PipelineBinding {
 
 pub struct PipelineSubbindingLayout {
     pub binding_type: PipelineBindingType,
-    pub shader_stage: PipelineShaderStage,
+    pub shader_stages: Vec<PipelineShaderStage>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,11 +80,11 @@ impl PipelineBindingLayout {
 impl PipelineSubbindingLayout {
     pub fn new(
         binding_type: PipelineBindingType,
-        shader_stage: PipelineShaderStage,
+        shader_stages: &[PipelineShaderStage],
     ) -> PipelineSubbindingLayout {
         PipelineSubbindingLayout {
             binding_type,
-            shader_stage,
+            shader_stages: shader_stages.to_vec(),
         }
     }
 }

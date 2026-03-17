@@ -172,7 +172,7 @@ pub struct RendererShadowpassData {
 #[derive(Debug, Clone, Copy)]
 struct LD {
     dir: Vec3f,
-    _pad: u8,
+    _pad: u32,
     mat: Matrix4f,
 }
 
@@ -262,31 +262,31 @@ pub fn init_renderer(
             vec![
                 PipelineSubbindingLayout::new(
                     PipelineBindingType::UniformBuffer,
-                    PipelineShaderStage::Vertex,
+                    &[PipelineShaderStage::Vertex],
                 ),
                 PipelineSubbindingLayout::new(
                     PipelineBindingType::UniformBuffer,
-                    PipelineShaderStage::Vertex,
+                    &[PipelineShaderStage::Vertex],
                 ),
                 PipelineSubbindingLayout::new(
                     PipelineBindingType::UniformBuffer,
-                    PipelineShaderStage::Vertex,
+                    &[PipelineShaderStage::Vertex],
                 ),
             ],
             vec![PipelineSubbindingLayout::new(
                 PipelineBindingType::UniformBuffer,
-                PipelineShaderStage::Vertex,
+                &[PipelineShaderStage::Vertex],
             )],
             vec![PipelineSubbindingLayout::new(
                 PipelineBindingType::UniformBuffer,
-                PipelineShaderStage::Vertex,
+                &[PipelineShaderStage::Vertex],
             )],
         ],
         PipelineOptions {
             culling_mode: PipelineCullingMode::CullBack,
         },
     );
-    let shadow_size = 2048;
+    let shadow_size = 1024;
     let shadow_depth_image = backend
         .create_image(
             Vec2u::new(shadow_size, shadow_size),
@@ -322,13 +322,13 @@ pub fn init_renderer(
     let shadow_proj_layout = backend
         .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
             binding_type: PipelineBindingType::UniformBuffer,
-            shader_stage: PipelineShaderStage::Vertex,
+            shader_stages: vec![PipelineShaderStage::Vertex],
         }])
         .unwrap();
     let shadow_look_layout = backend
         .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
             binding_type: PipelineBindingType::UniformBuffer,
-            shader_stage: PipelineShaderStage::Vertex,
+            shader_stages: vec![PipelineShaderStage::Vertex],
         }])
         .unwrap();
     let shadow_proj_binding =
@@ -350,7 +350,7 @@ pub fn init_renderer(
     let shadow_tex_layout = backend
         .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
             binding_type: PipelineBindingType::TextureSampler,
-            shader_stage: PipelineShaderStage::Fragment,
+            shader_stages: vec![PipelineShaderStage::Fragment],
         }])
         .unwrap();
     let shadow_tex_binding =
@@ -377,7 +377,7 @@ pub fn init_renderer(
     let light_binding_layout = backend
         .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
             PipelineBindingType::UniformBuffer,
-            PipelineShaderStage::Fragment,
+            &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
         )])
         .unwrap();
     let light_binding = backend

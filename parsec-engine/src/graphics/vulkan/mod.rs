@@ -354,7 +354,11 @@ impl GraphicsBackend for VulkanBackend {
                 VulkanDescriptorSetBinding::new(
                     id as u32,
                     VulkanDescriptorType::new(binding.binding_type),
-                    VulkanShaderStage::new(binding.shader_stage),
+                    &binding
+                        .shader_stages
+                        .iter()
+                        .map(|x| VulkanShaderStage::new(*x))
+                        .collect::<Vec<_>>(),
                 )
             })
             .collect::<Vec<_>>();

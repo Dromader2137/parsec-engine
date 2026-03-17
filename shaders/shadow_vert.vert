@@ -13,11 +13,12 @@ layout(location = 2) in vec3 inTangent;
 layout(location = 3) in vec2 inUV;
 
 void main() {
-  gl_Position = 
-	  projection.matrix * 
-	  view.matrix * 
+  vec4 world_pos = 
 	  translation.matrix * 
 	  scale.matrix *
 	  rotation.matrix *
 	  vec4(inPosition, 1.0);
+  gl_Position =
+	  projection.matrix * 
+	  view.matrix * world_pos;
 }

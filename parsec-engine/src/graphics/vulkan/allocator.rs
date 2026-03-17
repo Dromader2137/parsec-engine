@@ -106,7 +106,12 @@ impl VulkanAllocator {
             }
         }
 
-        allocations.push(VulkanAllocation::new(device, memory_id, 1 << 26)?);
+        allocations.push(VulkanAllocation::new(
+            device,
+            memory_type,
+            memory_id,
+            1 << 28,
+        )?);
 
         let allocation = allocations
             .last_mut()

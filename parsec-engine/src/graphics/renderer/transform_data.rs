@@ -73,22 +73,22 @@ impl TransformData {
             .create_pipeline_binding_layout(&[
                 PipelineSubbindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
-                    shader_stage: PipelineShaderStage::Vertex,
+                    shader_stages: vec![PipelineShaderStage::Vertex],
                 },
                 PipelineSubbindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
-                    shader_stage: PipelineShaderStage::Vertex,
+                    shader_stages: vec![PipelineShaderStage::Vertex],
                 },
                 PipelineSubbindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
-                    shader_stage: PipelineShaderStage::Vertex,
+                    shader_stages: vec![PipelineShaderStage::Vertex],
                 },
             ])
             .unwrap();
         let look_at_pipeline_layout = backend
             .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
-                shader_stage: PipelineShaderStage::Vertex,
+                shader_stages: vec![PipelineShaderStage::Vertex],
             }])
             .unwrap();
         let model_binding = backend

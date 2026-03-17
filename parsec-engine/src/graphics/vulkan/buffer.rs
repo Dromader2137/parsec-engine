@@ -1,26 +1,26 @@
 use std::fmt::Debug;
 
 use crate::graphics::vulkan::{
-        allocation::VulkanAllocationError, allocator::{
-            VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements,
-        }, buffer_usage::VulkanBufferUsage, device::VulkanDevice, memory::VulkanMemory
-    };
+    allocation::VulkanAllocationError,
+    allocator::{
+        VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements,
+    },
+    buffer_usage::VulkanBufferUsage,
+    device::VulkanDevice,
+    memory::VulkanMemory,
+};
 
 pub struct VulkanBuffer {
     id: u32,
-    buffer: ash::vk::Buffer,
     memory: VulkanMemory,
     memory_offset: u64,
-    pub size: u64,
-    pub len: u32,
+    size: u64,
+    raw_buffer: ash::vk::Buffer,
 }
 
 impl Debug for VulkanBuffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Buffer")
-            .field("size", &self.size)
-            .field("len", &self.len)
-            .finish()
+        f.debug_struct("Buffer").field("size", &self.size).finish()
     }
 }
 
@@ -36,8 +36,8 @@ pub enum VulkanBufferError {
     MapError(ash::vk::Result),
     #[error("New data size doesen't match current buffer size")]
     SizaMismatch,
-    #[error("New data len doesen't match current buffer len")]
-    LenMismatch,
+    #[error("Can't map device local memory")]
+    CannotMapDeviceLocalMemory,
 }
 
 crate::create_counter! {ID_COUNTER}
@@ -108,10 +108,9 @@ impl VulkanBuffer {
 
         Ok(VulkanBuffer {
             id: ID_COUNTER.next(),
-            buffer,
+            raw_buffer: buffer,
             memory,
             size: size as u64,
-            len: data.len() as u32,
             memory_offset,
         })
     }
@@ -123,12 +122,12 @@ impl VulkanBuffer {
     ) -> Result<(), VulkanBufferError> {
         let size = (data.len() * size_of::<T>()) as u64;
 
-        if data.len() as u32 != self.len {
-            return Err(VulkanBufferError::LenMismatch);
-        }
-
         if size != self.size {
             return Err(VulkanBufferError::SizaMismatch);
+        }
+
+        if self.memory.properties() == VulkanMemoryProperties::Device {
+            return Err(VulkanBufferError::CannotMapDeviceLocalMemory);
         }
 
         let memory_ptr = match unsafe {
@@ -146,12 +145,13 @@ impl VulkanBuffer {
         let mut slice = unsafe {
             ash::util::Align::<T>::new(
                 memory_ptr,
-                align_of::<u32>() as u64,
+                align_of::<T>() as u64,
                 self.size,
             )
         };
 
         slice.copy_from_slice(&data);
+        std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 
         unsafe { device.raw_handle().unmap_memory(self.memory.raw_memory()) };
 
@@ -166,7 +166,9 @@ impl VulkanBuffer {
         }
     }
 
-    pub fn get_buffer_raw(&self) -> &ash::vk::Buffer { &self.buffer }
+    pub fn get_buffer_raw(&self) -> &ash::vk::Buffer { &self.raw_buffer }
 
     pub fn id(&self) -> u32 { self.id }
+
+    pub fn size(&self) -> u64 { self.size }
 }

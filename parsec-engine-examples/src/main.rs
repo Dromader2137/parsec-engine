@@ -66,36 +66,36 @@ fn test_system(
             vec![
                 PipelineSubbindingLayout::new(
                     PipelineBindingType::UniformBuffer,
-                    PipelineShaderStage::Vertex,
+                    &[PipelineShaderStage::Vertex],
                 ),
                 PipelineSubbindingLayout::new(
                     PipelineBindingType::UniformBuffer,
-                    PipelineShaderStage::Vertex,
+                    &[PipelineShaderStage::Vertex],
                 ),
                 PipelineSubbindingLayout::new(
                     PipelineBindingType::UniformBuffer,
-                    PipelineShaderStage::Vertex,
+                    &[PipelineShaderStage::Vertex],
                 ),
             ],
             vec![PipelineSubbindingLayout::new(
                 PipelineBindingType::UniformBuffer,
-                PipelineShaderStage::Vertex,
+                &[PipelineShaderStage::Vertex],
             )],
             vec![PipelineSubbindingLayout::new(
                 PipelineBindingType::UniformBuffer,
-                PipelineShaderStage::Vertex,
+                &[PipelineShaderStage::Vertex],
             )],
             vec![PipelineSubbindingLayout::new(
                 PipelineBindingType::UniformBuffer,
-                PipelineShaderStage::Fragment,
+                &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
             )],
             vec![PipelineSubbindingLayout::new(
                 PipelineBindingType::TextureSampler,
-                PipelineShaderStage::Fragment,
+                &[PipelineShaderStage::Fragment],
             )],
             vec![PipelineSubbindingLayout::new(
                 PipelineBindingType::TextureSampler,
-                PipelineShaderStage::Fragment,
+                &[PipelineShaderStage::Fragment],
             )],
         ],
         PipelineOptions {
@@ -125,7 +125,7 @@ fn test_system(
     let texture_binding_layout = backend
         .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
             PipelineBindingType::TextureSampler,
-            PipelineShaderStage::Fragment,
+            &[PipelineShaderStage::Fragment],
         )])
         .unwrap();
     let texture_binding = backend
@@ -153,7 +153,7 @@ fn test_system(
 
     World::spawn((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
-        Transform::new(Vec3f::UP, Vec3f::ZERO, Quat::IDENTITY),
+        Transform::new(Vec3f::BACK, Vec3f::ZERO, Quat::IDENTITY),
         CameraController {
             yaw: 0.0,
             target_yaw: 0.0,

@@ -735,7 +735,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             return Err(VulkanCommandBufferError::IncorrectState(self.state));
         }
 
-        let buffer_copy = ash::vk::BufferCopy::default().size(src.size);
+        let buffer_copy = ash::vk::BufferCopy::default().size(src.size());
 
         unsafe {
             self.device.raw_handle().cmd_copy_buffer(
