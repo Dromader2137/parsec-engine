@@ -15,7 +15,7 @@ These are blocking issues that will prevent the abstraction from scaling to real
 - Fix `delete_swapchain` to actually call `vkDestroySwapchainKHR`
 - Audit all `delete_*` methods for missing Vulkan destroy calls
 
-### 1.3 Staging Buffer Uploads
+### 1.3 Staging Buffer Uploads (DONE, needs a refactor down the line)
 - Replace `HOST_VISIBLE | DEVICE_LOCAL` allocation for vertex/index/large uniform buffers
 - Implement staging buffer pattern: write to `HOST_VISIBLE` staging, `vkCmdCopyBuffer` to `DEVICE_LOCAL`
 - Keep `HOST_VISIBLE` only for small, frequently-updated uniform buffers
