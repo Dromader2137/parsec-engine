@@ -1,5 +1,8 @@
 #version 450
 
+#extension GL_EXT_debug_printf : enable
+#extension GL_EXT_spirv_intrinsics : enable
+
 layout(set = 0, binding = 0) uniform Translation { mat4 matrix; } translation;
 layout(set = 0, binding = 1) uniform Scale { mat4 matrix; } scale;
 layout(set = 0, binding = 2) uniform Rotation { mat4 matrix; } rotation;
@@ -18,6 +21,8 @@ void main() {
 	  scale.matrix *
 	  rotation.matrix *
 	  vec4(inPosition, 1.0);
+  vec4 pos = translation.matrix[3];
+  debugPrintfEXT("Shadow translation = %v4f \n", pos);
   gl_Position =
 	  projection.matrix * 
 	  view.matrix * world_pos;

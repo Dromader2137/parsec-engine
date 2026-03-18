@@ -22,7 +22,7 @@ pub enum VulkanAccess {
 }
 
 impl VulkanAccess {
-    fn raw_access_flag(&self) -> ash::vk::AccessFlags {
+    pub fn raw_access_flag(&self) -> ash::vk::AccessFlags {
         match self {
             VulkanAccess::IndirectCommandRead => {
                 ash::vk::AccessFlags::INDIRECT_COMMAND_READ

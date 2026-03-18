@@ -572,7 +572,7 @@ impl GraphicsBackend for VulkanBackend {
                     })?
                 },
                 Command::EndRenderpass => builder
-                    .end_renderpass(&self.owned_images)
+                    .end_renderpass(&mut self.owned_images)
                     .map_err(|err| {
                         CommandListError::CommandListRenderpassEndError(
                             err.into(),

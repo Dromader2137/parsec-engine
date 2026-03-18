@@ -151,7 +151,6 @@ impl VulkanBuffer {
         };
 
         slice.copy_from_slice(&data);
-        std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 
         unsafe { device.raw_handle().unmap_memory(self.memory.raw_memory()) };
 

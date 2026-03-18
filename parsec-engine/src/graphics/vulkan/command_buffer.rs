@@ -309,11 +309,24 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
 
     pub fn end_renderpass(
         &mut self,
-        image_map: &HashMap<u32, VulkanOwnedImage>,
+        image_map: &mut HashMap<u32, VulkanOwnedImage>,
     ) -> Result<(), VulkanCommandBufferError> {
         if self.state != VulkanCommandBufferState::Renderpass {
             return Err(VulkanCommandBufferError::IncorrectState(self.state));
         }
+
+        self.pipeline_barrier(
+            &[VulkanPipelineStage::Host],
+            &[
+                VulkanPipelineStage::VertexShader,
+                VulkanPipelineStage::FragmentShader,
+            ],
+            &[VulkanMemoryBarrier::new(&[VulkanAccess::HostWrite], &[
+                VulkanAccess::UniformRead,
+            ])],
+            &[],
+            &[],
+        )?;
 
         for image_id in self.descriptor_set_images.iter() {
             let (access, layout, stage) = self.get_image_state(*image_id);
@@ -323,8 +336,8 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             self.pipeline_barrier(
                 stage,
                 &[
-                    VulkanPipelineStage::FragmentShader,
                     VulkanPipelineStage::VertexShader,
+                    VulkanPipelineStage::FragmentShader,
                 ],
                 &[],
                 &[],
@@ -341,21 +354,12 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
                 VulkanCommandBufferImageState {
                     last_pipeline_stage: vec![
                         VulkanPipelineStage::FragmentShader,
-                        VulkanPipelineStage::VertexShader,
                     ],
                     last_layout: VulkanImageLayout::ShaderReadOnlyOptimal,
                     last_access: vec![VulkanAccess::ShaderRead],
                 },
             );
         }
-
-        self.pipeline_barrier(
-            &[VulkanPipelineStage::BottomOfPipe],
-            &[VulkanPipelineStage::TopOfPipe],
-            &[],
-            &[],
-            &[],
-        )?;
 
         let commands = self.current_renderpass_commands.clone();
         for command in commands.into_iter() {
@@ -397,6 +401,24 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             self.device
                 .raw_handle()
                 .cmd_end_render_pass(self.command_buffer.raw_command_buffer);
+        }
+
+        for image_id in
+            self.bound_framebuffer.unwrap().attached_images_id().iter()
+        {
+            if image_map.contains_key(image_id) {
+                self.command_buffer.image_state.insert(
+                    *image_id,
+                    VulkanCommandBufferImageState {
+                        last_pipeline_stage: vec![
+                            VulkanPipelineStage::LateFragmentTests,
+                        ],
+                        last_layout:
+                            VulkanImageLayout::DepthStencilAttachmentOptimal,
+                        last_access: vec![VulkanAccess::DepthAttachmentWrite],
+                    },
+                );
+            }
         }
 
         self.descriptor_set_images.clear();

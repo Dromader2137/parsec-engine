@@ -527,10 +527,6 @@ pub fn render(
     cameras_data: Resource<IdStore<CameraData>>,
     shadowpass_data: Resource<RendererShadowpassData>,
 ) {
-    let command_buffer_fence =
-        frame_sync[current_frame.0 as usize].command_buffer_fence;
-    backend.wait_fence(command_buffer_fence).unwrap();
-
     if window.minimized() {
         return;
     }
@@ -665,6 +661,10 @@ pub fn render(
         },
         _ => panic!("Shouldn't be here"),
     };
+    
+    let command_buffer_fence =
+        frame_sync[current_frame.0 as usize].command_buffer_fence;
+    backend.wait_fence(command_buffer_fence).unwrap();
 
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
 }
