@@ -181,6 +181,15 @@ pub fn init_renderer(
     mut backend: Resource<VulkanBackend>,
     window: Resource<Window>,
 ) {
+    let test_buffer_data = [69; 512];
+    let test_buffer = backend
+        .create_buffer(&test_buffer_data, &[BufferUsage::Uniform])
+        .unwrap();
+    let test_buffer_update = [79; 512];
+    backend
+        .update_buffer(test_buffer, &test_buffer_update)
+        .unwrap();
+
     let surface_format = backend.get_surface_format();
 
     let renderpass = backend
@@ -661,7 +670,7 @@ pub fn render(
         },
         _ => panic!("Shouldn't be here"),
     };
-    
+
     let command_buffer_fence =
         frame_sync[current_frame.0 as usize].command_buffer_fence;
     backend.wait_fence(command_buffer_fence).unwrap();

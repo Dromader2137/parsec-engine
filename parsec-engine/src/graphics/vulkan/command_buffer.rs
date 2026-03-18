@@ -315,19 +315,6 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             return Err(VulkanCommandBufferError::IncorrectState(self.state));
         }
 
-        self.pipeline_barrier(
-            &[VulkanPipelineStage::Host],
-            &[
-                VulkanPipelineStage::VertexShader,
-                VulkanPipelineStage::FragmentShader,
-            ],
-            &[VulkanMemoryBarrier::new(&[VulkanAccess::HostWrite], &[
-                VulkanAccess::UniformRead,
-            ])],
-            &[],
-            &[],
-        )?;
-
         for image_id in self.descriptor_set_images.iter() {
             let (access, layout, stage) = self.get_image_state(*image_id);
             let image = image_map

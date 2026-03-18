@@ -113,6 +113,7 @@ pub struct VulkanBackend {
     semaphores: HashMap<u32, VulkanSemaphore>,
     command_buffers: HashMap<u32, VulkanCommandBuffer>,
     buffers: HashMap<u32, VulkanBuffer>,
+    staging_buffers: HashMap<u32, u32>,
     shaders: HashMap<u32, VulkanShaderModule>,
     pipelines: HashMap<u32, VulkanGraphicsPipeline>,
     renderpasses: HashMap<u32, VulkanRenderpass>,
@@ -174,6 +175,8 @@ impl Drop for VulkanBackend {
     }
 }
 
+fn get_data_size<T>(data: &[T]) -> usize { return data.len() * size_of::<T>() }
+
 impl GraphicsBackend for VulkanBackend {
     fn init(window: &Window) -> Result<Self, BackendInitError> {
         let instance = VulkanInstance::new(&window)
@@ -226,6 +229,7 @@ impl GraphicsBackend for VulkanBackend {
             semaphores: HashMap::new(),
             command_buffers: HashMap::new(),
             buffers: HashMap::new(),
+            staging_buffers: HashMap::new(),
             shaders: HashMap::new(),
             pipelines: HashMap::new(),
             renderpasses: HashMap::new(),
@@ -249,14 +253,79 @@ impl GraphicsBackend for VulkanBackend {
             .iter()
             .map(|x| VulkanBufferUsage::new(*x))
             .collect();
-        let buffer = VulkanBuffer::from_vec(
-            &self.device,
-            &mut self.allocator,
-            data,
-            &usage,
-            VulkanMemoryProperties::DeviceHostVisible,
-        )
-        .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+
+        let size = get_data_size(data);
+
+        let buffer = if size <= 256 {
+            VulkanBuffer::from_vec(
+                &self.device,
+                &mut self.allocator,
+                data,
+                &usage,
+                VulkanMemoryProperties::Host,
+            )
+            .map_err(|err| BufferError::BufferCreationError(err.into()))?
+        } else {
+            let staging = VulkanBuffer::from_vec(
+                &self.device,
+                &mut self.allocator,
+                data,
+                &usage,
+                VulkanMemoryProperties::Host,
+            )
+            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+
+            let device_local = VulkanBuffer::new(
+                &self.device,
+                &mut self.allocator,
+                size as u64,
+                &usage,
+                VulkanMemoryProperties::Device,
+            )
+            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+
+            let mut cmd =
+                VulkanCommandBuffer::new(&self.device, &self.command_pool)
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
+            let mut builder = VulkanCommandBufferBuilder::new(
+                &self.device,
+                &mut cmd,
+                &self.owned_images,
+            )
+            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            builder
+                .begin()
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            builder
+                .copy_buffer_to_buffer(&staging, &device_local)
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            builder
+                .end()
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            let fence = VulkanFence::new(&self.device, false)
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            self.present_queue
+                .submit(
+                    &self.device,
+                    &[],
+                    &[],
+                    &[&cmd],
+                    &fence,
+                    VulkanPipelineStage::Transfer,
+                    &mut self.owned_images,
+                )
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            fence
+                .wait(&self.device)
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+
+            self.staging_buffers.insert(device_local.id(), staging.id());
+            self.buffers.insert(staging.id(), staging);
+
+            device_local
+        };
         let buffer_id = buffer.id();
         self.buffers.insert(buffer_id, buffer);
         Ok(Buffer::new(buffer_id))
@@ -272,9 +341,57 @@ impl GraphicsBackend for VulkanBackend {
             .buffers
             .get(&buffer_id)
             .ok_or(BufferError::BufferNotFound)?;
-        buffer
-            .update(&self.device, data)
-            .map_err(|err| BufferError::BufferUpdateError(err.into()))?;
+        if let Some(staging_id) = self.staging_buffers.get(&buffer_id) {
+            let staging = self
+                .buffers
+                .get(staging_id)
+                .ok_or(BufferError::BufferNotFound)?;
+
+            staging
+                .update(&self.device, data)
+                .map_err(|err| BufferError::BufferUpdateError(err.into()))?;
+
+            let mut cmd =
+                VulkanCommandBuffer::new(&self.device, &self.command_pool)
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
+            let mut builder = VulkanCommandBufferBuilder::new(
+                &self.device,
+                &mut cmd,
+                &self.owned_images,
+            )
+            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            builder
+                .begin()
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            builder
+                .copy_buffer_to_buffer(&staging, &buffer)
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            builder
+                .end()
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            let fence = VulkanFence::new(&self.device, false)
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            self.present_queue
+                .submit(
+                    &self.device,
+                    &[],
+                    &[],
+                    &[&cmd],
+                    &fence,
+                    VulkanPipelineStage::Transfer,
+                    &mut self.owned_images,
+                )
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            fence
+                .wait(&self.device)
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+        } else {
+            buffer
+                .update(&self.device, data)
+                .map_err(|err| BufferError::BufferUpdateError(err.into()))?;
+        }
         Ok(())
     }
 

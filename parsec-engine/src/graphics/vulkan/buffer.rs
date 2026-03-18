@@ -42,6 +42,53 @@ pub enum VulkanBufferError {
 
 crate::create_counter! {ID_COUNTER}
 impl VulkanBuffer {
+    pub fn new(
+        device: &VulkanDevice,
+        allocator: &mut VulkanAllocator,
+        size: u64,
+        usage: &[VulkanBufferUsage],
+        memory_properties: VulkanMemoryProperties,
+    ) -> Result<VulkanBuffer, VulkanBufferError> {
+        let index_buffer_info = ash::vk::BufferCreateInfo::default()
+            .size(size as u64)
+            .usage(VulkanBufferUsage::raw_combined_buffer_usage(usage))
+            .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
+
+        let buffer = match unsafe {
+            device.raw_handle().create_buffer(&index_buffer_info, None)
+        } {
+            Ok(val) => val,
+            Err(err) => return Err(VulkanBufferError::CreationError(err)),
+        };
+
+        let memory_requirements =
+            VulkanMemoryRequirements::from_raw_requirements(unsafe {
+                device.raw_handle().get_buffer_memory_requirements(buffer)
+            });
+
+        let (memory, memory_offset) = allocator
+            .get_memory(device, memory_properties, memory_requirements)
+            .map_err(|err| VulkanBufferError::AllocationError(err))?;
+
+        if let Err(err) = unsafe {
+            device.raw_handle().bind_buffer_memory(
+                buffer,
+                memory.raw_memory(),
+                memory_offset,
+            )
+        } {
+            return Err(VulkanBufferError::BindError(err));
+        }
+
+        Ok(VulkanBuffer {
+            id: ID_COUNTER.next(),
+            raw_buffer: buffer,
+            memory,
+            size: size as u64,
+            memory_offset,
+        })
+    }
+
     pub fn from_vec<T: Clone + Copy>(
         device: &VulkanDevice,
         allocator: &mut VulkanAllocator,
@@ -72,30 +119,38 @@ impl VulkanBuffer {
             .get_memory(device, memory_properties, memory_requirements)
             .map_err(|err| VulkanBufferError::AllocationError(err))?;
 
-        let memory_ptr = match unsafe {
-            device.raw_handle().map_memory(
-                memory.raw_memory(),
-                memory_offset,
-                memory_requirements
-                    .size
-                    .next_multiple_of(memory_requirements.alignment),
-                ash::vk::MemoryMapFlags::empty(),
-            )
-        } {
-            Ok(val) => val,
-            Err(err) => return Err(VulkanBufferError::MapError(err)),
-        };
+        if memory.properties() == VulkanMemoryProperties::Device {
+            return Err(VulkanBufferError::CannotMapDeviceLocalMemory);
+        } else {
+            let memory_ptr = match unsafe {
+                device.raw_handle().map_memory(
+                    memory.raw_memory(),
+                    memory_offset,
+                    memory_requirements
+                        .size
+                        .next_multiple_of(memory_requirements.alignment),
+                    ash::vk::MemoryMapFlags::empty(),
+                )
+            } {
+                Ok(val) => val,
+                Err(err) => return Err(VulkanBufferError::MapError(err)),
+            };
 
-        let mut slice = unsafe {
-            ash::util::Align::new(
-                memory_ptr,
-                align_of::<T>() as u64,
-                memory_requirements.size,
-            )
-        };
+            let mut slice = unsafe {
+                ash::util::Align::new(
+                    memory_ptr,
+                    align_of::<T>() as u64,
+                    memory_requirements.size,
+                )
+            };
 
-        slice.copy_from_slice(&data);
-        unsafe { device.raw_handle().unmap_memory(memory.raw_memory()) };
+            slice.copy_from_slice(&data);
+
+            unsafe {
+                device.raw_handle().unmap_memory(memory.raw_memory())
+            };
+        }
+
         if let Err(err) = unsafe {
             device.raw_handle().bind_buffer_memory(
                 buffer,
