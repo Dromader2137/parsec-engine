@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::graphics::vulkan::{
     command_buffer::VulkanCommandBuffer, device::VulkanDevice,
-    fence::VulkanFence, image::VulkanOwnedImage,
+    fence::VulkanFence, image::{VulkanImage, VulkanOwnedImage},
     pipeline_stage::VulkanPipelineStage, semaphore::VulkanSemaphore,
 };
 
@@ -19,7 +19,7 @@ pub enum VulkanQueueError {
 impl VulkanQueue {
     pub fn present(device: &VulkanDevice, family_index: u32) -> VulkanQueue {
         let raw_queue =
-            unsafe { device.raw_handle().get_device_queue(family_index, 0) };
+            unsafe { device.raw_device().get_device_queue(family_index, 0) };
         VulkanQueue { queue: raw_queue }
     }
 
@@ -31,7 +31,7 @@ impl VulkanQueue {
         command_buffers: &[&VulkanCommandBuffer],
         submit_fence: &VulkanFence,
         wait_dst_stage: VulkanPipelineStage,
-        image_map: &mut HashMap<u32, VulkanOwnedImage>,
+        image_map: &mut HashMap<u32, Box<dyn VulkanImage>>,
     ) -> Result<(), VulkanQueueError> {
         let raw_command_buffers = command_buffers
             .iter()
@@ -55,7 +55,7 @@ impl VulkanQueue {
 
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .queue_submit(
                     self.queue,
                     &[submit_info],
@@ -67,8 +67,8 @@ impl VulkanQueue {
         for image_state in
             command_buffers.iter().map(|x| x.image_state()).flatten()
         {
-            if let Some(image) = image_map.get_mut(image_state.0) {
-                image.last_known_layout = image_state.1.last_layout;
+            if let Some(image) = image_map.get_mut(&image_state.0) {
+                image.set_layout(image_state.1.last_layout);
             }
         }
 

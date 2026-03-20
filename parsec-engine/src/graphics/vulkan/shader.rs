@@ -39,7 +39,7 @@ impl VulkanShaderModule {
         let create_info = ash::vk::ShaderModuleCreateInfo::default().code(code);
 
         let shader_module = match unsafe {
-            device.raw_handle().create_shader_module(&create_info, None)
+            device.raw_device().create_shader_module(&create_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanShaderError::CreationError(err)),
@@ -55,7 +55,7 @@ impl VulkanShaderModule {
     pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .destroy_shader_module(self.raw_shader_module, None)
         }
     }

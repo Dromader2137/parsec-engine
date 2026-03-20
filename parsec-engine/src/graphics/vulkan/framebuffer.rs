@@ -25,7 +25,7 @@ crate::create_counter! {FRAMEBUFFER_ID_COUNTER}
 impl VulkanFramebuffer {
     pub fn new(
         device: &VulkanDevice,
-        attachments: &[(&VulkanImageView, &dyn VulkanImage)],
+        attachments: &[(&VulkanImageView, &Box<dyn VulkanImage>)],
         renderpass: &VulkanRenderpass,
         dimensions: Vec2u,
     ) -> Result<VulkanFramebuffer, VulkanFramebufferError> {
@@ -46,7 +46,7 @@ impl VulkanFramebuffer {
 
         let raw_framebuffer = match unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .create_framebuffer(&frame_buffer_create_info, None)
         } {
             Ok(val) => val,
@@ -65,7 +65,7 @@ impl VulkanFramebuffer {
     pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .destroy_framebuffer(self.raw_framebuffer, None)
         }
     }

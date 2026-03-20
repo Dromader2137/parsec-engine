@@ -1,6 +1,7 @@
 //! Module responsible for interaction with the Vulkan API. (Incomplete, undocumented and subject
 //! to change).
 
+use core::result::Result::Err;
 use std::collections::HashMap;
 
 use crate::{
@@ -104,8 +105,7 @@ pub struct VulkanBackend {
     descriptor_pool: VulkanDescriptorPool,
     allocator: VulkanAllocator,
     swapchains: HashMap<u32, VulkanSwapchain>,
-    swapchain_images: HashMap<u32, VulkanSwapchainImage>,
-    owned_images: HashMap<u32, VulkanOwnedImage>,
+    images: HashMap<u32, Box<dyn VulkanImage>>,
     image_views: HashMap<u32, VulkanImageView>,
     samplers: HashMap<u32, VulkanSampler>,
     framebuffers: HashMap<u32, VulkanFramebuffer>,
@@ -148,7 +148,7 @@ impl Drop for VulkanBackend {
         for (_, image_view) in self.image_views.drain() {
             image_view.destroy(&self.device);
         }
-        for (_, image) in self.owned_images.drain() {
+        for (_, image) in self.images.drain() {
             image.destroy(&self.device);
         }
         for (_, buffer) in self.buffers.drain() {
@@ -163,7 +163,6 @@ impl Drop for VulkanBackend {
         for (_, swapchain) in self.swapchains.drain() {
             swapchain.destroy();
         }
-        self.swapchain_images.clear();
 
         self.allocator.free_all(&self.device);
 
@@ -220,8 +219,7 @@ impl GraphicsBackend for VulkanBackend {
             descriptor_pool,
             allocator,
             swapchains: HashMap::new(),
-            swapchain_images: HashMap::new(),
-            owned_images: HashMap::new(),
+            images: HashMap::new(),
             image_views: HashMap::new(),
             samplers: HashMap::new(),
             framebuffers: HashMap::new(),
@@ -270,16 +268,18 @@ impl GraphicsBackend for VulkanBackend {
                 &self.device,
                 &mut self.allocator,
                 data,
-                &usage,
+                &[VulkanBufferUsage::TransferSrc],
                 VulkanMemoryProperties::Host,
             )
             .map_err(|err| BufferError::BufferCreationError(err.into()))?;
 
+            let mut usage = usage.to_vec();
+            usage.push(VulkanBufferUsage::TransferDst);
             let device_local = VulkanBuffer::new(
                 &self.device,
                 &mut self.allocator,
                 size as u64,
-                &usage,
+                usage.as_slice(),
                 VulkanMemoryProperties::Device,
             )
             .map_err(|err| BufferError::BufferCreationError(err.into()))?;
@@ -289,12 +289,8 @@ impl GraphicsBackend for VulkanBackend {
                     .map_err(|err| {
                         BufferError::BufferCreationError(err.into())
                     })?;
-            let mut builder = VulkanCommandBufferBuilder::new(
-                &self.device,
-                &mut cmd,
-                &self.owned_images,
-            )
-            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            let mut builder = VulkanCommandBufferBuilder::new(&self.images)
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             builder
                 .begin()
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
@@ -303,6 +299,9 @@ impl GraphicsBackend for VulkanBackend {
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             builder
                 .end()
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            builder
+                .build(&self.device, &mut cmd)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             let fence = VulkanFence::new(&self.device, false)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
@@ -314,12 +313,13 @@ impl GraphicsBackend for VulkanBackend {
                     &[&cmd],
                     &fence,
                     VulkanPipelineStage::Transfer,
-                    &mut self.owned_images,
+                    &mut self.images,
                 )
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             fence
                 .wait(&self.device)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            fence.destroy(&self.device);
 
             self.staging_buffers.insert(device_local.id(), staging.id());
             self.buffers.insert(staging.id(), staging);
@@ -356,12 +356,8 @@ impl GraphicsBackend for VulkanBackend {
                     .map_err(|err| {
                         BufferError::BufferCreationError(err.into())
                     })?;
-            let mut builder = VulkanCommandBufferBuilder::new(
-                &self.device,
-                &mut cmd,
-                &self.owned_images,
-            )
-            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            let mut builder = VulkanCommandBufferBuilder::new(&self.images)
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             builder
                 .begin()
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
@@ -370,6 +366,9 @@ impl GraphicsBackend for VulkanBackend {
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             builder
                 .end()
+                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            builder
+                .build(&self.device, &mut cmd)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             let fence = VulkanFence::new(&self.device, false)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
@@ -381,12 +380,13 @@ impl GraphicsBackend for VulkanBackend {
                     &[&cmd],
                     &fence,
                     VulkanPipelineStage::Transfer,
-                    &mut self.owned_images,
+                    &mut self.images,
                 )
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             fence
                 .wait(&self.device)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            fence.destroy(&self.device);
         } else {
             buffer
                 .update(&self.device, data)
@@ -612,18 +612,14 @@ impl GraphicsBackend for VulkanBackend {
         signal_semaphores: &[Semaphore],
         signal_fence: Fence,
     ) -> Result<(), CommandListError> {
-        let command_buffer = self
+        let mut command_buffer = self
             .command_buffers
             .get_mut(&command_list.id())
             .ok_or(CommandListError::CommandListNotFound)?;
-        let mut builder = VulkanCommandBufferBuilder::new(
-            &self.device,
-            command_buffer,
-            &self.owned_images,
-        )
-        .map_err(|err| {
-            CommandListError::CommandListCreationError(err.into())
-        })?;
+        let mut builder = VulkanCommandBufferBuilder::new(&self.images)
+            .map_err(|err| {
+                CommandListError::CommandListCreationError(err.into())
+            })?;
         let ws = wait_semaphores
             .iter()
             .map(|x| {
@@ -688,13 +684,13 @@ impl GraphicsBackend for VulkanBackend {
                         )
                     })?
                 },
-                Command::EndRenderpass => builder
-                    .end_renderpass(&mut self.owned_images)
-                    .map_err(|err| {
+                Command::EndRenderpass => {
+                    builder.end_renderpass().map_err(|err| {
                         CommandListError::CommandListRenderpassEndError(
                             err.into(),
                         )
-                    })?,
+                    })?
+                },
                 Command::BindGraphicsPipeline(pipeline) => {
                     let p = self.pipelines.get(&pipeline.id()).unwrap();
                     builder.bind_graphics_pipeline(p).map_err(|err| {
@@ -738,7 +734,7 @@ impl GraphicsBackend for VulkanBackend {
                 },
                 Command::CopyBufferToImage(buffer, image) => {
                     let b = self.buffers.get(&buffer.id()).unwrap();
-                    let i = self.owned_images.get(&image.id()).unwrap();
+                    let i = self.images.get(&image.id()).unwrap();
                     builder.copy_buffer_to_image(b, i).map_err(|err| {
                         CommandListError::CommandListCopyToImageError(
                             err.into(),
@@ -757,6 +753,12 @@ impl GraphicsBackend for VulkanBackend {
             };
         }
 
+        builder
+            .build(&self.device, &mut command_buffer)
+            .map_err(|err| {
+                CommandListError::CommandListSubmitError(err.into())
+            })?;
+
         self.present_queue
             .submit(
                 &self.device,
@@ -765,7 +767,7 @@ impl GraphicsBackend for VulkanBackend {
                 &[command_buffer],
                 &fen,
                 VulkanPipelineStage::ColorAttachmentOutput,
-                &mut self.owned_images,
+                &mut self.images,
             )
             .map_err(|err| CommandListError::CommandListSubmitError(err.into()))
     }
@@ -795,8 +797,8 @@ impl GraphicsBackend for VulkanBackend {
         self.swapchains.insert(swapchain_id, swapchain);
         for swapchain_image in swapchain_images.iter() {
             let swapchain_image_id = swapchain_image.id();
-            self.swapchain_images
-                .insert(swapchain_image_id, swapchain_image.clone());
+            self.images
+                .insert(swapchain_image_id, Box::new(swapchain_image.clone()));
             images.push(Image::new(swapchain_image_id));
         }
         Ok((Swapchain::new(swapchain_id), images))
@@ -886,21 +888,17 @@ impl GraphicsBackend for VulkanBackend {
         )
         .map_err(|err| ImageError::ImageCreationError(err.into()))?;
         let image_id = image.id();
-        self.owned_images.insert(image_id, image);
+        self.images.insert(image_id, Box::new(image));
         Ok(Image::new(image_id))
     }
 
     fn delete_image(&mut self, image: Image) -> Result<(), ImageError> {
-        let result = self.owned_images.remove(&image.id());
-        if let Some(image) = result {
-            image.destroy(&self.device);
-            Ok(())
-        } else {
-            self.swapchain_images
-                .remove(&image.id())
-                .ok_or(ImageError::SwapchainImageNotFound)
-                .map(|_| ())
-        }
+        let result = self
+            .images
+            .remove(&image.id())
+            .ok_or(ImageError::ImageNotFound)?;
+        result.destroy(&self.device);
+        Ok(())
     }
 
     fn load_image_from_buffer(
@@ -916,14 +914,12 @@ impl GraphicsBackend for VulkanBackend {
             VulkanCommandBuffer::new(&self.device, &self.command_pool)
                 .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         let mut builder = VulkanCommandBufferBuilder::new(
-            &self.device,
-            &mut cmd,
-            &self.owned_images,
+            &self.images,
         )
         .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         let img = self
-            .owned_images
-            .get_mut(&image.id())
+            .images
+            .get(&image.id())
             .ok_or(ImageError::ImageNotFound)?;
         builder
             .begin()
@@ -933,6 +929,9 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         builder
             .end()
+            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        builder
+            .build(&self.device, &mut cmd)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         let fence = VulkanFence::new(&self.device, false)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
@@ -944,42 +943,29 @@ impl GraphicsBackend for VulkanBackend {
                 &[&cmd],
                 &fence,
                 VulkanPipelineStage::Transfer,
-                &mut self.owned_images,
+                &mut self.images,
             )
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         fence
             .wait(&self.device)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))
+            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        fence.destroy(&self.device);
+        Ok(())
     }
 
     fn create_image_view(
         &mut self,
         image: Image,
     ) -> Result<ImageView, ImageError> {
-        let oim = match self.owned_images.get(&image.id()) {
-            Some(val) => match VulkanImageView::from_image(&self.device, val) {
-                Ok(val) => Some(val),
-                Err(err) => {
-                    return Err(ImageError::ImageViewCreationError(err.into()));
-                },
-            },
-
-            None => None,
-        };
-        let sim = match self.swapchain_images.get(&image.id()) {
-            Some(val) => match VulkanImageView::from_image(&self.device, val) {
-                Ok(val) => Some(val),
-                Err(err) => {
-                    return Err(ImageError::ImageViewCreationError(err.into()));
-                },
-            },
-
-            None => None,
-        };
-        let im = oim.or(sim).ok_or(ImageError::ImageNotFound)?;
-        let im_id = im.id();
-        self.image_views.insert(im_id, im);
-        Ok(ImageView::new(im_id))
+        let im = self
+            .images
+            .get(&image.id())
+            .ok_or(ImageError::ImageNotFound)?;
+        let iv = VulkanImageView::from_image(&self.device, im)
+            .map_err(|err| ImageError::ImageViewCreationError(err.into()))?;
+        let iv_id = iv.id();
+        self.image_views.insert(iv_id, iv);
+        Ok(ImageView::new(iv_id))
     }
 
     fn delete_image_view(
@@ -1027,16 +1013,8 @@ impl GraphicsBackend for VulkanBackend {
                     .get(&attachment.id())
                     .ok_or(FramebufferError::ImageViewNotFound)
                     .map(|image_view| {
-                        let o_image = self
-                            .owned_images
+                        self.images
                             .get(&image_view.image_id())
-                            .map(|img| img as &dyn VulkanImage);
-                        let s_image = self
-                            .swapchain_images
-                            .get(&image_view.image_id())
-                            .map(|img| img as &dyn VulkanImage);
-                        o_image
-                            .or(s_image)
                             .map(|img| (image_view, img))
                             .ok_or(FramebufferError::ImageNotFound)
                     })

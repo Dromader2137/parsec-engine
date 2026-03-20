@@ -246,7 +246,7 @@ impl VulkanRenderpass {
 
         let renderpass = match unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .create_render_pass(&renderpass_create_info, None)
         } {
             Ok(val) => val,
@@ -264,7 +264,7 @@ impl VulkanRenderpass {
     pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .destroy_render_pass(self.renderpass, None)
         }
     }

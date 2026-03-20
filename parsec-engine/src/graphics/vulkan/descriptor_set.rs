@@ -131,7 +131,7 @@ impl VulkanDescriptorPool {
 
         let pool = unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .create_descriptor_pool(&create_info, None)
                 .map_err(|err| VulkanDescriptorError::PoolCreationError(err))?
         };
@@ -140,7 +140,7 @@ impl VulkanDescriptorPool {
     }
 
     pub fn destroy(&self, device: &VulkanDevice) {
-        unsafe { device.raw_handle().destroy_descriptor_pool(self.pool, None) }
+        unsafe { device.raw_device().destroy_descriptor_pool(self.pool, None) }
     }
 
     pub fn raw(&self) -> &ash::vk::DescriptorPool { &self.pool }
@@ -159,7 +159,7 @@ impl<'a> VulkanDescriptorSetLayout {
 
         let layout = match unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .create_descriptor_set_layout(&create_info, None)
         } {
             Ok(val) => val,
@@ -178,7 +178,7 @@ impl<'a> VulkanDescriptorSetLayout {
     pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .destroy_descriptor_set_layout(self.layout, None)
         }
     }
@@ -206,7 +206,7 @@ impl VulkanDescriptorSet {
             .set_layouts(&layout_raw);
 
         let set = match unsafe {
-            device.raw_handle().allocate_descriptor_sets(&create_info)
+            device.raw_device().allocate_descriptor_sets(&create_info)
         } {
             Ok(val) => val,
             Err(err) => {
@@ -250,7 +250,7 @@ impl VulkanDescriptorSet {
 
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .update_descriptor_sets(&[write_info], &[]);
         }
 
@@ -286,7 +286,7 @@ impl VulkanDescriptorSet {
 
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .update_descriptor_sets(&[write_info], &[]);
         }
 

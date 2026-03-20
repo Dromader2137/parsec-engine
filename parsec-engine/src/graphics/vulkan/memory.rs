@@ -24,7 +24,7 @@ impl VulkanMemory {
 
         let memory = unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .allocate_memory(&allocate_info, None)
                 .map_err(|err| VulkanMemoryError::AllocateMemoryError(err))?
         };

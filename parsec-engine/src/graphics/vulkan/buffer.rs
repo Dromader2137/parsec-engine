@@ -55,7 +55,7 @@ impl VulkanBuffer {
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
         let buffer = match unsafe {
-            device.raw_handle().create_buffer(&index_buffer_info, None)
+            device.raw_device().create_buffer(&index_buffer_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanBufferError::CreationError(err)),
@@ -63,7 +63,7 @@ impl VulkanBuffer {
 
         let memory_requirements =
             VulkanMemoryRequirements::from_raw_requirements(unsafe {
-                device.raw_handle().get_buffer_memory_requirements(buffer)
+                device.raw_device().get_buffer_memory_requirements(buffer)
             });
 
         let (memory, memory_offset) = allocator
@@ -71,7 +71,7 @@ impl VulkanBuffer {
             .map_err(|err| VulkanBufferError::AllocationError(err))?;
 
         if let Err(err) = unsafe {
-            device.raw_handle().bind_buffer_memory(
+            device.raw_device().bind_buffer_memory(
                 buffer,
                 memory.raw_memory(),
                 memory_offset,
@@ -104,7 +104,7 @@ impl VulkanBuffer {
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
         let buffer = match unsafe {
-            device.raw_handle().create_buffer(&index_buffer_info, None)
+            device.raw_device().create_buffer(&index_buffer_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanBufferError::CreationError(err)),
@@ -112,7 +112,7 @@ impl VulkanBuffer {
 
         let memory_requirements =
             VulkanMemoryRequirements::from_raw_requirements(unsafe {
-                device.raw_handle().get_buffer_memory_requirements(buffer)
+                device.raw_device().get_buffer_memory_requirements(buffer)
             });
 
         let (memory, memory_offset) = allocator
@@ -123,7 +123,7 @@ impl VulkanBuffer {
             return Err(VulkanBufferError::CannotMapDeviceLocalMemory);
         } else {
             let memory_ptr = match unsafe {
-                device.raw_handle().map_memory(
+                device.raw_device().map_memory(
                     memory.raw_memory(),
                     memory_offset,
                     memory_requirements
@@ -147,12 +147,12 @@ impl VulkanBuffer {
             slice.copy_from_slice(&data);
 
             unsafe {
-                device.raw_handle().unmap_memory(memory.raw_memory())
+                device.raw_device().unmap_memory(memory.raw_memory())
             };
         }
 
         if let Err(err) = unsafe {
-            device.raw_handle().bind_buffer_memory(
+            device.raw_device().bind_buffer_memory(
                 buffer,
                 memory.raw_memory(),
                 memory_offset,
@@ -186,7 +186,7 @@ impl VulkanBuffer {
         }
 
         let memory_ptr = match unsafe {
-            device.raw_handle().map_memory(
+            device.raw_device().map_memory(
                 self.memory.raw_memory(),
                 self.memory_offset,
                 self.size,
@@ -207,7 +207,7 @@ impl VulkanBuffer {
 
         slice.copy_from_slice(&data);
 
-        unsafe { device.raw_handle().unmap_memory(self.memory.raw_memory()) };
+        unsafe { device.raw_device().unmap_memory(self.memory.raw_memory()) };
 
         Ok(())
     }
@@ -215,7 +215,7 @@ impl VulkanBuffer {
     pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .destroy_buffer(*self.get_buffer_raw(), None)
         }
     }

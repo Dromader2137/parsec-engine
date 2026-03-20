@@ -43,7 +43,7 @@ impl VulkanAllocation {
     pub fn free(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .free_memory(self.memory.raw_memory(), None)
         };
     }

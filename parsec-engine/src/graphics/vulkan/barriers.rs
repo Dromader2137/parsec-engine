@@ -73,7 +73,7 @@ pub struct VulkanImageMemoryBarrier<'image, 'a> {
     dst_access: &'a [VulkanAccess],
     src_layout: VulkanImageLayout,
     dst_layout: VulkanImageLayout,
-    image: &'image dyn VulkanImage,
+    image: &'image Box<dyn VulkanImage>,
 }
 
 impl<'image, 'a> VulkanImageMemoryBarrier<'image, 'a> {
@@ -82,7 +82,7 @@ impl<'image, 'a> VulkanImageMemoryBarrier<'image, 'a> {
         dst_access: &'a [VulkanAccess],
         src_layout: VulkanImageLayout,
         dst_layout: VulkanImageLayout,
-        image: &'image dyn VulkanImage,
+        image: &'image Box<dyn VulkanImage>,
     ) -> Self {
         Self {
             src_access,

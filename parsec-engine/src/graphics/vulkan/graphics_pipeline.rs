@@ -140,7 +140,7 @@ impl VulkanGraphicsPipeline {
 
         let pipeline_layout = match unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .create_pipeline_layout(&layout_create_info, None)
         } {
             Ok(val) => val,
@@ -297,7 +297,7 @@ impl VulkanGraphicsPipeline {
         }
 
         let pipeline = match unsafe {
-            device.raw_handle().create_graphics_pipelines(
+            device.raw_device().create_graphics_pipelines(
                 ash::vk::PipelineCache::null(),
                 &[graphic_pipeline_info],
                 None,
@@ -325,10 +325,10 @@ impl VulkanGraphicsPipeline {
     pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .destroy_pipeline(self.graphics_pipeline, None);
             device
-                .raw_handle()
+                .raw_device()
                 .destroy_pipeline_layout(self.graphics_pipeline_layout, None);
         }
     }

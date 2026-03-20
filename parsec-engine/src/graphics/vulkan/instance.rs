@@ -29,7 +29,7 @@ impl VulkanInstance {
         };
 
         let app_info = ash::vk::ApplicationInfo::default()
-            .api_version(ash::vk::make_api_version(0, 1, 4, 0));
+            .api_version(ash::vk::make_api_version(0, 1, 0, 0));
 
         let display_handle = match window.raw_display_handle() {
             Ok(val) => val,

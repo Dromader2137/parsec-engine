@@ -1,6 +1,6 @@
 # Parsec Engine Roadmap
 
-## Phase 1: Vulkan Abstraction Fixes
+## Phase 1: Vulkan Abstraction Fixes (DONE, parts may need a refactor, but not urgently)
 
 These are blocking issues that will prevent the abstraction from scaling to real workloads.
 
@@ -32,7 +32,7 @@ Architectural improvements that reduce tech debt and unlock future features.
 ### 2.1 Replace Backtracking Command Buffer
 - Remove the record-then-replay pattern (`*_backtrack` methods) in `command_buffer.rs`
 - Options:
-  - Pre-compute barriers before the renderpass starts (descriptor sets are known at that point)
+  - Pre-compute barriers before the renderpass starts (descriptor sets are known at that point) **THIS**
   - Use render pass self-dependencies for mid-pass barriers
   - Adopt `VK_KHR_synchronization2` for more granular barrier control
 - This eliminates the duplicated API surface and makes RenderDoc debugging intuitive

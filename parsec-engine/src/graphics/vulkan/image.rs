@@ -256,13 +256,19 @@ pub trait VulkanImage: Send + Sync + 'static {
     fn format(&self) -> VulkanImageFormat;
     fn usage(&self) -> &[VulkanImageUsage];
     fn aspect(&self) -> VulkanImageAspect;
+    fn extent(&self) -> VulkanImageSize;
+    fn get_layout(&self) -> VulkanImageLayout;
+    fn set_layout(&mut self, layout: VulkanImageLayout);
     fn raw_image(&self) -> &ash::vk::Image;
+    fn destroy(&self, device: &VulkanDevice);
 }
 
 #[derive(Debug, Clone)]
 pub struct VulkanSwapchainImage {
     id: u32,
     format: VulkanImageFormat,
+    extent: VulkanImageSize,
+    last_known_layout: VulkanImageLayout,
     image: ash::vk::Image,
 }
 
@@ -273,7 +279,7 @@ pub struct VulkanOwnedImage {
     format: VulkanImageFormat,
     usage: Vec<VulkanImageUsage>,
     aspect: VulkanImageAspect,
-    pub last_known_layout: VulkanImageLayout,
+    last_known_layout: VulkanImageLayout,
     image: ash::vk::Image,
     memory: VulkanMemory,
     size: u64,
@@ -293,7 +299,13 @@ impl VulkanImage for VulkanSwapchainImage {
     fn usage(&self) -> &[VulkanImageUsage] {
         &[VulkanImageUsage::ColorAttachment]
     }
+    fn extent(&self) -> VulkanImageSize { self.extent }
+    fn get_layout(&self) -> VulkanImageLayout { self.last_known_layout }
+    fn set_layout(&mut self, layout: VulkanImageLayout) {
+        self.last_known_layout = layout;
+    }
     fn aspect(&self) -> VulkanImageAspect { VulkanImageAspect::Color }
+    fn destroy(&self, _device: &VulkanDevice) {}
 }
 
 impl VulkanImage for VulkanOwnedImage {
@@ -301,7 +313,15 @@ impl VulkanImage for VulkanOwnedImage {
     fn format(&self) -> VulkanImageFormat { self.format }
     fn usage(&self) -> &[VulkanImageUsage] { &self.usage }
     fn aspect(&self) -> VulkanImageAspect { self.aspect }
+    fn extent(&self) -> VulkanImageSize { self.extent }
+    fn get_layout(&self) -> VulkanImageLayout { self.last_known_layout }
+    fn set_layout(&mut self, layout: VulkanImageLayout) {
+        self.last_known_layout = layout;
+    }
     fn raw_image(&self) -> &ash::vk::Image { &self.image }
+    fn destroy(&self, device: &VulkanDevice) {
+        unsafe { device.raw_device().destroy_image(*self.raw_image(), None) }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -319,7 +339,7 @@ pub enum VulkanImageError {
 }
 
 fn get_image_view_create_info(
-    image: &impl VulkanImage,
+    image: &Box<dyn VulkanImage>,
 ) -> ash::vk::ImageViewCreateInfo<'_> {
     ash::vk::ImageViewCreateInfo::default()
         .view_type(ash::vk::ImageViewType::TYPE_2D)
@@ -356,11 +376,14 @@ crate::create_counter! {ID_COUNTER_IMAGE}
 impl VulkanSwapchainImage {
     pub fn new(
         format: VulkanImageFormat,
+        extent: VulkanImageSize,
         raw_image: ash::vk::Image,
     ) -> VulkanSwapchainImage {
         VulkanSwapchainImage {
             id: ID_COUNTER_IMAGE.next(),
             format,
+            extent,
+            last_known_layout: VulkanImageLayout::PresentSrcKHR,
             image: raw_image,
         }
     }
@@ -379,14 +402,14 @@ impl VulkanOwnedImage {
         let create_info = get_image_create_info(format, size, usage);
 
         let image = match unsafe {
-            device.raw_handle().create_image(&create_info, None)
+            device.raw_device().create_image(&create_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanImageError::CreationError(err)),
         };
         let memory_requirements =
             VulkanMemoryRequirements::from_raw_requirements(unsafe {
-                device.raw_handle().get_image_memory_requirements(image)
+                device.raw_device().get_image_memory_requirements(image)
             });
 
         let (memory, memory_offset) = allocator
@@ -394,7 +417,7 @@ impl VulkanOwnedImage {
             .map_err(|err| VulkanImageError::AllocationError(err))?;
 
         if let Err(err) = unsafe {
-            device.raw_handle().bind_image_memory(
+            device.raw_device().bind_image_memory(
                 image,
                 memory.raw_memory(),
                 memory_offset,
@@ -423,10 +446,6 @@ impl VulkanOwnedImage {
         })
     }
 
-    pub fn destroy(self, device: &VulkanDevice) {
-        unsafe { device.raw_handle().destroy_image(*self.raw_image(), None) }
-    }
-
     pub fn extent(&self) -> ash::vk::Extent3D {
         raw_extent_2d(self.extent.raw_size()).into()
     }
@@ -436,12 +455,12 @@ crate::create_counter! {ID_COUNTER_VIEW}
 impl VulkanImageView {
     pub fn from_image(
         device: &VulkanDevice,
-        image: &impl VulkanImage,
+        image: &Box<dyn VulkanImage>,
     ) -> Result<VulkanImageView, VulkanImageError> {
         let create_info = get_image_view_create_info(image);
 
         match unsafe {
-            device.raw_handle().create_image_view(&create_info, None)
+            device.raw_device().create_image_view(&create_info, None)
         } {
             Ok(val) => Ok(VulkanImageView {
                 id: ID_COUNTER_VIEW.next(),
@@ -455,7 +474,7 @@ impl VulkanImageView {
     pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
             device
-                .raw_handle()
+                .raw_device()
                 .destroy_image_view(*self.raw_image_view(), None)
         }
     }

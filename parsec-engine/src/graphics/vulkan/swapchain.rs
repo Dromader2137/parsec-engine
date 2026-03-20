@@ -1,17 +1,20 @@
 use core::cmp::Ord;
 
-use crate::graphics::{
-    vulkan::{
-        device::VulkanDevice,
-        fence::VulkanFence,
-        image::{VulkanImage, VulkanSwapchainImage},
-        instance::VulkanInstance,
-        queue::VulkanQueue,
-        semaphore::VulkanSemaphore,
-        surface::VulkanSurface,
-        utils::raw_extent_2d,
+use crate::{
+    graphics::{
+        vulkan::{
+            device::VulkanDevice,
+            fence::VulkanFence,
+            image::{VulkanImage, VulkanImageSize, VulkanSwapchainImage},
+            instance::VulkanInstance,
+            queue::VulkanQueue,
+            semaphore::VulkanSemaphore,
+            surface::VulkanSurface,
+            utils::raw_extent_2d,
+        },
+        window::Window,
     },
-    window::Window,
+    math::uvec::Vec2u,
 };
 
 pub struct VulkanSwapchain {
@@ -33,6 +36,8 @@ pub enum VulkanSwapchainError {
     PresentError(ash::vk::Result),
     #[error("Swapchain out of date")]
     OutOfDate,
+    #[error("Invalid swapchain size")]
+    InvalidSize,
 }
 
 crate::create_counter! {ID_COUNTER}
@@ -64,7 +69,7 @@ impl VulkanSwapchain {
 
         let swapchain_loader = ash::khr::swapchain::Device::new(
             instance.raw_handle(),
-            device.raw_handle(),
+            device.raw_device(),
         );
 
         let mut swapchain_create_info =
@@ -94,12 +99,18 @@ impl VulkanSwapchain {
             Err(err) => return Err(VulkanSwapchainError::CreationError(err)),
         };
 
+        let extent = VulkanImageSize::new(Vec2u::new(
+            surface_resolution.width,
+            surface_resolution.height,
+        ))
+        .ok_or(VulkanSwapchainError::InvalidSize)?;
+
         let swapchain_images = match unsafe {
             swapchain_loader.get_swapchain_images(swapchain)
         } {
             Ok(val) => val
                 .into_iter()
-                .map(|x| VulkanSwapchainImage::new(surface.format(), x))
+                .map(|x| VulkanSwapchainImage::new(surface.format(), extent, x))
                 .collect::<Vec<_>>(),
             Err(err) => {
                 return Err(VulkanSwapchainError::ImageAcquisitionError(err));

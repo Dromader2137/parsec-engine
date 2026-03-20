@@ -181,15 +181,6 @@ pub fn init_renderer(
     mut backend: Resource<VulkanBackend>,
     window: Resource<Window>,
 ) {
-    let test_buffer_data = [69; 512];
-    let test_buffer = backend
-        .create_buffer(&test_buffer_data, &[BufferUsage::Uniform])
-        .unwrap();
-    let test_buffer_update = [79; 512];
-    backend
-        .update_buffer(test_buffer, &test_buffer_update)
-        .unwrap();
-
     let surface_format = backend.get_surface_format();
 
     let renderpass = backend
@@ -295,7 +286,7 @@ pub fn init_renderer(
             culling_mode: PipelineCullingMode::CullBack,
         },
     );
-    let shadow_size = 1024;
+    let shadow_size = 1<<12;
     let shadow_depth_image = backend
         .create_image(
             Vec2u::new(shadow_size, shadow_size),

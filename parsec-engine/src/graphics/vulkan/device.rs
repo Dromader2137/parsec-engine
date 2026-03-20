@@ -64,7 +64,7 @@ impl VulkanDevice {
 
     pub fn destroy(&self) { unsafe { self.device.destroy_device(None) } }
 
-    pub fn raw_handle(&self) -> &ash::Device { &self.device }
+    pub fn raw_device(&self) -> &ash::Device { &self.device }
 
     pub fn raw_memory_properties(
         &self,
