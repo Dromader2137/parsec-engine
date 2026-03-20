@@ -84,11 +84,27 @@ pub enum VulkanCommandBufferError {
     #[error("Used image does not exist in the provided image map")]
     ImageNotFound,
     #[error("Command used in an incorrect command buffer state: {0:?}")]
-    IncorrectPhase(CommandBufferPhase),
+    IncorrectPhase(VulkanCommandBufferPhase),
     #[error("Pipeline not bound")]
     PipelineNotBound,
-    #[error("WONT HAPPEN")]
-    IllegalCommandInsiderRenderpass,
+    #[error("Invalid viewport dimensions: {0:?}")]
+    InvalidViewportDimensions(Vec2u),
+    #[error("Invalid scissor dimensions: {0:?}")]
+    InvalidScissorDimensions(Vec2u),
+    #[error("Vertex buffer not bound")]
+    VertexBufferNotBound,
+    #[error("Drawcall vertex count can't be zero")]
+    InvalidVertexCount,
+    #[error(
+        "Drawcall vertex count + first vertex can't escape the vertex buffer"
+    )]
+    VertexBufferOverflow,
+    #[error("Index buffer not bound")]
+    IndexBufferNotBound,
+    #[error("Drawcall index count + first index can't escape the index buffer")]
+    IndexBufferOverflow,
+    #[error("Buffers have to be the same size to copy: {0} -> {1}")]
+    BufferSizeMismatch(u64, u64),
 }
 
 crate::create_counter! {COMMAND_BUFFER_ID_COUNTER}
@@ -145,7 +161,7 @@ impl VulkanCommandBuffer {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum CommandBufferPhase {
+pub enum VulkanCommandBufferPhase {
     #[default]
     NotStarted = 0,
     Normal = 1,
@@ -155,7 +171,7 @@ enum CommandBufferPhase {
 
 #[derive(Default)]
 struct CommandBufferState<'a> {
-    phase: CommandBufferPhase,
+    phase: VulkanCommandBufferPhase,
     bound_pipeline: Option<&'a VulkanGraphicsPipeline>,
     bound_index_buffer: Option<&'a VulkanBuffer>,
     bound_vertex_buffer: Option<&'a VulkanBuffer>,
@@ -167,7 +183,7 @@ struct CommandBufferState<'a> {
 
 impl CommandBufferState<'_> {
     fn reset(&mut self) {
-        self.phase = CommandBufferPhase::NotStarted;
+        self.phase = VulkanCommandBufferPhase::NotStarted;
         self.current_renderpass = None;
         self.current_framebuffer = None;
         self.bound_pipeline = None;
@@ -177,7 +193,7 @@ impl CommandBufferState<'_> {
     }
 
     fn reset_renderpass(&mut self) {
-        self.phase = CommandBufferPhase::Normal;
+        self.phase = VulkanCommandBufferPhase::Normal;
         self.current_renderpass = None;
         self.current_framebuffer = None;
         self.bound_pipeline = None;
@@ -597,26 +613,28 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         }
 
         for (id, image_state) in self.state.image_properties.iter() {
-            command_buffer.image_state_change.push((*id, image_state.clone()));
+            command_buffer
+                .image_state_change
+                .push((*id, image_state.clone()));
         }
 
         Ok(())
     }
 
     pub fn begin(&mut self) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::NotStarted)?;
+        self.check_phase(VulkanCommandBufferPhase::NotStarted)?;
 
         self.commands.push(VulkanCommand::Begin);
-        self.state.phase = CommandBufferPhase::Normal;
+        self.state.phase = VulkanCommandBufferPhase::Normal;
 
         Ok(())
     }
 
     pub fn end(&mut self) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Normal)?;
+        self.check_phase(VulkanCommandBufferPhase::Normal)?;
 
         self.commands.push(VulkanCommand::End);
-        self.state.phase = CommandBufferPhase::Ended;
+        self.state.phase = VulkanCommandBufferPhase::Ended;
 
         Ok(())
     }
@@ -626,19 +644,23 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         renderpass: &'b VulkanRenderpass,
         framebuffer: &'b VulkanFramebuffer,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Normal)?;
+        self.check_phase(VulkanCommandBufferPhase::Normal)?;
+
+        if renderpass.id() != framebuffer.renderpass_id() {
+            return Err(VulkanCommandBufferError::RenderpassMismatch);
+        }
 
         self.commands
             .push(VulkanCommand::BeginRenderpass(renderpass, framebuffer));
         self.renderpass_dependencies
             .push(RenderpassDependency::default());
-        self.state.phase = CommandBufferPhase::Renderpass;
+        self.state.phase = VulkanCommandBufferPhase::Renderpass;
 
         Ok(())
     }
 
     pub fn end_renderpass(&mut self) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Renderpass)?;
+        self.check_phase(VulkanCommandBufferPhase::Renderpass)?;
 
         self.commands.push(VulkanCommand::EndRenderpass);
 
@@ -651,7 +673,12 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         &mut self,
         dimensions: Vec2u,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Renderpass)?;
+        self.check_phase(VulkanCommandBufferPhase::Renderpass)?;
+        if dimensions.x == 0 || dimensions.y == 0 {
+            return Err(VulkanCommandBufferError::InvalidViewportDimensions(
+                dimensions,
+            ));
+        }
 
         self.commands.push(VulkanCommand::SetViewport(dimensions));
 
@@ -663,7 +690,12 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         dimensions: Vec2u,
         offset: Vec2i,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Renderpass)?;
+        self.check_phase(VulkanCommandBufferPhase::Renderpass)?;
+        if dimensions.x == 0 || dimensions.y == 0 {
+            return Err(VulkanCommandBufferError::InvalidScissorDimensions(
+                dimensions,
+            ));
+        }
 
         self.commands
             .push(VulkanCommand::SetScissor(dimensions, offset));
@@ -675,7 +707,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         &mut self,
         pipeline: &'b VulkanGraphicsPipeline,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Renderpass)?;
+        self.check_phase(VulkanCommandBufferPhase::Renderpass)?;
 
         self.commands
             .push(VulkanCommand::BindGraphicsPipeline(pipeline));
@@ -692,7 +724,21 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         first_vertex: u32,
         first_instance: u32,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Renderpass)?;
+        self.check_phase(VulkanCommandBufferPhase::Renderpass)?;
+        let _ = self
+            .state
+            .bound_pipeline
+            .ok_or(VulkanCommandBufferError::PipelineNotBound)?;
+        let vb = self
+            .state
+            .bound_vertex_buffer
+            .ok_or(VulkanCommandBufferError::VertexBufferNotBound)?;
+        if vertex_count == 0 {
+            return Err(VulkanCommandBufferError::InvalidVertexCount);
+        }
+        if first_vertex + vertex_count > vb.len() {
+            return Err(VulkanCommandBufferError::VertexBufferOverflow);
+        }
 
         self.commands.push(VulkanCommand::Draw(
             vertex_count,
@@ -712,7 +758,22 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         vertex_offset: i32,
         first_instance: u32,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Renderpass)?;
+        self.check_phase(VulkanCommandBufferPhase::Renderpass)?;
+        let _ = self
+            .state
+            .bound_pipeline
+            .ok_or(VulkanCommandBufferError::PipelineNotBound)?;
+        let _ = self
+            .state
+            .bound_vertex_buffer
+            .ok_or(VulkanCommandBufferError::VertexBufferNotBound)?;
+        let ib = self
+            .state
+            .bound_index_buffer
+            .ok_or(VulkanCommandBufferError::IndexBufferNotBound)?;
+        if first_index + index_count > ib.len() {
+            return Err(VulkanCommandBufferError::IndexBufferOverflow);
+        }
 
         self.commands.push(VulkanCommand::DrawIndexed(
             index_count,
@@ -729,7 +790,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         &mut self,
         buffer: &'b VulkanBuffer,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Renderpass)?;
+        self.check_phase(VulkanCommandBufferPhase::Renderpass)?;
 
         self.commands.push(VulkanCommand::BindVertexBuffer(buffer));
         self.state.bound_vertex_buffer = Some(buffer);
@@ -741,7 +802,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         &mut self,
         buffer: &'b VulkanBuffer,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Renderpass)?;
+        self.check_phase(VulkanCommandBufferPhase::Renderpass)?;
 
         self.commands.push(VulkanCommand::BindIndexBuffer(buffer));
         self.state.bound_index_buffer = Some(buffer);
@@ -754,7 +815,12 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         descriptor_set: &'b VulkanDescriptorSet,
         set_index: u32,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Renderpass)?;
+        self.check_phase(VulkanCommandBufferPhase::Renderpass)?;
+
+        let _ = self
+            .state
+            .bound_pipeline
+            .ok_or(VulkanCommandBufferError::PipelineNotBound)?;
 
         for image_id in descriptor_set.bound_image_ids().iter() {
             self.renderpass_dependencies
@@ -778,7 +844,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         buffer: &'b VulkanBuffer,
         image: &'b Box<dyn VulkanImage>,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Normal)?;
+        self.check_phase(VulkanCommandBufferPhase::Normal)?;
 
         self.commands
             .push(VulkanCommand::CopyBufferToImage(buffer, image));
@@ -791,7 +857,14 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         src: &'b VulkanBuffer,
         dst: &'b VulkanBuffer,
     ) -> Result<(), VulkanCommandBufferError> {
-        self.check_phase(CommandBufferPhase::Normal)?;
+        self.check_phase(VulkanCommandBufferPhase::Normal)?;
+
+        if src.size() != dst.size() {
+            return Err(VulkanCommandBufferError::BufferSizeMismatch(
+                src.size(),
+                dst.size(),
+            ));
+        }
 
         self.commands
             .push(VulkanCommand::CopyBufferToBuffer(src, dst));
@@ -850,7 +923,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
 
     fn check_phase(
         &self,
-        correct_phase: CommandBufferPhase,
+        correct_phase: VulkanCommandBufferPhase,
     ) -> Result<(), VulkanCommandBufferError> {
         if correct_phase != self.state.phase {
             return Err(VulkanCommandBufferError::IncorrectPhase(

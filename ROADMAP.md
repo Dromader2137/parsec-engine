@@ -29,7 +29,7 @@ These are blocking issues that will prevent the abstraction from scaling to real
 
 Architectural improvements that reduce tech debt and unlock future features.
 
-### 2.1 Replace Backtracking Command Buffer
+### 2.1 Replace Backtracking Command Buffer (DONE)
 - Remove the record-then-replay pattern (`*_backtrack` methods) in `command_buffer.rs`
 - Options:
   - Pre-compute barriers before the renderpass starts (descriptor sets are known at that point) **THIS**
@@ -37,7 +37,7 @@ Architectural improvements that reduce tech debt and unlock future features.
   - Adopt `VK_KHR_synchronization2` for more granular barrier control
 - This eliminates the duplicated API surface and makes RenderDoc debugging intuitive
 
-### 2.2 Flatten Command Indirection
+### 2.2 Flatten Command Indirection (REJECTED)
 - Evaluate whether the backend-agnostic `Command` enum layer is needed
 - Currently commands pass through three layers: `Command` enum -> `submit_commands` lookup -> `VulkanCommand` buffer -> replay
 - Consider recording directly through the builder if the `Command` enum doesn't add real portability
@@ -51,7 +51,7 @@ Architectural improvements that reduce tech debt and unlock future features.
 - Fix append-only `bound_image_ids` in descriptor sets
 - Clear or replace tracked image IDs on rebind to avoid stale barrier insertions in `end_renderpass`
 
-### 2.5 Lock-Free ID Counters
+### 2.5 Lock-Free ID Counters (DONE)
 - Replace `Mutex<u32>` in `IdCounter` with `AtomicU32::fetch_add`
 - Minor, but removes unnecessary contention if resources are ever created from multiple threads
 

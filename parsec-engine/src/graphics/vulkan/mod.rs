@@ -279,6 +279,7 @@ impl GraphicsBackend for VulkanBackend {
                 &self.device,
                 &mut self.allocator,
                 size as u64,
+                data.len() as u32,
                 usage.as_slice(),
                 VulkanMemoryProperties::Device,
             )

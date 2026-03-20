@@ -15,6 +15,7 @@ pub struct VulkanBuffer {
     memory: VulkanMemory,
     memory_offset: u64,
     size: u64,
+    len: u32,
     raw_buffer: ash::vk::Buffer,
 }
 
@@ -35,7 +36,7 @@ pub enum VulkanBufferError {
     #[error("Failed to map memory for a Vulkan buffer: {0}")]
     MapError(ash::vk::Result),
     #[error("New data size doesen't match current buffer size")]
-    SizaMismatch,
+    SizeMismatch,
     #[error("Can't map device local memory")]
     CannotMapDeviceLocalMemory,
 }
@@ -46,6 +47,7 @@ impl VulkanBuffer {
         device: &VulkanDevice,
         allocator: &mut VulkanAllocator,
         size: u64,
+        len: u32,
         usage: &[VulkanBufferUsage],
         memory_properties: VulkanMemoryProperties,
     ) -> Result<VulkanBuffer, VulkanBufferError> {
@@ -85,6 +87,7 @@ impl VulkanBuffer {
             raw_buffer: buffer,
             memory,
             size: size as u64,
+            len,
             memory_offset,
         })
     }
@@ -166,6 +169,7 @@ impl VulkanBuffer {
             raw_buffer: buffer,
             memory,
             size: size as u64,
+            len: data.len() as u32,
             memory_offset,
         })
     }
@@ -178,7 +182,7 @@ impl VulkanBuffer {
         let size = (data.len() * size_of::<T>()) as u64;
 
         if size != self.size {
-            return Err(VulkanBufferError::SizaMismatch);
+            return Err(VulkanBufferError::SizeMismatch);
         }
 
         if self.memory.properties() == VulkanMemoryProperties::Device {
@@ -225,4 +229,8 @@ impl VulkanBuffer {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn size(&self) -> u64 { self.size }
+
+    pub fn len(&self) -> u32 {
+        self.len
+    }
 }

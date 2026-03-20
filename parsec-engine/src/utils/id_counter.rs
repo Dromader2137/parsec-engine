@@ -1,20 +1,18 @@
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::utils::IdType;
 
 #[derive(Debug)]
 pub struct IdCounter {
-    id: Mutex<IdType>,
+    id: AtomicU32,
 }
 
 impl IdCounter {
-    fn new() -> IdCounter { IdCounter { id: Mutex::new(0) } }
+    fn new() -> IdCounter { IdCounter { id: AtomicU32::new(0) } }
 
     pub fn next(&self) -> IdType {
-        let mut lock = self.id.lock().unwrap();
-        let ret = *lock;
-        *lock += 1;
-        ret
+        self.id.fetch_add(1, Ordering::SeqCst);
+        self.id.load(Ordering::SeqCst)
     }
 }
 
@@ -31,4 +29,17 @@ macro_rules! create_counter {
             crate::utils::id_counter::IdCounter::default()
         });
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn simple() {
+        let id_counter = IdCounter::default();
+        assert_eq!(id_counter.next(), 1);
+        assert_eq!(id_counter.next(), 2);
+        assert_eq!(id_counter.next(), 3);
+    }
 }
