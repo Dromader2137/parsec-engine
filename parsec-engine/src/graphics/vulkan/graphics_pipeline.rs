@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::graphics::{
     pipeline::{PipelineCullingMode, PipelineOptions, PipelineShaderStage},
     renderer::mesh_data::{Vertex, VertexFieldFormat},
@@ -108,14 +110,16 @@ impl VulkanCullingMode {
     }
 }
 
-pub struct VulkanPipelineOptions {
+pub struct VulkanPipelineOptions<V: Vertex> {
     cull_mode: VulkanCullingMode,
+    _marker: PhantomData<V>
 }
 
-impl VulkanPipelineOptions {
-    pub fn new(value: PipelineOptions) -> Self {
+impl<V: Vertex> VulkanPipelineOptions<V> {
+    pub fn new(value: PipelineOptions<V>) -> Self {
         VulkanPipelineOptions {
             cull_mode: VulkanCullingMode::new(value.culling_mode),
+            _marker: PhantomData::default()
         }
     }
 }
@@ -128,7 +132,7 @@ impl VulkanGraphicsPipeline {
         vertex_shader: &VulkanShaderModule,
         fragment_shader: &VulkanShaderModule,
         descriptor_set_layouts: &Vec<VulkanDescriptorSetLayout>,
-        options: VulkanPipelineOptions,
+        options: VulkanPipelineOptions<V>,
     ) -> Result<VulkanGraphicsPipeline, VulkanGraphicsPipelineError> {
         let set_layouts: Vec<_> = descriptor_set_layouts
             .iter()

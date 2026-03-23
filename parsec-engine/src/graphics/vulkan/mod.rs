@@ -18,7 +18,7 @@ use crate::{
             Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
             PipelineOptions, PipelineSubbindingLayout,
         },
-        renderer::DefaultVertex,
+        renderer::{DefaultVertex, mesh_data::Vertex},
         renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
         sampler::{Sampler, SamplerError},
         semaphore::{Semaphore, SemaphoreError},
@@ -493,7 +493,7 @@ impl GraphicsBackend for VulkanBackend {
         fragment_shader: Shader,
         renderpass: Renderpass,
         binding_layouts: &[PipelineBindingLayout],
-        options: PipelineOptions,
+        options: PipelineOptions<impl Vertex>,
     ) -> Result<Pipeline, PipelineError> {
         let vsm = self
             .shaders
@@ -516,7 +516,7 @@ impl GraphicsBackend for VulkanBackend {
                     .map(|o| o.clone())
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let pipeline = VulkanGraphicsPipeline::new::<DefaultVertex>(
+        let pipeline = VulkanGraphicsPipeline::new(
             &self.device,
             ren,
             vsm,
@@ -554,7 +554,7 @@ impl GraphicsBackend for VulkanBackend {
         buffer: Buffer,
         index: u32,
     ) -> Result<(), BufferError> {
-        let ds = self.descriptor_sets.get(&pipeline_binding.id()).unwrap();
+        let ds = self.descriptor_sets.get_mut(&pipeline_binding.id()).unwrap();
         let dsl = self
             .descriptor_set_layouts
             .get(&ds.descriptor_layout_id())

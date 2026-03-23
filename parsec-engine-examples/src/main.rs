@@ -15,15 +15,12 @@ use parsec_engine::{
             PipelineShaderStage, PipelineSubbindingLayout,
         },
         renderer::{
-            RendererMainRenderpass,
-            assets::mesh::{Mesh, obj::load_obj},
-            components::{
+            DefaultVertex, RendererMainRenderpass, assets::mesh::{Mesh, obj::load_obj}, components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            },
-            material_data::{
+            }, material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
-            },
+            }
         },
         shader::ShaderType,
         vulkan::{VulkanBackend, shader::read_shader_code},
@@ -98,9 +95,7 @@ fn test_system(
                 &[PipelineShaderStage::Fragment],
             )],
         ],
-        PipelineOptions {
-            culling_mode: PipelineCullingMode::CullBack,
-        },
+        PipelineOptions::<DefaultVertex>::new(PipelineCullingMode::CullBack)
     );
 
     let image = image::load_from_memory(include_bytes!("../../test.png"))

@@ -47,7 +47,7 @@ Architectural improvements that reduce tech debt and unlock future features.
 - Pass vertex attribute descriptions from the caller
 - Required for skinned meshes, particles, debug lines, or any non-standard vertex layout
 
-### 2.4 Descriptor Set Image Tracking
+### 2.4 Descriptor Set Image Tracking (DONE)
 - Fix append-only `bound_image_ids` in descriptor sets
 - Clear or replace tracked image IDs on rebind to avoid stale barrier insertions in `end_renderpass`
 
@@ -55,7 +55,7 @@ Architectural improvements that reduce tech debt and unlock future features.
 - Replace `Mutex<u32>` in `IdCounter` with `AtomicU32::fetch_add`
 - Minor, but removes unnecessary contention if resources are ever created from multiple threads
 
-### 2.6 Multi-Queue Support
+### 2.6 Multi-Queue Support (NAH LATER)
 - Add support for dedicated transfer and compute queues
 - Enable async texture uploads on the transfer queue while rendering continues
 - Enable parallel compute work on a separate compute queue

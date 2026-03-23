@@ -282,9 +282,7 @@ pub fn init_renderer(
                 &[PipelineShaderStage::Vertex],
             )],
         ],
-        PipelineOptions {
-            culling_mode: PipelineCullingMode::CullBack,
-        },
+        PipelineOptions::default()
     );
     let shadow_size = 1<<12;
     let shadow_depth_image = backend

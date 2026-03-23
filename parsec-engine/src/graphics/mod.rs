@@ -90,6 +90,8 @@ impl SystemBundle for GraphicsBundle {
     }
 }
 
+pub struct CurrentGraphicsBackend(Box<dyn GraphicsBackend>);
+
 #[system]
 pub fn init_vulkan(window: Resource<Window>) {
     let context = VulkanBackend::init(&window).unwrap();

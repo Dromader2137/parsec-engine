@@ -1,3 +1,7 @@
+use std::marker::PhantomData;
+
+use crate::graphics::renderer::{DefaultVertex, mesh_data::Vertex};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Pipeline {
     id: u32,
@@ -38,14 +42,25 @@ pub enum PipelineCullingMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PipelineOptions {
+pub struct PipelineOptions<V: Vertex> {
     pub culling_mode: PipelineCullingMode,
+    _marker: PhantomData<V>,
 }
 
-impl Default for PipelineOptions {
+impl Default for PipelineOptions<DefaultVertex> {
     fn default() -> Self {
         PipelineOptions {
             culling_mode: PipelineCullingMode::None,
+            _marker: PhantomData::<DefaultVertex>::default(),
+        }
+    }
+}
+
+impl<V: Vertex> PipelineOptions<V> {
+    pub fn new(culling_mode: PipelineCullingMode) -> Self {
+        Self {
+            culling_mode,
+            _marker: PhantomData::default(),
         }
     }
 }

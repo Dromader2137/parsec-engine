@@ -46,18 +46,19 @@ pub struct VulkanDescriptorPoolSize {
     size: ash::vk::DescriptorPoolSize,
 }
 
+#[derive(Debug, Default)]
 enum DescriptorSetBinding {
+    #[default]
     None,
-    UniformBuffer(u32),
-    StorageBuffer(u32),
-    CombinedSampler(u32)
+    UniformBuffer(Option<u32>),
+    StorageBuffer(Option<u32>),
+    CombinedSampler(Option<(u32, u32)>),
 }
 
 pub struct VulkanDescriptorSet {
     id: u32,
     descriptor_layout_id: u32,
-    bound_image_ids: Vec<u32>,
-    bindings: Vec<DescriptorSetBinding>,
+    bindings_state: Vec<DescriptorSetBinding>,
     set: ash::vk::DescriptorSet,
 }
 
@@ -84,6 +85,8 @@ pub enum VulkanDescriptorError {
     SetLayoutCreationError(ash::vk::Result),
     #[error("Failed to bind: binding doesn't exist")]
     BindingDoesntExist,
+    #[error("Failed to bind: invalid binding type for this operation")]
+    InvalidBindingType,
 }
 
 impl<'a> VulkanDescriptorSetBinding {
@@ -220,31 +223,52 @@ impl VulkanDescriptorSet {
             },
         }[0];
 
-        let bindings = descriptor_layout.bindings().iter().map(|x| {
-    match x.binding_type() {
-                VulkanDescriptorType::CombinedImageSampler => ,
-                VulkanDescriptorType::UniformBuffer => todo!(),
-                VulkanDescriptorType::StorageBuffer => todo!(),
-            }
-        }
-        ).collect();
+        let bindings = descriptor_layout
+            .bindings()
+            .iter()
+            .map(|x| match x.binding_type() {
+                VulkanDescriptorType::CombinedImageSampler => {
+                    DescriptorSetBinding::CombinedSampler(None)
+                },
+                VulkanDescriptorType::UniformBuffer => {
+                    DescriptorSetBinding::UniformBuffer(None)
+                },
+                VulkanDescriptorType::StorageBuffer => {
+                    DescriptorSetBinding::StorageBuffer(None)
+                },
+            })
+            .collect();
 
         Ok(VulkanDescriptorSet {
             id: ID_COUNTER_SET.next(),
             descriptor_layout_id: descriptor_layout.id(),
-            bindings,
-            bound_image_ids: Vec::new(),
+            bindings_state: bindings,
             set,
         })
     }
 
     pub fn bind_buffer(
-        &self,
+        &mut self,
         buffer: &VulkanBuffer,
         device: &VulkanDevice,
         descriptor_layout: &VulkanDescriptorSetLayout,
         dst_binding: u32,
     ) -> Result<(), VulkanDescriptorError> {
+        let binding = match self
+            .bindings_state
+            .get_mut(dst_binding as usize)
+            .ok_or(VulkanDescriptorError::BindingDoesntExist)?
+        {
+            DescriptorSetBinding::None => {
+                Err(VulkanDescriptorError::BindingDoesntExist)
+            },
+            DescriptorSetBinding::UniformBuffer(buffer) => Ok(buffer),
+            DescriptorSetBinding::StorageBuffer(buffer) => Ok(buffer),
+            DescriptorSetBinding::CombinedSampler(_) => {
+                Err(VulkanDescriptorError::InvalidBindingType)
+            },
+        }?;
+
         let buffer_info = [ash::vk::DescriptorBufferInfo::default()
             .buffer(*buffer.get_buffer_raw())
             .offset(0)
@@ -270,19 +294,36 @@ impl VulkanDescriptorSet {
                 .update_descriptor_sets(&[write_info], &[]);
         }
 
+        binding.replace(buffer.id());
+
         Ok(())
     }
 
     pub fn bind_image_view(
         &mut self,
-        view: &VulkanImageView,
+        image_view: &VulkanImageView,
         sampler: &VulkanSampler,
         device: &VulkanDevice,
         descriptor_layout: &VulkanDescriptorSetLayout,
         dst_binding: u32,
     ) -> Result<(), VulkanDescriptorError> {
+        let binding = match self
+            .bindings_state
+            .get_mut(dst_binding as usize)
+            .ok_or(VulkanDescriptorError::BindingDoesntExist)?
+        {
+            DescriptorSetBinding::None => {
+                Err(VulkanDescriptorError::BindingDoesntExist)
+            },
+            DescriptorSetBinding::UniformBuffer(_)
+            | DescriptorSetBinding::StorageBuffer(_) => {
+                Err(VulkanDescriptorError::InvalidBindingType)
+            },
+            DescriptorSetBinding::CombinedSampler(val) => Ok(val),
+        }?;
+
         let image_info = [ash::vk::DescriptorImageInfo::default()
-            .image_view(*view.raw_image_view())
+            .image_view(*image_view.raw_image_view())
             .sampler(sampler.sampler_raw())
             .image_layout(ash::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)];
 
@@ -306,7 +347,7 @@ impl VulkanDescriptorSet {
                 .update_descriptor_sets(&[write_info], &[]);
         }
 
-        self.bound_image_ids.push(view.image_id());
+        binding.replace((image_view.id(), sampler.id()));
 
         Ok(())
     }
@@ -317,5 +358,17 @@ impl VulkanDescriptorSet {
 
     pub fn descriptor_layout_id(&self) -> u32 { self.descriptor_layout_id }
 
-    pub fn bound_image_ids(&self) -> &[u32] { &self.bound_image_ids }
+    pub fn bound_image_ids(&self) -> Vec<u32> {
+        self
+            .bindings_state
+            .iter()
+            .filter_map(|x| {
+                if let DescriptorSetBinding::CombinedSampler(y) = x {
+                    y.map(|x| x.0)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+    }
 }

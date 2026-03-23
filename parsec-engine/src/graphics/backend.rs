@@ -11,6 +11,7 @@ use crate::{
             Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
             PipelineOptions, PipelineSubbindingLayout,
         },
+        renderer::mesh_data::Vertex,
         renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
         sampler::{Sampler, SamplerError},
         semaphore::{Semaphore, SemaphoreError},
@@ -26,8 +27,10 @@ pub enum BackendInitError {
     InitError(anyhow::Error),
 }
 
-pub trait GraphicsBackend: Sized {
-    fn init(window: &Window) -> Result<Self, BackendInitError>;
+pub trait GraphicsBackend {
+    fn init(window: &Window) -> Result<Self, BackendInitError>
+    where
+        Self: Sized;
     fn wait_idle(&self);
 
     fn get_surface_format(&self) -> ImageFormat;
@@ -70,7 +73,7 @@ pub trait GraphicsBackend: Sized {
         fragment_shader: Shader,
         renderpass: Renderpass,
         binding_layouts: &[PipelineBindingLayout],
-        options: PipelineOptions,
+        options: PipelineOptions<impl Vertex>,
     ) -> Result<Pipeline, PipelineError>;
     fn create_pipeline_binding(
         &mut self,
