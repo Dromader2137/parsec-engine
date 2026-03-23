@@ -10,7 +10,6 @@ use crate::graphics::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(unused)]
 pub enum VulkanDescriptorType {
-    Sampler,
     CombinedImageSampler,
     UniformBuffer,
     StorageBuffer,
@@ -26,7 +25,6 @@ impl VulkanDescriptorType {
 
     pub fn raw_descriptor_type(&self) -> ash::vk::DescriptorType {
         match self {
-            VulkanDescriptorType::Sampler => ash::vk::DescriptorType::SAMPLER,
             VulkanDescriptorType::CombinedImageSampler => {
                 ash::vk::DescriptorType::COMBINED_IMAGE_SAMPLER
             },
@@ -48,10 +46,18 @@ pub struct VulkanDescriptorPoolSize {
     size: ash::vk::DescriptorPoolSize,
 }
 
+enum DescriptorSetBinding {
+    None,
+    UniformBuffer(u32),
+    StorageBuffer(u32),
+    CombinedSampler(u32)
+}
+
 pub struct VulkanDescriptorSet {
     id: u32,
     descriptor_layout_id: u32,
     bound_image_ids: Vec<u32>,
+    bindings: Vec<DescriptorSetBinding>,
     set: ash::vk::DescriptorSet,
 }
 
@@ -214,9 +220,19 @@ impl VulkanDescriptorSet {
             },
         }[0];
 
+        let bindings = descriptor_layout.bindings().iter().map(|x| {
+    match x.binding_type() {
+                VulkanDescriptorType::CombinedImageSampler => ,
+                VulkanDescriptorType::UniformBuffer => todo!(),
+                VulkanDescriptorType::StorageBuffer => todo!(),
+            }
+        }
+        ).collect();
+
         Ok(VulkanDescriptorSet {
             id: ID_COUNTER_SET.next(),
             descriptor_layout_id: descriptor_layout.id(),
+            bindings,
             bound_image_ids: Vec::new(),
             set,
         })
