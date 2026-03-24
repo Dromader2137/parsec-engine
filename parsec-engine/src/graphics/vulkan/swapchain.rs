@@ -52,7 +52,10 @@ impl VulkanSwapchain {
         (VulkanSwapchain, Vec<VulkanSwapchainImage>),
         VulkanSwapchainError,
     > {
-        let desired_image_count = surface.min_image_count().max(3);
+        let desired_image_count = surface
+            .min_image_count()
+            .max(3)
+            .min(surface.max_image_count());
 
         let surface_resolution = raw_extent_2d(window.size());
 

@@ -1,7 +1,8 @@
-use std::marker::PhantomData;
-
 use crate::graphics::{
-    pipeline::{PipelineCullingMode, PipelineOptions, PipelineShaderStage, PipelineVertexLayout, VertexFieldFormat},
+    pipeline::{
+        PipelineCullingMode, PipelineOptions, PipelineShaderStage,
+        PipelineVertexLayout, VertexFieldFormat,
+    },
     vulkan::{
         descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,
         format_size::format_size, renderpass::VulkanRenderpass,
@@ -30,7 +31,9 @@ impl VulkanShaderStage {
         }
     }
 
-    pub fn raw_combined_shader_stage(usage: &[Self]) -> ash::vk::ShaderStageFlags {
+    pub fn raw_combined_shader_stage(
+        usage: &[Self],
+    ) -> ash::vk::ShaderStageFlags {
         usage
             .iter()
             .fold(ash::vk::ShaderStageFlags::empty(), |acc, v| {

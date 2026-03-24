@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::DerefMut};
+use std::collections::HashMap;
 
 use crate::{
     ecs::{
@@ -6,14 +6,13 @@ use crate::{
         world::{fetch::Mut, query::Query},
     },
     graphics::{
-        backend::GraphicsBackend,
-        buffer::{Buffer, BufferUsage, BufferContent},
+        CurrentGraphicsBackend,
+        buffer::{Buffer, BufferContent, BufferUsage},
         pipeline::{
             PipelineBinding, PipelineBindingType, PipelineShaderStage,
             PipelineSubbindingLayout,
         },
         renderer::components::transform::Transform,
-        vulkan::VulkanBackend,
     },
     math::{mat::Matrix4f, quat::Quat, vec::Vec3f},
     resources::Resource,
@@ -44,7 +43,7 @@ pub struct TransformDataManager {
 crate::create_counter! {ID_COUNTER}
 impl TransformData {
     pub fn new(
-        backend: &mut impl GraphicsBackend,
+        backend: &mut CurrentGraphicsBackend,
         position: Vec3f,
         scale: Vec3f,
         rotation: Quat,
@@ -130,7 +129,10 @@ impl TransformData {
         }
     }
 
-    fn update_buffers_from_data(&mut self, backend: &mut impl GraphicsBackend) {
+    fn update_buffers_from_data(
+        &mut self,
+        backend: &mut CurrentGraphicsBackend,
+    ) {
         backend
             .update_buffer(
                 self.translation_buffer,
@@ -164,7 +166,7 @@ impl Identifiable for TransformData {
 
 #[system]
 fn add_transform_data(
-    mut backend: Resource<VulkanBackend>,
+    mut backend: Resource<CurrentGraphicsBackend>,
     mut transforms_data: Resource<IdStore<TransformData>>,
     mut transforms_data_manager: Resource<TransformDataManager>,
     mut transforms: Query<Mut<Transform>>,
@@ -175,7 +177,7 @@ fn add_transform_data(
             .contains_key(&transform.transform_id())
         {
             let transform_data = TransformData::new(
-                backend.deref_mut(),
+                &mut *backend,
                 transform.position,
                 transform.scale,
                 transform.rotation,
@@ -190,7 +192,7 @@ fn add_transform_data(
 
 #[system]
 fn update_transform_data(
-    mut backend: Resource<VulkanBackend>,
+    mut backend: Resource<CurrentGraphicsBackend>,
     mut transforms_data: Resource<IdStore<TransformData>>,
     transforms_data_manager: Resource<TransformDataManager>,
     mut transforms: Query<Transform>,
@@ -209,7 +211,7 @@ fn update_transform_data(
                 Vec3f::FORWARD * transform.rotation,
                 Vec3f::UP * transform.rotation,
             );
-            data.update_buffers_from_data(backend.deref_mut());
+            data.update_buffers_from_data(&mut *backend);
         }
     }
 }

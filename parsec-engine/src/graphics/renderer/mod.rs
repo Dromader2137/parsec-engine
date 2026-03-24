@@ -17,16 +17,10 @@ use sync::{RendererFrameSync, RendererImageSync};
 use crate::{
     ecs::system::system,
     graphics::{
-        backend::GraphicsBackend,
-        buffer::{Buffer, BufferUsage, BufferContent},
-        command_list::{Command, CommandList},
-        framebuffer::Framebuffer,
-        image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView},
-        pipeline::{
+        CurrentGraphicsBackend, buffer::{Buffer, BufferContent, BufferUsage}, command_list::{Command, CommandList}, framebuffer::Framebuffer, image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView}, pipeline::{
             DefaultVertex, PipelineBinding, PipelineBindingType,
             PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
-        },
-        renderer::{
+        }, renderer::{
             assets::mesh::Mesh,
             camera_data::{CameraData, CameraDataManager},
             draw_queue::{Draw, MeshAndMaterial},
@@ -35,17 +29,11 @@ use crate::{
             },
             mesh_data::MeshData,
             transform_data::{TransformData, TransformDataManager},
-        },
-        renderpass::{
+        }, renderpass::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
             RenderpassAttachmentStoreOp, RenderpassAttachmentType,
             RenderpassClearValue,
-        },
-        sampler::Sampler,
-        shader::{Shader, ShaderType},
-        swapchain::{Swapchain, SwapchainError},
-        vulkan::{VulkanBackend, shader::read_shader_code},
-        window::Window,
+        }, sampler::Sampler, shader::{Shader, ShaderType}, swapchain::{Swapchain, SwapchainError}, vulkan::shader::read_shader_code, window::Window
     },
     math::{mat::Matrix4f, uvec::Vec2u, vec::Vec3f},
     resources::{Resource, Resources},
@@ -53,7 +41,7 @@ use crate::{
 };
 
 fn create_frame_sync(
-    backend: &mut impl GraphicsBackend,
+    backend: &mut CurrentGraphicsBackend,
     frames_in_flight: usize,
 ) -> Vec<RendererFrameSync> {
     let mut ret = Vec::new();
@@ -64,7 +52,7 @@ fn create_frame_sync(
 }
 
 fn create_image_sync(
-    backend: &mut impl GraphicsBackend,
+    backend: &mut CurrentGraphicsBackend,
     image_count: usize,
 ) -> Vec<RendererImageSync> {
     let mut ret = Vec::new();
@@ -75,7 +63,7 @@ fn create_image_sync(
 }
 
 fn create_commad_lists(
-    backend: &mut impl GraphicsBackend,
+    backend: &mut CurrentGraphicsBackend,
     frames_in_flight: usize,
 ) -> Vec<CommandList> {
     let mut ret = Vec::new();
@@ -135,7 +123,7 @@ struct LD {
 
 #[system]
 pub fn init_renderer(
-    mut backend: Resource<VulkanBackend>,
+    mut backend: Resource<CurrentGraphicsBackend>,
     window: Resource<Window>,
 ) {
     let surface_format = backend.get_surface_format();
@@ -397,7 +385,7 @@ pub fn init_renderer(
 }
 
 fn recreate_size_dependent_components(
-    backend: &mut impl GraphicsBackend,
+    backend: &mut CurrentGraphicsBackend,
     window: &Window,
     swapchain: Swapchain,
     swapchain_images: &[Image],
@@ -460,7 +448,7 @@ fn recreate_size_dependent_components(
 
 #[system]
 pub fn render(
-    mut backend: Resource<VulkanBackend>,
+    mut backend: Resource<CurrentGraphicsBackend>,
     mut current_frame: Resource<RendererCurrentFrame>,
     mut resize: Resource<ResizeFlag>,
     frames_in_flight: Resource<RendererFramesInFlight>,
@@ -489,7 +477,7 @@ pub fn render(
 
     if resize.0 {
         recreate_size_dependent_components(
-            backend.deref_mut(),
+            &mut *backend,
             &window,
             swapchain.0,
             &swapchain_images.0,

@@ -251,6 +251,7 @@ impl VulkanImageSize {
     pub fn raw_size(&self) -> Vec2u { self.size }
 }
 
+#[allow(dead_code)]
 pub trait VulkanImage: Send + Sync + 'static {
     fn id(&self) -> u32;
     fn format(&self) -> VulkanImageFormat;
@@ -444,10 +445,6 @@ impl VulkanOwnedImage {
                 * size.raw_size().x as u64
                 * size.raw_size().y as u64,
         })
-    }
-
-    pub fn extent(&self) -> ash::vk::Extent3D {
-        raw_extent_2d(self.extent.raw_size()).into()
     }
 }
 

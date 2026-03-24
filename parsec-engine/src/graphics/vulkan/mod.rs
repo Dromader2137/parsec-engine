@@ -46,7 +46,7 @@ use crate::{
             image::{
                 VulkanImage, VulkanImageAspect, VulkanImageFormat,
                 VulkanImageSize, VulkanImageUsage, VulkanImageView,
-                VulkanOwnedImage, VulkanSwapchainImage,
+                VulkanOwnedImage,
             },
             instance::VulkanInstance,
             physical_device::VulkanPhysicalDevice,
@@ -261,7 +261,6 @@ impl GraphicsBackend for VulkanBackend {
             )
             .map_err(|err| BufferError::BufferCreationError(err.into()))?
         } else {
-            let data_alignment = data.align as u64;
             let staging = VulkanBuffer::from_vec(
                 &self.device,
                 &mut self.allocator,
@@ -277,7 +276,6 @@ impl GraphicsBackend for VulkanBackend {
                 &self.device,
                 &mut self.allocator,
                 size as u64,
-                data_alignment,
                 usage.as_slice(),
                 VulkanMemoryProperties::Device,
             )

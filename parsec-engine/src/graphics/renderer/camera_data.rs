@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::DerefMut};
+use std::collections::HashMap;
 
 use crate::{
     ecs::{
@@ -6,15 +6,10 @@ use crate::{
         world::{fetch::Mut, query::Query},
     },
     graphics::{
-        backend::GraphicsBackend,
-        buffer::{Buffer, BufferUsage, BufferContent},
-        pipeline::{
+        CurrentGraphicsBackend, buffer::{Buffer, BufferContent, BufferUsage}, pipeline::{
             PipelineBinding, PipelineBindingType, PipelineShaderStage,
             PipelineSubbindingLayout,
-        },
-        renderer::components::camera::Camera,
-        vulkan::VulkanBackend,
-        window::Window,
+        }, renderer::components::camera::Camera, window::Window
     },
     math::mat::Matrix4f,
     resources::Resource,
@@ -38,7 +33,7 @@ pub struct CameraDataManager {
 crate::create_counter! {ID_COUNTER}
 impl CameraData {
     pub fn new(
-        backend: &mut impl GraphicsBackend,
+        backend: &mut CurrentGraphicsBackend,
         window: &Window,
         vfov: f32,
         near: f32,
@@ -79,7 +74,7 @@ impl Identifiable for CameraData {
 #[system]
 fn add_camera_data(
     window: Resource<Window>,
-    mut backend: Resource<VulkanBackend>,
+    mut backend: Resource<CurrentGraphicsBackend>,
     mut cameras_data: Resource<IdStore<CameraData>>,
     mut camera_data_manager: Resource<CameraDataManager>,
     mut cameras: Query<Mut<Camera>>,
@@ -90,7 +85,7 @@ fn add_camera_data(
             .contains_key(&camera.camera_id())
         {
             let camera_data = CameraData::new(
-                backend.deref_mut(),
+                &mut *backend,
                 &window,
                 camera.vertical_fov,
                 camera.near_clipping_plane,
@@ -107,7 +102,7 @@ fn add_camera_data(
 #[system]
 fn update_camera_data(
     window: Resource<Window>,
-    mut backend: Resource<VulkanBackend>,
+    mut backend: Resource<CurrentGraphicsBackend>,
     mut cameras_data: Resource<IdStore<CameraData>>,
     camera_data_manager: Resource<CameraDataManager>,
     mut cameras: Query<Camera>,

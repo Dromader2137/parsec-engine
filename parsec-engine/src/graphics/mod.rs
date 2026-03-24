@@ -21,6 +21,8 @@
 //!
 //! Layers can only use types and functions provided by the layer directly below it
 
+use std::ops::{Deref, DerefMut};
+
 use window::Window;
 
 use crate::{
@@ -92,10 +94,19 @@ impl SystemBundle for GraphicsBundle {
 
 pub struct CurrentGraphicsBackend(Box<dyn GraphicsBackend>);
 
+impl Deref for CurrentGraphicsBackend {
+    type Target = Box<dyn GraphicsBackend>;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl DerefMut for CurrentGraphicsBackend {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+}
+
 #[system]
 pub fn init_vulkan(window: Resource<Window>) {
     let context = VulkanBackend::init(&window).unwrap();
-    Resources::add(context).unwrap();
+    Resources::add(CurrentGraphicsBackend(Box::new(context))).unwrap();
 }
 
 #[system]
@@ -105,7 +116,9 @@ fn mark_resize(mut resize: Resource<ResizeFlag>) { resize.0 = true }
 fn request_redraw(window: Resource<Window>) { window.request_redraw(); }
 
 #[system]
-fn end_wait_idle(backend: Resource<VulkanBackend>) { backend.wait_idle() }
+fn end_wait_idle(backend: Resource<CurrentGraphicsBackend>) {
+    backend.wait_idle()
+}
 
 #[system]
 fn init_window() {

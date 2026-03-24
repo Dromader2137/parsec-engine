@@ -1,68 +1,29 @@
 # Parsec Engine Roadmap
 
-## Phase 1: Vulkan Abstraction Fixes (DONE, parts may need a refactor, but not urgently)
-
-These are blocking issues that will prevent the abstraction from scaling to real workloads.
+## Phase 1: Vulkan Abstraction Fixes (DONE, FOR REFACTOR)
 
 ### 1.1 GPU Memory Suballocator (DONE)
-- Implement a suballocator in `allocator.rs`/`allocation.rs`
-- Replace per-resource `vkAllocateMemory` calls in `buffer.rs` and `image.rs` with suballocations
-- Vulkan drivers guarantee only ~4096 simultaneous allocations; a non-trivial scene will hit this limit
 
 ### 1.2 Resource Cleanup / Drop (DONE)
-- Implement `Drop` for `VulkanBackend` that destroys all resources in its HashMaps
-- Implement `Drop` for individual wrapper types (or ensure the backend always cleans up)
-- Fix `delete_swapchain` to actually call `vkDestroySwapchainKHR`
-- Audit all `delete_*` methods for missing Vulkan destroy calls
 
-### 1.3 Staging Buffer Uploads (DONE, needs a refactor down the line)
-- Replace `HOST_VISIBLE | DEVICE_LOCAL` allocation for vertex/index/large uniform buffers
-- Implement staging buffer pattern: write to `HOST_VISIBLE` staging, `vkCmdCopyBuffer` to `DEVICE_LOCAL`
-- Keep `HOST_VISIBLE` only for small, frequently-updated uniform buffers
-- This is required for discrete GPU compatibility (HOST_VISIBLE + DEVICE_LOCAL is 256MB or 0 without ReBAR)
+### 1.3 Staging Buffer Uploads (FOR REFACTOR)
 
-### 1.4 Synchronization Fixes (DONE)
-- Fix `load_image_from_buffer`: submit with a real fence and wait, or call `vkQueueWaitIdle`
-- Make `wait_dst_stage_mask` dynamic based on actual submission content instead of hardcoded `COLOR_ATTACHMENT_OUTPUT`
-
-## Phase 2: Vulkan Abstraction Improvements
-
-Architectural improvements that reduce tech debt and unlock future features.
+## Phase 2: Vulkan Abstraction Improvements (DONE, FOR LATER)
 
 ### 2.1 Replace Backtracking Command Buffer (DONE)
-- Remove the record-then-replay pattern (`*_backtrack` methods) in `command_buffer.rs`
-- Options:
-  - Pre-compute barriers before the renderpass starts (descriptor sets are known at that point) **THIS**
-  - Use render pass self-dependencies for mid-pass barriers
-  - Adopt `VK_KHR_synchronization2` for more granular barrier control
-- This eliminates the duplicated API surface and makes RenderDoc debugging intuitive
 
-### 2.2 Flatten Command Indirection (REJECTED)
-- Evaluate whether the backend-agnostic `Command` enum layer is needed
-- Currently commands pass through three layers: `Command` enum -> `submit_commands` lookup -> `VulkanCommand` buffer -> replay
-- Consider recording directly through the builder if the `Command` enum doesn't add real portability
+### 2.2 Configurable Vertex Formats (DONE)
 
-### 2.3 Configurable Vertex Formats
-- Remove hardcoded `DefaultVertex` in pipeline creation
-- Pass vertex attribute descriptions from the caller
-- Required for skinned meshes, particles, debug lines, or any non-standard vertex layout
+### 2.3 Descriptor Set Image Tracking (DONE)
 
-### 2.4 Descriptor Set Image Tracking (DONE)
-- Fix append-only `bound_image_ids` in descriptor sets
-- Clear or replace tracked image IDs on rebind to avoid stale barrier insertions in `end_renderpass`
+### 2.4 Lock-Free ID Counters (DONE)
 
-### 2.5 Lock-Free ID Counters (DONE)
-- Replace `Mutex<u32>` in `IdCounter` with `AtomicU32::fetch_add`
-- Minor, but removes unnecessary contention if resources are ever created from multiple threads
-
-### 2.6 Multi-Queue Support (NAH LATER)
+### 2.5 Multi-Queue Support (FOR LATER)
 - Add support for dedicated transfer and compute queues
 - Enable async texture uploads on the transfer queue while rendering continues
 - Enable parallel compute work on a separate compute queue
 
 ## Phase 3: Multi-Backend Abstraction
-
-Redesign the `GraphicsBackend` trait to support non-Vulkan backends.
 
 ### 3.1 Raise the Abstraction Level
 - Current trait exposes Vulkan-specific concepts (semaphores, fences, explicit command begin/end, swapchain image acquisition)
@@ -85,8 +46,3 @@ Redesign the `GraphicsBackend` trait to support non-Vulkan backends.
 ### 3.4 Shader Abstraction
 - Define a shader IR or interchange format (SPIR-V as source of truth, transpile for other backends)
 - Or use a shading language that compiles to multiple targets (e.g., Naga/WGSL, SPIRV-Cross)
-
-### 3.5 Platform Backends
-- D3D12 backend (Windows)
-- Metal backend (macOS/iOS)
-- Each backend implements the redesigned high-level trait from 3.1

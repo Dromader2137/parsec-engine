@@ -6,15 +6,10 @@ use parsec_engine::{
         world::{World, component::Component, fetch::Mut, query::Query},
     },
     graphics::{
-        GraphicsBundle,
-        backend::GraphicsBackend,
-        buffer::{BufferUsage, BufferContent},
-        image::{ImageAspect, ImageFormat, ImageUsage},
-        pipeline::{
+        CurrentGraphicsBackend, GraphicsBundle, buffer::{BufferContent, BufferUsage}, image::{ImageAspect, ImageFormat, ImageUsage}, pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode,
             PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
-        },
-        renderer::{
+        }, renderer::{
             RendererMainRenderpass,
             assets::mesh::{Mesh, obj::load_obj},
             components::{
@@ -24,10 +19,7 @@ use parsec_engine::{
             material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
             },
-        },
-        shader::ShaderType,
-        vulkan::{VulkanBackend, shader::read_shader_code},
-        window::Window,
+        }, shader::ShaderType, vulkan::shader::read_shader_code, window::Window
     },
     input::{Input, InputBundle},
     math::{quat::Quat, uvec::Vec2u, vec::Vec3f},
@@ -38,7 +30,7 @@ use parsec_engine::{
 
 #[system]
 fn test_system(
-    mut backend: Resource<VulkanBackend>,
+    mut backend: Resource<CurrentGraphicsBackend>,
     mut materials: Resource<IdStore<MaterialData>>,
     mut material_bases: Resource<IdStore<MaterialBase>>,
     mut meshes: Resource<IdStore<Mesh>>,

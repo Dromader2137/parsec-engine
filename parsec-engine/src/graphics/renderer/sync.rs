@@ -1,5 +1,5 @@
 use crate::graphics::{
-    backend::GraphicsBackend, fence::Fence, semaphore::Semaphore,
+    CurrentGraphicsBackend, fence::Fence, semaphore::Semaphore
 };
 
 pub struct RendererFrameSync {
@@ -12,7 +12,7 @@ pub struct RendererImageSync {
 }
 
 impl RendererFrameSync {
-    pub fn new(backend: &mut impl GraphicsBackend) -> RendererFrameSync {
+    pub fn new(backend: &mut CurrentGraphicsBackend) -> RendererFrameSync {
         RendererFrameSync {
             command_buffer_fence: backend.create_fence(true).unwrap(),
             image_available_semaphore: backend.create_semaphore().unwrap(),
@@ -21,7 +21,7 @@ impl RendererFrameSync {
 }
 
 impl RendererImageSync {
-    pub fn new(backend: &mut impl GraphicsBackend) -> RendererImageSync {
+    pub fn new(backend: &mut CurrentGraphicsBackend) -> RendererImageSync {
         RendererImageSync {
             rendering_complete_semaphore: backend.create_semaphore().unwrap(),
         }

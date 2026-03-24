@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::graphics::vulkan::{
     command_buffer::VulkanCommandBuffer, device::VulkanDevice,
-    fence::VulkanFence, image::{VulkanImage, VulkanOwnedImage},
+    fence::VulkanFence, image::VulkanImage,
     pipeline_stage::VulkanPipelineStage, semaphore::VulkanSemaphore,
 };
 

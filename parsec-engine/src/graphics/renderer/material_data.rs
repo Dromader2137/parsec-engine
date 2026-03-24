@@ -1,14 +1,9 @@
 use crate::{
     graphics::{
-        backend::GraphicsBackend,
-        command_list::{Command, CommandList},
-        pipeline::{
+        CurrentGraphicsBackend, command_list::{Command, CommandList}, pipeline::{
             Pipeline, PipelineBinding, PipelineBindingLayout, PipelineOptions,
             PipelineSubbindingLayout,
-        },
-        renderer::{camera_data::CameraData, transform_data::TransformData},
-        renderpass::Renderpass,
-        shader::Shader,
+        }, renderer::{camera_data::CameraData, transform_data::TransformData}, renderpass::Renderpass, shader::Shader
     },
     utils::{IdType, identifiable::Identifiable},
 };
@@ -23,7 +18,7 @@ pub struct MaterialBase {
 crate::create_counter! {ID_COUNTER}
 impl MaterialBase {
     pub fn new(
-        backend: &mut impl GraphicsBackend,
+        backend: &mut CurrentGraphicsBackend,
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,

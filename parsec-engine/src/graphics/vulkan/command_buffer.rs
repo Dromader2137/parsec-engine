@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::{
     graphics::vulkan::{
@@ -12,7 +12,7 @@ use crate::{
         device::VulkanDevice,
         framebuffer::VulkanFramebuffer,
         graphics_pipeline::VulkanGraphicsPipeline,
-        image::{VulkanImage, VulkanImageLayout, VulkanOwnedImage},
+        image::{VulkanImage, VulkanImageLayout},
         physical_device::VulkanPhysicalDevice,
         pipeline_stage::VulkanPipelineStage,
         renderpass::VulkanRenderpass,
@@ -95,10 +95,6 @@ pub enum VulkanCommandBufferError {
     VertexBufferNotBound,
     #[error("Drawcall vertex count can't be zero")]
     InvalidVertexCount,
-    #[error(
-        "Drawcall vertex count + first vertex can't escape the vertex buffer"
-    )]
-    VertexBufferOverflow,
     #[error("Index buffer not bound")]
     IndexBufferNotBound,
     #[error("Drawcall index count + first index can't escape the index buffer")]

@@ -8,8 +8,7 @@ use crate::{
         vulkan::{
             access::VulkanAccess,
             device::VulkanDevice,
-            graphics_pipeline::VulkanShaderStage,
-            image::{VulkanImageFormat, VulkanImageLayout},
+            image::VulkanImageFormat,
             pipeline_stage::VulkanPipelineStage,
         },
     },
@@ -132,7 +131,6 @@ pub struct VulkanRenderpassAttachment {
     pub load_op: VulkanLoadOp,
     pub store_op: VulkanStoreOp,
     pub image_format: VulkanImageFormat,
-    // pub final_layout: VulkanImageLayout,
 }
 
 impl VulkanRenderpassAttachment {

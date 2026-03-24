@@ -26,7 +26,7 @@ pub enum BackendInitError {
     InitError(anyhow::Error),
 }
 
-pub trait GraphicsBackend {
+pub trait GraphicsBackend: Send + Sync + 'static {
     fn init(window: &Window) -> Result<Self, BackendInitError>
     where
         Self: Sized;

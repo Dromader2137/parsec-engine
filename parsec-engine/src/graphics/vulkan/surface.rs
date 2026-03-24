@@ -154,10 +154,6 @@ impl VulkanSurface {
         unsafe { self.surface_loader.destroy_surface(self.surface, None) }
     }
 
-    pub fn raw_surface_loader(&self) -> &ash::khr::surface::Instance {
-        &self.surface_loader
-    }
-
     pub fn raw_handle(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 
     pub fn min_image_count(&self) -> u32 {

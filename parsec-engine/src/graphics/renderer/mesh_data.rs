@@ -1,9 +1,13 @@
-use std::{marker::PhantomData, ops::DerefMut};
+use std::marker::PhantomData;
 
 use crate::{
     ecs::system::system,
     graphics::{
-        backend::GraphicsBackend, buffer::{Buffer, BufferUsage, BufferContent}, command_list::{Command, CommandList}, pipeline::Vertex, renderer::{DefaultVertex, assets::mesh::Mesh}, vulkan::VulkanBackend
+        CurrentGraphicsBackend,
+        buffer::{Buffer, BufferContent, BufferUsage},
+        command_list::{Command, CommandList},
+        pipeline::Vertex,
+        renderer::{DefaultVertex, assets::mesh::Mesh},
     },
     resources::Resource,
     utils::{
@@ -21,16 +25,20 @@ pub struct MeshBuffer<V: Vertex> {
 
 impl<V: Vertex> MeshBuffer<V> {
     pub fn new(
-        backend: &mut impl GraphicsBackend,
+        backend: &mut CurrentGraphicsBackend,
         vertices: &[V],
         indices: &[u32],
     ) -> MeshBuffer<V> {
         MeshBuffer {
             vertex_buffer: backend
-                .create_buffer(BufferContent::from_slice(vertices), &[BufferUsage::Vertex])
+                .create_buffer(BufferContent::from_slice(vertices), &[
+                    BufferUsage::Vertex,
+                ])
                 .unwrap(),
             index_buffer: backend
-                .create_buffer(BufferContent::from_slice(indices), &[BufferUsage::Index])
+                .create_buffer(BufferContent::from_slice(indices), &[
+                    BufferUsage::Index,
+                ])
                 .unwrap(),
             len: indices.len() as u32,
             _marker: PhantomData::default(),
@@ -52,7 +60,7 @@ pub struct MeshData<V: Vertex> {
 crate::create_counter! {ID_COUNTER}
 impl<V: Vertex> MeshData<V> {
     pub fn new(
-        backend: &mut impl GraphicsBackend,
+        backend: &mut CurrentGraphicsBackend,
         vertices: &[V],
         indices: &[u32],
     ) -> MeshData<V> {
@@ -74,17 +82,14 @@ impl<V: Vertex> Identifiable for MeshData<V> {
 
 #[system]
 fn add_mesh_data(
-    mut backend: Resource<VulkanBackend>,
+    mut backend: Resource<CurrentGraphicsBackend>,
     mut meshes_data: Resource<IdStore<MeshData<DefaultVertex>>>,
     mut meshes: Resource<IdStore<Mesh>>,
 ) {
     for mesh in meshes.iter_mut() {
         if mesh.data_id.is_none() {
-            let mesh_data = MeshData::new(
-                backend.deref_mut(),
-                &mesh.vertices,
-                &mesh.indices,
-            );
+            let mesh_data =
+                MeshData::new(&mut *backend, &mesh.vertices, &mesh.indices);
             let data_id = meshes_data.push(mesh_data);
             mesh.data_id = Some(data_id);
         }
