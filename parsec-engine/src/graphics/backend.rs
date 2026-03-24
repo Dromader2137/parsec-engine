@@ -1,6 +1,6 @@
 use crate::{
     graphics::{
-        buffer::{Buffer, BufferError, BufferUsage, BufferContent},
+        buffer::{Buffer, BufferContent, BufferError, BufferUsage},
         command_list::{CommandList, CommandListError},
         fence::{Fence, FenceError},
         framebuffer::{Framebuffer, FramebufferError},

@@ -1,6 +1,4 @@
-use crate::{
-    math::vec::{Vec2f, Vec3f},
-};
+use crate::math::vec::{Vec2f, Vec3f};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Pipeline {
@@ -122,7 +120,9 @@ impl Default for PipelineOptions {
 impl PipelineOptions {
     pub fn new<V: Vertex>(culling_mode: PipelineCullingMode) -> Self {
         Self {
-            vertex_layout: PipelineVertexLayout { fields: V::fields() },
+            vertex_layout: PipelineVertexLayout {
+                fields: V::fields(),
+            },
             culling_mode,
         }
     }

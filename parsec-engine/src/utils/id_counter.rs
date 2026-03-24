@@ -8,7 +8,11 @@ pub struct IdCounter {
 }
 
 impl IdCounter {
-    fn new() -> IdCounter { IdCounter { id: AtomicU32::new(0) } }
+    fn new() -> IdCounter {
+        IdCounter {
+            id: AtomicU32::new(0),
+        }
+    }
 
     pub fn next(&self) -> IdType {
         self.id.fetch_add(1, Ordering::SeqCst);

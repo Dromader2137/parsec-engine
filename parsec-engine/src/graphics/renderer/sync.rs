@@ -1,5 +1,5 @@
 use crate::graphics::{
-    CurrentGraphicsBackend, fence::Fence, semaphore::Semaphore
+    CurrentGraphicsBackend, fence::Fence, semaphore::Semaphore,
 };
 
 pub struct RendererFrameSync {

@@ -39,7 +39,7 @@ impl<'a> BufferContent<'a> {
         BufferContent {
             data: bytemuck::cast_slice(data),
             align: std::mem::align_of::<T>() as u32,
-            len: data.len() as u32
+            len: data.len() as u32,
         }
     }
 }

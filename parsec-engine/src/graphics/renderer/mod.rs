@@ -17,10 +17,16 @@ use sync::{RendererFrameSync, RendererImageSync};
 use crate::{
     ecs::system::system,
     graphics::{
-        CurrentGraphicsBackend, buffer::{Buffer, BufferContent, BufferUsage}, command_list::{Command, CommandList}, framebuffer::Framebuffer, image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView}, pipeline::{
+        CurrentGraphicsBackend,
+        buffer::{Buffer, BufferContent, BufferUsage},
+        command_list::{Command, CommandList},
+        framebuffer::Framebuffer,
+        image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView},
+        pipeline::{
             DefaultVertex, PipelineBinding, PipelineBindingType,
             PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
-        }, renderer::{
+        },
+        renderer::{
             assets::mesh::Mesh,
             camera_data::{CameraData, CameraDataManager},
             draw_queue::{Draw, MeshAndMaterial},
@@ -29,11 +35,17 @@ use crate::{
             },
             mesh_data::MeshData,
             transform_data::{TransformData, TransformDataManager},
-        }, renderpass::{
+        },
+        renderpass::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
             RenderpassAttachmentStoreOp, RenderpassAttachmentType,
             RenderpassClearValue,
-        }, sampler::Sampler, shader::{Shader, ShaderType}, swapchain::{Swapchain, SwapchainError}, vulkan::shader::read_shader_code, window::Window
+        },
+        sampler::Sampler,
+        shader::{Shader, ShaderType},
+        swapchain::{Swapchain, SwapchainError},
+        vulkan::shader::read_shader_code,
+        window::Window,
     },
     math::{mat::Matrix4f, uvec::Vec2u, vec::Vec3f},
     resources::{Resource, Resources},
@@ -249,7 +261,9 @@ pub fn init_renderer(
         .unwrap();
     let shadow_proj_buffer = backend
         .create_buffer(
-            BufferContent::from_slice(&[Matrix4f::orthographic(0.0, 100.0, 5.0, 5.0)]),
+            BufferContent::from_slice(&[Matrix4f::orthographic(
+                0.0, 100.0, 5.0, 5.0,
+            )]),
             &[BufferUsage::Uniform],
         )
         .unwrap();

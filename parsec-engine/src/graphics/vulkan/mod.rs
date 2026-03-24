@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use crate::{
     graphics::{
         backend::{BackendInitError, GraphicsBackend},
-        buffer::{Buffer, BufferError, BufferUsage, BufferContent},
+        buffer::{Buffer, BufferContent, BufferError, BufferUsage},
         command_list::{Command, CommandList, CommandListError},
         fence::{Fence, FenceError},
         framebuffer::{Framebuffer, FramebufferError},
@@ -550,7 +550,10 @@ impl GraphicsBackend for VulkanBackend {
         buffer: Buffer,
         index: u32,
     ) -> Result<(), BufferError> {
-        let ds = self.descriptor_sets.get_mut(&pipeline_binding.id()).unwrap();
+        let ds = self
+            .descriptor_sets
+            .get_mut(&pipeline_binding.id())
+            .unwrap();
         let dsl = self
             .descriptor_set_layouts
             .get(&ds.descriptor_layout_id())
@@ -910,10 +913,8 @@ impl GraphicsBackend for VulkanBackend {
         let mut cmd =
             VulkanCommandBuffer::new(&self.device, &self.command_pool)
                 .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        let mut builder = VulkanCommandBufferBuilder::new(
-            &self.images,
-        )
-        .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        let mut builder = VulkanCommandBufferBuilder::new(&self.images)
+            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         let img = self
             .images
             .get(&image.id())

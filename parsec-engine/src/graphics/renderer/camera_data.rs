@@ -6,10 +6,14 @@ use crate::{
         world::{fetch::Mut, query::Query},
     },
     graphics::{
-        CurrentGraphicsBackend, buffer::{Buffer, BufferContent, BufferUsage}, pipeline::{
+        CurrentGraphicsBackend,
+        buffer::{Buffer, BufferContent, BufferUsage},
+        pipeline::{
             PipelineBinding, PipelineBindingType, PipelineShaderStage,
             PipelineSubbindingLayout,
-        }, renderer::components::camera::Camera, window::Window
+        },
+        renderer::components::camera::Camera,
+        window::Window,
     },
     math::mat::Matrix4f,
     resources::Resource,

@@ -6,10 +6,8 @@ use crate::{
             RenderpassClearValue,
         },
         vulkan::{
-            access::VulkanAccess,
-            device::VulkanDevice,
-            image::VulkanImageFormat,
-            pipeline_stage::VulkanPipelineStage,
+            access::VulkanAccess, device::VulkanDevice,
+            image::VulkanImageFormat, pipeline_stage::VulkanPipelineStage,
         },
     },
     math::vec::Vec4f,
@@ -210,31 +208,35 @@ impl VulkanRenderpass {
 
         let subpass_dependency = [
             ash::vk::SubpassDependency::default()
-            .src_subpass(ash::vk::SUBPASS_EXTERNAL)
-            .dst_subpass(0)
-            .src_stage_mask(
-                VulkanPipelineStage::ColorAttachmentOutput.raw_pipeline_stage(),
-            )
-            .src_access_mask(VulkanAccess::None.raw_access_flag())
-            .dst_stage_mask(
-                VulkanPipelineStage::ColorAttachmentOutput.raw_pipeline_stage(),
-            )
-            .dst_access_mask(
-                VulkanAccess::ColorAttachmentWrite.raw_access_flag(),
-            ),
+                .src_subpass(ash::vk::SUBPASS_EXTERNAL)
+                .dst_subpass(0)
+                .src_stage_mask(
+                    VulkanPipelineStage::ColorAttachmentOutput
+                        .raw_pipeline_stage(),
+                )
+                .src_access_mask(VulkanAccess::None.raw_access_flag())
+                .dst_stage_mask(
+                    VulkanPipelineStage::ColorAttachmentOutput
+                        .raw_pipeline_stage(),
+                )
+                .dst_access_mask(
+                    VulkanAccess::ColorAttachmentWrite.raw_access_flag(),
+                ),
             ash::vk::SubpassDependency::default()
-            .src_subpass(ash::vk::SUBPASS_EXTERNAL)
-            .dst_subpass(0)
-            .src_stage_mask(
-                VulkanPipelineStage::EarlyFragmentTests.raw_pipeline_stage(),
-            )
-            .src_access_mask(VulkanAccess::None.raw_access_flag())
-            .dst_stage_mask(
-                VulkanPipelineStage::EarlyFragmentTests.raw_pipeline_stage(),
-            )
-            .dst_access_mask(
-                VulkanAccess::DepthAttachmentWrite.raw_access_flag(),
-            ),
+                .src_subpass(ash::vk::SUBPASS_EXTERNAL)
+                .dst_subpass(0)
+                .src_stage_mask(
+                    VulkanPipelineStage::EarlyFragmentTests
+                        .raw_pipeline_stage(),
+                )
+                .src_access_mask(VulkanAccess::None.raw_access_flag())
+                .dst_stage_mask(
+                    VulkanPipelineStage::EarlyFragmentTests
+                        .raw_pipeline_stage(),
+                )
+                .dst_access_mask(
+                    VulkanAccess::DepthAttachmentWrite.raw_access_flag(),
+                ),
         ];
 
         let renderpass_create_info = ash::vk::RenderPassCreateInfo::default()

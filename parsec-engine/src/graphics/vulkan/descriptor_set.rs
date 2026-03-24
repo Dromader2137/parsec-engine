@@ -359,8 +359,7 @@ impl VulkanDescriptorSet {
     pub fn descriptor_layout_id(&self) -> u32 { self.descriptor_layout_id }
 
     pub fn bound_image_ids(&self) -> Vec<u32> {
-        self
-            .bindings_state
+        self.bindings_state
             .iter()
             .filter_map(|x| {
                 if let DescriptorSetBinding::CombinedSampler(y) = x {

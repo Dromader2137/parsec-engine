@@ -1,9 +1,14 @@
 use crate::{
     graphics::{
-        CurrentGraphicsBackend, command_list::{Command, CommandList}, pipeline::{
+        CurrentGraphicsBackend,
+        command_list::{Command, CommandList},
+        pipeline::{
             Pipeline, PipelineBinding, PipelineBindingLayout, PipelineOptions,
             PipelineSubbindingLayout,
-        }, renderer::{camera_data::CameraData, transform_data::TransformData}, renderpass::Renderpass, shader::Shader
+        },
+        renderer::{camera_data::CameraData, transform_data::TransformData},
+        renderpass::Renderpass,
+        shader::Shader,
     },
     utils::{IdType, identifiable::Identifiable},
 };
