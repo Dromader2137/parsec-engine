@@ -27,3 +27,19 @@ impl Buffer {
 
     pub fn id(&self) -> u32 { self.id }
 }
+
+pub struct BufferContent<'a> {
+    pub data: &'a [u8],
+    pub align: u32,
+    pub len: u32,
+}
+
+impl<'a> BufferContent<'a> {
+    pub fn from_slice<T: bytemuck::NoUninit>(data: &'a [T]) -> Self {
+        BufferContent {
+            data: bytemuck::cast_slice(data),
+            align: std::mem::align_of::<T>() as u32,
+            len: data.len() as u32
+        }
+    }
+}

@@ -6,7 +6,7 @@ use crate::{
             Pipeline, PipelineBinding, PipelineBindingLayout, PipelineOptions,
             PipelineSubbindingLayout,
         },
-        renderer::{camera_data::CameraData, mesh_data::Vertex, transform_data::TransformData},
+        renderer::{camera_data::CameraData, transform_data::TransformData},
         renderpass::Renderpass,
         shader::Shader,
     },
@@ -28,7 +28,7 @@ impl MaterialBase {
         fragment_shader: Shader,
         renderpass: Renderpass,
         binding_layouts: Vec<Vec<PipelineSubbindingLayout>>,
-        pipeline_options: PipelineOptions<impl Vertex>,
+        pipeline_options: PipelineOptions,
     ) -> MaterialBase {
         let binding_layouts = binding_layouts
             .iter()

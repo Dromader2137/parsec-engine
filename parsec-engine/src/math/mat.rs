@@ -5,7 +5,7 @@ use std::ops::Mul;
 use crate::math::vec::Vec3f;
 
 /// 4x4 matrix of floats.
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, bytemuck::NoUninit)]
 #[repr(C)]
 pub struct Matrix4f(pub [[f32; 4]; 4]);
 

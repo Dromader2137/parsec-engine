@@ -729,15 +729,12 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             .state
             .bound_pipeline
             .ok_or(VulkanCommandBufferError::PipelineNotBound)?;
-        let vb = self
+        let _ = self
             .state
             .bound_vertex_buffer
             .ok_or(VulkanCommandBufferError::VertexBufferNotBound)?;
         if vertex_count == 0 {
             return Err(VulkanCommandBufferError::InvalidVertexCount);
-        }
-        if first_vertex + vertex_count > vb.len() {
-            return Err(VulkanCommandBufferError::VertexBufferOverflow);
         }
 
         self.commands.push(VulkanCommand::Draw(
@@ -771,7 +768,9 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             .state
             .bound_index_buffer
             .ok_or(VulkanCommandBufferError::IndexBufferNotBound)?;
-        if first_index + index_count > ib.len() {
+        if first_index as u64 + index_count as u64 * size_of::<u32>() as u64
+            > ib.size()
+        {
             return Err(VulkanCommandBufferError::IndexBufferOverflow);
         }
 

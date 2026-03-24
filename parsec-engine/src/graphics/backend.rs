@@ -1,6 +1,6 @@
 use crate::{
     graphics::{
-        buffer::{Buffer, BufferError, BufferUsage},
+        buffer::{Buffer, BufferError, BufferUsage, BufferContent},
         command_list::{CommandList, CommandListError},
         fence::{Fence, FenceError},
         framebuffer::{Framebuffer, FramebufferError},
@@ -11,7 +11,6 @@ use crate::{
             Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
             PipelineOptions, PipelineSubbindingLayout,
         },
-        renderer::mesh_data::Vertex,
         renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
         sampler::{Sampler, SamplerError},
         semaphore::{Semaphore, SemaphoreError},
@@ -37,13 +36,13 @@ pub trait GraphicsBackend {
 
     fn create_buffer(
         &mut self,
-        data: &[impl Copy],
+        data: BufferContent<'_>,
         buffer_usage: &[BufferUsage],
     ) -> Result<Buffer, BufferError>;
     fn update_buffer(
         &mut self,
         buffer: Buffer,
-        data: &[impl Copy],
+        data: BufferContent<'_>,
     ) -> Result<(), BufferError>;
     fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BufferError>;
 
@@ -73,7 +72,7 @@ pub trait GraphicsBackend {
         fragment_shader: Shader,
         renderpass: Renderpass,
         binding_layouts: &[PipelineBindingLayout],
-        options: PipelineOptions<impl Vertex>,
+        options: PipelineOptions,
     ) -> Result<Pipeline, PipelineError>;
     fn create_pipeline_binding(
         &mut self,

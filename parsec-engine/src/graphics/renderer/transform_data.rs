@@ -7,7 +7,7 @@ use crate::{
     },
     graphics::{
         backend::GraphicsBackend,
-        buffer::{Buffer, BufferUsage},
+        buffer::{Buffer, BufferUsage, BufferContent},
         pipeline::{
             PipelineBinding, PipelineBindingType, PipelineShaderStage,
             PipelineSubbindingLayout,
@@ -51,15 +51,21 @@ impl TransformData {
     ) -> TransformData {
         let translation_matrix = Matrix4f::translation(position);
         let translation_buffer = backend
-            .create_buffer(&[translation_matrix], &[BufferUsage::Uniform])
+            .create_buffer(BufferContent::from_slice(&[translation_matrix]), &[
+                BufferUsage::Uniform,
+            ])
             .unwrap();
         let scale_matrix = Matrix4f::scale(scale);
         let scale_buffer = backend
-            .create_buffer(&[scale_matrix], &[BufferUsage::Uniform])
+            .create_buffer(BufferContent::from_slice(&[scale_matrix]), &[
+                BufferUsage::Uniform,
+            ])
             .unwrap();
         let rotation_matrix = rotation.into_matrix();
         let rotation_buffer = backend
-            .create_buffer(&[scale_matrix], &[BufferUsage::Uniform])
+            .create_buffer(BufferContent::from_slice(&[scale_matrix]), &[
+                BufferUsage::Uniform,
+            ])
             .unwrap();
         let look_at_matrix = Matrix4f::look_at(
             position,
@@ -67,7 +73,9 @@ impl TransformData {
             Vec3f::UP * rotation,
         );
         let look_at_buffer = backend
-            .create_buffer(&[scale_matrix], &[BufferUsage::Uniform])
+            .create_buffer(BufferContent::from_slice(&[scale_matrix]), &[
+                BufferUsage::Uniform,
+            ])
             .unwrap();
         let model_pipeline_layout = backend
             .create_pipeline_binding_layout(&[
@@ -124,16 +132,28 @@ impl TransformData {
 
     fn update_buffers_from_data(&mut self, backend: &mut impl GraphicsBackend) {
         backend
-            .update_buffer(self.translation_buffer, &[self.translation_matrix])
+            .update_buffer(
+                self.translation_buffer,
+                BufferContent::from_slice(&[self.translation_matrix]),
+            )
             .unwrap();
         backend
-            .update_buffer(self.scale_buffer, &[self.scale_matrix])
+            .update_buffer(
+                self.scale_buffer,
+                BufferContent::from_slice(&[self.scale_matrix]),
+            )
             .unwrap();
         backend
-            .update_buffer(self.rotation_buffer, &[self.rotation_matrix])
+            .update_buffer(
+                self.rotation_buffer,
+                BufferContent::from_slice(&[self.rotation_matrix]),
+            )
             .unwrap();
         backend
-            .update_buffer(self.look_at_buffer, &[self.look_at_matrix])
+            .update_buffer(
+                self.look_at_buffer,
+                BufferContent::from_slice(&[self.look_at_matrix]),
+            )
             .unwrap();
     }
 }

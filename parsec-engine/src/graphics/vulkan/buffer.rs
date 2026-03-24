@@ -1,13 +1,16 @@
 use std::fmt::Debug;
 
-use crate::graphics::vulkan::{
-    allocation::VulkanAllocationError,
-    allocator::{
-        VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements,
+use crate::graphics::{
+    buffer::BufferContent,
+    vulkan::{
+        allocation::VulkanAllocationError,
+        allocator::{
+            VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements,
+        },
+        buffer_usage::VulkanBufferUsage,
+        device::VulkanDevice,
+        memory::VulkanMemory,
     },
-    buffer_usage::VulkanBufferUsage,
-    device::VulkanDevice,
-    memory::VulkanMemory,
 };
 
 pub struct VulkanBuffer {
@@ -15,7 +18,7 @@ pub struct VulkanBuffer {
     memory: VulkanMemory,
     memory_offset: u64,
     size: u64,
-    len: u32,
+    alignment: u64,
     raw_buffer: ash::vk::Buffer,
 }
 
@@ -47,17 +50,17 @@ impl VulkanBuffer {
         device: &VulkanDevice,
         allocator: &mut VulkanAllocator,
         size: u64,
-        len: u32,
+        alignment: u64,
         usage: &[VulkanBufferUsage],
         memory_properties: VulkanMemoryProperties,
     ) -> Result<VulkanBuffer, VulkanBufferError> {
-        let index_buffer_info = ash::vk::BufferCreateInfo::default()
+        let buffer_info = ash::vk::BufferCreateInfo::default()
             .size(size as u64)
             .usage(VulkanBufferUsage::raw_combined_buffer_usage(usage))
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
         let buffer = match unsafe {
-            device.raw_device().create_buffer(&index_buffer_info, None)
+            device.raw_device().create_buffer(&buffer_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanBufferError::CreationError(err)),
@@ -71,6 +74,11 @@ impl VulkanBuffer {
         let (memory, memory_offset) = allocator
             .get_memory(device, memory_properties, memory_requirements)
             .map_err(|err| VulkanBufferError::AllocationError(err))?;
+
+        println!(
+            "{} {} {} {}",
+            size, memory_offset, alignment, memory_requirements.alignment
+        );
 
         if let Err(err) = unsafe {
             device.raw_device().bind_buffer_memory(
@@ -86,20 +94,20 @@ impl VulkanBuffer {
             id: ID_COUNTER.next(),
             raw_buffer: buffer,
             memory,
-            size: size as u64,
-            len,
+            size,
+            alignment: memory_requirements.alignment,
             memory_offset,
         })
     }
 
-    pub fn from_vec<T: Clone + Copy>(
+    pub fn from_vec(
         device: &VulkanDevice,
         allocator: &mut VulkanAllocator,
-        data: &[T],
+        data: BufferContent<'_>,
         usage: &[VulkanBufferUsage],
         memory_properties: VulkanMemoryProperties,
     ) -> Result<VulkanBuffer, VulkanBufferError> {
-        let size = data.len() * size_of::<T>();
+        let size = data.data.len() as u64;
 
         let index_buffer_info = ash::vk::BufferCreateInfo::default()
             .size(size as u64)
@@ -129,9 +137,7 @@ impl VulkanBuffer {
                 device.raw_device().map_memory(
                     memory.raw_memory(),
                     memory_offset,
-                    memory_requirements
-                        .size
-                        .next_multiple_of(memory_requirements.alignment),
+                    size.next_multiple_of(memory_requirements.alignment),
                     ash::vk::MemoryMapFlags::empty(),
                 )
             } {
@@ -142,16 +148,14 @@ impl VulkanBuffer {
             let mut slice = unsafe {
                 ash::util::Align::new(
                     memory_ptr,
-                    align_of::<T>() as u64,
-                    memory_requirements.size,
+                    data.align as u64,
+                    size.next_multiple_of(memory_requirements.alignment),
                 )
             };
 
-            slice.copy_from_slice(&data);
+            slice.copy_from_slice(&data.data);
 
-            unsafe {
-                device.raw_device().unmap_memory(memory.raw_memory())
-            };
+            unsafe { device.raw_device().unmap_memory(memory.raw_memory()) };
         }
 
         if let Err(err) = unsafe {
@@ -168,18 +172,18 @@ impl VulkanBuffer {
             id: ID_COUNTER.next(),
             raw_buffer: buffer,
             memory,
-            size: size as u64,
-            len: data.len() as u32,
+            size,
+            alignment: memory_requirements.alignment,
             memory_offset,
         })
     }
 
-    pub fn update<T: Clone + Copy>(
+    pub fn update(
         &self,
         device: &VulkanDevice,
-        data: &[T],
+        data: BufferContent<'_>,
     ) -> Result<(), VulkanBufferError> {
-        let size = (data.len() * size_of::<T>()) as u64;
+        let size = data.data.len() as u64;
 
         if size != self.size {
             return Err(VulkanBufferError::SizeMismatch);
@@ -193,7 +197,7 @@ impl VulkanBuffer {
             device.raw_device().map_memory(
                 self.memory.raw_memory(),
                 self.memory_offset,
-                self.size,
+                self.size.next_multiple_of(self.alignment),
                 ash::vk::MemoryMapFlags::empty(),
             )
         } {
@@ -202,14 +206,14 @@ impl VulkanBuffer {
         };
 
         let mut slice = unsafe {
-            ash::util::Align::<T>::new(
+            ash::util::Align::new(
                 memory_ptr,
-                align_of::<T>() as u64,
-                self.size,
+                data.align as u64,
+                self.size.next_multiple_of(self.alignment),
             )
         };
 
-        slice.copy_from_slice(&data);
+        slice.copy_from_slice(&data.data);
 
         unsafe { device.raw_device().unmap_memory(self.memory.raw_memory()) };
 
@@ -229,8 +233,4 @@ impl VulkanBuffer {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn size(&self) -> u64 { self.size }
-
-    pub fn len(&self) -> u32 {
-        self.len
-    }
 }

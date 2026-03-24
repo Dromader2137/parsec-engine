@@ -4,14 +4,14 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, bytemuck::NoUninit)]
 #[repr(C)]
 pub struct Vec2i {
     pub x: i32,
     pub y: i32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, bytemuck::NoUninit)]
 #[repr(C)]
 pub struct Vec3i {
     pub x: i32,

@@ -7,7 +7,7 @@ use crate::{
     },
     graphics::{
         backend::GraphicsBackend,
-        buffer::{Buffer, BufferUsage},
+        buffer::{Buffer, BufferUsage, BufferContent},
         pipeline::{
             PipelineBinding, PipelineBindingType, PipelineShaderStage,
             PipelineSubbindingLayout,
@@ -47,7 +47,9 @@ impl CameraData {
         let projection_matrix =
             Matrix4f::perspective(vfov, window.aspect_ratio(), near, far);
         let projection_buffer = backend
-            .create_buffer(&[projection_matrix], &[BufferUsage::Uniform])
+            .create_buffer(BufferContent::from_slice(&[projection_matrix]), &[
+                BufferUsage::Uniform,
+            ])
             .unwrap();
         let projection_binding_layout = backend
             .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
@@ -124,9 +126,10 @@ fn update_camera_data(
                 camera.far_clipping_plane,
             );
             backend
-                .update_buffer(camera_data.projection_buffer, &[
-                    camera_data.projection_matrix
-                ])
+                .update_buffer(
+                    camera_data.projection_buffer,
+                    BufferContent::from_slice(&[camera_data.projection_matrix]),
+                )
                 .unwrap();
         }
     }

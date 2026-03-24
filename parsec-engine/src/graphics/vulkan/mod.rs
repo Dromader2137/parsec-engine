@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use crate::{
     graphics::{
         backend::{BackendInitError, GraphicsBackend},
-        buffer::{Buffer, BufferError, BufferUsage},
+        buffer::{Buffer, BufferError, BufferUsage, BufferContent},
         command_list::{Command, CommandList, CommandListError},
         fence::{Fence, FenceError},
         framebuffer::{Framebuffer, FramebufferError},
@@ -18,7 +18,6 @@ use crate::{
             Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
             PipelineOptions, PipelineSubbindingLayout,
         },
-        renderer::{DefaultVertex, mesh_data::Vertex},
         renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
         sampler::{Sampler, SamplerError},
         semaphore::{Semaphore, SemaphoreError},
@@ -174,8 +173,6 @@ impl Drop for VulkanBackend {
     }
 }
 
-fn get_data_size<T>(data: &[T]) -> usize { return data.len() * size_of::<T>() }
-
 impl GraphicsBackend for VulkanBackend {
     fn init(window: &Window) -> Result<Self, BackendInitError> {
         let instance = VulkanInstance::new(&window)
@@ -244,7 +241,7 @@ impl GraphicsBackend for VulkanBackend {
 
     fn create_buffer(
         &mut self,
-        data: &[impl Copy],
+        data: BufferContent<'_>,
         buffer_usage: &[BufferUsage],
     ) -> Result<Buffer, BufferError> {
         let usage: Vec<_> = buffer_usage
@@ -252,7 +249,7 @@ impl GraphicsBackend for VulkanBackend {
             .map(|x| VulkanBufferUsage::new(*x))
             .collect();
 
-        let size = get_data_size(data);
+        let size = data.data.len();
 
         let buffer = if size <= 256 {
             VulkanBuffer::from_vec(
@@ -264,6 +261,7 @@ impl GraphicsBackend for VulkanBackend {
             )
             .map_err(|err| BufferError::BufferCreationError(err.into()))?
         } else {
+            let data_alignment = data.align as u64;
             let staging = VulkanBuffer::from_vec(
                 &self.device,
                 &mut self.allocator,
@@ -279,7 +277,7 @@ impl GraphicsBackend for VulkanBackend {
                 &self.device,
                 &mut self.allocator,
                 size as u64,
-                data.len() as u32,
+                data_alignment,
                 usage.as_slice(),
                 VulkanMemoryProperties::Device,
             )
@@ -335,7 +333,7 @@ impl GraphicsBackend for VulkanBackend {
     fn update_buffer(
         &mut self,
         buffer: Buffer,
-        data: &[impl Copy],
+        data: BufferContent<'_>,
     ) -> Result<(), BufferError> {
         let buffer_id = buffer.id();
         let buffer = self
@@ -493,7 +491,7 @@ impl GraphicsBackend for VulkanBackend {
         fragment_shader: Shader,
         renderpass: Renderpass,
         binding_layouts: &[PipelineBindingLayout],
-        options: PipelineOptions<impl Vertex>,
+        options: PipelineOptions,
     ) -> Result<Pipeline, PipelineError> {
         let vsm = self
             .shaders

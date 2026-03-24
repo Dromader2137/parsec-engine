@@ -18,12 +18,12 @@ use crate::{
     ecs::system::system,
     graphics::{
         backend::GraphicsBackend,
-        buffer::{Buffer, BufferUsage},
+        buffer::{Buffer, BufferUsage, BufferContent},
         command_list::{Command, CommandList},
         framebuffer::Framebuffer,
         image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView},
         pipeline::{
-            PipelineBinding, PipelineBindingType, PipelineCullingMode,
+            DefaultVertex, PipelineBinding, PipelineBindingType,
             PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
         },
         renderer::{
@@ -33,7 +33,7 @@ use crate::{
             material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
             },
-            mesh_data::{MeshData, Vertex, VertexField, VertexFieldFormat},
+            mesh_data::MeshData,
             transform_data::{TransformData, TransformDataManager},
         },
         renderpass::{
@@ -47,53 +47,10 @@ use crate::{
         vulkan::{VulkanBackend, shader::read_shader_code},
         window::Window,
     },
-    math::{
-        mat::Matrix4f,
-        uvec::Vec2u,
-        vec::{Vec2f, Vec3f},
-    },
+    math::{mat::Matrix4f, uvec::Vec2u, vec::Vec3f},
     resources::{Resource, Resources},
     utils::identifiable::IdStore,
 };
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct DefaultVertex {
-    position: [f32; 3],
-    normal: [f32; 3],
-    tangent: [f32; 3],
-    uv: [f32; 2],
-}
-
-impl Vertex for DefaultVertex {
-    fn fields() -> Vec<VertexField> {
-        vec![
-            VertexField {
-                format: VertexFieldFormat::Vec3,
-            },
-            VertexField {
-                format: VertexFieldFormat::Vec3,
-            },
-            VertexField {
-                format: VertexFieldFormat::Vec3,
-            },
-            VertexField {
-                format: VertexFieldFormat::Vec2,
-            },
-        ]
-    }
-}
-
-impl DefaultVertex {
-    pub fn new(pos: Vec3f, nor: Vec3f, uv: Vec2f) -> DefaultVertex {
-        DefaultVertex {
-            position: [pos.x, pos.y, pos.z],
-            normal: [nor.x, nor.y, nor.z],
-            tangent: [0.0, 1.0, 0.0],
-            uv: [uv.x, uv.y],
-        }
-    }
-}
 
 fn create_frame_sync(
     backend: &mut impl GraphicsBackend,
@@ -169,7 +126,7 @@ pub struct RendererShadowpassData {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, bytemuck::NoUninit)]
 struct LD {
     dir: Vec3f,
     _pad: u32,
@@ -282,9 +239,9 @@ pub fn init_renderer(
                 &[PipelineShaderStage::Vertex],
             )],
         ],
-        PipelineOptions::default()
+        PipelineOptions::default(),
     );
-    let shadow_size = 1<<12;
+    let shadow_size = 1 << 12;
     let shadow_depth_image = backend
         .create_image(
             Vec2u::new(shadow_size, shadow_size),
@@ -303,17 +260,18 @@ pub fn init_renderer(
         )
         .unwrap();
     let shadow_proj_buffer = backend
-        .create_buffer(&[Matrix4f::orthographic(0.0, 100.0, 5.0, 5.0)], &[
-            BufferUsage::Uniform,
-        ])
+        .create_buffer(
+            BufferContent::from_slice(&[Matrix4f::orthographic(0.0, 100.0, 5.0, 5.0)]),
+            &[BufferUsage::Uniform],
+        )
         .unwrap();
     let shadow_look_buffer = backend
         .create_buffer(
-            &[Matrix4f::look_at(
+            BufferContent::from_slice(&[Matrix4f::look_at(
                 Vec3f::new(-40.0, 40.0, -40.0),
                 Vec3f::new(1.0, -1.0, 1.0),
                 Vec3f::new(1.0, 1.0, 1.0),
-            )],
+            )]),
             &[BufferUsage::Uniform],
         )
         .unwrap();
@@ -359,7 +317,7 @@ pub fn init_renderer(
 
     let light_buffer = backend
         .create_buffer(
-            &[LD {
+            BufferContent::from_slice(&[LD {
                 dir: Vec3f::new(1.0, -1.0, 1.0),
                 mat: Matrix4f::orthographic(0.0, 100.0, 5.0, 5.0)
                     * Matrix4f::look_at(
@@ -368,7 +326,7 @@ pub fn init_renderer(
                         Vec3f::new(1.0, 1.0, 1.0),
                     ),
                 _pad: 0,
-            }],
+            }]),
             &[BufferUsage::Uniform],
         )
         .unwrap();

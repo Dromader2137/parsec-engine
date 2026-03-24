@@ -1,8 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::graphics::{
-    pipeline::{PipelineCullingMode, PipelineOptions, PipelineShaderStage},
-    renderer::mesh_data::{Vertex, VertexFieldFormat},
+    pipeline::{PipelineCullingMode, PipelineOptions, PipelineShaderStage, PipelineVertexLayout, VertexFieldFormat},
     vulkan::{
         descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,
         format_size::format_size, renderpass::VulkanRenderpass,
@@ -110,29 +109,29 @@ impl VulkanCullingMode {
     }
 }
 
-pub struct VulkanPipelineOptions<V: Vertex> {
+pub struct VulkanPipelineOptions {
+    vertex_layout: PipelineVertexLayout,
     cull_mode: VulkanCullingMode,
-    _marker: PhantomData<V>
 }
 
-impl<V: Vertex> VulkanPipelineOptions<V> {
-    pub fn new(value: PipelineOptions<V>) -> Self {
+impl VulkanPipelineOptions {
+    pub fn new(value: PipelineOptions) -> Self {
         VulkanPipelineOptions {
+            vertex_layout: value.vertex_layout,
             cull_mode: VulkanCullingMode::new(value.culling_mode),
-            _marker: PhantomData::default()
         }
     }
 }
 
 crate::create_counter! {ID_COUNTER}
 impl VulkanGraphicsPipeline {
-    pub fn new<V: Vertex>(
+    pub fn new(
         device: &VulkanDevice,
         renderpass: &VulkanRenderpass,
         vertex_shader: &VulkanShaderModule,
         fragment_shader: &VulkanShaderModule,
         descriptor_set_layouts: &Vec<VulkanDescriptorSetLayout>,
-        options: VulkanPipelineOptions<V>,
+        options: VulkanPipelineOptions,
     ) -> Result<VulkanGraphicsPipeline, VulkanGraphicsPipelineError> {
         let set_layouts: Vec<_> = descriptor_set_layouts
             .iter()
@@ -223,7 +222,7 @@ impl VulkanGraphicsPipeline {
 
         let mut vertex_input_attribute_descriptions = Vec::new();
         let mut current_offset = 0;
-        for (idx, field) in V::fields().iter().enumerate() {
+        for (idx, field) in options.vertex_layout.fields.iter().enumerate() {
             vertex_input_attribute_descriptions.push(
                 ash::vk::VertexInputAttributeDescription {
                     binding: 0,

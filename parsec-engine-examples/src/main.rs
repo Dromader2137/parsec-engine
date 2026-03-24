@@ -8,19 +8,22 @@ use parsec_engine::{
     graphics::{
         GraphicsBundle,
         backend::GraphicsBackend,
-        buffer::BufferUsage,
+        buffer::{BufferUsage, BufferContent},
         image::{ImageAspect, ImageFormat, ImageUsage},
         pipeline::{
-            PipelineBindingType, PipelineCullingMode, PipelineOptions,
-            PipelineShaderStage, PipelineSubbindingLayout,
+            DefaultVertex, PipelineBindingType, PipelineCullingMode,
+            PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
         },
         renderer::{
-            DefaultVertex, RendererMainRenderpass, assets::mesh::{Mesh, obj::load_obj}, components::{
+            RendererMainRenderpass,
+            assets::mesh::{Mesh, obj::load_obj},
+            components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            }, material_data::{
+            },
+            material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
-            }
+            },
         },
         shader::ShaderType,
         vulkan::{VulkanBackend, shader::read_shader_code},
@@ -95,7 +98,7 @@ fn test_system(
                 &[PipelineShaderStage::Fragment],
             )],
         ],
-        PipelineOptions::<DefaultVertex>::new(PipelineCullingMode::CullBack)
+        PipelineOptions::new::<DefaultVertex>(PipelineCullingMode::CullBack),
     );
 
     let image = image::load_from_memory(include_bytes!("../../test.png"))
@@ -104,7 +107,9 @@ fn test_system(
     let (width, height) = image.dimensions();
     let image_data = image.as_raw().as_bytes();
     let texture_buffer = backend
-        .create_buffer(image_data, &[BufferUsage::TransferSrc])
+        .create_buffer(BufferContent::from_slice(image_data), &[
+            BufferUsage::TransferSrc,
+        ])
         .unwrap();
     let texture_image = backend
         .create_image(

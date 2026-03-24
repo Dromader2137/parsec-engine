@@ -3,11 +3,7 @@ use std::{marker::PhantomData, ops::DerefMut};
 use crate::{
     ecs::system::system,
     graphics::{
-        backend::GraphicsBackend,
-        buffer::{Buffer, BufferUsage},
-        command_list::{Command, CommandList},
-        renderer::{DefaultVertex, assets::mesh::Mesh},
-        vulkan::VulkanBackend,
+        backend::GraphicsBackend, buffer::{Buffer, BufferUsage, BufferContent}, command_list::{Command, CommandList}, pipeline::Vertex, renderer::{DefaultVertex, assets::mesh::Mesh}, vulkan::VulkanBackend
     },
     resources::Resource,
     utils::{
@@ -15,22 +11,6 @@ use crate::{
         identifiable::{IdStore, Identifiable},
     },
 };
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum VertexFieldFormat {
-    Float,
-    Vec2,
-    Vec3,
-    Vec4,
-}
-
-pub struct VertexField {
-    pub format: VertexFieldFormat,
-}
-
-pub trait Vertex: Clone + Copy {
-    fn fields() -> Vec<VertexField>;
-}
 
 pub struct MeshBuffer<V: Vertex> {
     vertex_buffer: Buffer,
@@ -47,10 +27,10 @@ impl<V: Vertex> MeshBuffer<V> {
     ) -> MeshBuffer<V> {
         MeshBuffer {
             vertex_buffer: backend
-                .create_buffer(vertices, &[BufferUsage::Vertex])
+                .create_buffer(BufferContent::from_slice(vertices), &[BufferUsage::Vertex])
                 .unwrap(),
             index_buffer: backend
-                .create_buffer(indices, &[BufferUsage::Index])
+                .create_buffer(BufferContent::from_slice(indices), &[BufferUsage::Index])
                 .unwrap(),
             len: indices.len() as u32,
             _marker: PhantomData::default(),
