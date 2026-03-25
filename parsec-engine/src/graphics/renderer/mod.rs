@@ -514,7 +514,7 @@ pub fn render(
             resize.0 = true;
             return;
         },
-        _ => panic!("Shouldn't be here"),
+        Err(err) => panic!("{:?}", err),
     };
     backend
         .reset_fence(frame_sync[current_frame.0 as usize].command_buffer_fence)

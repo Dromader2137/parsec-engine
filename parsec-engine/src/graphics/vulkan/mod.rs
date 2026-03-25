@@ -834,7 +834,7 @@ impl GraphicsBackend for VulkanBackend {
                 VulkanSwapchainError::OutOfDate => {
                     SwapchainError::SwapchainOutOfDate
                 },
-                _ => SwapchainError::Undefined,
+                val => panic!("{:?}", val),
             })
             .map(|val| val.0)
     }

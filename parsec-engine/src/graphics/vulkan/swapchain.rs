@@ -52,10 +52,12 @@ impl VulkanSwapchain {
         (VulkanSwapchain, Vec<VulkanSwapchainImage>),
         VulkanSwapchainError,
     > {
-        let desired_image_count = surface
-            .min_image_count()
-            .max(3)
-            .min(surface.max_image_count());
+        let desired_image_count = surface.min_image_count().max(3).min(
+            match surface.max_image_count() {
+                0 => u32::MAX,
+                val => val,
+            },
+        );
 
         let surface_resolution = raw_extent_2d(window.size());
 
