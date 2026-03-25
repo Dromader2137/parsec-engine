@@ -145,7 +145,7 @@ pub fn init_renderer(
             RenderpassAttachment {
                 attachment_type: RenderpassAttachmentType::Color,
                 image_format: surface_format,
-                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 0.0),
+                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 1.0),
                 load_op: RenderpassAttachmentLoadOp::Clear,
                 store_op: RenderpassAttachmentStoreOp::Store,
             },

@@ -14,7 +14,7 @@ layout(set = 3, binding = 0) uniform Light {
 layout(set = 4, binding = 0) uniform sampler2D tex;
 layout(set = 5, binding = 0) uniform sampler2D shadow;
 
-int num_rings = 4;
+int num_rings = 2;
 
 void main() {
     float light_angle = dot(-normalize(light.dir), inNormal);
