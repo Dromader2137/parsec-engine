@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Fence {
+pub struct GpuToCpuFence {
     id: u32,
 }
 
@@ -12,8 +12,8 @@ pub enum FenceError {
     FenceNotFound,
 }
 
-impl Fence {
-    pub fn new(id: u32) -> Fence { Fence { id } }
+impl GpuToCpuFence {
+    pub fn new(id: u32) -> GpuToCpuFence { GpuToCpuFence { id } }
 
     pub fn id(&self) -> u32 { self.id }
 }

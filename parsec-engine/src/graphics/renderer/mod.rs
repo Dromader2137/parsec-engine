@@ -43,7 +43,6 @@ use crate::{
         },
         sampler::Sampler,
         shader::{Shader, ShaderType},
-        swapchain::{Swapchain, SwapchainError},
         vulkan::shader::read_shader_code,
         window::Window,
     },
@@ -93,8 +92,6 @@ pub struct RendererCurrentFrame(pub u32);
 pub struct RendererFramesInFlight(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RendererMainRenderpass(pub Renderpass);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererSwapchain(pub Swapchain);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RendererSwapchainImages(pub Vec<Image>);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -158,8 +155,7 @@ pub fn init_renderer(
             },
         ])
         .unwrap();
-    let (swapchain, swapchain_images) =
-        backend.create_swapchain(&window, None).unwrap();
+    let swapchain_images = backend.present_images();
     let swapchain_image_views = swapchain_images
         .iter()
         .map(|img| backend.create_image_view(*img).unwrap())
@@ -369,7 +365,6 @@ pub fn init_renderer(
 
     Resources::add(shadow_data).unwrap();
     Resources::add(RendererMainRenderpass(renderpass)).unwrap();
-    Resources::add(RendererSwapchain(swapchain)).unwrap();
     Resources::add(RendererSwapchainImages(swapchain_images)).unwrap();
     Resources::add(RendererSwapchainImageViews(swapchain_image_views)).unwrap();
     Resources::add(RendererDepthImage(depth_image)).unwrap();
@@ -401,7 +396,6 @@ pub fn init_renderer(
 fn recreate_size_dependent_components(
     backend: &mut CurrentGraphicsBackend,
     window: &Window,
-    swapchain: Swapchain,
     swapchain_images: &[Image],
     swapchain_views: &[ImageView],
     depth_image: Image,
@@ -411,8 +405,8 @@ fn recreate_size_dependent_components(
 ) {
     backend.wait_idle();
 
-    let (new_swapchain, new_swapchain_images) =
-        backend.create_swapchain(window, Some(swapchain)).unwrap();
+    backend.handle_resize(window).unwrap();
+    let new_swapchain_images = backend.present_images();
     let new_swapchain_image_views = new_swapchain_images
         .iter()
         .map(|img| backend.create_image_view(*img).unwrap())
@@ -437,7 +431,6 @@ fn recreate_size_dependent_components(
         })
         .collect::<Vec<_>>();
 
-    backend.delete_swapchain(swapchain).unwrap();
     swapchain_views
         .iter()
         .for_each(|view| backend.delete_image_view(*view).unwrap());
@@ -450,7 +443,6 @@ fn recreate_size_dependent_components(
         backend.delete_framebuffer(*framebuffer).unwrap()
     });
 
-    Resources::add_or_change(RendererSwapchain(new_swapchain));
     Resources::add_or_change(RendererSwapchainImages(new_swapchain_images));
     Resources::add_or_change(RendererSwapchainImageViews(
         new_swapchain_image_views,
@@ -469,7 +461,6 @@ pub fn render(
     window: Resource<Window>,
     frame_sync: Resource<Vec<RendererFrameSync>>,
     image_sync: Resource<Vec<RendererImageSync>>,
-    swapchain: Resource<RendererSwapchain>,
     swapchain_images: Resource<RendererSwapchainImages>,
     swapchain_views: Resource<RendererSwapchainImageViews>,
     depth_image: Resource<RendererDepthImage>,
@@ -493,7 +484,6 @@ pub fn render(
         recreate_size_dependent_components(
             &mut *backend,
             &window,
-            swapchain.0,
             &swapchain_images.0,
             &swapchain_views.0,
             depth_image.0,
@@ -505,15 +495,10 @@ pub fn render(
         return;
     }
 
-    let present_index = match backend.next_image_id(
-        swapchain.0,
+    let present_index = match backend.start_frame(
         frame_sync[current_frame.0 as usize].image_available_semaphore,
     ) {
         Ok(val) => val,
-        Err(SwapchainError::SwapchainOutOfDate) => {
-            resize.0 = true;
-            return;
-        },
         Err(err) => panic!("{:?}", err),
     };
     backend
@@ -608,15 +593,11 @@ pub fn render(
         )
         .unwrap();
 
-    match backend.present(
-        swapchain.0,
+    match backend.end_frame(
         &[image_sync[present_index as usize].rendering_complete_semaphore],
         present_index,
     ) {
         Ok(_) => (),
-        Err(SwapchainError::SwapchainOutOfDate) => {
-            resize.0 = true;
-        },
         _ => panic!("Shouldn't be here"),
     };
 

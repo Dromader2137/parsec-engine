@@ -1,14 +1,14 @@
 use crate::graphics::{
-    CurrentGraphicsBackend, fence::Fence, semaphore::Semaphore,
+    CurrentGraphicsBackend, gpu_cpu_fence::GpuToCpuFence, gpu_gpu_fence::GpuToGpuFence,
 };
 
 pub struct RendererFrameSync {
-    pub command_buffer_fence: Fence,
-    pub image_available_semaphore: Semaphore,
+    pub command_buffer_fence: GpuToCpuFence,
+    pub image_available_semaphore: GpuToGpuFence,
 }
 
 pub struct RendererImageSync {
-    pub rendering_complete_semaphore: Semaphore,
+    pub rendering_complete_semaphore: GpuToGpuFence,
 }
 
 impl RendererFrameSync {

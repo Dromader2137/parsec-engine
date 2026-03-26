@@ -2,7 +2,7 @@ use crate::{
     graphics::{
         buffer::{Buffer, BufferContent, BufferError, BufferUsage},
         command_list::{CommandList, CommandListError},
-        fence::{Fence, FenceError},
+        gpu_cpu_fence::{GpuToCpuFence, FenceError},
         framebuffer::{Framebuffer, FramebufferError},
         image::{
             Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView,
@@ -13,21 +13,21 @@ use crate::{
         },
         renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
         sampler::{Sampler, SamplerError},
-        semaphore::{Semaphore, SemaphoreError},
+        gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
         shader::{Shader, ShaderError, ShaderType},
-        swapchain::{Swapchain, SwapchainError},
         window::Window,
     },
     math::uvec::Vec2u,
 };
 
 #[derive(Debug)]
-pub enum BackendInitError {
+pub enum BackendError {
     InitError(anyhow::Error),
+    FrameError(anyhow::Error)
 }
 
 pub trait GraphicsBackend: Send + Sync + 'static {
-    fn init(window: &Window) -> Result<Self, BackendInitError>
+    fn init(window: &Window) -> Result<Self, BackendError>
     where
         Self: Sized;
     fn wait_idle(&self);
@@ -96,31 +96,27 @@ pub trait GraphicsBackend: Send + Sync + 'static {
     fn submit_commands(
         &mut self,
         command_list: &CommandList,
-        wait_semaphores: &[Semaphore],
-        signal_semaphores: &[Semaphore],
-        signal_fence: Fence,
+        wait_semaphores: &[GpuToGpuFence],
+        signal_semaphores: &[GpuToGpuFence],
+        signal_fence: GpuToCpuFence,
     ) -> Result<(), CommandListError>;
 
-    fn create_swapchain(
+    fn handle_resize(
         &mut self,
         window: &Window,
-        old_swapchain: Option<Swapchain>,
-    ) -> Result<(Swapchain, Vec<Image>), SwapchainError>;
-    fn delete_swapchain(
+    ) -> Result<(), BackendError>;
+    fn present_images(
         &mut self,
-        swapchain: Swapchain,
-    ) -> Result<(), SwapchainError>;
-    fn next_image_id(
+    ) -> Vec<Image>;
+    fn start_frame(
         &mut self,
-        swapchain: Swapchain,
-        signal_semaphore: Semaphore,
-    ) -> Result<u32, SwapchainError>;
-    fn present(
+        signal_semaphore: GpuToGpuFence,
+    ) -> Result<u32, BackendError>;
+    fn end_frame(
         &mut self,
-        swapchain: Swapchain,
-        wait_semaphores: &[Semaphore],
+        wait_semaphores: &[GpuToGpuFence],
         present_image_index: u32,
-    ) -> Result<(), SwapchainError>;
+    ) -> Result<(), BackendError>;
 
     fn create_image(
         &mut self,
@@ -160,14 +156,14 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         framebuffer: Framebuffer,
     ) -> Result<(), FramebufferError>;
 
-    fn create_fence(&mut self, signaled: bool) -> Result<Fence, FenceError>;
-    fn wait_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
-    fn reset_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
-    fn delete_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
+    fn create_fence(&mut self, signaled: bool) -> Result<GpuToCpuFence, FenceError>;
+    fn wait_fence(&mut self, fence: GpuToCpuFence) -> Result<(), FenceError>;
+    fn reset_fence(&mut self, fence: GpuToCpuFence) -> Result<(), FenceError>;
+    fn delete_fence(&mut self, fence: GpuToCpuFence) -> Result<(), FenceError>;
 
-    fn create_semaphore(&mut self) -> Result<Semaphore, SemaphoreError>;
+    fn create_semaphore(&mut self) -> Result<GpuToGpuFence, GpuToGpuFenceError>;
     fn delete_semaphore(
         &mut self,
-        semaphore: Semaphore,
-    ) -> Result<(), SemaphoreError>;
+        semaphore: GpuToGpuFence,
+    ) -> Result<(), GpuToGpuFenceError>;
 }

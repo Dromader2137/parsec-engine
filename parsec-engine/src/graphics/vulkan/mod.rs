@@ -1,15 +1,14 @@
 //! Module responsible for interaction with the Vulkan API. (Incomplete, undocumented and subject
 //! to change).
 
-use core::result::Result::Err;
 use std::collections::HashMap;
 
 use crate::{
     graphics::{
-        backend::{BackendInitError, GraphicsBackend},
+        backend::{BackendError, GraphicsBackend},
         buffer::{Buffer, BufferContent, BufferError, BufferUsage},
         command_list::{Command, CommandList, CommandListError},
-        fence::{Fence, FenceError},
+        gpu_cpu_fence::{GpuToCpuFence, FenceError},
         framebuffer::{Framebuffer, FramebufferError},
         image::{
             Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView,
@@ -20,9 +19,8 @@ use crate::{
         },
         renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
         sampler::{Sampler, SamplerError},
-        semaphore::{Semaphore, SemaphoreError},
+        gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
         shader::{Shader, ShaderError, ShaderType},
-        swapchain::{Swapchain, SwapchainError},
         vulkan::{
             allocator::{VulkanAllocator, VulkanMemoryProperties},
             buffer::VulkanBuffer,
@@ -103,7 +101,7 @@ pub struct VulkanBackend {
     present_queue: VulkanQueue,
     descriptor_pool: VulkanDescriptorPool,
     allocator: VulkanAllocator,
-    swapchains: HashMap<u32, VulkanSwapchain>,
+    swapchain: VulkanSwapchain,
     images: HashMap<u32, Box<dyn VulkanImage>>,
     image_views: HashMap<u32, VulkanImageView>,
     samplers: HashMap<u32, VulkanSampler>,
@@ -159,10 +157,8 @@ impl Drop for VulkanBackend {
         for (_, semaphore) in self.semaphores.drain() {
             semaphore.destroy(&self.device);
         }
-        for (_, swapchain) in self.swapchains.drain() {
-            swapchain.destroy();
-        }
 
+        self.swapchain.destroy();
         self.allocator.free_all(&self.device);
 
         self.command_buffers.clear();
@@ -174,23 +170,23 @@ impl Drop for VulkanBackend {
 }
 
 impl GraphicsBackend for VulkanBackend {
-    fn init(window: &Window) -> Result<Self, BackendInitError> {
+    fn init(window: &Window) -> Result<Self, BackendError> {
         let instance = VulkanInstance::new(&window)
-            .map_err(|err| BackendInitError::InitError(err.into()))?;
+            .map_err(|err| BackendError::InitError(err.into()))?;
         let initial_surface = VulkanInitialSurface::new(&instance, &window)
-            .map_err(|err| BackendInitError::InitError(err.into()))?;
+            .map_err(|err| BackendError::InitError(err.into()))?;
         let physical_device =
             VulkanPhysicalDevice::new(&instance, &initial_surface)
-                .map_err(|err| BackendInitError::InitError(err.into()))?;
+                .map_err(|err| BackendError::InitError(err.into()))?;
         let surface = VulkanSurface::from_initial_surface(
             initial_surface,
             &physical_device,
         )
-        .map_err(|err| BackendInitError::InitError(err.into()))?;
+        .map_err(|err| BackendError::InitError(err.into()))?;
         let device = VulkanDevice::new(&instance, &physical_device)
-            .map_err(|err| BackendInitError::InitError(err.into()))?;
+            .map_err(|err| BackendError::InitError(err.into()))?;
         let command_pool = VulkanCommandPool::new(&physical_device, &device)
-            .map_err(|err| BackendInitError::InitError(err.into()))?;
+            .map_err(|err| BackendError::InitError(err.into()))?;
         let present_queue =
             VulkanQueue::present(&device, physical_device.queue_family_index());
         let descriptor_pool = VulkanDescriptorPool::new(&device, 128, &[
@@ -203,8 +199,19 @@ impl GraphicsBackend for VulkanBackend {
                 VulkanDescriptorType::CombinedImageSampler,
             ),
         ])
-        .map_err(|err| BackendInitError::InitError(err.into()))?;
+        .map_err(|err| BackendError::InitError(err.into()))?;
         let allocator = VulkanAllocator::new();
+        let (swapchain, swapchain_images) =
+            VulkanSwapchain::new(&instance, window, &surface, &device, None)
+                .map_err(|err| BackendError::InitError(err.into()))?;
+        let mut images = HashMap::new();
+        for swapchain_image in swapchain_images.iter() {
+            let swapchain_image_id = swapchain_image.id();
+            images.insert(
+                swapchain_image_id,
+                Box::new(swapchain_image.clone()) as Box<dyn VulkanImage>,
+            );
+        }
 
         Ok(VulkanBackend {
             instance,
@@ -215,8 +222,8 @@ impl GraphicsBackend for VulkanBackend {
             present_queue,
             descriptor_pool,
             allocator,
-            swapchains: HashMap::new(),
-            images: HashMap::new(),
+            swapchain,
+            images,
             image_views: HashMap::new(),
             samplers: HashMap::new(),
             framebuffers: HashMap::new(),
@@ -608,9 +615,9 @@ impl GraphicsBackend for VulkanBackend {
     fn submit_commands(
         &mut self,
         command_list: &CommandList,
-        wait_semaphores: &[Semaphore],
-        signal_semaphores: &[Semaphore],
-        signal_fence: Fence,
+        wait_semaphores: &[GpuToGpuFence],
+        signal_semaphores: &[GpuToGpuFence],
+        signal_fence: GpuToCpuFence,
     ) -> Result<(), CommandListError> {
         let mut command_buffer = self
             .command_buffers
@@ -772,96 +779,71 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| CommandListError::CommandListSubmitError(err.into()))
     }
 
-    fn create_swapchain(
-        &mut self,
-        window: &Window,
-        old_swapchain: Option<Swapchain>,
-    ) -> Result<(Swapchain, Vec<Image>), SwapchainError> {
-        let os = match old_swapchain {
-            Some(val) => match self.swapchains.get(&val.id()) {
-                Some(val) => Some(val),
-                None => return Err(SwapchainError::OldSwapchainNotFound),
-            },
-            None => None,
-        };
+    fn handle_resize(&mut self, window: &Window) -> Result<(), BackendError> {
         let (swapchain, swapchain_images) = VulkanSwapchain::new(
             &self.instance,
             window,
             &self.surface,
             &self.device,
-            os,
+            Some(&self.swapchain),
         )
-        .map_err(|err| SwapchainError::SwapchainCreationError(err.into()))?;
-        let swapchain_id = swapchain.id();
-        let mut images = Vec::new();
-        self.swapchains.insert(swapchain_id, swapchain);
+        .map_err(|err| BackendError::FrameError(err.into()))?;
+        self.swapchain = swapchain;
         for swapchain_image in swapchain_images.iter() {
             let swapchain_image_id = swapchain_image.id();
             self.images
                 .insert(swapchain_image_id, Box::new(swapchain_image.clone()));
-            images.push(Image::new(swapchain_image_id));
         }
-        Ok((Swapchain::new(swapchain_id), images))
-    }
-
-    fn delete_swapchain(
-        &mut self,
-        swapchain: Swapchain,
-    ) -> Result<(), SwapchainError> {
-        let swapchain = self
-            .swapchains
-            .remove(&swapchain.id())
-            .ok_or(SwapchainError::SwapchainNotFound)?;
-        swapchain.destroy();
         Ok(())
     }
 
-    fn next_image_id(
-        &mut self,
-        swapchain: Swapchain,
-        signal_semaphore: Semaphore,
-    ) -> Result<u32, SwapchainError> {
-        let ss = self
-            .semaphores
-            .get(&signal_semaphore.id())
-            .ok_or(SwapchainError::SemaphoreNotFound)?;
+    fn present_images(&mut self) -> Vec<Image> {
+        self.swapchain
+            .swapchain_image_ids()
+            .iter()
+            .map(|x| Image::new(*x))
+            .collect()
+    }
 
-        self.swapchains
-            .get(&swapchain.id())
-            .ok_or(SwapchainError::SwapchainNotFound)?
+    fn start_frame(
+        &mut self,
+        signal_semaphore: GpuToGpuFence,
+    ) -> Result<u32, BackendError> {
+        let ss = self.semaphores.get(&signal_semaphore.id()).ok_or(
+            BackendError::FrameError(anyhow::anyhow!("Semaphore not found")),
+        )?;
+
+        self.swapchain
             .acquire_next_image(ss, &VulkanFence::null())
             .map_err(|err| match err {
-                VulkanSwapchainError::OutOfDate => {
-                    SwapchainError::SwapchainOutOfDate
-                },
+                VulkanSwapchainError::OutOfDate => BackendError::FrameError(
+                    anyhow::anyhow!("Swapchain out of date"),
+                ),
                 val => panic!("{:?}", val),
             })
             .map(|val| val.0)
     }
 
-    fn present(
+    fn end_frame(
         &mut self,
-        swapchain: Swapchain,
-        wait_semaphores: &[Semaphore],
+        wait_semaphores: &[GpuToGpuFence],
         present_image_index: u32,
-    ) -> Result<(), SwapchainError> {
+    ) -> Result<(), BackendError> {
         let ws = wait_semaphores
             .iter()
             .map(|x| {
-                self.semaphores
-                    .get(&x.id())
-                    .ok_or(SwapchainError::SemaphoreNotFound)
+                self.semaphores.get(&x.id()).ok_or(BackendError::FrameError(
+                    anyhow::anyhow!("Semaphore not found"),
+                ))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        self.swapchains
-            .get(&swapchain.id())
-            .ok_or(SwapchainError::SwapchainNotFound)?
+        self.swapchain
             .present(&self.present_queue, &ws, present_image_index)
             .map_err(|err| match err {
-                VulkanSwapchainError::OutOfDate => {
-                    SwapchainError::SwapchainOutOfDate
-                },
-                _ => SwapchainError::Undefined,
+                VulkanSwapchainError::OutOfDate => BackendError::FrameError(
+                    anyhow::anyhow!("Swapchain out of date"),
+                ),
+                _ => BackendError::FrameError(anyhow::anyhow!("Undefined")),
             })
     }
 
@@ -1043,15 +1025,15 @@ impl GraphicsBackend for VulkanBackend {
         Ok(())
     }
 
-    fn create_fence(&mut self, signaled: bool) -> Result<Fence, FenceError> {
+    fn create_fence(&mut self, signaled: bool) -> Result<GpuToCpuFence, FenceError> {
         let fence = VulkanFence::new(&self.device, signaled)
             .map_err(|err| FenceError::FenceCreationError(err.into()))?;
         let fence_id = fence.id();
         self.fences.insert(fence_id, fence);
-        Ok(Fence::new(fence_id))
+        Ok(GpuToCpuFence::new(fence_id))
     }
 
-    fn wait_fence(&mut self, fence: Fence) -> Result<(), FenceError> {
+    fn wait_fence(&mut self, fence: GpuToCpuFence) -> Result<(), FenceError> {
         let fence = self
             .fences
             .get(&fence.id())
@@ -1061,7 +1043,7 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| FenceError::FenceWaitError(err.into()))
     }
 
-    fn reset_fence(&mut self, fence: Fence) -> Result<(), FenceError> {
+    fn reset_fence(&mut self, fence: GpuToCpuFence) -> Result<(), FenceError> {
         let fence = self
             .fences
             .get(&fence.id())
@@ -1071,7 +1053,7 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| FenceError::FenceWaitError(err.into()))
     }
 
-    fn delete_fence(&mut self, fence: Fence) -> Result<(), FenceError> {
+    fn delete_fence(&mut self, fence: GpuToCpuFence) -> Result<(), FenceError> {
         let fence = self
             .fences
             .remove(&fence.id())
@@ -1080,23 +1062,23 @@ impl GraphicsBackend for VulkanBackend {
         Ok(())
     }
 
-    fn create_semaphore(&mut self) -> Result<Semaphore, SemaphoreError> {
+    fn create_semaphore(&mut self) -> Result<GpuToGpuFence, GpuToGpuFenceError> {
         let semaphore = VulkanSemaphore::new(&self.device).map_err(|err| {
-            SemaphoreError::SemaphoreCreationError(err.into())
+            GpuToGpuFenceError::GpuToGpuFenceCreationError(err.into())
         })?;
         let semaphore_id = semaphore.id();
         self.semaphores.insert(semaphore_id, semaphore);
-        Ok(Semaphore::new(semaphore_id))
+        Ok(GpuToGpuFence::new(semaphore_id))
     }
 
     fn delete_semaphore(
         &mut self,
-        semaphore: Semaphore,
-    ) -> Result<(), SemaphoreError> {
+        semaphore: GpuToGpuFence,
+    ) -> Result<(), GpuToGpuFenceError> {
         let semaphore = self
             .semaphores
             .remove(&semaphore.id())
-            .ok_or(SemaphoreError::SemaphoreNotFound)?;
+            .ok_or(GpuToGpuFenceError::GpuToGpuFenceNotFound)?;
         semaphore.destroy(&self.device);
         Ok(())
     }

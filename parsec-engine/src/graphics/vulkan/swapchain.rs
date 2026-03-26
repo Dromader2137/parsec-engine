@@ -209,5 +209,5 @@ impl VulkanSwapchain {
 
     pub fn id(&self) -> u32 { self.id }
 
-    pub fn _swapchain_image_ids(&self) -> &[u32] { &self._swapchain_image_ids }
+    pub fn swapchain_image_ids(&self) -> &[u32] { &self._swapchain_image_ids }
 }

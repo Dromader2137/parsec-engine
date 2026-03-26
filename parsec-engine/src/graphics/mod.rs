@@ -56,16 +56,15 @@ use crate::{
 pub mod backend;
 pub mod buffer;
 pub mod command_list;
-pub mod fence;
 pub mod framebuffer;
+pub mod gpu_cpu_fence;
+pub mod gpu_gpu_fence;
 pub mod image;
 pub mod pipeline;
 pub mod renderer;
 pub mod renderpass;
 pub mod sampler;
-pub mod semaphore;
 pub mod shader;
-pub mod swapchain;
 pub mod vulkan;
 pub mod window;
 
