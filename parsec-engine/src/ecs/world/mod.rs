@@ -1,9 +1,8 @@
 //! Module responsible for storing and querying entities and their data.
 
-use std::{collections::HashMap, fmt::Debug, sync::RwLock};
+use std::{collections::HashMap, fmt::Debug};
 
 use archetype::{Archetype, ArchetypeError, ArchetypeId};
-use once_cell::sync::Lazy;
 use spawn::Spawn;
 use thiserror::Error;
 
@@ -32,14 +31,6 @@ pub enum WorldError {
     DeleteComponentError { kind: ArchetypeError },
 }
 
-/// Global store containing the main instance of [`World`].
-pub static WORLD: Lazy<RwLock<World>> = Lazy::new(|| {
-    RwLock::new(World {
-        archetypes: HashMap::new(),
-        current_id: 0,
-    })
-});
-
 /// Stores all data about components and entities.
 #[derive(Debug)]
 pub struct World {
@@ -50,6 +41,10 @@ pub struct World {
 }
 
 impl World {
+    pub fn new() -> Self {
+        Self { archetypes: HashMap::new(), current_id: 0 }
+    }
+
     /// Returns a mutable reference to the archetype stored under `archetype_id`.
     /// If there was no such archetype, it is created, added to `self` and a mutable reference is returned.
     fn get_archetype_mut(
@@ -71,12 +66,11 @@ impl World {
     ///
     /// - If `T` can't produce a valid [`ArchetypeId`].
     /// - If the [archetype][Archetype] is already borrowed in some way.
-    pub fn spawn<T: Spawn>(bundle: T) -> Result<Entity, WorldError> {
-        let mut world = WORLD.write().unwrap();
+    pub fn spawn<T: Spawn>(&mut self, bundle: T) -> Result<Entity, WorldError> {
         let archetype_id = T::archetype_id()
             .map_err(|e| WorldError::SpawnError { kind: e })?;
-        let entity_id = world.current_id;
-        let archetype = world.get_archetype_mut(&archetype_id);
+        let entity_id = self.current_id;
+        let archetype = self.get_archetype_mut(&archetype_id);
         let entity = archetype
             .new_entity(entity_id)
             .map_err(|e| WorldError::SpawnError { kind: e })?;
@@ -84,7 +78,7 @@ impl World {
             .spawn(archetype)
             .map_err(|e| WorldError::SpawnError { kind: e })?;
         archetype.bundle_count += 1;
-        world.current_id += 1;
+        self.current_id += 1;
         Ok(entity)
     }
 
@@ -94,9 +88,8 @@ impl World {
     ///
     /// - If `entity` doesn't exist.
     /// - If the [archetype][Archetype] containing `entity` is already borrowed in some way.
-    pub fn delete(entity: Entity) -> Result<(), WorldError> {
-        let mut world = WORLD.write().unwrap();
-        for (_, archetype) in world.archetypes.iter_mut() {
+    pub fn delete(&mut self, entity: Entity) -> Result<(), WorldError> {
+        for (_, archetype) in self.archetypes.iter_mut() {
             if archetype.entities.contains(&entity)
                 && !archetype.are_all_columns_mutable()
             {
@@ -126,11 +119,11 @@ impl World {
     /// - If `T` merged with the type of `entity` can't produce a valid [`ArchetypeId`].
     /// - If either the original [archetype][Archetype] containing `entity` or the destination [archetype][Archetype] is already borrowed in some way.
     pub fn add_components<T: AddComponent>(
+        &mut self,
         entity: Entity,
         bundle_extension: T,
     ) -> Result<(), WorldError> {
-        let mut world = WORLD.write().unwrap();
-        let (archetype_id, old_archetype) = match world
+        let (archetype_id, old_archetype) = match self
             .archetypes
             .iter_mut()
             .find(|(_, x)| x.check_entity(entity))
@@ -153,10 +146,10 @@ impl World {
             .map_err(|e| WorldError::AddComponentError { kind: e })?;
         old_archetype.bundle_count -= 1;
 
-        let new_archetype = world.get_archetype_mut(&new_archetype_id);
+        let new_archetype = self.get_archetype_mut(&new_archetype_id);
 
         if !new_archetype.are_all_columns_mutable() {
-            let (_, old_archetype) = world
+            let (_, old_archetype) = self
                 .archetypes
                 .iter_mut()
                 .find(|(_, x)| x.check_entity(entity))
@@ -193,10 +186,10 @@ impl World {
     /// - If `T` subtracted from the type of `entity` can't produce a valid [`ArchetypeId`].
     /// - If either the original [archetype][Archetype] containing `entity` or the destination [archetype][Archetype] is already borrowed in some way.
     pub fn remove_components<T: RemoveComponent>(
+        &mut self,
         entity: Entity,
     ) -> Result<(), WorldError> {
-        let mut world = WORLD.write().unwrap();
-        let (archetype_id, old_archetype) = match world
+        let (archetype_id, old_archetype) = match self
             .archetypes
             .iter_mut()
             .find(|(_, x)| x.check_entity(entity))
@@ -219,10 +212,10 @@ impl World {
             .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
         old_archetype.bundle_count -= 1;
 
-        let new_archetype = world.get_archetype_mut(&new_archetype_id);
+        let new_archetype = self.get_archetype_mut(&new_archetype_id);
 
         if !new_archetype.are_all_columns_mutable() {
-            let (_, old_archetype) = world
+            let (_, old_archetype) = self
                 .archetypes
                 .iter_mut()
                 .find(|(_, x)| x.check_entity(entity))

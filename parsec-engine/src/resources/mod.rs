@@ -4,21 +4,16 @@ use std::{
     any::{Any, TypeId, type_name},
     collections::HashMap,
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, Mutex},
 };
 
-use once_cell::sync::Lazy;
 use thiserror::Error;
 
-use crate::ecs::system::SystemInput;
+use crate::ecs::{system::SystemInput, world::World};
 
 /// Marks a type as a resource that can be stored in a global storage.
 pub trait ResourceMarker: Send + Sync + 'static {}
 impl<T: Send + Sync + 'static> ResourceMarker for T {}
-
-/// Global [`resources`][ResourceMarker] store.
-static RESOURCES: Lazy<RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync>>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
 
 /// Stores the information necessary to use a global resource.
 pub struct Resource<R: ResourceMarker> {
@@ -51,38 +46,43 @@ impl<R: ResourceMarker> DerefMut for Resource<R> {
 }
 
 impl<T: ResourceMarker> SystemInput for Resource<T> {
-    fn borrow() -> Self {
-        let lock = Resources::get().unwrap();
+    fn borrow(resources: &Resources, _world: &World) -> Self {
+        let lock = resources.get().unwrap();
         Resource { lock }
     }
 }
 
-pub struct Resources {}
+pub struct Resources {
+    resources: HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>,
+}
 impl Resources {
+    pub fn new() -> Self {
+        Self { resources: HashMap::new() }
+    }
+
     /// Adds `resource` to global storage.
     ///
     /// # Errors
     ///
     /// - If a resource of type `R` already exists.
     pub fn add<R: ResourceMarker>(
+        &mut self,
         resource: R,
     ) -> Result<Resource<R>, ResourceError> {
-        let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
-        if resources.contains_key(&type_id) {
+        if self.resources.contains_key(&type_id) {
             return Err(ResourceError::ResourceAlreadyExists);
         }
         let resource = Arc::new(Mutex::new(resource));
-        resources.insert(type_id, Box::new(resource.clone()));
+        self.resources.insert(type_id, Box::new(resource.clone()));
         Ok(Resource { lock: resource })
     }
 
     /// Adds `resource` to global storage. If a resource of type `R` already exists it is
     /// replaced.
-    pub fn add_or_change<R: ResourceMarker>(resource: R) {
-        let mut resources = RESOURCES.write().unwrap();
+    pub fn add_or_change<R: ResourceMarker>(&mut self, resource: R) {
         let type_id = TypeId::of::<R>();
-        resources.insert(type_id, Box::new(Arc::new(Mutex::new(resource))));
+        self.resources.insert(type_id, Box::new(Arc::new(Mutex::new(resource))));
     }
 
     /// Gets the resource of type `R`.
@@ -90,10 +90,9 @@ impl Resources {
     /// # Errors
     ///
     /// - If there is no resource of type `R`.
-    fn get<R: ResourceMarker>() -> Result<Arc<Mutex<R>>, ResourceError> {
-        let resources = RESOURCES.read().expect("Clean resources read");
+    fn get<R: ResourceMarker>(&self) -> Result<Arc<Mutex<R>>, ResourceError> {
         let type_id = TypeId::of::<R>();
-        let lock = match resources.get(&type_id) {
+        let lock = match self.resources.get(&type_id) {
             Some(lock_any) => lock_any
                 .downcast_ref::<Arc<Mutex<R>>>()
                 .expect("This downcast can't fail"),
@@ -111,10 +110,9 @@ impl Resources {
     /// # Errors
     ///
     /// - If there is no resource of type `R`.
-    pub fn remove<R: ResourceMarker>() -> Result<(), ResourceError> {
-        let mut resources = RESOURCES.write().unwrap();
+    pub fn remove<R: ResourceMarker>(&mut self) -> Result<(), ResourceError> {
         let type_id = TypeId::of::<R>();
-        let lock = match resources.get(&type_id) {
+        let lock = match self.resources.get(&type_id) {
             Some(lock_any) => lock_any
                 .downcast_ref::<Arc<Mutex<R>>>()
                 .expect("This downcast can't fail"),
@@ -123,7 +121,7 @@ impl Resources {
         if Arc::weak_count(lock) + Arc::strong_count(lock) > 1 {
             return Err(ResourceError::ResourceNotUnique);
         }
-        resources
+        self.resources
             .remove(&type_id)
             .map_or(Err(ResourceError::ResourceNotFound), |_| Ok(()))
     }

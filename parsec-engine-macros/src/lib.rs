@@ -224,11 +224,11 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             if mutability {
                 quote! {
-                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
+                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world);
                 }
             } else {
                 quote! {
-                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
+                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world);
                 }
             }
         },
@@ -267,7 +267,7 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #struct_name_str
             }
 
-            fn run(&mut self) {
+            fn run(&mut self, resources: & #engine_crate::resources::Resources, world: & #engine_crate::ecs::world::World) {
                 #(#borrows)*
                 #fn_name( #(#argument_names),* );
             }

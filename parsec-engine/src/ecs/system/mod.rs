@@ -1,6 +1,10 @@
 //! Module responsible for systems management.
 
+pub mod requests;
+
 use std::{collections::HashMap, fmt::Debug, time::Instant};
+
+use crate::{ecs::world::World, resources::Resources};
 
 /// List of possible actions a system can run on.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -108,11 +112,16 @@ impl Systems {
     }
 
     /// Executes all the systems registered for trigger `system_type`.
-    pub fn execute_type(&mut self, system_type: SystemTrigger) {
+    pub fn execute_type(
+        &mut self,
+        system_type: SystemTrigger,
+        resources: &Resources,
+        world: &World,
+    ) {
         if let Some(systems) = self.systems.get_mut(&system_type) {
             for (system, stats) in systems.iter_mut() {
                 let instant = Instant::now();
-                system.run();
+                system.run(resources, world);
                 let duration = (instant.elapsed().as_micros() as f64) / 1000.0;
                 stats.times_called += 1;
                 if stats.times_called < 25 {
@@ -134,13 +143,13 @@ impl Default for Systems {
 /// Marks a type that can be used as an argument inside a [`System`] function.
 pub trait SystemInput {
     /// Used to create an instance of `Self` at the beginning of a system.
-    fn borrow() -> Self;
+    fn borrow(resources: &Resources, world: &World) -> Self;
 }
 
 /// Marks a type that is a system. Implemented using the [`system`] macro.
 pub trait System: Send + Sync {
     fn name(&self) -> &'static str;
-    fn run(&mut self);
+    fn run(&mut self, resources: &Resources, world: &World);
 }
 
 /// Marks a type used to group systems into interdependent bundles.
