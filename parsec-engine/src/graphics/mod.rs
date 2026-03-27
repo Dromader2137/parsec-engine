@@ -91,21 +91,21 @@ impl SystemBundle for GraphicsBundle {
     }
 }
 
-pub struct CurrentGraphicsBackend(Box<dyn GraphicsBackend>);
+pub struct ActiveGraphicsBackend(Box<dyn GraphicsBackend>);
 
-impl Deref for CurrentGraphicsBackend {
+impl Deref for ActiveGraphicsBackend {
     type Target = Box<dyn GraphicsBackend>;
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-impl DerefMut for CurrentGraphicsBackend {
+impl DerefMut for ActiveGraphicsBackend {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
 #[system]
 pub fn init_vulkan(window: Resource<Window>) {
     let context = VulkanBackend::init(&window).unwrap();
-    Resources::add(CurrentGraphicsBackend(Box::new(context))).unwrap();
+    Resources::add(ActiveGraphicsBackend(Box::new(context))).unwrap();
 }
 
 #[system]
@@ -115,7 +115,7 @@ fn mark_resize(mut resize: Resource<ResizeFlag>) { resize.0 = true }
 fn request_redraw(window: Resource<Window>) { window.request_redraw(); }
 
 #[system]
-fn end_wait_idle(backend: Resource<CurrentGraphicsBackend>) {
+fn end_wait_idle(backend: Resource<ActiveGraphicsBackend>) {
     backend.wait_idle()
 }
 

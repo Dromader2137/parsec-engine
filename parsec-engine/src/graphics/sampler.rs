@@ -3,14 +3,21 @@ pub struct Sampler {
     id: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum SamplerError {
+    #[error("failed to create sampler: {0}")]
     SamplerCreationError(anyhow::Error),
+    #[error("failed to delete sampler: {0}")]
     SamplerDeletionError(anyhow::Error),
+    #[error("failed to bind sampler: {0}")]
     SamplerBindError(anyhow::Error),
-    PipelineBindingNotFound,
-    PipelineBindingLayoutNotFound,
+    #[error("pipeline resource does not exist")]
+    PipelineResourceNotFound,
+    #[error("pipeline resource layout does not exist")]
+    PipelineResourceLayoutNotFound,
+    #[error("sampler does not exist")]
     SamplerNotFound,
+    #[error("image view does not exist")]
     ImageViewNowFound,
 }
 

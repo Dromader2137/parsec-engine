@@ -6,11 +6,11 @@ use crate::{
         world::{fetch::Mut, query::Query},
     },
     graphics::{
-        CurrentGraphicsBackend,
+        ActiveGraphicsBackend,
         buffer::{Buffer, BufferContent, BufferUsage},
         pipeline::{
-            PipelineBinding, PipelineBindingType, PipelineShaderStage,
-            PipelineSubbindingLayout,
+            PipelineBindingType, PipelineResource,
+            PipelineResourceBindingLayout, PipelineShaderStage,
         },
         renderer::components::camera::Camera,
         window::Window,
@@ -27,7 +27,7 @@ pub struct CameraData {
     camera_data_id: IdType,
     pub projection_matrix: Matrix4f,
     pub projection_buffer: Buffer,
-    pub projection_binding: PipelineBinding,
+    pub projection_binding: PipelineResource,
 }
 
 pub struct CameraDataManager {
@@ -37,7 +37,7 @@ pub struct CameraDataManager {
 crate::create_counter! {ID_COUNTER}
 impl CameraData {
     pub fn new(
-        backend: &mut CurrentGraphicsBackend,
+        backend: &mut ActiveGraphicsBackend,
         window: &Window,
         vfov: f32,
         near: f32,
@@ -51,13 +51,13 @@ impl CameraData {
             ])
             .unwrap();
         let projection_binding_layout = backend
-            .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+            .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
             }])
             .unwrap();
         let projection_binding = backend
-            .create_pipeline_binding(projection_binding_layout)
+            .create_pipeline_resource(projection_binding_layout)
             .unwrap();
         backend
             .bind_buffer(projection_binding, projection_buffer, 0)
@@ -78,7 +78,7 @@ impl Identifiable for CameraData {
 #[system]
 fn add_camera_data(
     window: Resource<Window>,
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     mut cameras_data: Resource<IdStore<CameraData>>,
     mut camera_data_manager: Resource<CameraDataManager>,
     mut cameras: Query<Mut<Camera>>,
@@ -106,7 +106,7 @@ fn add_camera_data(
 #[system]
 fn update_camera_data(
     window: Resource<Window>,
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     mut cameras_data: Resource<IdStore<CameraData>>,
     camera_data_manager: Resource<CameraDataManager>,
     mut cameras: Query<Camera>,

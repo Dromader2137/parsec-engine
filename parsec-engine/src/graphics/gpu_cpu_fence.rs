@@ -4,12 +4,12 @@ pub struct GpuToCpuFence {
 }
 
 #[derive(Debug)]
-pub enum FenceError {
-    FenceCreationError(anyhow::Error),
-    FenceWaitError(anyhow::Error),
-    FenceResetError(anyhow::Error),
-    FenceDeletionError(anyhow::Error),
-    FenceNotFound,
+pub enum GpuToCpuFenceError {
+    GpuToCpuFenneCreationError(anyhow::Error),
+    GpuToCpuFenceWaitError(anyhow::Error),
+    GpuToCpuFenceResetError(anyhow::Error),
+    GpuToCpuFenceDeletionError(anyhow::Error),
+    GpuToCpuFenceNotFound,
 }
 
 impl GpuToCpuFence {

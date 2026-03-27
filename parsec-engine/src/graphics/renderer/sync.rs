@@ -1,5 +1,6 @@
 use crate::graphics::{
-    CurrentGraphicsBackend, gpu_cpu_fence::GpuToCpuFence, gpu_gpu_fence::GpuToGpuFence,
+    ActiveGraphicsBackend, gpu_cpu_fence::GpuToCpuFence,
+    gpu_gpu_fence::GpuToGpuFence,
 };
 
 pub struct RendererFrameSync {
@@ -12,18 +13,24 @@ pub struct RendererImageSync {
 }
 
 impl RendererFrameSync {
-    pub fn new(backend: &mut CurrentGraphicsBackend) -> RendererFrameSync {
+    pub fn new(backend: &mut ActiveGraphicsBackend) -> RendererFrameSync {
         RendererFrameSync {
-            command_buffer_fence: backend.create_fence(true).unwrap(),
-            image_available_semaphore: backend.create_semaphore().unwrap(),
+            command_buffer_fence: backend
+                .create_gpu_to_cpu_fence(true)
+                .unwrap(),
+            image_available_semaphore: backend
+                .create_gpu_to_gpu_fence()
+                .unwrap(),
         }
     }
 }
 
 impl RendererImageSync {
-    pub fn new(backend: &mut CurrentGraphicsBackend) -> RendererImageSync {
+    pub fn new(backend: &mut ActiveGraphicsBackend) -> RendererImageSync {
         RendererImageSync {
-            rendering_complete_semaphore: backend.create_semaphore().unwrap(),
+            rendering_complete_semaphore: backend
+                .create_gpu_to_gpu_fence()
+                .unwrap(),
         }
     }
 }

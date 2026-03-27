@@ -226,7 +226,7 @@ enum VulkanCommand<'a> {
     BindVertexBuffer(&'a VulkanBuffer),
     BindIndexBuffer(&'a VulkanBuffer),
     BindDescriptorSet(&'a VulkanDescriptorSet, u32),
-    CopyBufferToImage(&'a VulkanBuffer, &'a Box<dyn VulkanImage>),
+    CopyBufferToImage(&'a VulkanBuffer, &'a Box<dyn VulkanImage>, Vec2u, Vec2u),
     CopyBufferToBuffer(&'a VulkanBuffer, &'a VulkanBuffer),
 }
 
@@ -541,7 +541,12 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
                         );
                     };
                 },
-                VulkanCommand::CopyBufferToImage(buffer, image) => {
+                VulkanCommand::CopyBufferToImage(
+                    buffer,
+                    image,
+                    image_size,
+                    image_offset,
+                ) => {
                     let (access, layout, stage) =
                         self.get_image_state(image.id());
 
@@ -562,13 +567,16 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
                     )?;
 
                     let buffer_image_copy = ash::vk::BufferImageCopy::default()
-                        .image_extent(
-                            raw_extent_2d(image.extent().raw_size()).into(),
-                        )
+                        .image_extent(raw_extent_2d(image_size).into())
                         .image_subresource(
                             ash::vk::ImageSubresourceLayers::default()
                                 .layer_count(1)
                                 .aspect_mask(image.aspect().raw_image_aspect()),
+                        )
+                        .image_offset(
+                            ash::vk::Offset3D::default()
+                                .x(image_offset.x as i32)
+                                .y(image_offset.y as i32),
                         );
 
                     unsafe {
@@ -838,11 +846,17 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         &mut self,
         buffer: &'b VulkanBuffer,
         image: &'b Box<dyn VulkanImage>,
+        image_size: Vec2u,
+        image_offset: Vec2u,
     ) -> Result<(), VulkanCommandBufferError> {
         self.check_phase(VulkanCommandBufferPhase::Normal)?;
 
-        self.commands
-            .push(VulkanCommand::CopyBufferToImage(buffer, image));
+        self.commands.push(VulkanCommand::CopyBufferToImage(
+            buffer,
+            image,
+            image_size,
+            image_offset,
+        ));
 
         Ok(())
     }

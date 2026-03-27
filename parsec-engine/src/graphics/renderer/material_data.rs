@@ -1,10 +1,10 @@
 use crate::{
     graphics::{
-        CurrentGraphicsBackend,
+        ActiveGraphicsBackend,
         command_list::{Command, CommandList},
         pipeline::{
-            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineOptions,
-            PipelineSubbindingLayout,
+            Pipeline, PipelineOptions, PipelineResource,
+            PipelineResourceBindingLayout, PipelineResourceLayout,
         },
         renderer::{camera_data::CameraData, transform_data::TransformData},
         renderpass::Renderpass,
@@ -17,24 +17,24 @@ pub struct MaterialBase {
     material_base_id: IdType,
     pipeline: Pipeline,
     #[allow(unused)]
-    binding_layouts: Vec<PipelineBindingLayout>,
+    binding_layouts: Vec<PipelineResourceLayout>,
 }
 
 crate::create_counter! {ID_COUNTER}
 impl MaterialBase {
     pub fn new(
-        backend: &mut CurrentGraphicsBackend,
+        backend: &mut ActiveGraphicsBackend,
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,
-        binding_layouts: Vec<Vec<PipelineSubbindingLayout>>,
+        binding_layouts: Vec<Vec<PipelineResourceBindingLayout>>,
         pipeline_options: PipelineOptions,
     ) -> MaterialBase {
         let binding_layouts = binding_layouts
             .iter()
             .map(|binding_layout| {
                 backend
-                    .create_pipeline_binding_layout(&binding_layout)
+                    .create_pipeline_resource_layout(&binding_layout)
                     .unwrap()
             })
             .collect::<Vec<_>>();
@@ -69,7 +69,7 @@ pub enum MaterialPipelineBinding {
     Projection,
     ShadowMap,
     Light,
-    Generic(PipelineBinding),
+    Generic(PipelineResource),
 }
 
 pub struct MaterialData {
@@ -98,8 +98,8 @@ impl MaterialData {
         camera: &CameraData,
         camera_transform: &TransformData,
         transform: &TransformData,
-        light_binding: PipelineBinding,
-        shadowmap_binding: PipelineBinding,
+        light_binding: PipelineResource,
+        shadowmap_binding: PipelineResource,
     ) {
         command_list.cmd(Command::BindGraphicsPipeline(material_base.pipeline));
         for (set_index, binding) in self.descriptor_sets.iter().enumerate() {

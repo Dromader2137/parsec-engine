@@ -6,12 +6,13 @@ use parsec_engine::{
         world::{World, component::Component, fetch::Mut, query::Query},
     },
     graphics::{
-        CurrentGraphicsBackend, GraphicsBundle,
+        ActiveGraphicsBackend, GraphicsBundle,
         buffer::{BufferContent, BufferUsage},
-        image::{ImageAspect, ImageFormat, ImageUsage},
+        image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode,
-            PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
+            PipelineOptions, PipelineResourceBindingLayout,
+            PipelineShaderStage,
         },
         renderer::{
             RendererMainRenderpass,
@@ -23,6 +24,7 @@ use parsec_engine::{
             material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
             },
+            texture_atlas::{TextureAtlas, TextureAtlasBuilder},
         },
         shader::ShaderType,
         vulkan::shader::read_shader_code,
@@ -37,7 +39,7 @@ use parsec_engine::{
 
 #[system]
 fn test_system(
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     mut materials: Resource<IdStore<MaterialData>>,
     mut material_bases: Resource<IdStore<MaterialBase>>,
     mut meshes: Resource<IdStore<Mesh>>,
@@ -63,36 +65,36 @@ fn test_system(
         renderpass.0,
         vec![
             vec![
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
             ],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Vertex],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Vertex],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::TextureSampler,
                 &[PipelineShaderStage::Fragment],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::TextureSampler,
                 &[PipelineShaderStage::Fragment],
             )],
@@ -119,16 +121,21 @@ fn test_system(
         )
         .unwrap();
     backend
-        .load_image_from_buffer(texture_buffer, texture_image)
+        .load_image_from_buffer(
+            texture_buffer,
+            texture_image,
+            Vec2u::new(width, height),
+            Vec2u::ZERO,
+        )
         .unwrap();
     let texture_binding_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout::new(
             PipelineBindingType::TextureSampler,
             &[PipelineShaderStage::Fragment],
         )])
         .unwrap();
     let texture_binding = backend
-        .create_pipeline_binding(texture_binding_layout)
+        .create_pipeline_resource(texture_binding_layout)
         .unwrap();
     let texture_sampler = backend.create_image_sampler().unwrap();
     let texture_image_view = backend.create_image_view(texture_image).unwrap();

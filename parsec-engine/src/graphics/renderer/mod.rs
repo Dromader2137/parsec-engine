@@ -10,6 +10,8 @@ pub mod light_data;
 pub mod material_data;
 pub mod mesh_data;
 pub mod sync;
+pub mod texture;
+pub mod texture_atlas;
 pub mod transform_data;
 
 use sync::{RendererFrameSync, RendererImageSync};
@@ -17,14 +19,15 @@ use sync::{RendererFrameSync, RendererImageSync};
 use crate::{
     ecs::system::system,
     graphics::{
-        CurrentGraphicsBackend,
+        ActiveGraphicsBackend,
         buffer::{Buffer, BufferContent, BufferUsage},
         command_list::{Command, CommandList},
         framebuffer::Framebuffer,
         image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView},
         pipeline::{
-            DefaultVertex, PipelineBinding, PipelineBindingType,
-            PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
+            DefaultVertex, PipelineBindingType, PipelineOptions,
+            PipelineResource, PipelineResourceBindingLayout,
+            PipelineShaderStage,
         },
         renderer::{
             assets::mesh::Mesh,
@@ -52,7 +55,7 @@ use crate::{
 };
 
 fn create_frame_sync(
-    backend: &mut CurrentGraphicsBackend,
+    backend: &mut ActiveGraphicsBackend,
     frames_in_flight: usize,
 ) -> Vec<RendererFrameSync> {
     let mut ret = Vec::new();
@@ -63,7 +66,7 @@ fn create_frame_sync(
 }
 
 fn create_image_sync(
-    backend: &mut CurrentGraphicsBackend,
+    backend: &mut ActiveGraphicsBackend,
     image_count: usize,
 ) -> Vec<RendererImageSync> {
     let mut ret = Vec::new();
@@ -74,7 +77,7 @@ fn create_image_sync(
 }
 
 fn create_commad_lists(
-    backend: &mut CurrentGraphicsBackend,
+    backend: &mut ActiveGraphicsBackend,
     frames_in_flight: usize,
 ) -> Vec<CommandList> {
     let mut ret = Vec::new();
@@ -106,7 +109,7 @@ pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 #[allow(unused)]
 pub struct RendererShadowpassData {
     light_dir_buffer: Buffer,
-    light_dir_binding: PipelineBinding,
+    light_dir_binding: PipelineResource,
     renderpass: Renderpass,
     material_id: u32,
     vertex_shader: Shader,
@@ -114,12 +117,12 @@ pub struct RendererShadowpassData {
     image: Image,
     image_view: ImageView,
     image_sampler: Sampler,
-    image_binding: PipelineBinding,
+    image_binding: PipelineResource,
     framebuffer: Framebuffer,
     proj_buffer: Buffer,
     look_buffer: Buffer,
-    proj_binding: PipelineBinding,
-    look_binding: PipelineBinding,
+    proj_binding: PipelineResource,
+    look_binding: PipelineResource,
 }
 
 #[repr(C)]
@@ -132,7 +135,7 @@ struct LD {
 
 #[system]
 pub fn init_renderer(
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     window: Resource<Window>,
 ) {
     let surface_format = backend.get_surface_format();
@@ -142,7 +145,7 @@ pub fn init_renderer(
             RenderpassAttachment {
                 attachment_type: RenderpassAttachmentType::Color,
                 image_format: surface_format,
-                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 1.0),
+                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 0.0),
                 load_op: RenderpassAttachmentLoadOp::Clear,
                 store_op: RenderpassAttachmentStoreOp::Store,
             },
@@ -213,24 +216,24 @@ pub fn init_renderer(
         shadow_renderpass,
         vec![
             vec![
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
             ],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Vertex],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Vertex],
             )],
@@ -274,21 +277,23 @@ pub fn init_renderer(
         )
         .unwrap();
     let shadow_proj_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
             binding_type: PipelineBindingType::UniformBuffer,
             shader_stages: vec![PipelineShaderStage::Vertex],
         }])
         .unwrap();
     let shadow_look_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
             binding_type: PipelineBindingType::UniformBuffer,
             shader_stages: vec![PipelineShaderStage::Vertex],
         }])
         .unwrap();
-    let shadow_proj_binding =
-        backend.create_pipeline_binding(shadow_proj_layout).unwrap();
-    let shadow_look_binding =
-        backend.create_pipeline_binding(shadow_look_layout).unwrap();
+    let shadow_proj_binding = backend
+        .create_pipeline_resource(shadow_proj_layout)
+        .unwrap();
+    let shadow_look_binding = backend
+        .create_pipeline_resource(shadow_look_layout)
+        .unwrap();
     backend
         .bind_buffer(shadow_proj_binding, shadow_proj_buffer, 0)
         .unwrap();
@@ -302,13 +307,13 @@ pub fn init_renderer(
     ]);
     let shadow_sampler = backend.create_image_sampler().unwrap();
     let shadow_tex_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
             binding_type: PipelineBindingType::TextureSampler,
             shader_stages: vec![PipelineShaderStage::Fragment],
         }])
         .unwrap();
     let shadow_tex_binding =
-        backend.create_pipeline_binding(shadow_tex_layout).unwrap();
+        backend.create_pipeline_resource(shadow_tex_layout).unwrap();
     backend
         .bind_sampler(shadow_tex_binding, shadow_sampler, shadow_depth_view, 0)
         .unwrap();
@@ -329,13 +334,13 @@ pub fn init_renderer(
         )
         .unwrap();
     let light_binding_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout::new(
             PipelineBindingType::UniformBuffer,
             &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
         )])
         .unwrap();
     let light_binding = backend
-        .create_pipeline_binding(light_binding_layout)
+        .create_pipeline_resource(light_binding_layout)
         .unwrap();
     backend.bind_buffer(light_binding, light_buffer, 0).unwrap();
 
@@ -394,7 +399,7 @@ pub fn init_renderer(
 }
 
 fn recreate_size_dependent_components(
-    backend: &mut CurrentGraphicsBackend,
+    backend: &mut ActiveGraphicsBackend,
     window: &Window,
     swapchain_images: &[Image],
     swapchain_views: &[ImageView],
@@ -454,7 +459,7 @@ fn recreate_size_dependent_components(
 
 #[system]
 pub fn render(
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     mut current_frame: Resource<RendererCurrentFrame>,
     mut resize: Resource<ResizeFlag>,
     frames_in_flight: Resource<RendererFramesInFlight>,
@@ -502,7 +507,9 @@ pub fn render(
         Err(err) => panic!("{:?}", err),
     };
     backend
-        .reset_fence(frame_sync[current_frame.0 as usize].command_buffer_fence)
+        .reset_gpu_to_cpu_fence(
+            frame_sync[current_frame.0 as usize].command_buffer_fence,
+        )
         .unwrap();
 
     let command_list = &mut command_lists[current_frame.0 as usize];
@@ -603,7 +610,7 @@ pub fn render(
 
     let command_buffer_fence =
         frame_sync[current_frame.0 as usize].command_buffer_fence;
-    backend.wait_fence(command_buffer_fence).unwrap();
+    backend.wait_gpu_to_cpu_fence(command_buffer_fence).unwrap();
 
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
 }
