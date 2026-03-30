@@ -183,7 +183,7 @@ fn test_system(
         Transform::new(
             Vec3f::new(-2.0, 2.0, -2.0),
             Vec3f::ONE * 0.4,
-            Quat::IDENTITY,
+            Quat::from_euler(Vec3f::new(0.8, 1.5, 0.4)),
         ),
         MeshRenderer::new(mesh, material_id),
         Movable {
@@ -197,7 +197,7 @@ fn test_system(
         Transform::new(
             Vec3f::new(3.0, -3.0, 3.0),
             Vec3f::ONE * 1.5,
-            Quat::IDENTITY,
+            Quat::from_euler(Vec3f::new(0.4, 1.2, 2.0)),
         ),
         MeshRenderer::new(mesh, material_id),
     ));

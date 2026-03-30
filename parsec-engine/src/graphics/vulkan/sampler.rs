@@ -18,7 +18,7 @@ impl VulkanSampler {
         device: &VulkanDevice,
     ) -> Result<VulkanSampler, VulkanSamplerError> {
         let sampler_info = ash::vk::SamplerCreateInfo::default()
-            .mag_filter(ash::vk::Filter::LINEAR);
+            .mag_filter(ash::vk::Filter::NEAREST);
 
         let sampler = unsafe {
             device

@@ -241,7 +241,7 @@ pub fn init_renderer(
         ],
         PipelineOptions::default(),
     );
-    let shadow_size = 1 << 10;
+    let shadow_size = 1 << 12;
     let shadow_depth_image = backend
         .create_image(
             Vec2u::new(shadow_size, shadow_size),
