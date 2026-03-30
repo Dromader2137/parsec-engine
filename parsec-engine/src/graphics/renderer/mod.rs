@@ -17,7 +17,7 @@ pub mod transform_data;
 use sync::{RendererFrameSync, RendererImageSync};
 
 use crate::{
-    ecs::system::system,
+    ecs::system::{requests::Requests, system},
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferContent, BufferUsage},
@@ -50,7 +50,7 @@ use crate::{
         window::Window,
     },
     math::{mat::Matrix4f, uvec::Vec2u, vec::Vec3f},
-    resources::{Resource, Resources},
+    resources::Resource,
     utils::identifiable::IdStore,
 };
 
@@ -135,6 +135,7 @@ struct LD {
 
 #[system]
 pub fn init_renderer(
+    mut requests: Resource<Requests>,
     mut backend: Resource<ActiveGraphicsBackend>,
     window: Resource<Window>,
 ) {
@@ -368,37 +369,36 @@ pub fn init_renderer(
         look_binding: shadow_look_binding,
     };
 
-    Resources::add(shadow_data).unwrap();
-    Resources::add(RendererMainRenderpass(renderpass)).unwrap();
-    Resources::add(RendererSwapchainImages(swapchain_images)).unwrap();
-    Resources::add(RendererSwapchainImageViews(swapchain_image_views)).unwrap();
-    Resources::add(RendererDepthImage(depth_image)).unwrap();
-    Resources::add(RendererDepthImageView(depth_image_view)).unwrap();
-    Resources::add(RendererFramebuffers(framebuffers)).unwrap();
-    Resources::add(frame_sync).unwrap();
-    Resources::add(image_sync).unwrap();
-    Resources::add(command_lists).unwrap();
-    Resources::add(RendererCurrentFrame(0)).unwrap();
-    Resources::add(RendererFramesInFlight(frames_in_flight as u32)).unwrap();
-    Resources::add(ResizeFlag(false)).unwrap();
-    Resources::add(Vec::<Draw>::new()).unwrap();
-    Resources::add(IdStore::<MeshData<DefaultVertex>>::new()).unwrap();
-    Resources::add(IdStore::<Mesh>::new()).unwrap();
-    Resources::add(material_bases).unwrap();
-    Resources::add(materials_data).unwrap();
-    Resources::add(IdStore::<TransformData>::new()).unwrap();
-    Resources::add(IdStore::<CameraData>::new()).unwrap();
-    Resources::add(TransformDataManager {
+    requests.create_resource(shadow_data);
+    requests.create_resource(RendererMainRenderpass(renderpass));
+    requests.create_resource(RendererSwapchainImages(swapchain_images));
+    requests.create_resource(RendererSwapchainImageViews(swapchain_image_views));
+    requests.create_resource(RendererDepthImage(depth_image));
+    requests.create_resource(RendererDepthImageView(depth_image_view));
+    requests.create_resource(RendererFramebuffers(framebuffers));
+    requests.create_resource(frame_sync);
+    requests.create_resource(image_sync);
+    requests.create_resource(command_lists);
+    requests.create_resource(RendererCurrentFrame(0));
+    requests.create_resource(RendererFramesInFlight(frames_in_flight as u32));
+    requests.create_resource(ResizeFlag(false));
+    requests.create_resource(Vec::<Draw>::new());
+    requests.create_resource(IdStore::<MeshData<DefaultVertex>>::new());
+    requests.create_resource(IdStore::<Mesh>::new());
+    requests.create_resource(material_bases);
+    requests.create_resource(materials_data);
+    requests.create_resource(IdStore::<TransformData>::new());
+    requests.create_resource(IdStore::<CameraData>::new());
+    requests.create_resource(TransformDataManager {
         component_to_data: HashMap::new(),
-    })
-    .unwrap();
-    Resources::add(CameraDataManager {
+    });
+    requests.create_resource(CameraDataManager {
         component_to_data: HashMap::new(),
-    })
-    .unwrap();
+    });
 }
 
 fn recreate_size_dependent_components(
+    requests: &mut Requests,
     backend: &mut ActiveGraphicsBackend,
     window: &Window,
     swapchain_images: &[Image],
@@ -409,8 +409,8 @@ fn recreate_size_dependent_components(
     renderpass: Renderpass,
 ) {
     backend.wait_idle();
-
     backend.handle_resize(window).unwrap();
+
     let new_swapchain_images = backend.present_images();
     let new_swapchain_image_views = new_swapchain_images
         .iter()
@@ -448,17 +448,18 @@ fn recreate_size_dependent_components(
         backend.delete_framebuffer(*framebuffer).unwrap()
     });
 
-    Resources::add_or_change(RendererSwapchainImages(new_swapchain_images));
-    Resources::add_or_change(RendererSwapchainImageViews(
+    requests.create_resource(RendererSwapchainImages(new_swapchain_images));
+    requests.create_resource(RendererSwapchainImageViews(
         new_swapchain_image_views,
     ));
-    Resources::add_or_change(RendererDepthImage(new_depth_image));
-    Resources::add_or_change(RendererDepthImageView(new_depth_image_view));
-    Resources::add_or_change(RendererFramebuffers(new_framebuffers));
+    requests.create_resource(RendererDepthImage(new_depth_image));
+    requests.create_resource(RendererDepthImageView(new_depth_image_view));
+    requests.create_resource(RendererFramebuffers(new_framebuffers));
 }
 
 #[system]
 pub fn render(
+    mut requests: Resource<Requests>,
     mut backend: Resource<ActiveGraphicsBackend>,
     mut current_frame: Resource<RendererCurrentFrame>,
     mut resize: Resource<ResizeFlag>,
@@ -487,6 +488,7 @@ pub fn render(
 
     if resize.0 {
         recreate_size_dependent_components(
+            &mut *requests,
             &mut *backend,
             &window,
             &swapchain_images.0,

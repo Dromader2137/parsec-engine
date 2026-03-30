@@ -8,16 +8,16 @@ use thiserror::Error;
 
 use crate::ecs::{
     entity::Entity,
-    world::{add_component::AddComponent, remove_component::RemoveComponent},
+    world::{add_component::AddComponent, remove_component::{RemoveComponent, RemoveComponentData}},
 };
 
-mod add_component;
+pub mod add_component;
 mod archetype;
 pub mod component;
 pub mod fetch;
 pub mod query;
-mod remove_component;
-mod spawn;
+pub mod remove_component;
+pub mod spawn;
 
 #[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorldError {
@@ -37,12 +37,15 @@ pub struct World {
     /// Contains all archetypes indexed by their id.
     archetypes: HashMap<ArchetypeId, Archetype>,
     /// New entity id counter.
-    current_id: u32,
+    pub current_id: u32,
 }
 
 impl World {
     pub fn new() -> Self {
-        Self { archetypes: HashMap::new(), current_id: 0 }
+        Self {
+            archetypes: HashMap::new(),
+            current_id: 0,
+        }
     }
 
     /// Returns a mutable reference to the archetype stored under `archetype_id`.
@@ -67,7 +70,8 @@ impl World {
     /// - If `T` can't produce a valid [`ArchetypeId`].
     /// - If the [archetype][Archetype] is already borrowed in some way.
     pub fn spawn<T: Spawn>(&mut self, bundle: T) -> Result<Entity, WorldError> {
-        let archetype_id = T::archetype_id()
+        let archetype_id = bundle
+            .archetype_id()
             .map_err(|e| WorldError::SpawnError { kind: e })?;
         let entity_id = self.current_id;
         let archetype = self.get_archetype_mut(&archetype_id);
@@ -80,6 +84,33 @@ impl World {
         archetype.bundle_count += 1;
         self.current_id += 1;
         Ok(entity)
+    }
+
+    /// Spawns a new entity.
+    ///
+    /// # Errors
+    ///
+    /// - If `T` can't produce a valid [`ArchetypeId`].
+    /// - If the [archetype][Archetype] is already borrowed in some way.
+    pub fn spawn_with_id<T: Spawn>(
+        &mut self,
+        entity: Entity,
+        bundle: T,
+    ) -> Result<(), WorldError> {
+        let archetype_id = bundle
+            .archetype_id()
+            .map_err(|e| WorldError::SpawnError { kind: e })?;
+        let entity_id = entity.id();
+        let archetype = self.get_archetype_mut(&archetype_id);
+        archetype
+            .new_entity(entity_id)
+            .map_err(|e| WorldError::SpawnError { kind: e })?;
+        bundle
+            .spawn(archetype)
+            .map_err(|e| WorldError::SpawnError { kind: e })?;
+        archetype.bundle_count += 1;
+        self.current_id = entity_id + 1;
+        Ok(())
     }
 
     /// Deletes the given entity.
@@ -135,7 +166,7 @@ impl World {
                 });
             },
         };
-        let t_archetype_id = T::archetype_id()
+        let t_archetype_id = bundle_extension.archetype_id()
             .map_err(|e| WorldError::AddComponentError { kind: e })?;
         let new_archetype_id = archetype_id
             .merge_with(t_archetype_id)
@@ -189,6 +220,17 @@ impl World {
         &mut self,
         entity: Entity,
     ) -> Result<(), WorldError> {
+        let t_archetype_id = T::archetype_id()
+            .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
+        let data = RemoveComponentData { archetype_id: t_archetype_id };
+        self.remove_components_using_data(entity, data)
+    }
+    
+    pub fn remove_components_using_data(
+        &mut self,
+        entity: Entity,
+        data: RemoveComponentData
+    ) -> Result<(), WorldError> {
         let (archetype_id, old_archetype) = match self
             .archetypes
             .iter_mut()
@@ -201,8 +243,7 @@ impl World {
                 });
             },
         };
-        let t_archetype_id = T::archetype_id()
-            .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
+        let t_archetype_id = data.archetype_id;
         let new_archetype_id = archetype_id
             .remove_from(t_archetype_id)
             .map_err(|e| WorldError::DeleteComponentError { kind: e })?;

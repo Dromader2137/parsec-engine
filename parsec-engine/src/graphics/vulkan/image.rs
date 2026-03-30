@@ -306,7 +306,9 @@ impl VulkanImage for VulkanSwapchainImage {
         self.last_known_layout = layout;
     }
     fn aspect(&self) -> VulkanImageAspect { VulkanImageAspect::Color }
-    fn destroy(&self, _device: &VulkanDevice) {}
+    fn destroy(&self, device: &VulkanDevice) {
+        unsafe { device.raw_device().destroy_image(*self.raw_image(), None) }
+    }
 }
 
 impl VulkanImage for VulkanOwnedImage {

@@ -2,13 +2,13 @@ use image::EncodableLayout;
 use parsec_engine::{
     app::App,
     ecs::{
-        system::{SystemTrigger, system},
-        world::{World, component::Component, fetch::Mut, query::Query},
+        system::{SystemTrigger, requests::Requests, system},
+        world::{component::Component, fetch::Mut, query::Query},
     },
     graphics::{
         ActiveGraphicsBackend, GraphicsBundle,
         buffer::{BufferContent, BufferUsage},
-        image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
+        image::{ImageAspect, ImageFormat, ImageUsage},
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode,
             PipelineOptions, PipelineResourceBindingLayout,
@@ -24,7 +24,6 @@ use parsec_engine::{
             material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
             },
-            texture_atlas::{TextureAtlas, TextureAtlasBuilder},
         },
         shader::ShaderType,
         vulkan::shader::read_shader_code,
@@ -39,6 +38,7 @@ use parsec_engine::{
 
 #[system]
 fn test_system(
+    mut requests: Resource<Requests>,
     mut backend: Resource<ActiveGraphicsBackend>,
     mut materials: Resource<IdStore<MaterialData>>,
     mut material_bases: Resource<IdStore<MaterialBase>>,
@@ -157,7 +157,7 @@ fn test_system(
 
     let mesh = meshes.push(load_obj("test.obj").unwrap());
 
-    World::spawn((
+    requests.spawn_entity((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
         Transform::new(Vec3f::BACK, Vec3f::ZERO, Quat::IDENTITY),
         CameraController {
@@ -167,10 +167,9 @@ fn test_system(
             target_pitch: 0.0,
             fov: 40.0,
         },
-    ))
-    .unwrap();
+    ));
 
-    World::spawn((
+    requests.spawn_entity((
         Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
         MeshRenderer::new(mesh, material_id),
         Movable {
@@ -178,10 +177,9 @@ fn test_system(
             offset: 0.0,
             speed: 1.0,
         },
-    ))
-    .unwrap();
+    ));
 
-    World::spawn((
+    requests.spawn_entity((
         Transform::new(
             Vec3f::new(-2.0, 2.0, -2.0),
             Vec3f::ONE * 0.4,
@@ -193,18 +191,16 @@ fn test_system(
             offset: 1.0,
             speed: 2.5,
         },
-    ))
-    .unwrap();
+    ));
 
-    World::spawn((
+    requests.spawn_entity((
         Transform::new(
             Vec3f::new(3.0, -3.0, 3.0),
             Vec3f::ONE * 1.5,
             Quat::IDENTITY,
         ),
         MeshRenderer::new(mesh, material_id),
-    ))
-    .unwrap();
+    ));
 }
 
 #[derive(Debug, Component)]

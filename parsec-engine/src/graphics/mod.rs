@@ -28,7 +28,9 @@ use window::Window;
 use crate::{
     app::{self},
     ecs::{
-        system::{System, SystemBundle, SystemTrigger, system},
+        system::{
+            System, SystemBundle, SystemTrigger, requests::Requests, system,
+        },
         world::query::Query,
     },
     graphics::{
@@ -49,7 +51,7 @@ use crate::{
         },
         vulkan::VulkanBackend,
     },
-    resources::{Resource, Resources},
+    resources::Resource,
     utils::identifiable::IdStore,
 };
 
@@ -103,9 +105,9 @@ impl DerefMut for ActiveGraphicsBackend {
 }
 
 #[system]
-pub fn init_vulkan(window: Resource<Window>) {
+pub fn init_vulkan(mut requests: Resource<Requests>, window: Resource<Window>) {
     let context = VulkanBackend::init(&window).unwrap();
-    Resources::add(ActiveGraphicsBackend(Box::new(context))).unwrap();
+    requests.create_resource(ActiveGraphicsBackend(Box::new(context)));
 }
 
 #[system]
@@ -120,13 +122,13 @@ fn end_wait_idle(backend: Resource<ActiveGraphicsBackend>) {
 }
 
 #[system]
-fn init_window() {
+fn init_window(mut requests: Resource<Requests>) {
     let window = {
         let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
         let event_loop_raw = event_loop.get_event_loop();
         Window::new(event_loop_raw, "Oxide Engine test").unwrap()
     };
-    Resources::add(window).unwrap();
+    requests.create_resource(window);
 }
 
 #[system]

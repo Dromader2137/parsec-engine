@@ -4,7 +4,7 @@ use std::{cell::RefCell, ptr::NonNull};
 
 use crate::{
     ecs::{
-        system::{SystemTrigger, Systems},
+        system::{SystemTrigger, Systems, requests::Requests},
         world::World,
     },
     input::{
@@ -28,23 +28,26 @@ impl App {
         App {
             systems: Systems::new(),
             world: World::new(),
-            resources: Resources::new()
+            resources: Resources::new(),
         }
     }
 
     pub fn run(&mut self) {
-        self.systems.execute_type(
-            SystemTrigger::Start,
-            &self.resources,
-            &self.world,
-        );
+        self.resources.add(Requests::new(self.world.current_id));
+
+        self.execute_system(SystemTrigger::Start);
 
         let event_loop =
             winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
         event_loop
             .run_app(self)
-            .expect("Correctly working event loop");
+            .unwrap();
+    }
+
+    pub fn execute_system(&mut self, system_trigger: SystemTrigger) {
+        self.systems
+            .execute_type(system_trigger, &mut self.resources, &mut self.world);
     }
 }
 
@@ -75,12 +78,7 @@ impl winit::application::ApplicationHandler for App {
         ACTIVE_EVENT_LOOP.with_borrow_mut(|x| {
             *x = Some(ActiveEventLoopStore::new(event_loop))
         });
-
-        self.systems.execute_type(
-            SystemTrigger::LateStart,
-            &self.resources,
-            &self.world,
-        );
+        self.execute_system(SystemTrigger::LateStart);
     }
 
     fn device_event(
@@ -91,18 +89,12 @@ impl winit::application::ApplicationHandler for App {
     ) {
         match event {
             winit::event::DeviceEvent::MouseMotion { delta } => {
-                self.resources
-                    .add(MouseMovementEvent::delta(Vec2f::new(
-                        delta.0 as f32,
-                        delta.1 as f32,
-                    )))
-                    .unwrap();
+                self.resources.add(MouseMovementEvent::delta(Vec2f::new(
+                    delta.0 as f32,
+                    delta.1 as f32,
+                )));
 
-                self.systems.execute_type(
-                    SystemTrigger::MouseMovement,
-                    &self.resources,
-                    &self.world,
-                );
+                self.execute_system(SystemTrigger::MouseMovement);
 
                 self.resources.remove::<MouseMovementEvent>().unwrap();
             },
@@ -134,48 +126,31 @@ impl winit::application::ApplicationHandler for App {
                     _ => return,
                 };
 
-                self.resources
-                    .add(KeyboardInputEvent::new(key_code.into(), state.into()))
-                    .unwrap();
+                self.resources.add(KeyboardInputEvent::new(
+                    key_code.into(),
+                    state.into(),
+                ));
 
-                self.systems.execute_type(
-                    SystemTrigger::KeyboardInput,
-                    &self.resources,
-                    &self.world,
-                );
+                self.execute_system(SystemTrigger::KeyboardInput);
 
                 self.resources.remove::<KeyboardInputEvent>().unwrap();
             },
             winit::event::WindowEvent::CursorLeft { device_id: _ } => {
-                self.systems.execute_type(
-                    SystemTrigger::WindowCursorLeft,
-                    &self.resources,
-                    &self.world,
-                );
+                self.execute_system(SystemTrigger::WindowCursorLeft);
             },
             winit::event::WindowEvent::Resized(_) => {
-                self.systems.execute_type(
-                    SystemTrigger::WindowResized,
-                    &self.resources,
-                    &self.world,
-                );
+                self.execute_system(SystemTrigger::WindowResized);
             },
             winit::event::WindowEvent::CursorMoved {
                 device_id: _,
                 position,
             } => {
-                self.resources
-                    .add(MouseMovementEvent::position(Vec2f::new(
-                        position.x as f32,
-                        position.y as f32,
-                    )))
-                    .unwrap();
+                self.resources.add(MouseMovementEvent::position(Vec2f::new(
+                    position.x as f32,
+                    position.y as f32,
+                )));
 
-                self.systems.execute_type(
-                    SystemTrigger::MouseMovement,
-                    &self.resources,
-                    &self.world,
-                );
+                self.execute_system(SystemTrigger::MouseMovement);
 
                 self.resources.remove::<MouseMovementEvent>().unwrap();
             },
@@ -184,15 +159,9 @@ impl winit::application::ApplicationHandler for App {
                 state,
                 button,
             } => {
-                self.resources
-                    .add(MouseButtonEvent::new(button, state))
-                    .unwrap();
+                self.resources.add(MouseButtonEvent::new(button, state));
 
-                self.systems.execute_type(
-                    SystemTrigger::MouseButton,
-                    &self.resources,
-                    &self.world,
-                );
+                self.execute_system(SystemTrigger::MouseButton);
 
                 self.resources.remove::<MouseButtonEvent>().unwrap();
             },
@@ -210,33 +179,19 @@ impl winit::application::ApplicationHandler for App {
                     },
                 };
 
-                self.resources
-                    .add(MouseWheelEvent::new(processed_delta))
-                    .unwrap();
+                self.resources.add(MouseWheelEvent::new(processed_delta));
 
-                self.systems.execute_type(
-                    SystemTrigger::MouseWheel,
-                    &self.resources,
-                    &self.world,
-                );
+                self.execute_system(SystemTrigger::MouseWheel);
 
                 self.resources.remove::<MouseWheelEvent>().unwrap();
             },
             winit::event::WindowEvent::CloseRequested => {
                 ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);
-                self.systems.execute_type(
-                    SystemTrigger::End,
-                    &self.resources,
-                    &self.world,
-                );
+                self.execute_system(SystemTrigger::End);
                 event_loop.exit();
             },
             winit::event::WindowEvent::RedrawRequested => {
-                self.systems.execute_type(
-                    SystemTrigger::Render,
-                    &self.resources,
-                    &self.world,
-                );
+                self.execute_system(SystemTrigger::Render);
             },
             _ => (),
         }
@@ -246,20 +201,8 @@ impl winit::application::ApplicationHandler for App {
         &mut self,
         _event_loop: &winit::event_loop::ActiveEventLoop,
     ) {
-        self.systems.execute_type(
-            SystemTrigger::EarlyUpdate,
-            &self.resources,
-            &self.world,
-        );
-        self.systems.execute_type(
-            SystemTrigger::Update,
-            &self.resources,
-            &self.world,
-        );
-        self.systems.execute_type(
-            SystemTrigger::LateUpdate,
-            &self.resources,
-            &self.world,
-        );
+        self.execute_system(SystemTrigger::EarlyUpdate);
+        self.execute_system(SystemTrigger::Update);
+        self.execute_system(SystemTrigger::LateUpdate);
     }
 }

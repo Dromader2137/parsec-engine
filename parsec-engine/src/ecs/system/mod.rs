@@ -4,7 +4,10 @@ pub mod requests;
 
 use std::{collections::HashMap, fmt::Debug, time::Instant};
 
-use crate::{ecs::world::World, resources::Resources};
+use crate::{
+    ecs::{system::requests::Requests, world::World},
+    resources::{Resource, Resources},
+};
 
 /// List of possible actions a system can run on.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -115,14 +118,17 @@ impl Systems {
     pub fn execute_type(
         &mut self,
         system_type: SystemTrigger,
-        resources: &Resources,
-        world: &World,
+        resources: &mut Resources,
+        world: &mut World,
     ) {
         if let Some(systems) = self.systems.get_mut(&system_type) {
             for (system, stats) in systems.iter_mut() {
                 let instant = Instant::now();
                 system.run(resources, world);
                 let duration = (instant.elapsed().as_micros() as f64) / 1000.0;
+                let mut requests =
+                    Resource::<Requests>::borrow(resources, world);
+                requests.handle_requests(world, resources).unwrap();
                 stats.times_called += 1;
                 if stats.times_called < 25 {
                     continue;
