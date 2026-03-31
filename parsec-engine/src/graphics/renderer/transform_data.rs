@@ -9,8 +9,8 @@ use crate::{
         CurrentGraphicsBackend,
         buffer::{Buffer, BufferContent, BufferUsage},
         pipeline::{
-            PipelineBindingType, PipelineShaderStage, PipelineSubbindingLayout,
-            ResourceBinding,
+            PipelineBinding, PipelineBindingType, PipelineShaderStage,
+            PipelineSubbindingLayout,
         },
         renderer::components::transform::Transform,
     },
@@ -30,10 +30,10 @@ pub struct TransformData {
     pub translation_buffer: Buffer,
     pub scale_buffer: Buffer,
     pub rotation_buffer: Buffer,
-    pub model_binding: ResourceBinding,
+    pub model_binding: PipelineBinding,
     pub look_at_matrix: Matrix4f,
     pub look_at_buffer: Buffer,
-    pub look_at_binding: ResourceBinding,
+    pub look_at_binding: PipelineBinding,
 }
 
 pub struct TransformDataManager {
@@ -77,7 +77,7 @@ impl TransformData {
             ])
             .unwrap();
         let model_pipeline_layout = backend
-            .create_resource_binding_layout(&[
+            .create_pipeline_binding_layout(&[
                 PipelineSubbindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
                     shader_stages: vec![PipelineShaderStage::Vertex],
@@ -93,16 +93,16 @@ impl TransformData {
             ])
             .unwrap();
         let look_at_pipeline_layout = backend
-            .create_resource_binding_layout(&[PipelineSubbindingLayout {
+            .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
             }])
             .unwrap();
         let model_binding = backend
-            .create_resource_binding(model_pipeline_layout)
+            .create_pipeline_binding(model_pipeline_layout)
             .unwrap();
         let look_at_binding = backend
-            .create_resource_binding(look_at_pipeline_layout)
+            .create_pipeline_binding(look_at_pipeline_layout)
             .unwrap();
         backend
             .bind_buffer(model_binding, translation_buffer, 0)

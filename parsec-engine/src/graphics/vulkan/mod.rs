@@ -5,9 +5,8 @@ use core::result::Result::Err;
 use std::collections::HashMap;
 
 use crate::{
-    app,
     graphics::{
-        backend::{BackendInitError, FrameBeginInfo, GraphicsBackend},
+        backend::{BackendInitError, GraphicsBackend},
         buffer::{Buffer, BufferContent, BufferError, BufferUsage},
         command_list::{Command, CommandList, CommandListError},
         fence::{Fence, FenceError},
@@ -16,8 +15,8 @@ use crate::{
             Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView,
         },
         pipeline::{
-            Pipeline, PipelineError, PipelineOptions, PipelineSubbindingLayout,
-            ResourceBinding, ResourceBindingLayout,
+            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
+            PipelineOptions, PipelineSubbindingLayout,
         },
         renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
         sampler::{Sampler, SamplerError},
@@ -96,7 +95,6 @@ mod utils;
 
 #[allow(unused)]
 pub struct VulkanBackend {
-    window: Window,
     instance: VulkanInstance,
     physical_device: VulkanPhysicalDevice,
     surface: VulkanSurface,
@@ -105,7 +103,7 @@ pub struct VulkanBackend {
     present_queue: VulkanQueue,
     descriptor_pool: VulkanDescriptorPool,
     allocator: VulkanAllocator,
-    swapchain: VulkanSwapchain,
+    swapchains: HashMap<u32, VulkanSwapchain>,
     images: HashMap<u32, Box<dyn VulkanImage>>,
     image_views: HashMap<u32, VulkanImageView>,
     samplers: HashMap<u32, VulkanSampler>,
@@ -120,9 +118,6 @@ pub struct VulkanBackend {
     renderpasses: HashMap<u32, VulkanRenderpass>,
     descriptor_sets: HashMap<u32, VulkanDescriptorSet>,
     descriptor_set_layouts: HashMap<u32, VulkanDescriptorSetLayout>,
-
-    present_semaphores: Vec<u32>,
-    current_frame: usize,
 }
 
 impl Drop for VulkanBackend {
@@ -164,8 +159,10 @@ impl Drop for VulkanBackend {
         for (_, semaphore) in self.semaphores.drain() {
             semaphore.destroy(&self.device);
         }
+        for (_, swapchain) in self.swapchains.drain() {
+            swapchain.destroy();
+        }
 
-        self.swapchain.destroy();
         self.allocator.free_all(&self.device);
 
         self.command_buffers.clear();
@@ -177,12 +174,7 @@ impl Drop for VulkanBackend {
 }
 
 impl GraphicsBackend for VulkanBackend {
-    fn init() -> Result<Self, BackendInitError> {
-        let window = {
-            let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
-            let event_loop_raw = event_loop.get_event_loop();
-            Window::new(event_loop_raw, "Oxide Engine test").unwrap()
-        };
+    fn init(window: &Window) -> Result<Self, BackendInitError> {
         let instance = VulkanInstance::new(&window)
             .map_err(|err| BackendInitError::InitError(err.into()))?;
         let initial_surface = VulkanInitialSurface::new(&instance, &window)
@@ -213,27 +205,8 @@ impl GraphicsBackend for VulkanBackend {
         ])
         .map_err(|err| BackendInitError::InitError(err.into()))?;
         let allocator = VulkanAllocator::new();
-        let (swapchain, swapchain_images) =
-            VulkanSwapchain::new(&instance, &window, &surface, &device, None)
-                .map_err(|err| BackendInitError::InitError(err.into()))?;
-
-        let mut images = HashMap::new();
-        for image in swapchain_images.into_iter() {
-            images.insert(image.id(), image);
-        }
-
-        let mut semaphores = HashMap::new();
-        let mut present_semaphores = Vec::new();
-        for _ in 0..images.len() {
-            let semaphore = VulkanSemaphore::new(&device)
-                .map_err(|err| BackendInitError::InitError(err.into()))?;
-            let semaphore_id = semaphore.id();
-            semaphores.insert(semaphore_id, semaphore);
-            present_semaphores.push(semaphore_id);
-        }
 
         Ok(VulkanBackend {
-            window,
             instance,
             physical_device,
             surface,
@@ -242,13 +215,13 @@ impl GraphicsBackend for VulkanBackend {
             present_queue,
             descriptor_pool,
             allocator,
-            swapchain,
+            swapchains: HashMap::new(),
             images: HashMap::new(),
             image_views: HashMap::new(),
             samplers: HashMap::new(),
             framebuffers: HashMap::new(),
             fences: HashMap::new(),
-            semaphores,
+            semaphores: HashMap::new(),
             command_buffers: HashMap::new(),
             buffers: HashMap::new(),
             staging_buffers: HashMap::new(),
@@ -257,18 +230,10 @@ impl GraphicsBackend for VulkanBackend {
             renderpasses: HashMap::new(),
             descriptor_sets: HashMap::new(),
             descriptor_set_layouts: HashMap::new(),
-            present_semaphores,
-            current_frame: 0,
         })
     }
 
     fn wait_idle(&self) { self.device.wait_idle().unwrap(); }
-
-    fn handle_resize(&mut self) { self.window.resized = true; }
-
-    fn request_redraw(&self) { self.window.request_redraw(); }
-
-    fn resized(&self) -> bool { self.window.resized }
 
     fn get_surface_format(&self) -> ImageFormat {
         self.surface.format().general_image_format()
@@ -492,10 +457,10 @@ impl GraphicsBackend for VulkanBackend {
         Ok(())
     }
 
-    fn create_resource_binding_layout(
+    fn create_pipeline_binding_layout(
         &mut self,
         subbindings: &[PipelineSubbindingLayout],
-    ) -> Result<ResourceBindingLayout, PipelineError> {
+    ) -> Result<PipelineBindingLayout, PipelineError> {
         let set_bindings = subbindings
             .iter()
             .enumerate()
@@ -515,7 +480,7 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| PipelineError::LayoutCreationError(err.into()))?;
         let dsl_id = dsl.id();
         self.descriptor_set_layouts.insert(dsl_id, dsl);
-        Ok(ResourceBindingLayout::new(dsl_id))
+        Ok(PipelineBindingLayout::new(dsl_id))
     }
 
     fn create_pipeline(
@@ -523,7 +488,7 @@ impl GraphicsBackend for VulkanBackend {
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,
-        binding_layouts: &[ResourceBindingLayout],
+        binding_layouts: &[PipelineBindingLayout],
         options: PipelineOptions,
     ) -> Result<Pipeline, PipelineError> {
         let vsm = self
@@ -561,10 +526,10 @@ impl GraphicsBackend for VulkanBackend {
         Ok(Pipeline::new(pipeline_id))
     }
 
-    fn create_resource_binding(
+    fn create_pipeline_binding(
         &mut self,
-        pipeline_layout: ResourceBindingLayout,
-    ) -> Result<ResourceBinding, PipelineError> {
+        pipeline_layout: PipelineBindingLayout,
+    ) -> Result<PipelineBinding, PipelineError> {
         let dsl = self
             .descriptor_set_layouts
             .get(&pipeline_layout.id())
@@ -576,12 +541,12 @@ impl GraphicsBackend for VulkanBackend {
                 })?;
         let ds_id = ds.id();
         self.descriptor_sets.insert(ds_id, ds);
-        Ok(ResourceBinding::new(ds_id))
+        Ok(PipelineBinding::new(ds_id))
     }
 
     fn bind_buffer(
         &mut self,
-        pipeline_binding: ResourceBinding,
+        pipeline_binding: PipelineBinding,
         buffer: Buffer,
         index: u32,
     ) -> Result<(), BufferError> {
@@ -603,7 +568,7 @@ impl GraphicsBackend for VulkanBackend {
 
     fn bind_sampler(
         &mut self,
-        pipeline_binding: ResourceBinding,
+        pipeline_binding: PipelineBinding,
         sampler: Sampler,
         image_view: ImageView,
         index: u32,
@@ -678,16 +643,12 @@ impl GraphicsBackend for VulkanBackend {
 
         for command in command_list.commands().iter() {
             match command {
-                Command::Begin => {
-                    builder.begin().map_err(|err| {
-                        CommandListError::CommandListBeginError(err.into())
-                    })?
-                },
-                Command::End => {
-                    builder.end().map_err(|err| {
-                        CommandListError::CommandListEndError(err.into())
-                    })?
-                },
+                Command::Begin => builder.begin().map_err(|err| {
+                    CommandListError::CommandListBeginError(err.into())
+                })?,
+                Command::End => builder.end().map_err(|err| {
+                    CommandListError::CommandListEndError(err.into())
+                })?,
                 Command::BeginRenderpass(renderpass, framebuffer) => {
                     let r = self.renderpasses.get(&renderpass.id()).unwrap();
                     let f = self.framebuffers.get(&framebuffer.id()).unwrap();
@@ -809,6 +770,99 @@ impl GraphicsBackend for VulkanBackend {
                 &mut self.images,
             )
             .map_err(|err| CommandListError::CommandListSubmitError(err.into()))
+    }
+
+    fn create_swapchain(
+        &mut self,
+        window: &Window,
+        old_swapchain: Option<Swapchain>,
+    ) -> Result<(Swapchain, Vec<Image>), SwapchainError> {
+        let os = match old_swapchain {
+            Some(val) => match self.swapchains.get(&val.id()) {
+                Some(val) => Some(val),
+                None => return Err(SwapchainError::OldSwapchainNotFound),
+            },
+            None => None,
+        };
+        let (swapchain, swapchain_images) = VulkanSwapchain::new(
+            &self.instance,
+            window,
+            &self.surface,
+            &self.device,
+            os,
+        )
+        .map_err(|err| SwapchainError::SwapchainCreationError(err.into()))?;
+        let swapchain_id = swapchain.id();
+        let mut images = Vec::new();
+        self.swapchains.insert(swapchain_id, swapchain);
+        for swapchain_image in swapchain_images.iter() {
+            let swapchain_image_id = swapchain_image.id();
+            self.images
+                .insert(swapchain_image_id, Box::new(swapchain_image.clone()));
+            images.push(Image::new(swapchain_image_id));
+        }
+        Ok((Swapchain::new(swapchain_id), images))
+    }
+
+    fn delete_swapchain(
+        &mut self,
+        swapchain: Swapchain,
+    ) -> Result<(), SwapchainError> {
+        let swapchain = self
+            .swapchains
+            .remove(&swapchain.id())
+            .ok_or(SwapchainError::SwapchainNotFound)?;
+        swapchain.destroy();
+        Ok(())
+    }
+
+    fn next_image_id(
+        &mut self,
+        swapchain: Swapchain,
+        signal_semaphore: Semaphore,
+    ) -> Result<u32, SwapchainError> {
+        let ss = self
+            .semaphores
+            .get(&signal_semaphore.id())
+            .ok_or(SwapchainError::SemaphoreNotFound)?;
+
+        self.swapchains
+            .get(&swapchain.id())
+            .ok_or(SwapchainError::SwapchainNotFound)?
+            .acquire_next_image(ss, &VulkanFence::null())
+            .map_err(|err| match err {
+                VulkanSwapchainError::OutOfDate => {
+                    SwapchainError::SwapchainOutOfDate
+                },
+                val => panic!("{:?}", val),
+            })
+            .map(|val| val.0)
+    }
+
+    fn present(
+        &mut self,
+        swapchain: Swapchain,
+        wait_semaphores: &[Semaphore],
+        present_image_index: u32,
+    ) -> Result<(), SwapchainError> {
+        let ws = wait_semaphores
+            .iter()
+            .map(|x| {
+                self.semaphores
+                    .get(&x.id())
+                    .ok_or(SwapchainError::SemaphoreNotFound)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        self.swapchains
+            .get(&swapchain.id())
+            .ok_or(SwapchainError::SwapchainNotFound)?
+            .present(&self.present_queue, &ws, present_image_index)
+            .map_err(|err| match err {
+                VulkanSwapchainError::OutOfDate => {
+                    SwapchainError::SwapchainOutOfDate
+                },
+                _ => SwapchainError::Undefined,
+            })
     }
 
     fn create_image(
@@ -1026,68 +1080,6 @@ impl GraphicsBackend for VulkanBackend {
         Ok(())
     }
 
-    fn begin_frame(&mut self) -> Result<FrameBeginInfo, SwapchainError> {
-        if self.window.resized {
-            self.recreate_swapchain()?;
-            self.window.resized = false;
-        }
-
-        let mut frame_begin_info = FrameBeginInfo::default();
-        let image_semaphore =
-            &self.semaphores[&self.present_semaphores[self.current_frame]];
-        match self
-            .swapchain
-            .acquire_next_image(image_semaphore, &VulkanFence::null())
-        {
-            Ok((image_idx, _)) => {
-                frame_begin_info.current_image = image_idx;
-                frame_begin_info.present_images = self
-                    .swapchain
-                    .swapchain_image_ids()
-                    .iter()
-                    .map(|image_id| Image::new(*image_id))
-                    .collect();
-                frame_begin_info.resized = false;
-            },
-            Err(VulkanSwapchainError::OutOfDate) => {
-                return Err(SwapchainError::OutOfDate);
-            },
-            Err(_) => return Err(SwapchainError::Undefined),
-        };
-        Ok(frame_begin_info)
-    }
-
-    fn end_frame(&mut self) {
-        self.swapchain.present(
-            &self.present_queue,
-            &[],
-            self.current_frame as u32,
-        );
-        self.current_frame += 1;
-        self.current_frame %= self.swapchain.swapchain_image_ids().len();
-    }
-}
-
-impl VulkanBackend {
-    fn recreate_swapchain(&mut self) -> Result<(), SwapchainError> {
-        let (swapchain, swapchain_images) = VulkanSwapchain::new(
-            &self.instance,
-            &self.window,
-            &self.surface,
-            &self.device,
-            Some(&self.swapchain),
-        )
-        .map_err(|err| SwapchainError::SwapchainCreationError(err.into()))?;
-
-        self.swapchain = swapchain;
-        for swapchain_image in swapchain_images.iter() {
-            let swapchain_image_id = swapchain_image.id();
-            self.images
-                .insert(swapchain_image_id, Box::new(swapchain_image.clone()));
-        }
-        Ok(())
-    }
-
     fn create_semaphore(&mut self) -> Result<Semaphore, SemaphoreError> {
         let semaphore = VulkanSemaphore::new(&self.device).map_err(|err| {
             SemaphoreError::SemaphoreCreationError(err.into())
@@ -1107,22 +1099,5 @@ impl VulkanBackend {
             .ok_or(SemaphoreError::SemaphoreNotFound)?;
         semaphore.destroy(&self.device);
         Ok(())
-    }
-
-    fn present(
-        &mut self,
-        wait_semaphores: &[&VulkanSemaphore],
-        present_image_index: u32,
-    ) -> Result<(), SwapchainError> {
-        self.swapchain
-            .present(&self.present_queue, &wait_semaphores, present_image_index)
-            .map_err(|err| {
-                match err {
-                    VulkanSwapchainError::OutOfDate => {
-                        SwapchainError::OutOfDate
-                    },
-                    _ => SwapchainError::Undefined,
-                }
-            })
     }
 }

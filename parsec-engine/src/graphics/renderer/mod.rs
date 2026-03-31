@@ -23,8 +23,8 @@ use crate::{
         framebuffer::Framebuffer,
         image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView},
         pipeline::{
-            DefaultVertex, PipelineBindingType, PipelineOptions,
-            PipelineShaderStage, PipelineSubbindingLayout, ResourceBinding,
+            DefaultVertex, PipelineBinding, PipelineBindingType,
+            PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
         },
         renderer::{
             assets::mesh::Mesh,
@@ -109,7 +109,7 @@ pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 #[allow(unused)]
 pub struct RendererShadowpassData {
     light_dir_buffer: Buffer,
-    light_dir_binding: ResourceBinding,
+    light_dir_binding: PipelineBinding,
     renderpass: Renderpass,
     material_id: u32,
     vertex_shader: Shader,
@@ -117,12 +117,12 @@ pub struct RendererShadowpassData {
     image: Image,
     image_view: ImageView,
     image_sampler: Sampler,
-    image_binding: ResourceBinding,
+    image_binding: PipelineBinding,
     framebuffer: Framebuffer,
     proj_buffer: Buffer,
     look_buffer: Buffer,
-    proj_binding: ResourceBinding,
-    look_binding: ResourceBinding,
+    proj_binding: PipelineBinding,
+    look_binding: PipelineBinding,
 }
 
 #[repr(C)]
@@ -145,7 +145,7 @@ pub fn init_renderer(
             RenderpassAttachment {
                 attachment_type: RenderpassAttachmentType::Color,
                 image_format: surface_format,
-                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 0.0),
+                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 1.0),
                 load_op: RenderpassAttachmentLoadOp::Clear,
                 store_op: RenderpassAttachmentStoreOp::Store,
             },
@@ -278,21 +278,21 @@ pub fn init_renderer(
         )
         .unwrap();
     let shadow_proj_layout = backend
-        .create_resource_binding_layout(&[PipelineSubbindingLayout {
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
             binding_type: PipelineBindingType::UniformBuffer,
             shader_stages: vec![PipelineShaderStage::Vertex],
         }])
         .unwrap();
     let shadow_look_layout = backend
-        .create_resource_binding_layout(&[PipelineSubbindingLayout {
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
             binding_type: PipelineBindingType::UniformBuffer,
             shader_stages: vec![PipelineShaderStage::Vertex],
         }])
         .unwrap();
     let shadow_proj_binding =
-        backend.create_resource_binding(shadow_proj_layout).unwrap();
+        backend.create_pipeline_binding(shadow_proj_layout).unwrap();
     let shadow_look_binding =
-        backend.create_resource_binding(shadow_look_layout).unwrap();
+        backend.create_pipeline_binding(shadow_look_layout).unwrap();
     backend
         .bind_buffer(shadow_proj_binding, shadow_proj_buffer, 0)
         .unwrap();
@@ -306,13 +306,13 @@ pub fn init_renderer(
     ]);
     let shadow_sampler = backend.create_image_sampler().unwrap();
     let shadow_tex_layout = backend
-        .create_resource_binding_layout(&[PipelineSubbindingLayout {
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
             binding_type: PipelineBindingType::TextureSampler,
             shader_stages: vec![PipelineShaderStage::Fragment],
         }])
         .unwrap();
     let shadow_tex_binding =
-        backend.create_resource_binding(shadow_tex_layout).unwrap();
+        backend.create_pipeline_binding(shadow_tex_layout).unwrap();
     backend
         .bind_sampler(shadow_tex_binding, shadow_sampler, shadow_depth_view, 0)
         .unwrap();
@@ -333,13 +333,13 @@ pub fn init_renderer(
         )
         .unwrap();
     let light_binding_layout = backend
-        .create_resource_binding_layout(&[PipelineSubbindingLayout::new(
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
             PipelineBindingType::UniformBuffer,
             &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
         )])
         .unwrap();
     let light_binding = backend
-        .create_resource_binding(light_binding_layout)
+        .create_pipeline_binding(light_binding_layout)
         .unwrap();
     backend.bind_buffer(light_binding, light_buffer, 0).unwrap();
 
@@ -505,9 +505,12 @@ pub fn render(
         return;
     }
 
-    let present_index = match backend.begin_frame() {
+    let present_index = match backend.next_image_id(
+        swapchain.0,
+        frame_sync[current_frame.0 as usize].image_available_semaphore,
+    ) {
         Ok(val) => val,
-        Err(SwapchainError::OutOfDate) => {
+        Err(SwapchainError::SwapchainOutOfDate) => {
             resize.0 = true;
             return;
         },
@@ -611,7 +614,7 @@ pub fn render(
         present_index,
     ) {
         Ok(_) => (),
-        Err(SwapchainError::OutOfDate) => {
+        Err(SwapchainError::SwapchainOutOfDate) => {
             resize.0 = true;
         },
         _ => panic!("Shouldn't be here"),

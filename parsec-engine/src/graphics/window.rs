@@ -10,7 +10,6 @@ pub struct Window {
     window: winit::window::Window,
     cursor_mode: winit::window::CursorGrabMode,
     cursor_visibility: bool,
-    pub resized: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -48,7 +47,6 @@ impl Window {
             window,
             cursor_mode: winit::window::CursorGrabMode::None,
             cursor_visibility: true,
-            resized: false,
         })
     }
 

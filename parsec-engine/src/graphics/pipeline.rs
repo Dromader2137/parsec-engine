@@ -6,12 +6,12 @@ pub struct Pipeline {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ResourceBindingLayout {
+pub struct PipelineBindingLayout {
     id: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ResourceBinding {
+pub struct PipelineBinding {
     id: u32,
 }
 
@@ -147,9 +147,9 @@ impl Pipeline {
     pub fn id(&self) -> u32 { self.id }
 }
 
-impl ResourceBindingLayout {
-    pub fn new(id: u32) -> ResourceBindingLayout {
-        ResourceBindingLayout { id }
+impl PipelineBindingLayout {
+    pub fn new(id: u32) -> PipelineBindingLayout {
+        PipelineBindingLayout { id }
     }
 
     pub fn id(&self) -> u32 { self.id }
@@ -167,8 +167,8 @@ impl PipelineSubbindingLayout {
     }
 }
 
-impl ResourceBinding {
-    pub fn new(id: u32) -> ResourceBinding { ResourceBinding { id } }
+impl PipelineBinding {
+    pub fn new(id: u32) -> PipelineBinding { PipelineBinding { id } }
 
     pub fn id(&self) -> u32 { self.id }
 }

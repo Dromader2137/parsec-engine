@@ -113,13 +113,10 @@ impl VulkanSwapchain {
         let swapchain_images = match unsafe {
             swapchain_loader.get_swapchain_images(swapchain)
         } {
-            Ok(val) => {
-                val.into_iter()
-                    .map(|x| {
-                        VulkanSwapchainImage::new(surface.format(), extent, x)
-                    })
-                    .collect::<Vec<_>>()
-            },
+            Ok(val) => val
+                .into_iter()
+                .map(|x| VulkanSwapchainImage::new(surface.format(), extent, x))
+                .collect::<Vec<_>>(),
             Err(err) => {
                 return Err(VulkanSwapchainError::ImageAcquisitionError(err));
             },
@@ -212,5 +209,5 @@ impl VulkanSwapchain {
 
     pub fn id(&self) -> u32 { self.id }
 
-    pub fn swapchain_image_ids(&self) -> &[u32] { &self._swapchain_image_ids }
+    pub fn _swapchain_image_ids(&self) -> &[u32] { &self._swapchain_image_ids }
 }

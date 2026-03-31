@@ -122,13 +122,13 @@ fn test_system(
         .load_image_from_buffer(texture_buffer, texture_image)
         .unwrap();
     let texture_binding_layout = backend
-        .create_resource_binding_layout(&[PipelineSubbindingLayout::new(
+        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
             PipelineBindingType::TextureSampler,
             &[PipelineShaderStage::Fragment],
         )])
         .unwrap();
     let texture_binding = backend
-        .create_resource_binding(texture_binding_layout)
+        .create_pipeline_binding(texture_binding_layout)
         .unwrap();
     let texture_sampler = backend.create_image_sampler().unwrap();
     let texture_image_view = backend.create_image_view(texture_image).unwrap();

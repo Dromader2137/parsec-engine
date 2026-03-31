@@ -9,7 +9,7 @@ pub enum SwapchainError {
     OldSwapchainNotFound,
     SwapchainNotFound,
     SemaphoreNotFound,
-    OutOfDate,
+    SwapchainOutOfDate,
     Undefined,
 }
 

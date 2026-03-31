@@ -3,8 +3,8 @@ use crate::{
         CurrentGraphicsBackend,
         command_list::{Command, CommandList},
         pipeline::{
-            Pipeline, PipelineOptions, PipelineSubbindingLayout,
-            ResourceBinding, ResourceBindingLayout,
+            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineOptions,
+            PipelineSubbindingLayout,
         },
         renderer::{camera_data::CameraData, transform_data::TransformData},
         renderpass::Renderpass,
@@ -17,7 +17,7 @@ pub struct MaterialBase {
     material_base_id: IdType,
     pipeline: Pipeline,
     #[allow(unused)]
-    binding_layouts: Vec<ResourceBindingLayout>,
+    binding_layouts: Vec<PipelineBindingLayout>,
 }
 
 crate::create_counter! {ID_COUNTER}
@@ -34,7 +34,7 @@ impl MaterialBase {
             .iter()
             .map(|binding_layout| {
                 backend
-                    .create_resource_binding_layout(&binding_layout)
+                    .create_pipeline_binding_layout(&binding_layout)
                     .unwrap()
             })
             .collect::<Vec<_>>();
@@ -69,7 +69,7 @@ pub enum MaterialPipelineBinding {
     Projection,
     ShadowMap,
     Light,
-    Generic(ResourceBinding),
+    Generic(PipelineBinding),
 }
 
 pub struct MaterialData {
@@ -98,8 +98,8 @@ impl MaterialData {
         camera: &CameraData,
         camera_transform: &TransformData,
         transform: &TransformData,
-        light_binding: ResourceBinding,
-        shadowmap_binding: ResourceBinding,
+        light_binding: PipelineBinding,
+        shadowmap_binding: PipelineBinding,
     ) {
         command_list.cmd(Command::BindGraphicsPipeline(material_base.pipeline));
         for (set_index, binding) in self.descriptor_sets.iter().enumerate() {

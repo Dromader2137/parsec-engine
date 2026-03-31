@@ -226,18 +226,16 @@ impl VulkanDescriptorSet {
         let bindings = descriptor_layout
             .bindings()
             .iter()
-            .map(|x| {
-                match x.binding_type() {
-                    VulkanDescriptorType::CombinedImageSampler => {
-                        DescriptorSetBinding::CombinedSampler(None)
-                    },
-                    VulkanDescriptorType::UniformBuffer => {
-                        DescriptorSetBinding::UniformBuffer(None)
-                    },
-                    VulkanDescriptorType::StorageBuffer => {
-                        DescriptorSetBinding::StorageBuffer(None)
-                    },
-                }
+            .map(|x| match x.binding_type() {
+                VulkanDescriptorType::CombinedImageSampler => {
+                    DescriptorSetBinding::CombinedSampler(None)
+                },
+                VulkanDescriptorType::UniformBuffer => {
+                    DescriptorSetBinding::UniformBuffer(None)
+                },
+                VulkanDescriptorType::StorageBuffer => {
+                    DescriptorSetBinding::StorageBuffer(None)
+                },
             })
             .collect();
 
