@@ -106,19 +106,19 @@ impl DerefMut for ActiveGraphicsBackend {
 
 #[system]
 pub fn init_vulkan(mut requests: Resource<Requests>, window: Resource<Window>) {
-    let context = VulkanBackend::init(&window).unwrap();
+    let context = VulkanBackend::init(&window)?;
     requests.create_resource(ActiveGraphicsBackend(Box::new(context)));
 }
 
 #[system]
-fn mark_resize(mut resize: Resource<ResizeFlag>) { resize.0 = true }
+fn mark_resize(mut resize: Resource<ResizeFlag>) { resize.0 = true; }
 
 #[system]
 fn request_redraw(window: Resource<Window>) { window.request_redraw(); }
 
 #[system]
 fn end_wait_idle(backend: Resource<ActiveGraphicsBackend>) {
-    backend.wait_idle()
+    backend.wait_idle();
 }
 
 #[system]
@@ -126,7 +126,7 @@ fn init_window(mut requests: Resource<Requests>) {
     let window = {
         let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
         let event_loop_raw = event_loop.get_event_loop();
-        Window::new(event_loop_raw, "Oxide Engine test").unwrap()
+        Window::new(event_loop_raw, "Oxide Engine test")?
     };
     requests.create_resource(window);
 }

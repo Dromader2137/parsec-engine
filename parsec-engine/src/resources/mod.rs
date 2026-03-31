@@ -4,8 +4,9 @@ use std::{
     any::{Any, TypeId, type_name},
     collections::HashMap,
     marker::PhantomData,
+    mem::ManuallyDrop,
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 use thiserror::Error;
@@ -36,57 +37,61 @@ impl RemoveResourceData {
 
 /// Stores the information necessary to use a global resource.
 pub struct Resource<R: ResourceMarker> {
-    lock: Arc<Mutex<Box<dyn Any + Send + Sync>>>,
+    guard: ManuallyDrop<MutexGuard<'static, Box<dyn Any + Send + Sync>>>,
+    _arc: Arc<Mutex<Box<dyn Any + Send + Sync>>>,
     _marker: PhantomData<R>,
 }
 
-impl<R: ResourceMarker> Clone for Resource<R> {
-    fn clone(&self) -> Self {
-        Self {
-            lock: self.lock.clone(),
-            _marker: PhantomData::default(),
-        }
-    }
-}
+// impl<R: ResourceMarker> Clone for Resource<R> {
+//     fn clone(&self) -> Self {
+//         Self {
+//             lock: self.lock.clone(),
+//             _marker: PhantomData::default(),
+//         }
+//     }
+// }
 
 impl<R: ResourceMarker> Deref for Resource<R> {
     type Target = R;
     fn deref(&self) -> &Self::Target {
-        let guard = self.lock.lock().expect("Mutex should not be poisoned");
-        let reference = guard.downcast_ref::<R>().unwrap();
-        let r = reference as *const R;
-        unsafe { &*r }
+        (*self.guard).downcast_ref::<R>().unwrap()
     }
 }
 
 impl<R: ResourceMarker> DerefMut for Resource<R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let mut guard = self.lock.lock().expect("Mutex should not be poisoned");
-        let reference = guard.downcast_mut::<R>().unwrap();
-        let r = reference as *mut R;
-        unsafe { &mut *r }
+        (*self.guard).downcast_mut::<R>().unwrap()
     }
 }
 
+impl<R: ResourceMarker> Drop for Resource<R> {
+    fn drop(&mut self) { unsafe { ManuallyDrop::drop(&mut self.guard) }; }
+}
+
 impl<T: ResourceMarker> SystemInput for Resource<T> {
-    fn borrow(resources: &Resources, _world: &World) -> Self {
-        let lock = resources.get::<T>().unwrap();
-        Resource {
-            lock,
+    fn borrow(
+        resources: &Resources,
+        _world: &World,
+    ) -> Result<Self, anyhow::Error> {
+        let arc = resources.get::<T>()?;
+        let locked = arc.lock().expect("mutex poisoned");
+        let guard = unsafe {
+            std::mem::transmute::<
+                MutexGuard<'_, Box<dyn Any + Send + Sync>>,
+                MutexGuard<'static, Box<dyn Any + Send + Sync>>,
+            >(locked)
+        };
+        Ok(Resource {
+            guard: ManuallyDrop::new(guard),
+            _arc: arc,
             _marker: PhantomData::default(),
-        }
+        })
     }
 }
 
 #[derive(Debug)]
 pub struct Resources {
-    resources: HashMap<
-        TypeId,
-        (
-            Arc<u8>,
-            Box<Arc<Mutex<Box<dyn Any + Send + Sync + 'static>>>>,
-        ),
-    >,
+    resources: HashMap<TypeId, Arc<Mutex<Box<dyn Any + Send + Sync>>>>,
 }
 impl Resources {
     pub fn new() -> Self {
@@ -95,27 +100,18 @@ impl Resources {
         }
     }
 
+    /// Adds `resource` to global storage. If a resource of type `R` already exists it is
+    /// replaced.
+    pub fn add<R: ResourceMarker>(&mut self, resource: R) {
+        self.add_boxed(Box::new(resource));
+    }
+
     /// Adds a box containing `resource` to global storage.
     pub fn add_boxed(&mut self, resource: Box<dyn ResourceMarker>) {
         let type_id = (*resource).resource_id();
         let any_resource = resource.as_any();
-        self.resources.insert(
-            type_id,
-            (Arc::new(0), Box::new(Arc::new(Mutex::new(any_resource)))),
-        );
-    }
-
-    /// Adds `resource` to global storage. If a resource of type `R` already exists it is
-    /// replaced.
-    pub fn add<R: ResourceMarker>(&mut self, resource: R) {
-        let type_id = resource.resource_id();
-        self.resources.insert(
-            type_id,
-            (
-                Arc::new(0),
-                Box::new(Arc::new(Mutex::new(Box::new(resource)))),
-            ),
-        );
+        self.resources
+            .insert(type_id, Arc::new(Mutex::new(any_resource)));
     }
 
     /// Gets the resource of type `R`.
@@ -127,15 +123,11 @@ impl Resources {
         &self,
     ) -> Result<Arc<Mutex<Box<dyn Any + Send + Sync>>>, ResourceError> {
         let type_id = TypeId::of::<R>();
-        let lock = match self.resources.get(&type_id) {
-            Some(lock_any) => lock_any.1.clone(),
-            None => {
-                return Err(ResourceError::ResourceNotFoundExact(
-                    type_name::<R>(),
-                ));
-            },
-        };
-        Ok(*lock)
+        let lock = self
+            .resources
+            .get(&type_id)
+            .ok_or(ResourceError::ResourceNotFound(type_name::<R>()))?;
+        Ok(lock.clone())
     }
 
     /// Removes the resource of type `R`.
@@ -144,17 +136,8 @@ impl Resources {
     ///
     /// - If there is no resource of type `R`.
     pub fn remove<R: ResourceMarker>(&mut self) -> Result<(), ResourceError> {
-        let type_id = TypeId::of::<R>();
-        let lock = match self.resources.get(&type_id) {
-            Some(lock_any) => lock_any,
-            None => return Err(ResourceError::ResourceNotFound),
-        };
-        if Arc::weak_count(&lock.0) + Arc::strong_count(&lock.0) > 1 {
-            return Err(ResourceError::ResourceNotUnique);
-        }
-        self.resources
-            .remove(&type_id)
-            .map_or(Err(ResourceError::ResourceNotFound), |_| Ok(()))
+        let remove_data = RemoveResourceData::id::<R>();
+        self.remove_using_data(remove_data)
     }
 
     pub fn remove_using_data(
@@ -162,16 +145,17 @@ impl Resources {
         data: RemoveResourceData,
     ) -> Result<(), ResourceError> {
         let type_id = data.type_id;
-        let lock = match self.resources.get(&type_id) {
-            Some(lock_any) => lock_any,
-            None => return Err(ResourceError::ResourceNotFound),
-        };
-        if Arc::weak_count(&lock.0) + Arc::strong_count(&lock.0) > 1 {
+        let lock = self
+            .resources
+            .get(&type_id)
+            .ok_or(ResourceError::ResourceNotFound("UNKNOWN"))?;
+        if Arc::weak_count(&lock) + Arc::strong_count(&lock) > 1 {
             return Err(ResourceError::ResourceNotUnique);
         }
         self.resources
             .remove(&type_id)
-            .map_or(Err(ResourceError::ResourceNotFound), |_| Ok(()))
+            .expect("resource doesn't exist");
+        Ok(())
     }
 }
 
@@ -181,12 +165,10 @@ pub enum ResourceError {
     UnableToBorrow,
     #[error("Failed to mutably borrow this resourcs")]
     UnableToBorrowMutably,
-    #[error("Failed to find a resource of a type")]
-    ResourceNotFound,
     #[error("Resource of this type already exists")]
     ResourceAlreadyExists,
     #[error("Resource of this type is also stored somewhere else")]
     ResourceNotUnique,
     #[error("Failed to find a resource of a type")]
-    ResourceNotFoundExact(&'static str),
+    ResourceNotFound(&'static str),
 }

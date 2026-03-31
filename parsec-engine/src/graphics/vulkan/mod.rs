@@ -795,6 +795,7 @@ impl GraphicsBackend for VulkanBackend {
             Some(&self.swapchain),
         )
         .map_err(|err| BackendError::FrameError(err.into()))?;
+        self.swapchain.destroy();
         self.swapchain = swapchain;
         for swapchain_image in swapchain_images.iter() {
             let swapchain_image_id = swapchain_image.id();

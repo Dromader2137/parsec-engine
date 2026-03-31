@@ -47,13 +47,13 @@ fn test_system(
 ) {
     let vertex = backend
         .create_shader(
-            &read_shader_code("shaders/simple.spv").unwrap(),
+            &read_shader_code("shaders/simple.spv")?,
             ShaderType::Vertex,
         )
         .unwrap();
     let fragment = backend
         .create_shader(
-            &read_shader_code("shaders/flat.spv").unwrap(),
+            &read_shader_code("shaders/flat.spv")?,
             ShaderType::Fragment,
         )
         .unwrap();
@@ -102,9 +102,7 @@ fn test_system(
         PipelineOptions::new::<DefaultVertex>(PipelineCullingMode::CullBack),
     );
 
-    let image = image::load_from_memory(include_bytes!("../../test.png"))
-        .unwrap()
-        .to_rgba8();
+    let image = image::load_from_memory(include_bytes!("../../test.png"))?.to_rgba8();
     let (width, height) = image.dimensions();
     let image_data = image.as_raw().as_bytes();
     let texture_buffer = backend

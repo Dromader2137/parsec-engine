@@ -2,11 +2,14 @@
 
 use std::marker::PhantomData;
 
-use crate::{ecs::{
-    entity::Entity,
-    system::SystemInput,
-    world::{World, fetch::Fetch},
-}, resources::Resources};
+use crate::{
+    ecs::{
+        entity::Entity,
+        system::SystemInput,
+        world::{World, fetch::Fetch},
+    },
+    resources::Resources,
+};
 
 /// Stores the data needed to query entities from [`World`][crate::ecs::world::World].
 pub struct Query<T: Fetch> {
@@ -15,8 +18,11 @@ pub struct Query<T: Fetch> {
 }
 
 impl<T: Fetch> SystemInput for Query<T> {
-    fn borrow(_resources: &Resources, world: &World) -> Self {
-        let archetype_id = T::archetype_id().unwrap();
+    fn borrow(
+        _resources: &Resources,
+        world: &World,
+    ) -> Result<Self, anyhow::Error> {
+        let archetype_id = T::archetype_id()?;
         let archetypes = world
             .archetypes
             .iter()
@@ -30,13 +36,13 @@ impl<T: Fetch> SystemInput for Query<T> {
             .collect::<Vec<_>>();
         let fetches = archetypes
             .iter()
-            .map(|arch| T::prepare(arch).unwrap())
-            .collect();
+            .map(|arch| T::prepare(arch))
+            .collect::<Result<Vec<_>, _>>()?;
         let entities = archetypes
             .iter()
             .map(|arch| arch.entities.clone())
             .collect();
-        Query { fetches, entities }
+        Ok(Query { fetches, entities })
     }
 }
 

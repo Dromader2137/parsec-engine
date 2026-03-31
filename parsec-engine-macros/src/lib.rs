@@ -193,6 +193,8 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(item as ItemFn);
 
     let fn_name = &input_fn.sig.ident;
+    let fn_sig = &input_fn.sig;
+    let fn_body = &input_fn.block.stmts;
     let struct_name =
         format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
     let struct_name_str = struct_name.to_token_stream().to_string();
@@ -224,11 +226,11 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             if mutability {
                 quote! {
-                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world);
+                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world)?;
                 }
             } else {
                 quote! {
-                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world);
+                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world)?;
                 }
             }
         },
@@ -252,7 +254,10 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
     });
 
     let output = quote! {
-        #input_fn
+        #fn_sig -> Result<(), anyhow::Error> {
+            #(#fn_body)*;
+            Ok(())
+        }
 
         pub struct #struct_name;
 
@@ -267,9 +272,11 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #struct_name_str
             }
 
-            fn run(&mut self, resources: & #engine_crate::resources::Resources, world: & #engine_crate::ecs::world::World) {
+            fn run(&mut self, resources: & #engine_crate::resources::Resources, world: & #engine_crate::ecs::world::World) 
+                -> Result<(), anyhow::Error> {
                 #(#borrows)*
-                #fn_name( #(#argument_names),* );
+                #fn_name( #(#argument_names),* )?;
+                Ok(())
             }
         }
     };

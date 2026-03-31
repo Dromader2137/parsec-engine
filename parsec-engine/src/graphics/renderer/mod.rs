@@ -401,7 +401,6 @@ fn recreate_size_dependent_components(
     requests: &mut Requests,
     backend: &mut ActiveGraphicsBackend,
     window: &Window,
-    swapchain_images: &[Image],
     swapchain_views: &[ImageView],
     depth_image: Image,
     depth_view: ImageView,
@@ -439,9 +438,6 @@ fn recreate_size_dependent_components(
     swapchain_views
         .iter()
         .for_each(|view| backend.delete_image_view(*view).unwrap());
-    swapchain_images
-        .iter()
-        .for_each(|img| backend.delete_image(*img).unwrap());
     backend.delete_image_view(depth_view).unwrap();
     backend.delete_image(depth_image).unwrap();
     framebuffers.iter().for_each(|framebuffer| {
@@ -467,7 +463,6 @@ pub fn render(
     window: Resource<Window>,
     frame_sync: Resource<Vec<RendererFrameSync>>,
     image_sync: Resource<Vec<RendererImageSync>>,
-    swapchain_images: Resource<RendererSwapchainImages>,
     swapchain_views: Resource<RendererSwapchainImageViews>,
     depth_image: Resource<RendererDepthImage>,
     depth_view: Resource<RendererDepthImageView>,
@@ -483,7 +478,7 @@ pub fn render(
     shadowpass_data: Resource<RendererShadowpassData>,
 ) {
     if window.minimized() {
-        return;
+        return Ok(());
     }
 
     if resize.0 {
@@ -491,7 +486,6 @@ pub fn render(
             &mut *requests,
             &mut *backend,
             &window,
-            &swapchain_images.0,
             &swapchain_views.0,
             depth_image.0,
             depth_view.0,
@@ -499,7 +493,7 @@ pub fn render(
             renderpass.0,
         );
         resize.0 = false;
-        return;
+        return Ok(());
     }
 
     let present_index = match backend.start_frame(

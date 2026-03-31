@@ -120,15 +120,15 @@ impl Systems {
         system_type: SystemTrigger,
         resources: &mut Resources,
         world: &mut World,
-    ) {
+    ) -> Result<(), anyhow::Error> {
         if let Some(systems) = self.systems.get_mut(&system_type) {
             for (system, stats) in systems.iter_mut() {
                 let instant = Instant::now();
-                system.run(resources, world);
+                system.run(resources, world)?;
                 let duration = (instant.elapsed().as_micros() as f64) / 1000.0;
                 let mut requests =
-                    Resource::<Requests>::borrow(resources, world);
-                requests.handle_requests(world, resources).unwrap();
+                    Resource::<Requests>::borrow(resources, world)?;
+                requests.handle_requests(world, resources)?;
                 stats.times_called += 1;
                 if stats.times_called < 25 {
                     continue;
@@ -139,6 +139,7 @@ impl Systems {
                 stats.avg_time = stats.total_time / stats.times_called as f64;
             }
         }
+        Ok(())
     }
 }
 
@@ -149,13 +150,22 @@ impl Default for Systems {
 /// Marks a type that can be used as an argument inside a [`System`] function.
 pub trait SystemInput {
     /// Used to create an instance of `Self` at the beginning of a system.
-    fn borrow(resources: &Resources, world: &World) -> Self;
+    fn borrow(
+        resources: &Resources,
+        world: &World,
+    ) -> Result<Self, anyhow::Error>
+    where
+        Self: Sized;
 }
 
 /// Marks a type that is a system. Implemented using the [`system`] macro.
 pub trait System: Send + Sync {
     fn name(&self) -> &'static str;
-    fn run(&mut self, resources: &Resources, world: &World);
+    fn run(
+        &mut self,
+        resources: &Resources,
+        world: &World,
+    ) -> Result<(), anyhow::Error>;
 }
 
 /// Marks a type used to group systems into interdependent bundles.
