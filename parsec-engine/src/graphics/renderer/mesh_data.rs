@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     ecs::system::system,
     graphics::{
-        CurrentGraphicsBackend,
+        ActiveGraphicsBackend,
         buffer::{Buffer, BufferContent, BufferUsage},
         command_list::{Command, CommandList},
         pipeline::Vertex,
@@ -25,7 +25,7 @@ pub struct MeshBuffer<V: Vertex> {
 
 impl<V: Vertex> MeshBuffer<V> {
     pub fn new(
-        backend: &mut CurrentGraphicsBackend,
+        backend: &mut ActiveGraphicsBackend,
         vertices: &[V],
         indices: &[u32],
     ) -> MeshBuffer<V> {
@@ -60,7 +60,7 @@ pub struct MeshData<V: Vertex> {
 crate::create_counter! {ID_COUNTER}
 impl<V: Vertex> MeshData<V> {
     pub fn new(
-        backend: &mut CurrentGraphicsBackend,
+        backend: &mut ActiveGraphicsBackend,
         vertices: &[V],
         indices: &[u32],
     ) -> MeshData<V> {
@@ -82,7 +82,7 @@ impl<V: Vertex> Identifiable for MeshData<V> {
 
 #[system]
 fn add_mesh_data(
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     mut meshes_data: Resource<IdStore<MeshData<DefaultVertex>>>,
     mut meshes: Resource<IdStore<Mesh>>,
 ) {

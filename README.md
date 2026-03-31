@@ -21,17 +21,17 @@ Simple, ergonomic and high-performance game engine made specifically for space s
 
 ### Currently in progress
 
-- Shadowmaps
+- Importing assets
 
 ### Plans for the near future
 
-- Performant Vulkan buffer allocator
 - Project management
-- Importing assets
 - Better .obj loader (objects, shading, mtl...)
 
 ### Already done
 
+- Shadowmaps
+- Performant Vulkan buffer allocator
 - Timing resource (delta time, uptime, start time...)
 - Textures
 - Basic renderer

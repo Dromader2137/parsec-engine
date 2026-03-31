@@ -28,7 +28,9 @@ use window::Window;
 use crate::{
     app::{self},
     ecs::{
-        system::{System, SystemBundle, SystemTrigger, system},
+        system::{
+            System, SystemBundle, SystemTrigger, requests::Requests, system,
+        },
         world::query::Query,
     },
     graphics::{
@@ -49,23 +51,22 @@ use crate::{
         },
         vulkan::VulkanBackend,
     },
-    resources::{Resource, Resources},
+    resources::Resource,
     utils::identifiable::IdStore,
 };
 
 pub mod backend;
 pub mod buffer;
 pub mod command_list;
-pub mod fence;
 pub mod framebuffer;
+pub mod gpu_cpu_fence;
+pub mod gpu_gpu_fence;
 pub mod image;
 pub mod pipeline;
 pub mod renderer;
 pub mod renderpass;
 pub mod sampler;
-pub mod semaphore;
 pub mod shader;
-pub mod swapchain;
 pub mod vulkan;
 pub mod window;
 
@@ -92,21 +93,21 @@ impl SystemBundle for GraphicsBundle {
     }
 }
 
-pub struct CurrentGraphicsBackend(Box<dyn GraphicsBackend>);
+pub struct ActiveGraphicsBackend(Box<dyn GraphicsBackend>);
 
-impl Deref for CurrentGraphicsBackend {
+impl Deref for ActiveGraphicsBackend {
     type Target = Box<dyn GraphicsBackend>;
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-impl DerefMut for CurrentGraphicsBackend {
+impl DerefMut for ActiveGraphicsBackend {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
 #[system]
-pub fn init_vulkan(window: Resource<Window>) {
+pub fn init_vulkan(mut requests: Resource<Requests>, window: Resource<Window>) {
     let context = VulkanBackend::init(&window).unwrap();
-    Resources::add(CurrentGraphicsBackend(Box::new(context))).unwrap();
+    requests.create_resource(ActiveGraphicsBackend(Box::new(context)));
 }
 
 #[system]
@@ -116,18 +117,18 @@ fn mark_resize(mut resize: Resource<ResizeFlag>) { resize.0 = true }
 fn request_redraw(window: Resource<Window>) { window.request_redraw(); }
 
 #[system]
-fn end_wait_idle(backend: Resource<CurrentGraphicsBackend>) {
+fn end_wait_idle(backend: Resource<ActiveGraphicsBackend>) {
     backend.wait_idle()
 }
 
 #[system]
-fn init_window() {
+fn init_window(mut requests: Resource<Requests>) {
     let window = {
         let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
         let event_loop_raw = event_loop.get_event_loop();
         Window::new(event_loop_raw, "Oxide Engine test").unwrap()
     };
-    Resources::add(window).unwrap();
+    requests.create_resource(window);
 }
 
 #[system]

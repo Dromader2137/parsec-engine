@@ -10,21 +10,24 @@ pub mod light_data;
 pub mod material_data;
 pub mod mesh_data;
 pub mod sync;
+pub mod texture;
+pub mod texture_atlas;
 pub mod transform_data;
 
 use sync::{RendererFrameSync, RendererImageSync};
 
 use crate::{
-    ecs::system::system,
+    ecs::system::{requests::Requests, system},
     graphics::{
-        CurrentGraphicsBackend,
+        ActiveGraphicsBackend,
         buffer::{Buffer, BufferContent, BufferUsage},
         command_list::{Command, CommandList},
         framebuffer::Framebuffer,
         image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView},
         pipeline::{
-            DefaultVertex, PipelineBinding, PipelineBindingType,
-            PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
+            DefaultVertex, PipelineBindingType, PipelineOptions,
+            PipelineResource, PipelineResourceBindingLayout,
+            PipelineShaderStage,
         },
         renderer::{
             assets::mesh::Mesh,
@@ -43,17 +46,16 @@ use crate::{
         },
         sampler::Sampler,
         shader::{Shader, ShaderType},
-        swapchain::{Swapchain, SwapchainError},
         vulkan::shader::read_shader_code,
         window::Window,
     },
     math::{mat::Matrix4f, uvec::Vec2u, vec::Vec3f},
-    resources::{Resource, Resources},
+    resources::Resource,
     utils::identifiable::IdStore,
 };
 
 fn create_frame_sync(
-    backend: &mut CurrentGraphicsBackend,
+    backend: &mut ActiveGraphicsBackend,
     frames_in_flight: usize,
 ) -> Vec<RendererFrameSync> {
     let mut ret = Vec::new();
@@ -64,7 +66,7 @@ fn create_frame_sync(
 }
 
 fn create_image_sync(
-    backend: &mut CurrentGraphicsBackend,
+    backend: &mut ActiveGraphicsBackend,
     image_count: usize,
 ) -> Vec<RendererImageSync> {
     let mut ret = Vec::new();
@@ -75,7 +77,7 @@ fn create_image_sync(
 }
 
 fn create_commad_lists(
-    backend: &mut CurrentGraphicsBackend,
+    backend: &mut ActiveGraphicsBackend,
     frames_in_flight: usize,
 ) -> Vec<CommandList> {
     let mut ret = Vec::new();
@@ -93,8 +95,6 @@ pub struct RendererCurrentFrame(pub u32);
 pub struct RendererFramesInFlight(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RendererMainRenderpass(pub Renderpass);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererSwapchain(pub Swapchain);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RendererSwapchainImages(pub Vec<Image>);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -109,7 +109,7 @@ pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 #[allow(unused)]
 pub struct RendererShadowpassData {
     light_dir_buffer: Buffer,
-    light_dir_binding: PipelineBinding,
+    light_dir_binding: PipelineResource,
     renderpass: Renderpass,
     material_id: u32,
     vertex_shader: Shader,
@@ -117,12 +117,12 @@ pub struct RendererShadowpassData {
     image: Image,
     image_view: ImageView,
     image_sampler: Sampler,
-    image_binding: PipelineBinding,
+    image_binding: PipelineResource,
     framebuffer: Framebuffer,
     proj_buffer: Buffer,
     look_buffer: Buffer,
-    proj_binding: PipelineBinding,
-    look_binding: PipelineBinding,
+    proj_binding: PipelineResource,
+    look_binding: PipelineResource,
 }
 
 #[repr(C)]
@@ -135,7 +135,8 @@ struct LD {
 
 #[system]
 pub fn init_renderer(
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut requests: Resource<Requests>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     window: Resource<Window>,
 ) {
     let surface_format = backend.get_surface_format();
@@ -145,7 +146,7 @@ pub fn init_renderer(
             RenderpassAttachment {
                 attachment_type: RenderpassAttachmentType::Color,
                 image_format: surface_format,
-                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 1.0),
+                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 0.0),
                 load_op: RenderpassAttachmentLoadOp::Clear,
                 store_op: RenderpassAttachmentStoreOp::Store,
             },
@@ -158,8 +159,7 @@ pub fn init_renderer(
             },
         ])
         .unwrap();
-    let (swapchain, swapchain_images) =
-        backend.create_swapchain(&window, None).unwrap();
+    let swapchain_images = backend.present_images();
     let swapchain_image_views = swapchain_images
         .iter()
         .map(|img| backend.create_image_view(*img).unwrap())
@@ -217,31 +217,31 @@ pub fn init_renderer(
         shadow_renderpass,
         vec![
             vec![
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
             ],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Vertex],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Vertex],
             )],
         ],
         PipelineOptions::default(),
     );
-    let shadow_size = 1 << 10;
+    let shadow_size = 1 << 12;
     let shadow_depth_image = backend
         .create_image(
             Vec2u::new(shadow_size, shadow_size),
@@ -278,21 +278,23 @@ pub fn init_renderer(
         )
         .unwrap();
     let shadow_proj_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
             binding_type: PipelineBindingType::UniformBuffer,
             shader_stages: vec![PipelineShaderStage::Vertex],
         }])
         .unwrap();
     let shadow_look_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
             binding_type: PipelineBindingType::UniformBuffer,
             shader_stages: vec![PipelineShaderStage::Vertex],
         }])
         .unwrap();
-    let shadow_proj_binding =
-        backend.create_pipeline_binding(shadow_proj_layout).unwrap();
-    let shadow_look_binding =
-        backend.create_pipeline_binding(shadow_look_layout).unwrap();
+    let shadow_proj_binding = backend
+        .create_pipeline_resource(shadow_proj_layout)
+        .unwrap();
+    let shadow_look_binding = backend
+        .create_pipeline_resource(shadow_look_layout)
+        .unwrap();
     backend
         .bind_buffer(shadow_proj_binding, shadow_proj_buffer, 0)
         .unwrap();
@@ -306,13 +308,13 @@ pub fn init_renderer(
     ]);
     let shadow_sampler = backend.create_image_sampler().unwrap();
     let shadow_tex_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
             binding_type: PipelineBindingType::TextureSampler,
             shader_stages: vec![PipelineShaderStage::Fragment],
         }])
         .unwrap();
     let shadow_tex_binding =
-        backend.create_pipeline_binding(shadow_tex_layout).unwrap();
+        backend.create_pipeline_resource(shadow_tex_layout).unwrap();
     backend
         .bind_sampler(shadow_tex_binding, shadow_sampler, shadow_depth_view, 0)
         .unwrap();
@@ -333,13 +335,13 @@ pub fn init_renderer(
         )
         .unwrap();
     let light_binding_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout::new(
             PipelineBindingType::UniformBuffer,
             &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
         )])
         .unwrap();
     let light_binding = backend
-        .create_pipeline_binding(light_binding_layout)
+        .create_pipeline_resource(light_binding_layout)
         .unwrap();
     backend.bind_buffer(light_binding, light_buffer, 0).unwrap();
 
@@ -367,41 +369,38 @@ pub fn init_renderer(
         look_binding: shadow_look_binding,
     };
 
-    Resources::add(shadow_data).unwrap();
-    Resources::add(RendererMainRenderpass(renderpass)).unwrap();
-    Resources::add(RendererSwapchain(swapchain)).unwrap();
-    Resources::add(RendererSwapchainImages(swapchain_images)).unwrap();
-    Resources::add(RendererSwapchainImageViews(swapchain_image_views)).unwrap();
-    Resources::add(RendererDepthImage(depth_image)).unwrap();
-    Resources::add(RendererDepthImageView(depth_image_view)).unwrap();
-    Resources::add(RendererFramebuffers(framebuffers)).unwrap();
-    Resources::add(frame_sync).unwrap();
-    Resources::add(image_sync).unwrap();
-    Resources::add(command_lists).unwrap();
-    Resources::add(RendererCurrentFrame(0)).unwrap();
-    Resources::add(RendererFramesInFlight(frames_in_flight as u32)).unwrap();
-    Resources::add(ResizeFlag(false)).unwrap();
-    Resources::add(Vec::<Draw>::new()).unwrap();
-    Resources::add(IdStore::<MeshData<DefaultVertex>>::new()).unwrap();
-    Resources::add(IdStore::<Mesh>::new()).unwrap();
-    Resources::add(material_bases).unwrap();
-    Resources::add(materials_data).unwrap();
-    Resources::add(IdStore::<TransformData>::new()).unwrap();
-    Resources::add(IdStore::<CameraData>::new()).unwrap();
-    Resources::add(TransformDataManager {
+    requests.create_resource(shadow_data);
+    requests.create_resource(RendererMainRenderpass(renderpass));
+    requests.create_resource(RendererSwapchainImages(swapchain_images));
+    requests.create_resource(RendererSwapchainImageViews(swapchain_image_views));
+    requests.create_resource(RendererDepthImage(depth_image));
+    requests.create_resource(RendererDepthImageView(depth_image_view));
+    requests.create_resource(RendererFramebuffers(framebuffers));
+    requests.create_resource(frame_sync);
+    requests.create_resource(image_sync);
+    requests.create_resource(command_lists);
+    requests.create_resource(RendererCurrentFrame(0));
+    requests.create_resource(RendererFramesInFlight(frames_in_flight as u32));
+    requests.create_resource(ResizeFlag(false));
+    requests.create_resource(Vec::<Draw>::new());
+    requests.create_resource(IdStore::<MeshData<DefaultVertex>>::new());
+    requests.create_resource(IdStore::<Mesh>::new());
+    requests.create_resource(material_bases);
+    requests.create_resource(materials_data);
+    requests.create_resource(IdStore::<TransformData>::new());
+    requests.create_resource(IdStore::<CameraData>::new());
+    requests.create_resource(TransformDataManager {
         component_to_data: HashMap::new(),
-    })
-    .unwrap();
-    Resources::add(CameraDataManager {
+    });
+    requests.create_resource(CameraDataManager {
         component_to_data: HashMap::new(),
-    })
-    .unwrap();
+    });
 }
 
 fn recreate_size_dependent_components(
-    backend: &mut CurrentGraphicsBackend,
+    requests: &mut Requests,
+    backend: &mut ActiveGraphicsBackend,
     window: &Window,
-    swapchain: Swapchain,
     swapchain_images: &[Image],
     swapchain_views: &[ImageView],
     depth_image: Image,
@@ -410,9 +409,9 @@ fn recreate_size_dependent_components(
     renderpass: Renderpass,
 ) {
     backend.wait_idle();
+    backend.handle_resize(window).unwrap();
 
-    let (new_swapchain, new_swapchain_images) =
-        backend.create_swapchain(window, Some(swapchain)).unwrap();
+    let new_swapchain_images = backend.present_images();
     let new_swapchain_image_views = new_swapchain_images
         .iter()
         .map(|img| backend.create_image_view(*img).unwrap())
@@ -437,7 +436,6 @@ fn recreate_size_dependent_components(
         })
         .collect::<Vec<_>>();
 
-    backend.delete_swapchain(swapchain).unwrap();
     swapchain_views
         .iter()
         .for_each(|view| backend.delete_image_view(*view).unwrap());
@@ -450,26 +448,25 @@ fn recreate_size_dependent_components(
         backend.delete_framebuffer(*framebuffer).unwrap()
     });
 
-    Resources::add_or_change(RendererSwapchain(new_swapchain));
-    Resources::add_or_change(RendererSwapchainImages(new_swapchain_images));
-    Resources::add_or_change(RendererSwapchainImageViews(
+    requests.create_resource(RendererSwapchainImages(new_swapchain_images));
+    requests.create_resource(RendererSwapchainImageViews(
         new_swapchain_image_views,
     ));
-    Resources::add_or_change(RendererDepthImage(new_depth_image));
-    Resources::add_or_change(RendererDepthImageView(new_depth_image_view));
-    Resources::add_or_change(RendererFramebuffers(new_framebuffers));
+    requests.create_resource(RendererDepthImage(new_depth_image));
+    requests.create_resource(RendererDepthImageView(new_depth_image_view));
+    requests.create_resource(RendererFramebuffers(new_framebuffers));
 }
 
 #[system]
 pub fn render(
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut requests: Resource<Requests>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     mut current_frame: Resource<RendererCurrentFrame>,
     mut resize: Resource<ResizeFlag>,
     frames_in_flight: Resource<RendererFramesInFlight>,
     window: Resource<Window>,
     frame_sync: Resource<Vec<RendererFrameSync>>,
     image_sync: Resource<Vec<RendererImageSync>>,
-    swapchain: Resource<RendererSwapchain>,
     swapchain_images: Resource<RendererSwapchainImages>,
     swapchain_views: Resource<RendererSwapchainImageViews>,
     depth_image: Resource<RendererDepthImage>,
@@ -491,9 +488,9 @@ pub fn render(
 
     if resize.0 {
         recreate_size_dependent_components(
+            &mut *requests,
             &mut *backend,
             &window,
-            swapchain.0,
             &swapchain_images.0,
             &swapchain_views.0,
             depth_image.0,
@@ -505,19 +502,16 @@ pub fn render(
         return;
     }
 
-    let present_index = match backend.next_image_id(
-        swapchain.0,
+    let present_index = match backend.start_frame(
         frame_sync[current_frame.0 as usize].image_available_semaphore,
     ) {
         Ok(val) => val,
-        Err(SwapchainError::SwapchainOutOfDate) => {
-            resize.0 = true;
-            return;
-        },
         Err(err) => panic!("{:?}", err),
     };
     backend
-        .reset_fence(frame_sync[current_frame.0 as usize].command_buffer_fence)
+        .reset_gpu_to_cpu_fence(
+            frame_sync[current_frame.0 as usize].command_buffer_fence,
+        )
         .unwrap();
 
     let command_list = &mut command_lists[current_frame.0 as usize];
@@ -608,21 +602,17 @@ pub fn render(
         )
         .unwrap();
 
-    match backend.present(
-        swapchain.0,
+    match backend.end_frame(
         &[image_sync[present_index as usize].rendering_complete_semaphore],
         present_index,
     ) {
         Ok(_) => (),
-        Err(SwapchainError::SwapchainOutOfDate) => {
-            resize.0 = true;
-        },
         _ => panic!("Shouldn't be here"),
     };
 
     let command_buffer_fence =
         frame_sync[current_frame.0 as usize].command_buffer_fence;
-    backend.wait_fence(command_buffer_fence).unwrap();
+    backend.wait_gpu_to_cpu_fence(command_buffer_fence).unwrap();
 
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
 }

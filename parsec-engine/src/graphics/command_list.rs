@@ -3,7 +3,7 @@ use crate::{
         buffer::Buffer,
         framebuffer::Framebuffer,
         image::Image,
-        pipeline::{Pipeline, PipelineBinding},
+        pipeline::{Pipeline, PipelineResource},
         renderpass::Renderpass,
     },
     math::{ivec::Vec2i, uvec::Vec2u},
@@ -49,12 +49,12 @@ pub enum Command {
     SetScissor(Vec2u, Vec2i),
     EndRenderpass,
     BindGraphicsPipeline(Pipeline),
-    BindPipelineBinding(PipelineBinding, u32),
+    BindPipelineBinding(PipelineResource, u32),
     BindVertexBuffer(Buffer),
     BindIndexBuffer(Buffer),
     Draw(u32, u32, u32, u32),
     DrawIndexed(u32, u32, u32, i32, u32),
-    CopyBufferToImage(Buffer, Image),
+    CopyBufferToImage(Buffer, Image, Vec2u, Vec2u),
     CopyBufferToBuffer(Buffer, Buffer),
 }
 

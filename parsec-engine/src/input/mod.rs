@@ -3,13 +3,13 @@
 use keys::Keys;
 
 use crate::{
-    ecs::system::{System, SystemBundle, SystemTrigger, system},
+    ecs::system::{System, SystemBundle, SystemTrigger, requests::Requests, system},
     graphics::window::Window,
     input::{
         keys::KeyboardInputEvent,
         mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
     },
-    resources::{Resource, Resources},
+    resources::Resource,
 };
 
 pub mod key;
@@ -33,7 +33,9 @@ impl Input {
 }
 
 #[system]
-fn input_start() { Resources::add(Input::new()).unwrap(); }
+fn input_start(mut requests: Resource<Requests>) {
+    requests.create_resource(Input::new());
+}
 
 #[system]
 fn input_clear(mut input: Resource<Input>) {

@@ -40,21 +40,21 @@ pub fn impl_spawn(input: TokenStream) -> TokenStream {
         impl_types.push(quote! { #t: Spawn });
         bundle_types.push(quote! { #t });
         archetype_ids.push(quote! { std::any::TypeId::of::<#t>() });
-        id.push(quote! { ret = ret.merge_with(#t::archetype_id()?)?; });
         let i = syn::Index::from(i);
         let dec_name = format_ident!("value_{}", i);
+        id.push(quote! { ret = ret.merge_with(self.#i.archetype_id()?)?; });
         bundle_deconstruction.push(quote! { #dec_name });
         archetype_adds.push(quote! { self.#i.spawn(archetype)?; });
     }
 
     let output = quote! {
         impl<#(#impl_types),*> Spawn for (#(#bundle_types),*) {
-            fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
+            fn archetype_id(&self) -> Result<ArchetypeId, ArchetypeError> {
                 let mut ret = ArchetypeId::new(Vec::new())?;
                 #(#id)*
                 Ok(ret)
             }
-            fn spawn(self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
+            fn spawn(&self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
                 // let (#(#bundle_deconstruction),*) = self;
                 #(#archetype_adds)*
                 Ok(())
@@ -224,11 +224,11 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             if mutability {
                 quote! {
-                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
+                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world);
                 }
             } else {
                 quote! {
-                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow();
+                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world);
                 }
             }
         },
@@ -267,7 +267,7 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #struct_name_str
             }
 
-            fn run(&mut self) {
+            fn run(&mut self, resources: & #engine_crate::resources::Resources, world: & #engine_crate::ecs::world::World) {
                 #(#borrows)*
                 #fn_name( #(#argument_names),* );
             }

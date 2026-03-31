@@ -6,11 +6,11 @@ use crate::{
         world::{fetch::Mut, query::Query},
     },
     graphics::{
-        CurrentGraphicsBackend,
+        ActiveGraphicsBackend,
         buffer::{Buffer, BufferContent, BufferUsage},
         pipeline::{
-            PipelineBinding, PipelineBindingType, PipelineShaderStage,
-            PipelineSubbindingLayout,
+            PipelineBindingType, PipelineResource,
+            PipelineResourceBindingLayout, PipelineShaderStage,
         },
         renderer::components::transform::Transform,
     },
@@ -30,10 +30,10 @@ pub struct TransformData {
     pub translation_buffer: Buffer,
     pub scale_buffer: Buffer,
     pub rotation_buffer: Buffer,
-    pub model_binding: PipelineBinding,
+    pub model_binding: PipelineResource,
     pub look_at_matrix: Matrix4f,
     pub look_at_buffer: Buffer,
-    pub look_at_binding: PipelineBinding,
+    pub look_at_binding: PipelineResource,
 }
 
 pub struct TransformDataManager {
@@ -43,7 +43,7 @@ pub struct TransformDataManager {
 crate::create_counter! {ID_COUNTER}
 impl TransformData {
     pub fn new(
-        backend: &mut CurrentGraphicsBackend,
+        backend: &mut ActiveGraphicsBackend,
         position: Vec3f,
         scale: Vec3f,
         rotation: Quat,
@@ -77,32 +77,32 @@ impl TransformData {
             ])
             .unwrap();
         let model_pipeline_layout = backend
-            .create_pipeline_binding_layout(&[
-                PipelineSubbindingLayout {
+            .create_pipeline_resource_layout(&[
+                PipelineResourceBindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
                     shader_stages: vec![PipelineShaderStage::Vertex],
                 },
-                PipelineSubbindingLayout {
+                PipelineResourceBindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
                     shader_stages: vec![PipelineShaderStage::Vertex],
                 },
-                PipelineSubbindingLayout {
+                PipelineResourceBindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
                     shader_stages: vec![PipelineShaderStage::Vertex],
                 },
             ])
             .unwrap();
         let look_at_pipeline_layout = backend
-            .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+            .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
             }])
             .unwrap();
         let model_binding = backend
-            .create_pipeline_binding(model_pipeline_layout)
+            .create_pipeline_resource(model_pipeline_layout)
             .unwrap();
         let look_at_binding = backend
-            .create_pipeline_binding(look_at_pipeline_layout)
+            .create_pipeline_resource(look_at_pipeline_layout)
             .unwrap();
         backend
             .bind_buffer(model_binding, translation_buffer, 0)
@@ -131,7 +131,7 @@ impl TransformData {
 
     fn update_buffers_from_data(
         &mut self,
-        backend: &mut CurrentGraphicsBackend,
+        backend: &mut ActiveGraphicsBackend,
     ) {
         backend
             .update_buffer(
@@ -166,7 +166,7 @@ impl Identifiable for TransformData {
 
 #[system]
 fn add_transform_data(
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     mut transforms_data: Resource<IdStore<TransformData>>,
     mut transforms_data_manager: Resource<TransformDataManager>,
     mut transforms: Query<Mut<Transform>>,
@@ -192,7 +192,7 @@ fn add_transform_data(
 
 #[system]
 fn update_transform_data(
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     mut transforms_data: Resource<IdStore<TransformData>>,
     transforms_data_manager: Resource<TransformDataManager>,
     mut transforms: Query<Transform>,

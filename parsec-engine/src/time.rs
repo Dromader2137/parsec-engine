@@ -3,8 +3,8 @@
 use std::time::SystemTime;
 
 use crate::{
-    ecs::system::{System, SystemBundle, SystemTrigger, system},
-    resources::{Resource, Resources},
+    ecs::system::{System, SystemBundle, SystemTrigger, requests::Requests, system},
+    resources::Resource,
 };
 
 /// Stores timing information like delta_time and current_time.
@@ -48,7 +48,9 @@ impl Time {
 }
 
 #[system]
-fn time_init() { Resources::add(Time::new()).unwrap(); }
+fn time_init(mut requests: Resource<Requests>) {
+    requests.create_resource(Time::new());
+}
 
 #[system]
 fn time_update(mut time: Resource<Time>) { time.update_time(); }

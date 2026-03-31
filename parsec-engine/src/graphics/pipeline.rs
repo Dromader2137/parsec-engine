@@ -6,16 +6,16 @@ pub struct Pipeline {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PipelineBindingLayout {
+pub struct PipelineResourceLayout {
     id: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PipelineBinding {
+pub struct PipelineResource {
     id: u32,
 }
 
-pub struct PipelineSubbindingLayout {
+pub struct PipelineResourceBindingLayout {
     pub binding_type: PipelineBindingType,
     pub shader_stages: Vec<PipelineShaderStage>,
 }
@@ -147,28 +147,28 @@ impl Pipeline {
     pub fn id(&self) -> u32 { self.id }
 }
 
-impl PipelineBindingLayout {
-    pub fn new(id: u32) -> PipelineBindingLayout {
-        PipelineBindingLayout { id }
+impl PipelineResourceLayout {
+    pub fn new(id: u32) -> PipelineResourceLayout {
+        PipelineResourceLayout { id }
     }
 
     pub fn id(&self) -> u32 { self.id }
 }
 
-impl PipelineSubbindingLayout {
+impl PipelineResourceBindingLayout {
     pub fn new(
         binding_type: PipelineBindingType,
         shader_stages: &[PipelineShaderStage],
-    ) -> PipelineSubbindingLayout {
-        PipelineSubbindingLayout {
+    ) -> PipelineResourceBindingLayout {
+        PipelineResourceBindingLayout {
             binding_type,
             shader_stages: shader_stages.to_vec(),
         }
     }
 }
 
-impl PipelineBinding {
-    pub fn new(id: u32) -> PipelineBinding { PipelineBinding { id } }
+impl PipelineResource {
+    pub fn new(id: u32) -> PipelineResource { PipelineResource { id } }
 
     pub fn id(&self) -> u32 { self.id }
 }

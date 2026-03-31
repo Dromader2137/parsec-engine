@@ -18,7 +18,6 @@ use crate::{
 };
 
 pub struct VulkanSwapchain {
-    id: u32,
     _swapchain_image_ids: Vec<u32>,
     swapchain: ash::vk::SwapchainKHR,
     swapchain_loader: ash::khr::swapchain::Device,
@@ -40,7 +39,6 @@ pub enum VulkanSwapchainError {
     InvalidSize,
 }
 
-crate::create_counter! {ID_COUNTER}
 impl VulkanSwapchain {
     pub fn new(
         instance: &VulkanInstance,
@@ -124,7 +122,6 @@ impl VulkanSwapchain {
 
         Ok((
             VulkanSwapchain {
-                id: ID_COUNTER.next(),
                 swapchain,
                 _swapchain_image_ids: swapchain_images
                     .iter()
@@ -207,7 +204,5 @@ impl VulkanSwapchain {
         &self.swapchain_loader
     }
 
-    pub fn id(&self) -> u32 { self.id }
-
-    pub fn _swapchain_image_ids(&self) -> &[u32] { &self._swapchain_image_ids }
+    pub fn swapchain_image_ids(&self) -> &[u32] { &self._swapchain_image_ids }
 }

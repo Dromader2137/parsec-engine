@@ -2,32 +2,32 @@ use crate::{
     graphics::{
         buffer::{Buffer, BufferContent, BufferError, BufferUsage},
         command_list::{CommandList, CommandListError},
-        fence::{Fence, FenceError},
         framebuffer::{Framebuffer, FramebufferError},
+        gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
+        gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
         image::{
             Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView,
         },
         pipeline::{
-            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
-            PipelineOptions, PipelineSubbindingLayout,
+            Pipeline, PipelineError, PipelineOptions, PipelineResource,
+            PipelineResourceBindingLayout, PipelineResourceLayout,
         },
         renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
         sampler::{Sampler, SamplerError},
-        semaphore::{Semaphore, SemaphoreError},
         shader::{Shader, ShaderError, ShaderType},
-        swapchain::{Swapchain, SwapchainError},
         window::Window,
     },
     math::uvec::Vec2u,
 };
 
 #[derive(Debug)]
-pub enum BackendInitError {
+pub enum BackendError {
     InitError(anyhow::Error),
+    FrameError(anyhow::Error),
 }
 
 pub trait GraphicsBackend: Send + Sync + 'static {
-    fn init(window: &Window) -> Result<Self, BackendInitError>
+    fn init(window: &Window) -> Result<Self, BackendError>
     where
         Self: Sized;
     fn wait_idle(&self);
@@ -62,31 +62,31 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         renderpass: Renderpass,
     ) -> Result<(), RenderpassError>;
 
-    fn create_pipeline_binding_layout(
+    fn create_pipeline_resource_layout(
         &mut self,
-        subbindings: &[PipelineSubbindingLayout],
-    ) -> Result<PipelineBindingLayout, PipelineError>;
+        subbindings: &[PipelineResourceBindingLayout],
+    ) -> Result<PipelineResourceLayout, PipelineError>;
     fn create_pipeline(
         &mut self,
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,
-        binding_layouts: &[PipelineBindingLayout],
+        binding_layouts: &[PipelineResourceLayout],
         options: PipelineOptions,
     ) -> Result<Pipeline, PipelineError>;
-    fn create_pipeline_binding(
+    fn create_pipeline_resource(
         &mut self,
-        pipeline_layout: PipelineBindingLayout,
-    ) -> Result<PipelineBinding, PipelineError>;
+        pipeline_layout: PipelineResourceLayout,
+    ) -> Result<PipelineResource, PipelineError>;
     fn bind_buffer(
         &mut self,
-        pipeline_binding: PipelineBinding,
+        pipeline_binding: PipelineResource,
         buffer: Buffer,
         index: u32,
     ) -> Result<(), BufferError>;
     fn bind_sampler(
         &mut self,
-        pipeline_binding: PipelineBinding,
+        pipeline_binding: PipelineResource,
         sampler: Sampler,
         image_view: ImageView,
         index: u32,
@@ -96,31 +96,22 @@ pub trait GraphicsBackend: Send + Sync + 'static {
     fn submit_commands(
         &mut self,
         command_list: &CommandList,
-        wait_semaphores: &[Semaphore],
-        signal_semaphores: &[Semaphore],
-        signal_fence: Fence,
+        wait_fence: &[GpuToGpuFence],
+        signal_fence: &[GpuToGpuFence],
+        signal_fence: GpuToCpuFence,
     ) -> Result<(), CommandListError>;
 
-    fn create_swapchain(
+    fn handle_resize(&mut self, window: &Window) -> Result<(), BackendError>;
+    fn present_images(&mut self) -> Vec<Image>;
+    fn start_frame(
         &mut self,
-        window: &Window,
-        old_swapchain: Option<Swapchain>,
-    ) -> Result<(Swapchain, Vec<Image>), SwapchainError>;
-    fn delete_swapchain(
+        signal_fence: GpuToGpuFence,
+    ) -> Result<u32, BackendError>;
+    fn end_frame(
         &mut self,
-        swapchain: Swapchain,
-    ) -> Result<(), SwapchainError>;
-    fn next_image_id(
-        &mut self,
-        swapchain: Swapchain,
-        signal_semaphore: Semaphore,
-    ) -> Result<u32, SwapchainError>;
-    fn present(
-        &mut self,
-        swapchain: Swapchain,
-        wait_semaphores: &[Semaphore],
+        wait_fence: &[GpuToGpuFence],
         present_image_index: u32,
-    ) -> Result<(), SwapchainError>;
+    ) -> Result<(), BackendError>;
 
     fn create_image(
         &mut self,
@@ -133,6 +124,8 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         &mut self,
         buffer: Buffer,
         image: Image,
+        image_size: Vec2u,
+        image_offset: Vec2u,
     ) -> Result<(), ImageError>;
     fn delete_image(&mut self, image: Image) -> Result<(), ImageError>;
     fn create_image_view(
@@ -160,14 +153,28 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         framebuffer: Framebuffer,
     ) -> Result<(), FramebufferError>;
 
-    fn create_fence(&mut self, signaled: bool) -> Result<Fence, FenceError>;
-    fn wait_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
-    fn reset_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
-    fn delete_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
-
-    fn create_semaphore(&mut self) -> Result<Semaphore, SemaphoreError>;
-    fn delete_semaphore(
+    fn create_gpu_to_cpu_fence(
         &mut self,
-        semaphore: Semaphore,
-    ) -> Result<(), SemaphoreError>;
+        signaled: bool,
+    ) -> Result<GpuToCpuFence, GpuToCpuFenceError>;
+    fn wait_gpu_to_cpu_fence(
+        &mut self,
+        fence: GpuToCpuFence,
+    ) -> Result<(), GpuToCpuFenceError>;
+    fn reset_gpu_to_cpu_fence(
+        &mut self,
+        fence: GpuToCpuFence,
+    ) -> Result<(), GpuToCpuFenceError>;
+    fn delete_gpu_to_cpu_fence(
+        &mut self,
+        fence: GpuToCpuFence,
+    ) -> Result<(), GpuToCpuFenceError>;
+
+    fn create_gpu_to_gpu_fence(
+        &mut self,
+    ) -> Result<GpuToGpuFence, GpuToGpuFenceError>;
+    fn delete_gpu_to_gpu_fence(
+        &mut self,
+        fence: GpuToGpuFence,
+    ) -> Result<(), GpuToGpuFenceError>;
 }

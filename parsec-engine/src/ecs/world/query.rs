@@ -2,11 +2,11 @@
 
 use std::marker::PhantomData;
 
-use crate::ecs::{
+use crate::{ecs::{
     entity::Entity,
     system::SystemInput,
-    world::{WORLD, fetch::Fetch},
-};
+    world::{World, fetch::Fetch},
+}, resources::Resources};
 
 /// Stores the data needed to query entities from [`World`][crate::ecs::world::World].
 pub struct Query<T: Fetch> {
@@ -15,8 +15,7 @@ pub struct Query<T: Fetch> {
 }
 
 impl<T: Fetch> SystemInput for Query<T> {
-    fn borrow() -> Self {
-        let world = WORLD.read().unwrap();
+    fn borrow(_resources: &Resources, world: &World) -> Self {
         let archetype_id = T::archetype_id().unwrap();
         let archetypes = world
             .archetypes

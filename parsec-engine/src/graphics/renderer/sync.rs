@@ -1,29 +1,36 @@
 use crate::graphics::{
-    CurrentGraphicsBackend, fence::Fence, semaphore::Semaphore,
+    ActiveGraphicsBackend, gpu_cpu_fence::GpuToCpuFence,
+    gpu_gpu_fence::GpuToGpuFence,
 };
 
 pub struct RendererFrameSync {
-    pub command_buffer_fence: Fence,
-    pub image_available_semaphore: Semaphore,
+    pub command_buffer_fence: GpuToCpuFence,
+    pub image_available_semaphore: GpuToGpuFence,
 }
 
 pub struct RendererImageSync {
-    pub rendering_complete_semaphore: Semaphore,
+    pub rendering_complete_semaphore: GpuToGpuFence,
 }
 
 impl RendererFrameSync {
-    pub fn new(backend: &mut CurrentGraphicsBackend) -> RendererFrameSync {
+    pub fn new(backend: &mut ActiveGraphicsBackend) -> RendererFrameSync {
         RendererFrameSync {
-            command_buffer_fence: backend.create_fence(true).unwrap(),
-            image_available_semaphore: backend.create_semaphore().unwrap(),
+            command_buffer_fence: backend
+                .create_gpu_to_cpu_fence(true)
+                .unwrap(),
+            image_available_semaphore: backend
+                .create_gpu_to_gpu_fence()
+                .unwrap(),
         }
     }
 }
 
 impl RendererImageSync {
-    pub fn new(backend: &mut CurrentGraphicsBackend) -> RendererImageSync {
+    pub fn new(backend: &mut ActiveGraphicsBackend) -> RendererImageSync {
         RendererImageSync {
-            rendering_complete_semaphore: backend.create_semaphore().unwrap(),
+            rendering_complete_semaphore: backend
+                .create_gpu_to_gpu_fence()
+                .unwrap(),
         }
     }
 }

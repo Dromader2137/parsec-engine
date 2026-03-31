@@ -2,16 +2,17 @@ use image::EncodableLayout;
 use parsec_engine::{
     app::App,
     ecs::{
-        system::{SystemTrigger, system},
-        world::{World, component::Component, fetch::Mut, query::Query},
+        system::{SystemTrigger, requests::Requests, system},
+        world::{component::Component, fetch::Mut, query::Query},
     },
     graphics::{
-        CurrentGraphicsBackend, GraphicsBundle,
+        ActiveGraphicsBackend, GraphicsBundle,
         buffer::{BufferContent, BufferUsage},
         image::{ImageAspect, ImageFormat, ImageUsage},
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode,
-            PipelineOptions, PipelineShaderStage, PipelineSubbindingLayout,
+            PipelineOptions, PipelineResourceBindingLayout,
+            PipelineShaderStage,
         },
         renderer::{
             RendererMainRenderpass,
@@ -37,7 +38,8 @@ use parsec_engine::{
 
 #[system]
 fn test_system(
-    mut backend: Resource<CurrentGraphicsBackend>,
+    mut requests: Resource<Requests>,
+    mut backend: Resource<ActiveGraphicsBackend>,
     mut materials: Resource<IdStore<MaterialData>>,
     mut material_bases: Resource<IdStore<MaterialBase>>,
     mut meshes: Resource<IdStore<Mesh>>,
@@ -63,36 +65,36 @@ fn test_system(
         renderpass.0,
         vec![
             vec![
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
-                PipelineSubbindingLayout::new(
+                PipelineResourceBindingLayout::new(
                     PipelineBindingType::UniformBuffer,
                     &[PipelineShaderStage::Vertex],
                 ),
             ],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Vertex],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Vertex],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
                 &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::TextureSampler,
                 &[PipelineShaderStage::Fragment],
             )],
-            vec![PipelineSubbindingLayout::new(
+            vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::TextureSampler,
                 &[PipelineShaderStage::Fragment],
             )],
@@ -119,16 +121,21 @@ fn test_system(
         )
         .unwrap();
     backend
-        .load_image_from_buffer(texture_buffer, texture_image)
+        .load_image_from_buffer(
+            texture_buffer,
+            texture_image,
+            Vec2u::new(width, height),
+            Vec2u::ZERO,
+        )
         .unwrap();
     let texture_binding_layout = backend
-        .create_pipeline_binding_layout(&[PipelineSubbindingLayout::new(
+        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout::new(
             PipelineBindingType::TextureSampler,
             &[PipelineShaderStage::Fragment],
         )])
         .unwrap();
     let texture_binding = backend
-        .create_pipeline_binding(texture_binding_layout)
+        .create_pipeline_resource(texture_binding_layout)
         .unwrap();
     let texture_sampler = backend.create_image_sampler().unwrap();
     let texture_image_view = backend.create_image_view(texture_image).unwrap();
@@ -150,7 +157,7 @@ fn test_system(
 
     let mesh = meshes.push(load_obj("test.obj").unwrap());
 
-    World::spawn((
+    requests.spawn_entity((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
         Transform::new(Vec3f::BACK, Vec3f::ZERO, Quat::IDENTITY),
         CameraController {
@@ -160,10 +167,9 @@ fn test_system(
             target_pitch: 0.0,
             fov: 40.0,
         },
-    ))
-    .unwrap();
+    ));
 
-    World::spawn((
+    requests.spawn_entity((
         Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
         MeshRenderer::new(mesh, material_id),
         Movable {
@@ -171,14 +177,13 @@ fn test_system(
             offset: 0.0,
             speed: 1.0,
         },
-    ))
-    .unwrap();
+    ));
 
-    World::spawn((
+    requests.spawn_entity((
         Transform::new(
             Vec3f::new(-2.0, 2.0, -2.0),
             Vec3f::ONE * 0.4,
-            Quat::IDENTITY,
+            Quat::from_euler(Vec3f::new(0.8, 1.5, 0.4)),
         ),
         MeshRenderer::new(mesh, material_id),
         Movable {
@@ -186,18 +191,16 @@ fn test_system(
             offset: 1.0,
             speed: 2.5,
         },
-    ))
-    .unwrap();
+    ));
 
-    World::spawn((
+    requests.spawn_entity((
         Transform::new(
             Vec3f::new(3.0, -3.0, 3.0),
             Vec3f::ONE * 1.5,
-            Quat::IDENTITY,
+            Quat::from_euler(Vec3f::new(0.4, 1.2, 2.0)),
         ),
         MeshRenderer::new(mesh, material_id),
-    ))
-    .unwrap();
+    ));
 }
 
 #[derive(Debug, Component)]
