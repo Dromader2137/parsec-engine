@@ -459,11 +459,13 @@ impl VulkanImageView {
         match unsafe {
             device.raw_device().create_image_view(&create_info, None)
         } {
-            Ok(val) => Ok(VulkanImageView {
-                id: ID_COUNTER_VIEW.next(),
-                image_id: image.id(),
-                view: val,
-            }),
+            Ok(val) => {
+                Ok(VulkanImageView {
+                    id: ID_COUNTER_VIEW.next(),
+                    image_id: image.id(),
+                    view: val,
+                })
+            },
             Err(err) => Err(VulkanImageError::ViewCreationError(err)),
         }
     }

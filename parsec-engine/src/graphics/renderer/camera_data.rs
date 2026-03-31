@@ -9,8 +9,8 @@ use crate::{
         CurrentGraphicsBackend,
         buffer::{Buffer, BufferContent, BufferUsage},
         pipeline::{
-            PipelineBinding, PipelineBindingType, PipelineShaderStage,
-            PipelineSubbindingLayout,
+            PipelineBindingType, PipelineShaderStage, PipelineSubbindingLayout,
+            ResourceBinding,
         },
         renderer::components::camera::Camera,
         window::Window,
@@ -27,7 +27,7 @@ pub struct CameraData {
     camera_data_id: IdType,
     pub projection_matrix: Matrix4f,
     pub projection_buffer: Buffer,
-    pub projection_binding: PipelineBinding,
+    pub projection_binding: ResourceBinding,
 }
 
 pub struct CameraDataManager {
@@ -51,13 +51,13 @@ impl CameraData {
             ])
             .unwrap();
         let projection_binding_layout = backend
-            .create_pipeline_binding_layout(&[PipelineSubbindingLayout {
+            .create_resource_binding_layout(&[PipelineSubbindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
             }])
             .unwrap();
         let projection_binding = backend
-            .create_pipeline_binding(projection_binding_layout)
+            .create_resource_binding(projection_binding_layout)
             .unwrap();
         backend
             .bind_buffer(projection_binding, projection_buffer, 0)

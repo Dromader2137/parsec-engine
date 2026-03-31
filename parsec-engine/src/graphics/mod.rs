@@ -74,7 +74,6 @@ pub struct GraphicsBundle {}
 impl SystemBundle for GraphicsBundle {
     fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
         vec![
-            (SystemTrigger::LateStart, InitWindow::new()),
             (SystemTrigger::LateStart, InitVulkan::new()),
             (SystemTrigger::LateStart, InitRenderer::new()),
             (SystemTrigger::Render, UpdateCameraData::new()),
@@ -87,7 +86,7 @@ impl SystemBundle for GraphicsBundle {
             (SystemTrigger::Update, AddMeshData::new()),
             (SystemTrigger::Update, AddTransformData::new()),
             (SystemTrigger::End, EndWaitIdle::new()),
-            (SystemTrigger::WindowResized, MarkResize::new()),
+            (SystemTrigger::WindowResized, HandleResize::new()),
         ]
     }
 }
@@ -104,30 +103,24 @@ impl DerefMut for CurrentGraphicsBackend {
 }
 
 #[system]
-pub fn init_vulkan(window: Resource<Window>) {
-    let context = VulkanBackend::init(&window).unwrap();
+pub fn init_vulkan() {
+    let context = VulkanBackend::init().unwrap();
     Resources::add(CurrentGraphicsBackend(Box::new(context))).unwrap();
 }
 
 #[system]
-fn mark_resize(mut resize: Resource<ResizeFlag>) { resize.0 = true }
+fn handle_resize(mut backend: Resource<CurrentGraphicsBackend>) {
+    backend.handle_resize();
+}
 
 #[system]
-fn request_redraw(window: Resource<Window>) { window.request_redraw(); }
+fn request_redraw(backend: Resource<CurrentGraphicsBackend>) {
+    backend.request_redraw();
+}
 
 #[system]
 fn end_wait_idle(backend: Resource<CurrentGraphicsBackend>) {
     backend.wait_idle()
-}
-
-#[system]
-fn init_window() {
-    let window = {
-        let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
-        let event_loop_raw = event_loop.get_event_loop();
-        Window::new(event_loop_raw, "Oxide Engine test").unwrap()
-    };
-    Resources::add(window).unwrap();
 }
 
 #[system]

@@ -905,14 +905,18 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         image_id: u32,
     ) -> (&[VulkanAccess], VulkanImageLayout, &[VulkanPipelineStage]) {
         match self.state.image_properties.get(&image_id) {
-            Some(image_state) => (
-                image_state.last_access.as_slice(),
-                image_state.last_layout,
-                &image_state.last_pipeline_stage,
-            ),
-            None => (&[] as &[VulkanAccess], VulkanImageLayout::Undefined, &[
-                VulkanPipelineStage::BottomOfPipe,
-            ]),
+            Some(image_state) => {
+                (
+                    image_state.last_access.as_slice(),
+                    image_state.last_layout,
+                    &image_state.last_pipeline_stage,
+                )
+            },
+            None => {
+                (&[] as &[VulkanAccess], VulkanImageLayout::Undefined, &[
+                    VulkanPipelineStage::BottomOfPipe,
+                ])
+            },
         }
     }
 

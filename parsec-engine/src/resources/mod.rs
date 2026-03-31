@@ -94,9 +94,11 @@ impl Resources {
         let resources = RESOURCES.read().expect("Clean resources read");
         let type_id = TypeId::of::<R>();
         let lock = match resources.get(&type_id) {
-            Some(lock_any) => lock_any
-                .downcast_ref::<Arc<Mutex<R>>>()
-                .expect("This downcast can't fail"),
+            Some(lock_any) => {
+                lock_any
+                    .downcast_ref::<Arc<Mutex<R>>>()
+                    .expect("This downcast can't fail")
+            },
             None => {
                 return Err(ResourceError::ResourceNotFoundExact(
                     type_name::<R>(),
@@ -115,9 +117,11 @@ impl Resources {
         let mut resources = RESOURCES.write().unwrap();
         let type_id = TypeId::of::<R>();
         let lock = match resources.get(&type_id) {
-            Some(lock_any) => lock_any
-                .downcast_ref::<Arc<Mutex<R>>>()
-                .expect("This downcast can't fail"),
+            Some(lock_any) => {
+                lock_any
+                    .downcast_ref::<Arc<Mutex<R>>>()
+                    .expect("This downcast can't fail")
+            },
             None => return Err(ResourceError::ResourceNotFound),
         };
         if Arc::weak_count(lock) + Arc::strong_count(lock) > 1 {

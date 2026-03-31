@@ -241,8 +241,8 @@ impl World {
             if new_archetype_id.contains_single(type_id) {
                 new_archetype
                     .add_raw(*size, *type_id, data.clone())
-                    .map_err(|e| WorldError::DeleteComponentError {
-                        kind: e,
+                    .map_err(|e| {
+                        WorldError::DeleteComponentError { kind: e }
                     })?;
             }
         }

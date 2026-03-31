@@ -46,16 +46,20 @@ impl VulkanClearValue {
 
     pub fn raw_clear_value(&self) -> ash::vk::ClearValue {
         match self {
-            VulkanClearValue::Color(col) => ash::vk::ClearValue {
-                color: ash::vk::ClearColorValue {
-                    float32: [col.x, col.y, col.z, col.w],
-                },
+            VulkanClearValue::Color(col) => {
+                ash::vk::ClearValue {
+                    color: ash::vk::ClearColorValue {
+                        float32: [col.x, col.y, col.z, col.w],
+                    },
+                }
             },
-            VulkanClearValue::Depth(d) => ash::vk::ClearValue {
-                depth_stencil: ash::vk::ClearDepthStencilValue {
-                    depth: *d,
-                    stencil: 0,
-                },
+            VulkanClearValue::Depth(d) => {
+                ash::vk::ClearValue {
+                    depth_stencil: ash::vk::ClearDepthStencilValue {
+                        depth: *d,
+                        stencil: 0,
+                    },
+                }
             },
         }
     }

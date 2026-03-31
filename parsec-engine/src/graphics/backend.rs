@@ -8,8 +8,8 @@ use crate::{
             Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView,
         },
         pipeline::{
-            Pipeline, PipelineBinding, PipelineBindingLayout, PipelineError,
-            PipelineOptions, PipelineSubbindingLayout,
+            Pipeline, PipelineError, PipelineOptions, PipelineSubbindingLayout,
+            ResourceBinding, ResourceBindingLayout,
         },
         renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
         sampler::{Sampler, SamplerError},
@@ -26,11 +26,22 @@ pub enum BackendInitError {
     InitError(anyhow::Error),
 }
 
+#[derive(Debug, Default)]
+pub struct FrameBeginInfo {
+    pub resized: bool,
+    pub present_images: Vec<Image>,
+    pub current_image: u32,
+}
+
 pub trait GraphicsBackend: Send + Sync + 'static {
-    fn init(window: &Window) -> Result<Self, BackendInitError>
+    fn init() -> Result<Self, BackendInitError>
     where
         Self: Sized;
     fn wait_idle(&self);
+
+    fn request_redraw(&self);
+    fn handle_resize(&mut self);
+    fn resized(&self) -> bool;
 
     fn get_surface_format(&self) -> ImageFormat;
 
@@ -62,31 +73,31 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         renderpass: Renderpass,
     ) -> Result<(), RenderpassError>;
 
-    fn create_pipeline_binding_layout(
+    fn create_resource_binding_layout(
         &mut self,
         subbindings: &[PipelineSubbindingLayout],
-    ) -> Result<PipelineBindingLayout, PipelineError>;
+    ) -> Result<ResourceBindingLayout, PipelineError>;
     fn create_pipeline(
         &mut self,
         vertex_shader: Shader,
         fragment_shader: Shader,
         renderpass: Renderpass,
-        binding_layouts: &[PipelineBindingLayout],
+        resource_binding_layouts: &[ResourceBindingLayout],
         options: PipelineOptions,
     ) -> Result<Pipeline, PipelineError>;
-    fn create_pipeline_binding(
+    fn create_resource_binding(
         &mut self,
-        pipeline_layout: PipelineBindingLayout,
-    ) -> Result<PipelineBinding, PipelineError>;
+        resource_binding_layout: ResourceBindingLayout,
+    ) -> Result<ResourceBinding, PipelineError>;
     fn bind_buffer(
         &mut self,
-        pipeline_binding: PipelineBinding,
+        resource_binding: ResourceBinding,
         buffer: Buffer,
         index: u32,
     ) -> Result<(), BufferError>;
     fn bind_sampler(
         &mut self,
-        pipeline_binding: PipelineBinding,
+        resource_binding: ResourceBinding,
         sampler: Sampler,
         image_view: ImageView,
         index: u32,
@@ -100,27 +111,6 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         signal_semaphores: &[Semaphore],
         signal_fence: Fence,
     ) -> Result<(), CommandListError>;
-
-    fn create_swapchain(
-        &mut self,
-        window: &Window,
-        old_swapchain: Option<Swapchain>,
-    ) -> Result<(Swapchain, Vec<Image>), SwapchainError>;
-    fn delete_swapchain(
-        &mut self,
-        swapchain: Swapchain,
-    ) -> Result<(), SwapchainError>;
-    fn next_image_id(
-        &mut self,
-        swapchain: Swapchain,
-        signal_semaphore: Semaphore,
-    ) -> Result<u32, SwapchainError>;
-    fn present(
-        &mut self,
-        swapchain: Swapchain,
-        wait_semaphores: &[Semaphore],
-        present_image_index: u32,
-    ) -> Result<(), SwapchainError>;
 
     fn create_image(
         &mut self,
@@ -165,9 +155,6 @@ pub trait GraphicsBackend: Send + Sync + 'static {
     fn reset_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
     fn delete_fence(&mut self, fence: Fence) -> Result<(), FenceError>;
 
-    fn create_semaphore(&mut self) -> Result<Semaphore, SemaphoreError>;
-    fn delete_semaphore(
-        &mut self,
-        semaphore: Semaphore,
-    ) -> Result<(), SemaphoreError>;
+    fn begin_frame(&mut self) -> Result<FrameBeginInfo, SwapchainError>;
+    fn end_frame(&mut self);
 }
