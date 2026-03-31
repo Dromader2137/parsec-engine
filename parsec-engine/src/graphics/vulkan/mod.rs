@@ -189,7 +189,7 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| BackendError::InitError(err.into()))?;
         let present_queue =
             VulkanQueue::present(&device, physical_device.queue_family_index());
-        let descriptor_pool = VulkanDescriptorPool::new(&device, 128, &[
+        let descriptor_pool = VulkanDescriptorPool::new(&device, 2048, &[
             VulkanDescriptorPoolSize::new(
                 128,
                 VulkanDescriptorType::UniformBuffer,

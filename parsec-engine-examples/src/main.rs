@@ -102,7 +102,8 @@ fn test_system(
         PipelineOptions::new::<DefaultVertex>(PipelineCullingMode::CullBack),
     );
 
-    let image = image::load_from_memory(include_bytes!("../../test.png"))?.to_rgba8();
+    let image =
+        image::load_from_memory(include_bytes!("../../test.png"))?.to_rgba8();
     let (width, height) = image.dimensions();
     let image_data = image.as_raw().as_bytes();
     let texture_buffer = backend
@@ -167,38 +168,24 @@ fn test_system(
         },
     ));
 
-    requests.spawn_entity((
-        Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
-        MeshRenderer::new(mesh, material_id),
-        Movable {
-            base_pos: Vec3f::ZERO,
-            offset: 0.0,
-            speed: 1.0,
-        },
-    ));
-
-    requests.spawn_entity((
-        Transform::new(
-            Vec3f::new(-2.0, 2.0, -2.0),
-            Vec3f::ONE * 0.4,
-            Quat::from_euler(Vec3f::new(0.8, 1.5, 0.4)),
-        ),
-        MeshRenderer::new(mesh, material_id),
-        Movable {
-            base_pos: Vec3f::new(-2.0, 2.0, -2.0),
-            offset: 1.0,
-            speed: 2.5,
-        },
-    ));
-
-    requests.spawn_entity((
-        Transform::new(
-            Vec3f::new(3.0, -3.0, 3.0),
-            Vec3f::ONE * 1.5,
-            Quat::from_euler(Vec3f::new(0.4, 1.2, 2.0)),
-        ),
-        MeshRenderer::new(mesh, material_id),
-    ));
+    for _ in 0..500 {
+        requests.spawn_entity((
+            Transform::new(
+                Vec3f::new(
+                    rand::random_range(-10.0..10.0),
+                    rand::random_range(-10.0..10.0),
+                    rand::random_range(-10.0..10.0),
+                ),
+                Vec3f::ONE * rand::random::<f32>(),
+                Quat::from_euler(Vec3f::new(
+                    rand::random_range(0.0..std::f32::consts::PI),
+                    rand::random_range(0.0..std::f32::consts::PI),
+                    rand::random_range(0.0..std::f32::consts::PI),
+                )),
+            ),
+            MeshRenderer::new(mesh, material_id),
+        ));
+    }
 }
 
 #[derive(Debug, Component)]

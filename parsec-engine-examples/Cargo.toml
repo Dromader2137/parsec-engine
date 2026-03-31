@@ -7,3 +7,4 @@ edition = "2024"
 image = "0.25.9"
 anyhow = "1.0.100"
 parsec-engine = { path = "../parsec-engine" }
+rand = "0.10.0"
