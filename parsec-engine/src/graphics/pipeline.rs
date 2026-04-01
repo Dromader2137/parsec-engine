@@ -1,4 +1,4 @@
-use crate::math::vec::{Vec2f, Vec3f};
+use crate::{math::vec::{Vec2f, Vec3f}, error::ParsecError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Pipeline {
@@ -130,9 +130,9 @@ impl PipelineOptions {
 
 #[derive(Debug)]
 pub enum PipelineError {
-    LayoutCreationError(anyhow::Error),
-    PipelineCreationError(anyhow::Error),
-    BindingCreationError(anyhow::Error),
+    LayoutCreationError(ParsecError),
+    PipelineCreationError(ParsecError),
+    BindingCreationError(ParsecError),
     LayoutNotFound,
     ShaderNotFound,
     RenderpassNotFound,

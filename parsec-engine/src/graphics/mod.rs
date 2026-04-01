@@ -26,14 +26,12 @@ use std::ops::{Deref, DerefMut};
 use window::Window;
 
 use crate::{
-    app::{self},
-    ecs::{
+    app::{self}, ecs::{
         system::{
             System, SystemBundle, SystemTrigger, requests::Requests, system,
         },
         world::query::Query,
-    },
-    graphics::{
+    }, error::{OptionExt, ParsecError}, graphics::{
         backend::GraphicsBackend,
         renderer::{
             InitRenderer, QueueClear, Render, ResizeFlag,
@@ -50,9 +48,7 @@ use crate::{
             },
         },
         vulkan::VulkanBackend,
-    },
-    resources::Resource,
-    utils::identifiable::IdStore,
+    }, resources::Resource, utils::identifiable::IdStore
 };
 
 pub mod backend;
@@ -105,9 +101,13 @@ impl DerefMut for ActiveGraphicsBackend {
 }
 
 #[system]
-pub fn init_vulkan(mut requests: Resource<Requests>, window: Resource<Window>) {
+pub fn init_vulkan(
+    mut requests: Resource<Requests>,
+    window: Resource<Window>,
+) -> Result<(), ParsecError> {
     let context = VulkanBackend::init(&window)?;
     requests.create_resource(ActiveGraphicsBackend(Box::new(context)));
+    Ok(())
 }
 
 #[system]
@@ -122,13 +122,14 @@ fn end_wait_idle(backend: Resource<ActiveGraphicsBackend>) {
 }
 
 #[system]
-fn init_window(mut requests: Resource<Requests>) {
+fn init_window(mut requests: Resource<Requests>) -> Result<(), ParsecError> {
     let window = {
-        let event_loop = app::ACTIVE_EVENT_LOOP.take().unwrap();
+        let event_loop = app::ACTIVE_EVENT_LOOP.take().none_err()?;
         let event_loop_raw = event_loop.get_event_loop();
         Window::new(event_loop_raw, "Oxide Engine test")?
     };
     requests.create_resource(window);
+    Ok(())
 }
 
 #[system]
@@ -139,10 +140,10 @@ fn auto_enqueue(
     camera_data_manager: Resource<CameraDataManager>,
     mut mesh_renderers: Query<(Transform, MeshRenderer)>,
     transform_data_manager: Resource<TransformDataManager>,
-) {
+) -> Result<(), ParsecError> {
     for (_, (camera_transform, camera)) in cameras.iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
-            let mesh_asset = meshes.get(mesh_renderer.mesh_id).unwrap();
+            let mesh_asset = meshes.get(mesh_renderer.mesh_id).none_err()?;
             if mesh_asset.data_id.is_none()
                 || !camera_data_manager
                     .component_to_data
@@ -158,21 +159,22 @@ fn auto_enqueue(
             }
 
             draw_queue.push(Draw::MeshAndMaterial(MeshAndMaterial {
-                mesh: mesh_asset.data_id.unwrap(),
+                mesh: mesh_asset.data_id.none_err()?,
                 material: mesh_renderer.material_id,
                 camera: *camera_data_manager
                     .component_to_data
                     .get(&camera.camera_id())
-                    .unwrap(),
+                    .none_err()?,
                 camera_transform: *transform_data_manager
                     .component_to_data
                     .get(&camera_transform.transform_id())
-                    .unwrap(),
+                    .none_err()?,
                 transform: *transform_data_manager
                     .component_to_data
                     .get(&transform.transform_id())
-                    .unwrap(),
+                    .none_err()?,
             }));
         }
     }
+    Ok(())
 }

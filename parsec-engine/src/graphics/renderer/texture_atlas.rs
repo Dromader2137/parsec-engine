@@ -5,7 +5,7 @@ use crate::{
         image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
         renderer::texture::Texture,
     },
-    math::uvec::Vec2u,
+    math::uvec::Vec2u, error::ParsecError,
 };
 
 struct TextureAtlasElement {
@@ -51,7 +51,7 @@ impl<'a> TextureAtlasBuilder<'a> {
     pub fn build(
         self,
         backend: &mut ActiveGraphicsBackend,
-    ) -> Result<TextureAtlas, anyhow::Error> {
+    ) -> Result<TextureAtlas, ParsecError> {
         let image = backend.create_image(
             self.size.get_size(),
             self.format,
@@ -77,7 +77,7 @@ impl TextureAtlas {
         buffer: Buffer,
         size: Vec2u,
         offset: Vec2u,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), ParsecError> {
         backend.load_image_from_buffer(
             buffer,
             self.texture.image(),
@@ -90,7 +90,7 @@ impl TextureAtlas {
     pub fn delete(
         self,
         backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), ParsecError> {
         self.texture.delete(backend)
     }
 

@@ -1,3 +1,5 @@
+use crate::error::ParsecError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Shader {
     id: u32,
@@ -5,8 +7,8 @@ pub struct Shader {
 
 #[derive(Debug)]
 pub enum ShaderError {
-    ShaderCreationError(anyhow::Error),
-    ShaderDeletionError(anyhow::Error),
+    ShaderCreationError(ParsecError),
+    ShaderDeletionError(ParsecError),
     ShaderNotFound,
 }
 

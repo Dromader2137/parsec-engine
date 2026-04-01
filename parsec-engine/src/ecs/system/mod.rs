@@ -6,7 +6,7 @@ use std::{collections::HashMap, fmt::Debug, time::Instant};
 
 use crate::{
     ecs::{system::requests::Requests, world::World},
-    resources::{Resource, Resources},
+    resources::{Resource, Resources}, error::ParsecError,
 };
 
 /// List of possible actions a system can run on.
@@ -120,7 +120,7 @@ impl Systems {
         system_type: SystemTrigger,
         resources: &mut Resources,
         world: &mut World,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), ParsecError> {
         if let Some(systems) = self.systems.get_mut(&system_type) {
             for (system, stats) in systems.iter_mut() {
                 let instant = Instant::now();
@@ -153,7 +153,7 @@ pub trait SystemInput {
     fn borrow(
         resources: &Resources,
         world: &World,
-    ) -> Result<Self, anyhow::Error>
+    ) -> Result<Self, ParsecError>
     where
         Self: Sized;
 }
@@ -165,7 +165,7 @@ pub trait System: Send + Sync {
         &mut self,
         resources: &Resources,
         world: &World,
-    ) -> Result<(), anyhow::Error>;
+    ) -> Result<(), ParsecError>;
 }
 
 /// Marks a type used to group systems into interdependent bundles.

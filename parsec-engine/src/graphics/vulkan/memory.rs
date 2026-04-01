@@ -4,7 +4,7 @@ use crate::graphics::vulkan::{
 
 #[derive(Debug, Clone)]
 pub struct VulkanMemory {
-    size: u64,
+    _size: u64,
     properties: VulkanMemoryProperties,
     raw_memory: ash::vk::DeviceMemory,
 }
@@ -26,17 +26,17 @@ impl VulkanMemory {
             device
                 .raw_device()
                 .allocate_memory(&allocate_info, None)
-                .map_err(|err| VulkanMemoryError::AllocateMemoryError(err))?
+                .map_err(|_| VulkanMemoryError::AllocateMemoryError)?
         };
 
         Ok(VulkanMemory {
             raw_memory: memory,
             properties: memory_properties,
-            size: memory_size,
+            _size: memory_size,
         })
     }
 
-    pub fn size(&self) -> u64 { self.size }
+    pub fn _size(&self) -> u64 { self._size }
 
     pub fn raw_memory(&self) -> ash::vk::DeviceMemory { self.raw_memory }
 
@@ -45,5 +45,5 @@ impl VulkanMemory {
 
 #[derive(Debug)]
 pub enum VulkanMemoryError {
-    AllocateMemoryError(ash::vk::Result),
+    AllocateMemoryError,
 }

@@ -56,7 +56,7 @@ fn input_keyboard_event(
     window: Resource<Window>,
 ) {
     if !window.focused() {
-        return Ok(());
+        return;
     }
     input.keys.process_input_event((*input_event).clone());
 }
@@ -68,7 +68,7 @@ fn input_mouse_movement(
     window: Resource<Window>,
 ) {
     if !window.focused() {
-        return Ok(());
+        return;
     }
     input.mouse.process_movement(*movement_event);
 }
@@ -80,7 +80,7 @@ fn input_mouse_button(
     window: Resource<Window>,
 ) {
     if !window.focused() {
-        return Ok(());
+        return;
     }
     input.mouse.process_button_event(*button_event);
 }
@@ -92,7 +92,7 @@ fn input_mouse_wheel(
     window: Resource<Window>,
 ) {
     if !window.focused() {
-        return Ok(());
+        return;
     }
     input.mouse.process_wheel_event(*wheel_event);
 }

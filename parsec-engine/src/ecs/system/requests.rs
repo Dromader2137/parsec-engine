@@ -8,7 +8,7 @@ use crate::{
             spawn::Spawn,
         },
     },
-    resources::{RemoveResourceData, ResourceMarker, Resources},
+    resources::{RemoveResourceData, ResourceMarker, Resources}, error::ParsecError,
 };
 
 pub enum Request {
@@ -37,7 +37,7 @@ impl Requests {
         &mut self,
         world: &mut World,
         resources: &mut Resources,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), ParsecError> {
         for request in self.requests.drain(0..self.requests.len()) {
             match request {
                 Request::Spawn(entity, bundle) => {

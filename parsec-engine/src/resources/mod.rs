@@ -11,7 +11,7 @@ use std::{
 
 use thiserror::Error;
 
-use crate::ecs::{system::SystemInput, world::World};
+use crate::{ecs::{system::SystemInput, world::World}, error::ParsecError};
 
 /// Marks a type as a resource that can be stored in a global storage.
 pub trait ResourceMarker: Send + Sync + 'static {
@@ -72,7 +72,7 @@ impl<T: ResourceMarker> SystemInput for Resource<T> {
     fn borrow(
         resources: &Resources,
         _world: &World,
-    ) -> Result<Self, anyhow::Error> {
+    ) -> Result<Self, ParsecError> {
         let arc = resources.get::<T>()?;
         let locked = arc.lock().expect("mutex poisoned");
         let guard = unsafe {

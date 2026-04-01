@@ -1,7 +1,7 @@
 use crate::graphics::vulkan::{
     allocator::{VulkanMemoryProperties, VulkanMemoryRequirements},
     device::VulkanDevice,
-    memory::{VulkanMemory, VulkanMemoryError},
+    memory::VulkanMemory,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,7 +28,7 @@ impl VulkanAllocation {
             memory_index,
             memory_size,
         )
-        .map_err(|err| VulkanAllocationError::AllocateMemoryError(err))?;
+        .map_err(|_| VulkanAllocationError::AllocateMemoryError)?;
 
         Ok(VulkanAllocation {
             memory,
@@ -81,6 +81,6 @@ impl VulkanAllocation {
 #[derive(Debug)]
 pub enum VulkanAllocationError {
     UnableToFindSuitableMemory,
-    AllocateMemoryError(VulkanMemoryError),
+    AllocateMemoryError,
     UnableToAllocateThisSize,
 }

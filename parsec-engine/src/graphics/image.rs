@@ -1,4 +1,4 @@
-use crate::math::uvec::Vec2u;
+use crate::{math::uvec::Vec2u, error::ParsecError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Image {
@@ -66,15 +66,15 @@ pub enum ImageAspect {
 #[derive(Debug, thiserror::Error)]
 pub enum ImageError {
     #[error("failed to create image: {0}")]
-    ImageCreationError(anyhow::Error),
+    ImageCreationError(ParsecError),
     #[error("failed to load image: {0}")]
-    ImageLoadError(anyhow::Error),
+    ImageLoadError(ParsecError),
     #[error("failed to delete image: {0}")]
-    ImageDeletionError(anyhow::Error),
+    ImageDeletionError(ParsecError),
     #[error("failed to create image view: {0}")]
-    ImageViewCreationError(anyhow::Error),
+    ImageViewCreationError(ParsecError),
     #[error("failed to delete image view: {0}")]
-    ImageViewDeletionError(anyhow::Error),
+    ImageViewDeletionError(ParsecError),
     #[error("image does not exist")]
     ImageNotFound,
     #[error("present image does not exist")]

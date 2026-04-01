@@ -17,15 +17,15 @@ use crate::{
         shader::{Shader, ShaderError, ShaderType},
         window::Window,
     },
-    math::uvec::Vec2u,
+    math::uvec::Vec2u, error::ParsecError,
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum BackendError {
     #[error("failed to initialize graphics backend: {0}")]
-    InitError(anyhow::Error),
+    InitError(ParsecError),
     #[error("failed to start frame: {0}")]
-    FrameError(anyhow::Error),
+    FrameError(ParsecError),
 }
 
 pub trait GraphicsBackend: Send + Sync + 'static {

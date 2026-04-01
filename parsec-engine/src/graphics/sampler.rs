@@ -1,3 +1,5 @@
+use crate::error::ParsecError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Sampler {
     id: u32,
@@ -6,11 +8,11 @@ pub struct Sampler {
 #[derive(Debug, thiserror::Error)]
 pub enum SamplerError {
     #[error("failed to create sampler: {0}")]
-    SamplerCreationError(anyhow::Error),
+    SamplerCreationError(ParsecError),
     #[error("failed to delete sampler: {0}")]
-    SamplerDeletionError(anyhow::Error),
+    SamplerDeletionError(ParsecError),
     #[error("failed to bind sampler: {0}")]
-    SamplerBindError(anyhow::Error),
+    SamplerBindError(ParsecError),
     #[error("pipeline resource does not exist")]
     PipelineResourceNotFound,
     #[error("pipeline resource layout does not exist")]

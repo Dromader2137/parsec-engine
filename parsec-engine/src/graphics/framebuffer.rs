@@ -1,3 +1,5 @@
+use crate::error::ParsecError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Framebuffer {
     id: u32,
@@ -5,8 +7,8 @@ pub struct Framebuffer {
 
 #[derive(Debug)]
 pub enum FramebufferError {
-    FramebufferCreationError(anyhow::Error),
-    FramebufferDeletionError(anyhow::Error),
+    FramebufferCreationError(ParsecError),
+    FramebufferDeletionError(ParsecError),
     ImageViewNotFound,
     RenderpassNotFound,
     FramebufferNotFound,

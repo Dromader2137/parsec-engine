@@ -1,3 +1,5 @@
+use crate::error::ParsecError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Buffer {
     id: u32,
@@ -14,10 +16,10 @@ pub enum BufferUsage {
 
 #[derive(Debug)]
 pub enum BufferError {
-    BufferCreationError(anyhow::Error),
-    BufferUpdateError(anyhow::Error),
-    BufferDeletionError(anyhow::Error),
-    BufferBindError(anyhow::Error),
+    BufferCreationError(ParsecError),
+    BufferUpdateError(ParsecError),
+    BufferDeletionError(ParsecError),
+    BufferBindError(ParsecError),
     BufferNotFound,
     PipelineBindingNotFound,
 }

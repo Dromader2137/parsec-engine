@@ -193,8 +193,10 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(item as ItemFn);
 
     let fn_name = &input_fn.sig.ident;
-    let fn_sig = &input_fn.sig;
-    let fn_body = &input_fn.block.stmts;
+    let fn_ret = &input_fn.sig.output;
+
+    let returns_empty = matches!(fn_ret, syn::ReturnType::Default);
+
     let struct_name =
         format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
     let struct_name_str = struct_name.to_token_stream().to_string();
@@ -218,7 +220,6 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 Pat::Ident(pat_ident) => {
                     let is_mut = pat_ident.mutability.is_some();
                     let ident = &pat_ident.ident;
-                    // is_mut == true for `mut b`
                     (ident, is_mut)
                 },
                 _ => panic!("Only ident is supported inside systems"),
@@ -253,11 +254,18 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
         _ => unreachable!(),
     });
 
-    let output = quote! {
-        #fn_sig -> Result<(), anyhow::Error> {
-            #(#fn_body)*;
-            Ok(())
+    let function_call = if returns_empty {
+        quote! {
+            #fn_name(#(#argument_names),*);
         }
+    } else {
+        quote! {
+            #fn_name(#(#argument_names),*)?;
+        }
+    };
+
+    let output = quote! {
+        #input_fn
 
         pub struct #struct_name;
 
@@ -272,10 +280,10 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #struct_name_str
             }
 
-            fn run(&mut self, resources: & #engine_crate::resources::Resources, world: & #engine_crate::ecs::world::World) 
-                -> Result<(), anyhow::Error> {
+            fn run(&mut self, resources: & #engine_crate::resources::Resources, world: & #engine_crate::ecs::world::World)
+                -> Result<(), #engine_crate::error::ParsecError> {
                 #(#borrows)*
-                #fn_name( #(#argument_names),* )?;
+                #function_call;
                 Ok(())
             }
         }

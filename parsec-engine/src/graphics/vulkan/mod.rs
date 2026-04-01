@@ -62,6 +62,7 @@ use crate::{
         window::Window,
     },
     math::{ivec::Vec2i, uvec::Vec2u},
+    error::StrError,
 };
 
 mod access;
@@ -189,9 +190,9 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| BackendError::InitError(err.into()))?;
         let present_queue =
             VulkanQueue::present(&device, physical_device.queue_family_index());
-        let descriptor_pool = VulkanDescriptorPool::new(&device, 2048, &[
+        let descriptor_pool = VulkanDescriptorPool::new(&device, 4096, &[
             VulkanDescriptorPoolSize::new(
-                128,
+                4096,
                 VulkanDescriptorType::UniformBuffer,
             ),
             VulkanDescriptorPoolSize::new(
@@ -818,14 +819,14 @@ impl GraphicsBackend for VulkanBackend {
         signal_semaphore: GpuToGpuFence,
     ) -> Result<u32, BackendError> {
         let ss = self.semaphores.get(&signal_semaphore.id()).ok_or(
-            BackendError::FrameError(anyhow::anyhow!("Semaphore not found")),
+            BackendError::FrameError(StrError("semaphore not found").into()),
         )?;
 
         self.swapchain
             .acquire_next_image(ss, &VulkanFence::null())
             .map_err(|err| match err {
                 VulkanSwapchainError::OutOfDate => BackendError::FrameError(
-                    anyhow::anyhow!("Swapchain out of date"),
+                    VulkanSwapchainError::OutOfDate.into(),
                 ),
                 val => panic!("{:?}", val),
             })
@@ -841,7 +842,7 @@ impl GraphicsBackend for VulkanBackend {
             .iter()
             .map(|x| {
                 self.semaphores.get(&x.id()).ok_or(BackendError::FrameError(
-                    anyhow::anyhow!("Semaphore not found"),
+                    StrError("semaphore not found").into(),
                 ))
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -849,9 +850,11 @@ impl GraphicsBackend for VulkanBackend {
             .present(&self.present_queue, &ws, present_image_index)
             .map_err(|err| match err {
                 VulkanSwapchainError::OutOfDate => BackendError::FrameError(
-                    anyhow::anyhow!("Swapchain out of date"),
+                    StrError("semaphore not found").into(),
                 ),
-                _ => BackendError::FrameError(anyhow::anyhow!("Undefined")),
+                _ => {
+                    BackendError::FrameError(StrError("undefined error").into())
+                },
             })
     }
 

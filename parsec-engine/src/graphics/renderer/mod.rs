@@ -241,7 +241,7 @@ pub fn init_renderer(
         ],
         PipelineOptions::default(),
     );
-    let shadow_size = 1 << 12;
+    let shadow_size = 1 << 10;
     let shadow_depth_image = backend
         .create_image(
             Vec2u::new(shadow_size, shadow_size),
@@ -478,7 +478,7 @@ pub fn render(
     shadowpass_data: Resource<RendererShadowpassData>,
 ) {
     if window.minimized() {
-        return Ok(());
+        return;
     }
 
     if resize.0 {
@@ -493,7 +493,7 @@ pub fn render(
             renderpass.0,
         );
         resize.0 = false;
-        return Ok(());
+        return;
     }
 
     let present_index = match backend.start_frame(

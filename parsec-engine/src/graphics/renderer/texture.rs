@@ -1,12 +1,12 @@
 use std::fmt::Debug;
 
-use crate::graphics::{
+use crate::{graphics::{
     ActiveGraphicsBackend,
     image::{
         Image, ImageAspect, ImageFormat, ImageSize, ImageUsage, ImageView,
     },
     sampler::Sampler,
-};
+}, error::ParsecError};
 
 pub struct Texture {
     image: Image,
@@ -46,7 +46,7 @@ impl<'a> TextureBuilder<'a> {
     pub fn build(
         self,
         backend: &mut ActiveGraphicsBackend,
-    ) -> Result<Texture, anyhow::Error> {
+    ) -> Result<Texture, ParsecError> {
         let image = backend.create_image(
             self.size.get_size(),
             self.format,
@@ -75,7 +75,7 @@ impl Texture {
     pub fn delete(
         self,
         backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), ParsecError> {
         backend.delete_image(self.image)?;
         backend.delete_image_view(self.view)?;
         backend.delete_image_sampler(self.sampler)?;

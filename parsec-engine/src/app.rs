@@ -40,14 +40,20 @@ impl App {
         let event_loop =
             winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
-        event_loop
-            .run_app(self)
-            .unwrap();
+        event_loop.run_app(self).unwrap();
     }
 
-    pub fn execute_system(&mut self, system_trigger: SystemTrigger) {
-        self.systems
-            .execute_type(system_trigger, &mut self.resources, &mut self.world);
+    pub fn execute_system(
+        &mut self,
+        system_trigger: SystemTrigger,
+    ) {
+        if let Err(err) = self.systems.execute_type(
+            system_trigger,
+            &mut self.resources,
+            &mut self.world,
+        ) {
+            panic!("system returned: {}", err);
+        }
     }
 }
 

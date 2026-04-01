@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::graphics::vulkan::{
     access::VulkanAccess,
     buffer::VulkanBuffer,

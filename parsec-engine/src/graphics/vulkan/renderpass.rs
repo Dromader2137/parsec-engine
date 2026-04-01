@@ -303,7 +303,7 @@ impl VulkanRenderpass {
             .map(|x| x.0 as u32)
     }
 
-    pub fn attachments(&self) -> &[VulkanRenderpassAttachment] {
+    pub fn _attachments(&self) -> &[VulkanRenderpassAttachment] {
         &self.attachments
     }
 }

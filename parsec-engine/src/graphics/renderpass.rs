@@ -1,4 +1,4 @@
-use crate::graphics::image::ImageFormat;
+use crate::{graphics::image::ImageFormat, error::ParsecError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Renderpass {
@@ -41,8 +41,8 @@ pub struct RenderpassAttachment {
 
 #[derive(Debug)]
 pub enum RenderpassError {
-    RenderpassCreationError(anyhow::Error),
-    RenderpassDeletionError(anyhow::Error),
+    RenderpassCreationError(ParsecError),
+    RenderpassDeletionError(ParsecError),
     RenderpassNotFound,
 }
 

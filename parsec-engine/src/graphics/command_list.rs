@@ -6,7 +6,7 @@ use crate::{
         pipeline::{Pipeline, PipelineResource},
         renderpass::Renderpass,
     },
-    math::{ivec::Vec2i, uvec::Vec2u},
+    math::{ivec::Vec2i, uvec::Vec2u}, error::ParsecError,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,18 +17,18 @@ pub struct CommandList {
 
 #[derive(Debug)]
 pub enum CommandListError {
-    CommandListCreationError(anyhow::Error),
-    CommandListBeginError(anyhow::Error),
-    CommandListEndError(anyhow::Error),
-    CommandListRenderpassBeginError(anyhow::Error),
-    CommandListRenderpassEndError(anyhow::Error),
-    CommandListDrawError(anyhow::Error),
-    CommandListResetError(anyhow::Error),
-    CommandListBindError(anyhow::Error),
-    CommandListSubmitError(anyhow::Error),
-    CommandListCopyToImageError(anyhow::Error),
-    CommandListCopyToBufferError(anyhow::Error),
-    CommandListBarrier(anyhow::Error),
+    CommandListCreationError(ParsecError),
+    CommandListBeginError(ParsecError),
+    CommandListEndError(ParsecError),
+    CommandListRenderpassBeginError(ParsecError),
+    CommandListRenderpassEndError(ParsecError),
+    CommandListDrawError(ParsecError),
+    CommandListResetError(ParsecError),
+    CommandListBindError(ParsecError),
+    CommandListSubmitError(ParsecError),
+    CommandListCopyToImageError(ParsecError),
+    CommandListCopyToBufferError(ParsecError),
+    CommandListBarrier(ParsecError),
     CommandListNotFound,
     FramebufferNotFound,
     RenderpassNotFound,

@@ -8,7 +8,7 @@ use crate::{
         system::SystemInput,
         world::{World, fetch::Fetch},
     },
-    resources::Resources,
+    resources::Resources, error::ParsecError,
 };
 
 /// Stores the data needed to query entities from [`World`][crate::ecs::world::World].
@@ -21,7 +21,7 @@ impl<T: Fetch> SystemInput for Query<T> {
     fn borrow(
         _resources: &Resources,
         world: &World,
-    ) -> Result<Self, anyhow::Error> {
+    ) -> Result<Self, ParsecError> {
         let archetype_id = T::archetype_id()?;
         let archetypes = world
             .archetypes

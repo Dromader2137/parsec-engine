@@ -1,3 +1,5 @@
+use crate::error::ParsecError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GpuToGpuFence {
     id: u32,
@@ -5,8 +7,8 @@ pub struct GpuToGpuFence {
 
 #[derive(Debug)]
 pub enum GpuToGpuFenceError {
-    GpuToGpuFenceCreationError(anyhow::Error),
-    GpuToGpuFenceDeletionError(anyhow::Error),
+    GpuToGpuFenceCreationError(ParsecError),
+    GpuToGpuFenceDeletionError(ParsecError),
     GpuToGpuFenceNotFound,
 }
 

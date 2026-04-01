@@ -1,11 +1,9 @@
 use image::EncodableLayout;
 use parsec_engine::{
-    app::App,
-    ecs::{
+    app::App, ecs::{
         system::{SystemTrigger, requests::Requests, system},
         world::{component::Component, fetch::Mut, query::Query},
-    },
-    graphics::{
+    }, error::ParsecError, graphics::{
         ActiveGraphicsBackend, GraphicsBundle,
         buffer::{BufferContent, BufferUsage},
         image::{ImageAspect, ImageFormat, ImageUsage},
@@ -28,12 +26,7 @@ use parsec_engine::{
         shader::ShaderType,
         vulkan::shader::read_shader_code,
         window::Window,
-    },
-    input::{Input, InputBundle},
-    math::{quat::Quat, uvec::Vec2u, vec::Vec3f},
-    resources::Resource,
-    time::{Time, TimeBundle},
-    utils::identifiable::IdStore,
+    }, input::{Input, InputBundle}, math::{quat::Quat, uvec::Vec2u, vec::Vec3f}, resources::Resource, time::{Time, TimeBundle}, utils::identifiable::IdStore
 };
 
 #[system]
@@ -44,7 +37,7 @@ fn test_system(
     mut material_bases: Resource<IdStore<MaterialBase>>,
     mut meshes: Resource<IdStore<Mesh>>,
     renderpass: Resource<RendererMainRenderpass>,
-) {
+) -> Result<(), ParsecError> {
     let vertex = backend
         .create_shader(
             &read_shader_code("shaders/simple.spv")?,
@@ -168,7 +161,7 @@ fn test_system(
         },
     ));
 
-    for _ in 0..500 {
+    for _ in 0..50 {
         requests.spawn_entity((
             Transform::new(
                 Vec3f::new(
@@ -185,7 +178,9 @@ fn test_system(
             ),
             MeshRenderer::new(mesh, material_id),
         ));
-    }
+    };
+
+    Ok(())
 }
 
 #[derive(Debug, Component)]
