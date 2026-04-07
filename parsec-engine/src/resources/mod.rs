@@ -203,7 +203,7 @@ impl Resources {
     }
 }
 
-fn resource_dfs(
+fn resource_toposort(
     node_id: TypeId,
     resources: &HashMap<TypeId, ResourceData>,
     order: &mut Vec<TypeId>,
@@ -217,7 +217,7 @@ fn resource_dfs(
         if visited.contains(dependency) {
             continue;
         }
-        resource_dfs(*dependency, resources, order, visited);
+        resource_toposort(*dependency, resources, order, visited);
     }
     order.push(node_id);
 }
@@ -230,7 +230,7 @@ impl Drop for Resources {
             if visited.contains(key) {
                 continue;
             }
-            resource_dfs(
+            resource_toposort(
                 *key,
                 &self.resources,
                 &mut deletion_order,
