@@ -1,3 +1,5 @@
+#![feature(type_info)]
+
 pub mod app;
 pub mod ecs;
 pub mod graphics;

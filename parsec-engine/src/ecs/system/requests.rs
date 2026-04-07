@@ -8,7 +8,11 @@ use crate::{
             spawn::Spawn,
         },
     },
-    resources::{RemoveResourceData, ResourceMarker, Resources}, error::ParsecError,
+    error::ParsecError,
+    resources::{
+        ResourceMarker, ResourceRemoveData, Resources,
+        dependency::ResourceDependencyData,
+    },
 };
 
 pub enum Request {
@@ -17,7 +21,8 @@ pub enum Request {
     AddComponents(Entity, Box<dyn AddComponent>),
     RemoveComponents(Entity, RemoveComponentData),
     CreateResource(Box<dyn ResourceMarker>),
-    RemoveResource(RemoveResourceData),
+    CreateResourceDependency(ResourceDependencyData),
+    RemoveResource(ResourceRemoveData),
 }
 
 pub struct Requests {
@@ -51,6 +56,9 @@ impl Requests {
                     .remove_components_using_data(entity, bundle_removal)?,
                 Request::CreateResource(resource) => {
                     resources.add_boxed(resource);
+                },
+                Request::CreateResourceDependency(dependency) => {
+                    resources.add_dependency_using_data(dependency)?
                 },
                 Request::RemoveResource(resource_remove) => {
                     resources.remove_using_data(resource_remove)?
@@ -93,8 +101,16 @@ impl Requests {
             .push(Request::CreateResource(Box::new(resource)));
     }
 
+    pub fn create_resource_dependency<R: ResourceMarker, D: ResourceMarker>(
+        &mut self,
+    ) {
+        self.requests.push(Request::CreateResourceDependency(
+            ResourceDependencyData::new::<R, D>(),
+        ));
+    }
+
     pub fn remove_resource<T: ResourceMarker>(&mut self) {
         self.requests
-            .push(Request::RemoveResource(RemoveResourceData::id::<T>()));
+            .push(Request::RemoveResource(ResourceRemoveData::id::<T>()));
     }
 }

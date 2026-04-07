@@ -107,6 +107,7 @@ pub fn init_vulkan(
 ) -> Result<(), ParsecError> {
     let context = VulkanBackend::init(&window)?;
     requests.create_resource(ActiveGraphicsBackend(Box::new(context)));
+    requests.create_resource_dependency::<ActiveGraphicsBackend, Window>();
     Ok(())
 }
 
