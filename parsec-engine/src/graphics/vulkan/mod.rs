@@ -147,10 +147,10 @@ impl Drop for VulkanBackend {
             image_view.destroy(&self.device);
         }
         for (_, image) in self.images.drain() {
-            image.destroy(&self.device);
+            image.destroy(&self.device, &mut self.allocator);
         }
         for (_, buffer) in self.buffers.drain() {
-            buffer.destroy(&self.device);
+            buffer.destroy(&self.device, &mut self.allocator);
         }
         for (_, fence) in self.fences.drain() {
             fence.destroy(&self.device);
@@ -401,11 +401,18 @@ impl GraphicsBackend for VulkanBackend {
     }
 
     fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BufferError> {
+        if let Some(staging_id) = self.staging_buffers.get(&buffer.id()) {
+            let staging = self
+                .buffers
+                .remove(staging_id)
+                .ok_or(BufferError::BufferNotFound)?;
+            staging.destroy(&self.device, &mut self.allocator);
+        }
         let buffer = self
             .buffers
             .remove(&buffer.id())
             .ok_or(BufferError::BufferNotFound)?;
-        buffer.destroy(&self.device);
+        buffer.destroy(&self.device, &mut self.allocator);
         Ok(())
     }
 
@@ -890,7 +897,7 @@ impl GraphicsBackend for VulkanBackend {
             .images
             .remove(&image.id())
             .ok_or(ImageError::ImageNotFound)?;
-        result.destroy(&self.device);
+        result.destroy(&self.device, &mut self.allocator);
         Ok(())
     }
 

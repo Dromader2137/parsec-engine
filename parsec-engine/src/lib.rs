@@ -1,3 +1,5 @@
+#![feature(linked_list_cursors)]
+
 pub mod app;
 pub mod ecs;
 pub mod graphics;

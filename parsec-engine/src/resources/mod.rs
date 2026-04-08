@@ -94,6 +94,24 @@ pub struct Resources {
     resources: HashMap<TypeId, ResourceData>,
 }
 
+fn check_circularity(
+    node_id: TypeId,
+    target_id: TypeId,
+    resources: &HashMap<TypeId, ResourceData>,
+) -> bool {
+    if node_id == target_id {
+        return true;
+    };
+    let resource = resources
+        .get(&node_id)
+        .expect("tried to access a nonexistent resource");
+    let mut ret = false;
+    for dependency in resource.dependencies.iter() {
+        ret |= check_circularity(*dependency, target_id, resources);
+    }
+    ret
+}
+
 impl Resources {
     pub fn new() -> Self {
         Self {
@@ -125,6 +143,13 @@ impl Resources {
         &mut self,
         dependency_data: ResourceDependencyData,
     ) -> Result<(), ResourceError> {
+        if check_circularity(
+            dependency_data.dependency,
+            dependency_data.resource,
+            &self.resources,
+        ) {
+            return Err(ResourceError::CircularityNotAllowed);
+        }
         let resource = self
             .resources
             .get_mut(&dependency_data.resource)
@@ -260,4 +285,6 @@ pub enum ResourceError {
     ResourceNotFound(&'static str),
     #[error("Other resources depend on this on so it can't be deleted")]
     ResourceDependedOn,
+    #[error("Circular resource dependencies are not allowed")]
+    CircularityNotAllowed,
 }

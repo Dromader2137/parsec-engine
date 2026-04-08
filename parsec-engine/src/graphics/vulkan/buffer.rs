@@ -18,6 +18,7 @@ pub struct VulkanBuffer {
     allocation_id: u32,
     memory: VulkanMemory,
     memory_offset: u64,
+    memory_size: u64,
     size: u64,
     raw_buffer: ash::vk::Buffer,
 }
@@ -67,7 +68,7 @@ impl VulkanBuffer {
                 device.raw_device().get_buffer_memory_requirements(buffer)
             });
 
-        let (memory, memory_offset, allocation_id) = allocator
+        let (memory, memory_offset, memory_size, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
             .map_err(|err| VulkanBufferError::AllocationError(err))?;
 
@@ -85,8 +86,9 @@ impl VulkanBuffer {
             allocation_id,
             raw_buffer: buffer,
             memory,
-            size,
             memory_offset,
+            memory_size,
+            size,
         })
     }
 
@@ -113,7 +115,7 @@ impl VulkanBuffer {
                 device.raw_device().get_buffer_memory_requirements(buffer)
             });
 
-        let (memory, memory_offset, allocation_id) = allocator
+        let (memory, memory_offset, memory_size, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
             .map_err(|err| VulkanBufferError::AllocationError(err))?;
 
@@ -124,7 +126,7 @@ impl VulkanBuffer {
                 device.raw_device().map_memory(
                     memory.raw_memory(),
                     memory_offset,
-                    size.next_multiple_of(memory_requirements.alignment),
+                    memory_size,
                     ash::vk::MemoryMapFlags::empty(),
                 )
             }
@@ -156,8 +158,9 @@ impl VulkanBuffer {
             allocation_id,
             raw_buffer: buffer,
             memory,
-            size,
             memory_offset,
+            memory_size,
+            size,
         })
     }
 
@@ -180,7 +183,7 @@ impl VulkanBuffer {
             device.raw_device().map_memory(
                 self.memory.raw_memory(),
                 self.memory_offset,
-                self.size,
+                self.memory_size,
                 ash::vk::MemoryMapFlags::empty(),
             )
         }
@@ -199,12 +202,23 @@ impl VulkanBuffer {
         Ok(())
     }
 
-    pub fn destroy(self, device: &VulkanDevice) {
+    pub fn destroy(
+        self,
+        device: &VulkanDevice,
+        allocator: &mut VulkanAllocator,
+    ) {
         unsafe {
             device
                 .raw_device()
                 .destroy_buffer(*self.get_buffer_raw(), None)
         }
+
+        allocator.free(
+            device,
+            self.allocation_id,
+            self.memory_offset,
+            self.memory_size,
+        );
     }
 
     pub fn get_buffer_raw(&self) -> &ash::vk::Buffer { &self.raw_buffer }

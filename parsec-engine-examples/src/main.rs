@@ -1,9 +1,12 @@
 use image::EncodableLayout;
 use parsec_engine::{
-    app::App, ecs::{
+    app::App,
+    ecs::{
         system::{SystemTrigger, requests::Requests, system},
         world::{component::Component, fetch::Mut, query::Query},
-    }, error::ParsecError, graphics::{
+    },
+    error::ParsecError,
+    graphics::{
         ActiveGraphicsBackend, GraphicsBundle,
         buffer::{BufferContent, BufferUsage},
         image::{ImageAspect, ImageFormat, ImageUsage},
@@ -26,7 +29,12 @@ use parsec_engine::{
         shader::ShaderType,
         vulkan::shader::read_shader_code,
         window::Window,
-    }, input::{Input, InputBundle}, math::{quat::Quat, uvec::Vec2u, vec::Vec3f}, resources::Resource, time::{Time, TimeBundle}, utils::identifiable::IdStore
+    },
+    input::{Input, InputBundle},
+    math::{mat::Matrix4f, quat::Quat, uvec::Vec2u, vec::Vec3f},
+    resources::Resource,
+    time::{Time, TimeBundle},
+    utils::identifiable::IdStore,
 };
 
 #[system]
@@ -178,7 +186,7 @@ fn test_system(
             ),
             MeshRenderer::new(mesh, material_id),
         ));
-    };
+    }
 
     Ok(())
 }

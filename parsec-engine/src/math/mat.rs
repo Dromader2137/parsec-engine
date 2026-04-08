@@ -13,7 +13,7 @@ impl Mul for Matrix4f {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let mut output = Matrix4f::indentity();
+        let mut output = Matrix4f::identity();
         for i in (0..4).step_by(1) {
             for j in (0..4).step_by(1) {
                 output.0[i][j] = 0.0;
@@ -37,7 +37,7 @@ impl Matrix4f {
     }
 
     /// An identity matrix.
-    pub fn indentity() -> Matrix4f {
+    pub fn identity() -> Matrix4f {
         Matrix4f::new([
             [1.0, 0.0, 0.0, 0.0],
             [0.0, 1.0, 0.0, 0.0],

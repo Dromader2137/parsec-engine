@@ -4,7 +4,7 @@ use crate::graphics::vulkan::{
 
 #[derive(Debug, Clone)]
 pub struct VulkanMemory {
-    _size: u64,
+    size: u64,
     properties: VulkanMemoryProperties,
     raw_memory: ash::vk::DeviceMemory,
 }
@@ -32,11 +32,11 @@ impl VulkanMemory {
         Ok(VulkanMemory {
             raw_memory: memory,
             properties: memory_properties,
-            _size: memory_size,
+            size: memory_size,
         })
     }
 
-    pub fn _size(&self) -> u64 { self._size }
+    pub fn size(&self) -> u64 { self.size }
 
     pub fn raw_memory(&self) -> ash::vk::DeviceMemory { self.raw_memory }
 

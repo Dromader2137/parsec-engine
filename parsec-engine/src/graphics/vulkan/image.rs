@@ -261,7 +261,7 @@ pub trait VulkanImage: Send + Sync + 'static {
     fn get_layout(&self) -> VulkanImageLayout;
     fn set_layout(&mut self, layout: VulkanImageLayout);
     fn raw_image(&self) -> &ash::vk::Image;
-    fn destroy(&self, device: &VulkanDevice);
+    fn destroy(&self, device: &VulkanDevice, allocator: &mut VulkanAllocator);
 }
 
 #[derive(Debug, Clone)]
@@ -276,6 +276,7 @@ pub struct VulkanSwapchainImage {
 #[allow(unused)]
 pub struct VulkanOwnedImage {
     id: u32,
+    allocation_id: u32,
     extent: VulkanImageSize,
     format: VulkanImageFormat,
     usage: Vec<VulkanImageUsage>,
@@ -283,6 +284,8 @@ pub struct VulkanOwnedImage {
     last_known_layout: VulkanImageLayout,
     image: ash::vk::Image,
     memory: VulkanMemory,
+    memory_offset: u64,
+    memory_size: u64,
     size: u64,
 }
 
@@ -306,7 +309,7 @@ impl VulkanImage for VulkanSwapchainImage {
         self.last_known_layout = layout;
     }
     fn aspect(&self) -> VulkanImageAspect { VulkanImageAspect::Color }
-    fn destroy(&self, _device: &VulkanDevice) {}
+    fn destroy(&self, _: &VulkanDevice, _: &mut VulkanAllocator) {}
 }
 
 impl VulkanImage for VulkanOwnedImage {
@@ -320,8 +323,14 @@ impl VulkanImage for VulkanOwnedImage {
         self.last_known_layout = layout;
     }
     fn raw_image(&self) -> &ash::vk::Image { &self.image }
-    fn destroy(&self, device: &VulkanDevice) {
+    fn destroy(&self, device: &VulkanDevice, allocator: &mut VulkanAllocator) {
         unsafe { device.raw_device().destroy_image(*self.raw_image(), None) }
+        allocator.free(
+            device,
+            self.allocation_id,
+            self.memory_offset,
+            self.memory_size,
+        );
     }
 }
 
@@ -413,7 +422,7 @@ impl VulkanOwnedImage {
                 device.raw_device().get_image_memory_requirements(image)
             });
 
-        let (memory, memory_offset) = allocator
+        let (memory, memory_offset, memory_size, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
             .map_err(|err| VulkanImageError::AllocationError(err))?;
 
@@ -434,6 +443,7 @@ impl VulkanOwnedImage {
 
         Ok(VulkanOwnedImage {
             id: ID_COUNTER_IMAGE.next(),
+            allocation_id,
             extent: size,
             image,
             format,
@@ -441,6 +451,8 @@ impl VulkanOwnedImage {
             aspect,
             last_known_layout: VulkanImageLayout::Undefined,
             memory,
+            memory_offset,
+            memory_size,
             size: format_size
                 * size.raw_size().x as u64
                 * size.raw_size().y as u64,

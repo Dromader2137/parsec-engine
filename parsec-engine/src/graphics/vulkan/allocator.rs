@@ -67,6 +67,7 @@ impl VulkanMemoryRequirements {
     }
 }
 
+#[derive(Debug)]
 pub struct VulkanAllocator {
     allocations_by_type: [Vec<VulkanAllocation>; 32],
 }
@@ -83,7 +84,7 @@ impl VulkanAllocator {
         device: &VulkanDevice,
         memory_type: VulkanMemoryProperties,
         memory_requirements: VulkanMemoryRequirements,
-    ) -> Result<(VulkanMemory, u64, u32), VulkanAllocationError> {
+    ) -> Result<(VulkanMemory, u64, u64, u32), VulkanAllocationError> {
         let memory_ids =
             find_memorytype_indices(&memory_requirements, &memory_type, device);
 
@@ -119,9 +120,31 @@ impl VulkanAllocator {
 
         allocation.try_get_free_memory(memory_requirements).ok_or(
             VulkanAllocationError::UnableToAllocateThisSize(
-                memory_requirements.size
+                memory_requirements.size,
             ),
         )
+    }
+
+    pub fn free(
+        &mut self,
+        device: &VulkanDevice,
+        allocation_id: u32,
+        offset: u64,
+        size: u64,
+    ) {
+        for allocations in self.allocations_by_type.iter_mut() {
+            for (idx, allocation) in allocations.iter_mut().enumerate() {
+                if allocation_id != allocation.id() {
+                    continue;
+                }
+                allocation.free_part(offset, size);
+                if allocation.is_empty() {
+                    let allocation = allocations.remove(idx);
+                    allocation.free(device);
+                }
+                return;
+            }
+        }
     }
 
     pub fn free_all(&mut self, device: &VulkanDevice) {
