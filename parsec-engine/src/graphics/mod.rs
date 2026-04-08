@@ -31,7 +31,7 @@ use crate::{
             System, SystemBundle, SystemTrigger, requests::Requests, system,
         },
         world::query::Query,
-    }, error::{OptionExt, ParsecError}, graphics::{
+    }, error::{OptionNoneErr, ParsecError}, graphics::{
         backend::GraphicsBackend,
         renderer::{
             InitRenderer, QueueClear, Render, ResizeFlag,

@@ -1,8 +1,8 @@
-use crate::graphics::vulkan::{
+use crate::{graphics::vulkan::{
     allocator::{VulkanMemoryProperties, VulkanMemoryRequirements},
     device::VulkanDevice,
-    memory::VulkanMemory,
-};
+    memory::{VulkanMemory, VulkanMemoryError},
+}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct VulkanMemoryBlock {
@@ -11,10 +11,12 @@ struct VulkanMemoryBlock {
 }
 
 pub struct VulkanAllocation {
+    id: u32,
     memory: VulkanMemory,
     memory_blocks: Vec<VulkanMemoryBlock>,
 }
 
+crate::create_counter! {ALLOCATION_ID_COUNTER}
 impl VulkanAllocation {
     pub fn new(
         device: &VulkanDevice,
@@ -27,10 +29,11 @@ impl VulkanAllocation {
             memory_properties,
             memory_index,
             memory_size,
-        )
-        .map_err(|_| VulkanAllocationError::AllocateMemoryError)?;
+        )?;
+        // .map_err(|_| VulkanAllocationError::MemoryError)?;
 
         Ok(VulkanAllocation {
+            id: ALLOCATION_ID_COUNTER.next(),
             memory,
             memory_blocks: vec![VulkanMemoryBlock {
                 start: 0,
@@ -39,7 +42,6 @@ impl VulkanAllocation {
         })
     }
 
-    /// (memory, offset)
     pub fn free(self, device: &VulkanDevice) {
         unsafe {
             device
@@ -78,9 +80,12 @@ impl VulkanAllocation {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanAllocationError {
+    #[error("Failed to find suitable memory")]
     UnableToFindSuitableMemory,
-    AllocateMemoryError,
-    UnableToAllocateThisSize,
+    #[error("Memory error: {0}")]
+    MemoryError(#[from] VulkanMemoryError),
+    #[error("Failed to allocate memory of size: {0}")]
+    UnableToAllocateThisSize(u64),
 }
