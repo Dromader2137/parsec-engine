@@ -83,7 +83,7 @@ impl VulkanAllocator {
         device: &VulkanDevice,
         memory_type: VulkanMemoryProperties,
         memory_requirements: VulkanMemoryRequirements,
-    ) -> Result<(VulkanMemory, u64), VulkanAllocationError> {
+    ) -> Result<(VulkanMemory, u64, u32), VulkanAllocationError> {
         let memory_ids =
             find_memorytype_indices(&memory_requirements, &memory_type, device);
 
@@ -117,9 +117,11 @@ impl VulkanAllocator {
             .last_mut()
             .expect("There always is an allocation at this point!");
 
-        allocation
-            .try_get_free_memory(memory_requirements)
-            .ok_or(VulkanAllocationError::UnableToAllocateThisSize)
+        allocation.try_get_free_memory(memory_requirements).ok_or(
+            VulkanAllocationError::UnableToAllocateThisSize(
+                memory_requirements.size
+            ),
+        )
     }
 
     pub fn free_all(&mut self, device: &VulkanDevice) {

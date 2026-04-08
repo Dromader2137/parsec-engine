@@ -6,9 +6,7 @@ pub struct ParsecError {
 
 impl Debug for ParsecError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ParsecError: ")
-            .field("error: ", &self.error)
-            .finish()
+        f.write_str(&format!("{}", self.error))
     }
 }
 
@@ -38,12 +36,12 @@ impl Display for StrError {
     }
 }
 
-pub trait OptionExt<T> {
-    fn none_err(self) -> std::result::Result<T, ParsecError>;
+pub trait OptionNoneErr<T> {
+    fn none_err(self) -> Result<T, ParsecError>;
 }
 
-impl<T> OptionExt<T> for Option<T> {
-    fn none_err(self) -> std::result::Result<T, ParsecError> {
+impl<T> OptionNoneErr<T> for Option<T> {
+    fn none_err(self) -> Result<T, ParsecError> {
         self.ok_or(StrError("failed to unwrap None").into())
     }
 }

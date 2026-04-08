@@ -15,6 +15,7 @@ use crate::graphics::{
 
 pub struct VulkanBuffer {
     id: u32,
+    allocation_id: u32,
     memory: VulkanMemory,
     memory_offset: u64,
     size: u64,
@@ -66,7 +67,7 @@ impl VulkanBuffer {
                 device.raw_device().get_buffer_memory_requirements(buffer)
             });
 
-        let (memory, memory_offset) = allocator
+        let (memory, memory_offset, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
             .map_err(|err| VulkanBufferError::AllocationError(err))?;
 
@@ -81,6 +82,7 @@ impl VulkanBuffer {
 
         Ok(VulkanBuffer {
             id: BUFFER_ID_COUNTER.next(),
+            allocation_id,
             raw_buffer: buffer,
             memory,
             size,
@@ -111,7 +113,7 @@ impl VulkanBuffer {
                 device.raw_device().get_buffer_memory_requirements(buffer)
             });
 
-        let (memory, memory_offset) = allocator
+        let (memory, memory_offset, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
             .map_err(|err| VulkanBufferError::AllocationError(err))?;
 
@@ -151,6 +153,7 @@ impl VulkanBuffer {
 
         Ok(VulkanBuffer {
             id: BUFFER_ID_COUNTER.next(),
+            allocation_id,
             raw_buffer: buffer,
             memory,
             size,

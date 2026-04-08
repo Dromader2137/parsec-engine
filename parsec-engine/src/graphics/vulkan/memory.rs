@@ -26,7 +26,7 @@ impl VulkanMemory {
             device
                 .raw_device()
                 .allocate_memory(&allocate_info, None)
-                .map_err(|_| VulkanMemoryError::AllocateMemoryError)?
+                .map_err(|err| VulkanMemoryError::AllocateMemoryError(err))?
         };
 
         Ok(VulkanMemory {
@@ -43,7 +43,8 @@ impl VulkanMemory {
     pub fn properties(&self) -> VulkanMemoryProperties { self.properties }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VulkanMemoryError {
-    AllocateMemoryError,
+    #[error("Failed to allocate memory: {0}")]
+    AllocateMemoryError(ash::vk::Result),
 }
