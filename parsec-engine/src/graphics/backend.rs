@@ -1,12 +1,12 @@
 use crate::{
-    graphics::{
-        buffer::{Buffer, BufferContent, BufferError, BufferUsage},
+    error::ParsecError, graphics::{
+        buffer::{Buffer, BufferContent, BufferError, BufferHandle, BufferUsage},
         command_list::{CommandList, CommandListError},
-        framebuffer::{Framebuffer, FramebufferError},
+        framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
         gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
         gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
         image::{
-            Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView,
+            Image, ImageAspect, ImageError, ImageFormat, ImageHandle, ImageUsage, ImageView, ImageViewHandle
         },
         pipeline::{
             Pipeline, PipelineError, PipelineOptions, PipelineResource,
@@ -16,8 +16,7 @@ use crate::{
         sampler::{Sampler, SamplerError},
         shader::{Shader, ShaderError, ShaderType},
         window::Window,
-    },
-    math::uvec::Vec2u, error::ParsecError,
+    }, math::uvec::Vec2u
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -40,10 +39,10 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         &mut self,
         data: BufferContent<'_>,
         buffer_usage: &[BufferUsage],
-    ) -> Result<Buffer, BufferError>;
+    ) -> Result<BufferHandle, BufferError>;
     fn update_buffer(
         &mut self,
-        buffer: Buffer,
+        buffer: BufferHandle,
         data: BufferContent<'_>,
     ) -> Result<(), BufferError>;
     fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BufferError>;
@@ -83,14 +82,14 @@ pub trait GraphicsBackend: Send + Sync + 'static {
     fn bind_buffer(
         &mut self,
         pipeline_binding: PipelineResource,
-        buffer: Buffer,
+        buffer: BufferHandle,
         index: u32,
     ) -> Result<(), BufferError>;
     fn bind_sampler(
         &mut self,
         pipeline_binding: PipelineResource,
         sampler: Sampler,
-        image_view: ImageView,
+        image_view: ImageViewHandle,
         index: u32,
     ) -> Result<(), SamplerError>;
 
@@ -104,7 +103,7 @@ pub trait GraphicsBackend: Send + Sync + 'static {
     ) -> Result<(), CommandListError>;
 
     fn handle_resize(&mut self, window: &Window) -> Result<(), BackendError>;
-    fn present_images(&mut self) -> Vec<Image>;
+    fn present_images(&mut self) -> Vec<ImageHandle>;
     fn start_frame(
         &mut self,
         signal_fence: GpuToGpuFence,
@@ -121,19 +120,19 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         format: ImageFormat,
         aspect: ImageAspect,
         usage: &[ImageUsage],
-    ) -> Result<Image, ImageError>;
+    ) -> Result<ImageHandle, ImageError>;
     fn load_image_from_buffer(
         &mut self,
-        buffer: Buffer,
-        image: Image,
+        buffer: BufferHandle,
+        image: ImageHandle,
         image_size: Vec2u,
         image_offset: Vec2u,
     ) -> Result<(), ImageError>;
     fn delete_image(&mut self, image: Image) -> Result<(), ImageError>;
     fn create_image_view(
         &mut self,
-        image: Image,
-    ) -> Result<ImageView, ImageError>;
+        image: ImageHandle,
+    ) -> Result<ImageViewHandle, ImageError>;
     fn delete_image_view(
         &mut self,
         image_view: ImageView,
@@ -147,9 +146,9 @@ pub trait GraphicsBackend: Send + Sync + 'static {
     fn create_framebuffer(
         &mut self,
         size: Vec2u,
-        attachments: &[ImageView],
+        attachments: &[ImageViewHandle],
         renderpass: Renderpass,
-    ) -> Result<Framebuffer, FramebufferError>;
+    ) -> Result<FramebufferHandle, FramebufferError>;
     fn delete_framebuffer(
         &mut self,
         framebuffer: Framebuffer,

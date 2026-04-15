@@ -8,7 +8,7 @@ use parsec_engine::{
     error::ParsecError,
     graphics::{
         ActiveGraphicsBackend, GraphicsBundle,
-        buffer::{BufferContent, BufferUsage},
+        buffer::{BufferBuilder, BufferContent, BufferUsage},
         image::{ImageAspect, ImageFormat, ImageUsage},
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode,
@@ -107,10 +107,10 @@ fn test_system(
         image::load_from_memory(include_bytes!("../../test.png"))?.to_rgba8();
     let (width, height) = image.dimensions();
     let image_data = image.as_raw().as_bytes();
-    let texture_buffer = backend
-        .create_buffer(BufferContent::from_slice(image_data), &[
-            BufferUsage::TransferSrc,
-        ])
+    let texture_buffer = BufferBuilder::new()
+        .usage(&[BufferUsage::TransferSrc])
+        .data(BufferContent::from_slice(image_data))
+        .build(&mut backend)
         .unwrap();
     let texture_image = backend
         .create_image(
@@ -122,7 +122,7 @@ fn test_system(
         .unwrap();
     backend
         .load_image_from_buffer(
-            texture_buffer,
+            texture_buffer.handle(),
             texture_image,
             Vec2u::new(width, height),
             Vec2u::ZERO,

@@ -4,7 +4,7 @@ use crate::{
     ecs::system::system,
     graphics::{
         ActiveGraphicsBackend,
-        buffer::{Buffer, BufferContent, BufferUsage},
+        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         command_list::{Command, CommandList},
         pipeline::Vertex,
         renderer::{DefaultVertex, assets::mesh::Mesh},
@@ -29,25 +29,26 @@ impl<V: Vertex> MeshBuffer<V> {
         vertices: &[V],
         indices: &[u32],
     ) -> MeshBuffer<V> {
+        let vertex_buffer = BufferBuilder::new()
+            .usage(&[BufferUsage::Vertex])
+            .data(BufferContent::from_slice(vertices))
+            .build(backend).unwrap();
+        let index_buffer = BufferBuilder::new()
+            .usage(&[BufferUsage::Index])
+            .data(BufferContent::from_slice(indices))
+            .build(backend).unwrap();
+
         MeshBuffer {
-            vertex_buffer: backend
-                .create_buffer(BufferContent::from_slice(vertices), &[
-                    BufferUsage::Vertex,
-                ])
-                .unwrap(),
-            index_buffer: backend
-                .create_buffer(BufferContent::from_slice(indices), &[
-                    BufferUsage::Index,
-                ])
-                .unwrap(),
+            vertex_buffer,
+            index_buffer,
             len: indices.len() as u32,
             _marker: PhantomData::default(),
         }
     }
 
     pub fn record_draw_commands(&self, command_list: &mut CommandList) {
-        command_list.cmd(Command::BindVertexBuffer(self.vertex_buffer));
-        command_list.cmd(Command::BindIndexBuffer(self.index_buffer));
+        command_list.cmd(Command::BindVertexBuffer(self.vertex_buffer.handle()));
+        command_list.cmd(Command::BindIndexBuffer(self.index_buffer.handle()));
         command_list.cmd(Command::DrawIndexed(self.len, 1, 0, 0, 1));
     }
 }

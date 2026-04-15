@@ -5,10 +5,12 @@ use std::{collections::HashMap, ops::DerefMut};
 pub mod assets;
 pub mod camera_data;
 pub mod components;
+pub mod depth_image;
 pub mod draw_queue;
 pub mod light_data;
 pub mod material_data;
 pub mod mesh_data;
+pub mod present_image;
 pub mod sync;
 pub mod texture;
 pub mod texture_atlas;
@@ -20,10 +22,13 @@ use crate::{
     ecs::system::{requests::Requests, system},
     graphics::{
         ActiveGraphicsBackend,
-        buffer::{Buffer, BufferContent, BufferUsage},
+        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         command_list::{Command, CommandList},
-        framebuffer::Framebuffer,
-        image::{Image, ImageAspect, ImageFormat, ImageUsage, ImageView},
+        framebuffer::{Framebuffer, FramebufferBuilder, FramebufferHandle},
+        image::{
+            Image, ImageAspect, ImageBuilder, ImageFormat, ImageHandle,
+            ImageSize, ImageUsage, ImageView, ImageViewBuilder,
+        },
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineOptions,
             PipelineResource, PipelineResourceBindingLayout,
@@ -32,11 +37,13 @@ use crate::{
         renderer::{
             assets::mesh::Mesh,
             camera_data::{CameraData, CameraDataManager},
+            depth_image::DepthImage,
             draw_queue::{Draw, MeshAndMaterial},
             material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
             },
             mesh_data::MeshData,
+            present_image::PresentImage,
             transform_data::{TransformData, TransformDataManager},
         },
         renderpass::{
@@ -95,15 +102,11 @@ pub struct RendererCurrentFrame(pub u32);
 pub struct RendererFramesInFlight(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RendererMainRenderpass(pub Renderpass);
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RendererSwapchainImages(pub Vec<Image>);
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RendererSwapchainImageViews(pub Vec<ImageView>);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererDepthImage(pub Image);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RendererDepthImageView(pub ImageView);
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug)]
+pub struct RendererPresentImages(pub Vec<PresentImage>);
+#[derive(Debug)]
+pub struct RendererDepthImage(pub DepthImage);
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
 #[allow(unused)]
@@ -159,26 +162,23 @@ pub fn init_renderer(
             },
         ])
         .unwrap();
-    let swapchain_images = backend.present_images();
-    let swapchain_image_views = swapchain_images
-        .iter()
-        .map(|img| backend.create_image_view(*img).unwrap())
+    let swapchain_image_handles = backend.present_images();
+    let swapchain_images = swapchain_image_handles
+        .into_iter()
+        .map(|img| PresentImage::new(&mut backend, img).unwrap())
         .collect::<Vec<_>>();
-    let depth_image = backend
-        .create_image(window.size(), ImageFormat::D32, ImageAspect::Depth, &[
-            ImageUsage::DepthAttachment,
-        ])
-        .unwrap();
-    let depth_image_view = backend.create_image_view(depth_image).unwrap();
-    let framebuffers = swapchain_image_views
+    let depth_image =
+        DepthImage::new(&mut backend, ImageSize::new(window.size()).unwrap())
+            .unwrap();
+    let framebuffers = swapchain_images
         .iter()
-        .map(|view| {
-            backend
-                .create_framebuffer(
-                    window.size(),
-                    &[*view, depth_image_view],
-                    renderpass,
-                )
+        .map(|present_image| {
+            FramebufferBuilder::new()
+                .attachment(present_image.image_view_handle())
+                .attachment(depth_image.image_view_handle())
+                .size(window.size())
+                .renderpass(renderpass)
+                .build(&mut backend)
                 .unwrap()
         })
         .collect::<Vec<_>>();
@@ -242,40 +242,38 @@ pub fn init_renderer(
         PipelineOptions::default(),
     );
     let shadow_size = 1 << 10;
-    let shadow_depth_image = backend
-        .create_image(
-            Vec2u::new(shadow_size, shadow_size),
-            ImageFormat::D32,
-            ImageAspect::Depth,
-            &[ImageUsage::DepthAttachment, ImageUsage::Sampled],
-        )
+    let shadow_depth_image = ImageBuilder::new()
+        .size(ImageSize::new(Vec2u::new(shadow_size, shadow_size)).unwrap())
+        .format(ImageFormat::D32)
+        .aspect(ImageAspect::Depth)
+        .usage(&[ImageUsage::DepthAttachment, ImageUsage::Sampled])
+        .build(&mut backend)
         .unwrap();
-    let shadow_depth_view =
-        backend.create_image_view(shadow_depth_image).unwrap();
-    let shadow_framebuffer = backend
-        .create_framebuffer(
-            Vec2u::new(shadow_size, shadow_size),
-            &[shadow_depth_view],
-            shadow_renderpass,
-        )
+    let shadow_depth_view = ImageViewBuilder::new()
+        .image(shadow_depth_image.handle())
+        .build(&mut backend)
         .unwrap();
-    let shadow_proj_buffer = backend
-        .create_buffer(
-            BufferContent::from_slice(&[Matrix4f::orthographic(
-                0.0, 100.0, 25.0, 25.0,
-            )]),
-            &[BufferUsage::Uniform],
-        )
+    let shadow_framebuffer = FramebufferBuilder::new()
+        .attachment(shadow_depth_view.handle())
+        .size(Vec2u::new(shadow_size, shadow_size))
+        .renderpass(shadow_renderpass)
+        .build(&mut backend)
         .unwrap();
-    let shadow_look_buffer = backend
-        .create_buffer(
-            BufferContent::from_slice(&[Matrix4f::look_at(
-                Vec3f::new(-40.0, 40.0, -40.0),
-                Vec3f::new(1.0, -1.0, 1.0),
-                Vec3f::new(1.0, 1.0, 1.0),
-            )]),
-            &[BufferUsage::Uniform],
-        )
+    let shadow_proj_buffer = BufferBuilder::new()
+        .usage(&[BufferUsage::Uniform])
+        .data(BufferContent::from_slice(&[Matrix4f::orthographic(
+            0.0, 100.0, 25.0, 25.0,
+        )]))
+        .build(&mut backend)
+        .unwrap();
+    let shadow_look_buffer = BufferBuilder::new()
+        .usage(&[BufferUsage::Uniform])
+        .data(BufferContent::from_slice(&[Matrix4f::look_at(
+            Vec3f::new(-40.0, 40.0, -40.0),
+            Vec3f::new(1.0, -1.0, 1.0),
+            Vec3f::new(1.0, 1.0, 1.0),
+        )]))
+        .build(&mut backend)
         .unwrap();
     let shadow_proj_layout = backend
         .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
@@ -296,10 +294,10 @@ pub fn init_renderer(
         .create_pipeline_resource(shadow_look_layout)
         .unwrap();
     backend
-        .bind_buffer(shadow_proj_binding, shadow_proj_buffer, 0)
+        .bind_buffer(shadow_proj_binding, shadow_proj_buffer.handle(), 0)
         .unwrap();
     backend
-        .bind_buffer(shadow_look_binding, shadow_look_buffer, 0)
+        .bind_buffer(shadow_look_binding, shadow_look_buffer.handle(), 0)
         .unwrap();
     let shadow_material = MaterialData::new(&shadow_material_base, vec![
         MaterialPipelineBinding::Model,
@@ -316,23 +314,27 @@ pub fn init_renderer(
     let shadow_tex_binding =
         backend.create_pipeline_resource(shadow_tex_layout).unwrap();
     backend
-        .bind_sampler(shadow_tex_binding, shadow_sampler, shadow_depth_view, 0)
+        .bind_sampler(
+            shadow_tex_binding,
+            shadow_sampler,
+            shadow_depth_view.handle(),
+            0,
+        )
         .unwrap();
 
-    let light_buffer = backend
-        .create_buffer(
-            BufferContent::from_slice(&[LD {
-                dir: Vec3f::new(1.0, -1.0, 1.0),
-                mat: Matrix4f::orthographic(0.0, 100.0, 25.0, 25.0)
-                    * Matrix4f::look_at(
-                        Vec3f::new(-40.0, 40.0, -40.0),
-                        Vec3f::new(1.0, -1.0, 1.0),
-                        Vec3f::new(1.0, 1.0, 1.0),
-                    ),
-                _pad: 0,
-            }]),
-            &[BufferUsage::Uniform],
-        )
+    let light_buffer = BufferBuilder::new()
+        .usage(&[BufferUsage::Uniform])
+        .data(BufferContent::from_slice(&[LD {
+            dir: Vec3f::new(1.0, -1.0, 1.0),
+            mat: Matrix4f::orthographic(0.0, 100.0, 25.0, 25.0)
+                * Matrix4f::look_at(
+                    Vec3f::new(-40.0, 40.0, -40.0),
+                    Vec3f::new(1.0, -1.0, 1.0),
+                    Vec3f::new(1.0, 1.0, 1.0),
+                ),
+            _pad: 0,
+        }]))
+        .build(&mut backend)
         .unwrap();
     let light_binding_layout = backend
         .create_pipeline_resource_layout(&[PipelineResourceBindingLayout::new(
@@ -343,7 +345,9 @@ pub fn init_renderer(
     let light_binding = backend
         .create_pipeline_resource(light_binding_layout)
         .unwrap();
-    backend.bind_buffer(light_binding, light_buffer, 0).unwrap();
+    backend
+        .bind_buffer(light_binding, light_buffer.handle(), 0)
+        .unwrap();
 
     let mut material_bases = IdStore::new();
     let mut materials_data = IdStore::new();
@@ -371,10 +375,8 @@ pub fn init_renderer(
 
     requests.create_resource(shadow_data);
     requests.create_resource(RendererMainRenderpass(renderpass));
-    requests.create_resource(RendererSwapchainImages(swapchain_images));
-    requests.create_resource(RendererSwapchainImageViews(swapchain_image_views));
+    requests.create_resource(RendererPresentImages(swapchain_images));
     requests.create_resource(RendererDepthImage(depth_image));
-    requests.create_resource(RendererDepthImageView(depth_image_view));
     requests.create_resource(RendererFramebuffers(framebuffers));
     requests.create_resource(frame_sync);
     requests.create_resource(image_sync);
@@ -398,64 +400,50 @@ pub fn init_renderer(
 }
 
 fn recreate_size_dependent_components(
-    requests: &mut Requests,
     backend: &mut ActiveGraphicsBackend,
     window: &Window,
-    swapchain_views: &[ImageView],
-    depth_image: Image,
-    depth_view: ImageView,
-    framebuffers: &[Framebuffer],
+    present_images: &mut [PresentImage],
+    depth_image: &mut DepthImage,
+    framebuffers: &mut Vec<Framebuffer>,
     renderpass: Renderpass,
 ) {
     backend.wait_idle();
     backend.handle_resize(window).unwrap();
 
-    let new_swapchain_images = backend.present_images();
-    let new_swapchain_image_views = new_swapchain_images
-        .iter()
-        .map(|img| backend.create_image_view(*img).unwrap())
-        .collect::<Vec<_>>();
-    let new_depth_image = backend
-        .create_image(window.size(), ImageFormat::D32, ImageAspect::Depth, &[
-            ImageUsage::DepthAttachment,
-        ])
+    let new_swapchain_image_handles = backend.present_images();
+    for (new_present_image_handle, present_image) in new_swapchain_image_handles
+        .into_iter()
+        .zip(present_images.iter_mut())
+    {
+        present_image
+            .recreate(backend, new_present_image_handle)
+            .unwrap();
+    }
+    depth_image
+        .recreate(backend, ImageSize::new(window.size()).unwrap())
         .unwrap();
-    let new_depth_image_view =
-        backend.create_image_view(new_depth_image).unwrap();
-    let new_framebuffers = new_swapchain_image_views
+    let mut new_framebuffers = present_images
         .iter()
-        .map(|view| {
-            backend
-                .create_framebuffer(
-                    window.size(),
-                    &[*view, new_depth_image_view],
-                    renderpass,
-                )
+        .map(|present_image| {
+            FramebufferBuilder::new()
+                .attachment(present_image.image_view_handle())
+                .attachment(depth_image.image_view_handle())
+                .size(window.size())
+                .renderpass(renderpass)
+                .build(backend)
                 .unwrap()
         })
         .collect::<Vec<_>>();
 
-    swapchain_views
-        .iter()
-        .for_each(|view| backend.delete_image_view(*view).unwrap());
-    backend.delete_image_view(depth_view).unwrap();
-    backend.delete_image(depth_image).unwrap();
-    framebuffers.iter().for_each(|framebuffer| {
-        backend.delete_framebuffer(*framebuffer).unwrap()
-    });
+    for framebuffer in framebuffers.drain(0..framebuffers.len()) {
+        framebuffer.destroy(backend).unwrap();
+    }
 
-    requests.create_resource(RendererSwapchainImages(new_swapchain_images));
-    requests.create_resource(RendererSwapchainImageViews(
-        new_swapchain_image_views,
-    ));
-    requests.create_resource(RendererDepthImage(new_depth_image));
-    requests.create_resource(RendererDepthImageView(new_depth_image_view));
-    requests.create_resource(RendererFramebuffers(new_framebuffers));
+    framebuffers.append(&mut new_framebuffers);
 }
 
 #[system]
 pub fn render(
-    mut requests: Resource<Requests>,
     mut backend: Resource<ActiveGraphicsBackend>,
     mut current_frame: Resource<RendererCurrentFrame>,
     mut resize: Resource<ResizeFlag>,
@@ -463,11 +451,10 @@ pub fn render(
     window: Resource<Window>,
     frame_sync: Resource<Vec<RendererFrameSync>>,
     image_sync: Resource<Vec<RendererImageSync>>,
-    swapchain_views: Resource<RendererSwapchainImageViews>,
-    depth_image: Resource<RendererDepthImage>,
-    depth_view: Resource<RendererDepthImageView>,
+    mut present_images: Resource<RendererPresentImages>,
+    mut depth_image: Resource<RendererDepthImage>,
     renderpass: Resource<RendererMainRenderpass>,
-    framebuffers: Resource<RendererFramebuffers>,
+    mut framebuffers: Resource<RendererFramebuffers>,
     mut command_lists: Resource<Vec<CommandList>>,
     draw_queue: Resource<Vec<Draw>>,
     meshes_data: Resource<IdStore<MeshData<DefaultVertex>>>,
@@ -483,13 +470,11 @@ pub fn render(
 
     if resize.0 {
         recreate_size_dependent_components(
-            &mut *requests,
             &mut *backend,
             &window,
-            &swapchain_views.0,
-            depth_image.0,
-            depth_view.0,
-            &framebuffers.0,
+            &mut present_images.0,
+            &mut depth_image.0,
+            &mut framebuffers.0,
             renderpass.0,
         );
         resize.0 = false;
@@ -509,13 +494,13 @@ pub fn render(
         .unwrap();
 
     let command_list = &mut command_lists[current_frame.0 as usize];
-    let framebuffer = framebuffers.0[present_index as usize];
+    let framebuffer = &mut framebuffers.0[present_index as usize];
 
     command_list.reset();
     command_list.cmd(Command::Begin);
     command_list.cmd(Command::BeginRenderpass(
         shadowpass_data.renderpass,
-        shadowpass_data.framebuffer,
+        shadowpass_data.framebuffer.handle(),
     ));
 
     for draw in draw_queue.iter() {
@@ -551,7 +536,7 @@ pub fn render(
     }
 
     command_list.cmd(Command::EndRenderpass);
-    command_list.cmd(Command::BeginRenderpass(renderpass.0, framebuffer));
+    command_list.cmd(Command::BeginRenderpass(renderpass.0, framebuffer.handle()));
 
     for draw in draw_queue.iter() {
         match draw {

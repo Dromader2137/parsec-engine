@@ -1,15 +1,14 @@
 use crate::{
-    graphics::{
-        buffer::Buffer,
-        framebuffer::Framebuffer,
+    error::ParsecError, graphics::{
+        buffer::BufferHandle,
+        framebuffer::{Framebuffer, FramebufferHandle},
         image::Image,
         pipeline::{Pipeline, PipelineResource},
         renderpass::Renderpass,
-    },
-    math::{ivec::Vec2i, uvec::Vec2u}, error::ParsecError,
+    }, math::{ivec::Vec2i, uvec::Vec2u}
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct CommandList {
     id: u32,
     commands: Vec<Command>,
@@ -40,22 +39,22 @@ pub enum CommandListError {
     ImageNotFound,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Command {
     Begin,
     End,
-    BeginRenderpass(Renderpass, Framebuffer),
+    BeginRenderpass(Renderpass, FramebufferHandle),
     SetViewport(Vec2u),
     SetScissor(Vec2u, Vec2i),
     EndRenderpass,
     BindGraphicsPipeline(Pipeline),
     BindPipelineBinding(PipelineResource, u32),
-    BindVertexBuffer(Buffer),
-    BindIndexBuffer(Buffer),
+    BindVertexBuffer(BufferHandle),
+    BindIndexBuffer(BufferHandle),
     Draw(u32, u32, u32, u32),
     DrawIndexed(u32, u32, u32, i32, u32),
-    CopyBufferToImage(Buffer, Image, Vec2u, Vec2u),
-    CopyBufferToBuffer(Buffer, Buffer),
+    CopyBufferToImage(BufferHandle, Image, Vec2u, Vec2u),
+    CopyBufferToBuffer(BufferHandle, BufferHandle),
 }
 
 pub struct ImageBarrier {}

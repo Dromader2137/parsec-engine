@@ -4,6 +4,8 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
 };
 
+use crate::math::ivec::{Vec2i, Vec3i};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(C)]
 pub struct Vec2u {
@@ -201,6 +203,8 @@ impl Vec2u {
     }
 
     pub fn length_sqr(&mut self) -> u32 { self.x * self.x + self.y * self.y }
+
+    pub fn signed(&self) -> Vec2i { Vec2i::new(self.x as i32, self.y as i32) }
 }
 
 impl Vec3u {
@@ -227,4 +231,6 @@ impl Vec3u {
     pub fn length_sqr(&mut self) -> u32 {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
+    
+    pub fn signed(&self) -> Vec3i { Vec3i::new(self.x as i32, self.y as i32, self.z as i32) }
 }

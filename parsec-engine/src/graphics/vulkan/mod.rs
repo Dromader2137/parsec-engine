@@ -4,15 +4,15 @@
 use std::collections::HashMap;
 
 use crate::{
-    graphics::{
+    error::StrError, graphics::{
         backend::{BackendError, GraphicsBackend},
-        buffer::{Buffer, BufferContent, BufferError, BufferUsage},
+        buffer::{Buffer, BufferContent, BufferError, BufferHandle, BufferUsage},
         command_list::{Command, CommandList, CommandListError},
-        framebuffer::{Framebuffer, FramebufferError},
+        framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
         gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
         gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
         image::{
-            Image, ImageAspect, ImageError, ImageFormat, ImageUsage, ImageView,
+            Image, ImageAspect, ImageError, ImageFormat, ImageHandle, ImageUsage, ImageView, ImageViewHandle
         },
         pipeline::{
             Pipeline, PipelineError, PipelineOptions, PipelineResource,
@@ -60,9 +60,7 @@ use crate::{
             swapchain::{VulkanSwapchain, VulkanSwapchainError},
         },
         window::Window,
-    },
-    math::{ivec::Vec2i, uvec::Vec2u},
-    error::StrError,
+    }, math::{ivec::Vec2i, uvec::Vec2u}
 };
 
 mod access;
@@ -251,7 +249,7 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         data: BufferContent<'_>,
         buffer_usage: &[BufferUsage],
-    ) -> Result<Buffer, BufferError> {
+    ) -> Result<BufferHandle, BufferError> {
         let usage: Vec<_> = buffer_usage
             .iter()
             .map(|x| VulkanBufferUsage::new(*x))
@@ -333,12 +331,12 @@ impl GraphicsBackend for VulkanBackend {
         };
         let buffer_id = buffer.id();
         self.buffers.insert(buffer_id, buffer);
-        Ok(Buffer::new(buffer_id))
+        Ok(BufferHandle::new(buffer_id))
     }
 
     fn update_buffer(
         &mut self,
-        buffer: Buffer,
+        buffer: BufferHandle,
         data: BufferContent<'_>,
     ) -> Result<(), BufferError> {
         let buffer_id = buffer.id();
@@ -562,7 +560,7 @@ impl GraphicsBackend for VulkanBackend {
     fn bind_buffer(
         &mut self,
         pipeline_binding: PipelineResource,
-        buffer: Buffer,
+        buffer: BufferHandle,
         index: u32,
     ) -> Result<(), BufferError> {
         let ds = self
@@ -585,7 +583,7 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         pipeline_binding: PipelineResource,
         sampler: Sampler,
-        image_view: ImageView,
+        image_view: ImageViewHandle,
         index: u32,
     ) -> Result<(), SamplerError> {
         let ds = self
@@ -813,11 +811,11 @@ impl GraphicsBackend for VulkanBackend {
         Ok(())
     }
 
-    fn present_images(&mut self) -> Vec<Image> {
+    fn present_images(&mut self) -> Vec<ImageHandle> {
         self.swapchain
             .swapchain_image_ids()
             .iter()
-            .map(|x| Image::new(*x))
+            .map(|x| ImageHandle::new(*x))
             .collect()
     }
 
@@ -871,7 +869,7 @@ impl GraphicsBackend for VulkanBackend {
         format: ImageFormat,
         aspect: ImageAspect,
         usage: &[ImageUsage],
-    ) -> Result<Image, ImageError> {
+    ) -> Result<ImageHandle, ImageError> {
         let usage: Vec<_> =
             usage.iter().map(|x| VulkanImageUsage::new(*x)).collect();
         let aspect = VulkanImageAspect::new(aspect);
@@ -889,7 +887,7 @@ impl GraphicsBackend for VulkanBackend {
         .map_err(|err| ImageError::ImageCreationError(err.into()))?;
         let image_id = image.id();
         self.images.insert(image_id, Box::new(image));
-        Ok(Image::new(image_id))
+        Ok(ImageHandle::new(image_id))
     }
 
     fn delete_image(&mut self, image: Image) -> Result<(), ImageError> {
@@ -903,8 +901,8 @@ impl GraphicsBackend for VulkanBackend {
 
     fn load_image_from_buffer(
         &mut self,
-        buffer: Buffer,
-        image: Image,
+        buffer: BufferHandle,
+        image: ImageHandle,
         image_size: Vec2u,
         image_offset: Vec2u,
     ) -> Result<(), ImageError> {
@@ -955,8 +953,8 @@ impl GraphicsBackend for VulkanBackend {
 
     fn create_image_view(
         &mut self,
-        image: Image,
-    ) -> Result<ImageView, ImageError> {
+        image: ImageHandle,
+    ) -> Result<ImageViewHandle, ImageError> {
         let im = self
             .images
             .get(&image.id())
@@ -965,7 +963,7 @@ impl GraphicsBackend for VulkanBackend {
             .map_err(|err| ImageError::ImageViewCreationError(err.into()))?;
         let iv_id = iv.id();
         self.image_views.insert(iv_id, iv);
-        Ok(ImageView::new(iv_id))
+        Ok(ImageViewHandle::new(iv_id))
     }
 
     fn delete_image_view(
@@ -1003,9 +1001,9 @@ impl GraphicsBackend for VulkanBackend {
     fn create_framebuffer(
         &mut self,
         size: Vec2u,
-        attachments: &[ImageView],
+        attachments: &[ImageViewHandle],
         renderpass: Renderpass,
-    ) -> Result<Framebuffer, FramebufferError> {
+    ) -> Result<FramebufferHandle, FramebufferError> {
         let att = attachments
             .iter()
             .map(|attachment| {
@@ -1030,7 +1028,7 @@ impl GraphicsBackend for VulkanBackend {
             })?;
         let framebuffer_id = framebuffer.id();
         self.framebuffers.insert(framebuffer_id, framebuffer);
-        Ok(Framebuffer::new(framebuffer_id))
+        Ok(FramebufferHandle::new(framebuffer_id))
     }
 
     fn delete_framebuffer(

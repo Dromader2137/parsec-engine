@@ -1,11 +1,7 @@
 use crate::{
-    graphics::{
-        ActiveGraphicsBackend,
-        buffer::Buffer,
-        image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
-        renderer::texture::Texture,
-    },
-    math::uvec::Vec2u, error::ParsecError,
+    error::ParsecError, graphics::{
+        ActiveGraphicsBackend, buffer::BufferHandle, command_list::{Command, CommandList}, image::{ImageAspect, ImageBuilder, ImageFormat, ImageSize, ImageUsage, ImageViewBuilder}, renderer::texture::Texture
+    }, math::uvec::Vec2u
 };
 
 struct TextureAtlasElement {
@@ -52,13 +48,15 @@ impl<'a> TextureAtlasBuilder<'a> {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<TextureAtlas, ParsecError> {
-        let image = backend.create_image(
-            self.size.get_size(),
-            self.format,
-            self.aspect,
-            self.usage,
-        )?;
-        let view = backend.create_image_view(image)?;
+        let image = ImageBuilder::new()
+            .size(self.size)
+            .format(self.format)
+            .aspect(self.aspect)
+            .usage(self.usage)
+            .build(backend)?;
+        let view = ImageViewBuilder::new()
+            .image(image.handle())
+            .build(backend)?;
         let sampler = backend.create_image_sampler()?;
         let texture = Texture::new(image, view, sampler);
 
@@ -74,16 +72,26 @@ impl TextureAtlas {
     pub fn copy_to_region(
         &self,
         backend: &mut ActiveGraphicsBackend,
-        buffer: Buffer,
+        buffer: BufferHandle,
         size: Vec2u,
         offset: Vec2u,
     ) -> Result<(), ParsecError> {
         backend.load_image_from_buffer(
             buffer,
-            self.texture.image(),
+            self.texture.image().handle(),
             size,
             offset,
         )?;
+        Ok(())
+    }
+
+    pub fn set_rendering_region(
+        mut command_list: CommandList,
+        size: Vec2u,
+        offset: Vec2u,
+    ) -> Result<(), ParsecError> {
+        command_list.cmd(Command::SetScissor(offset, size.signed()));
+        command_list.cmd(Command::SetViewport(size));
         Ok(())
     }
 

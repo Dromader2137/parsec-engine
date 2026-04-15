@@ -7,7 +7,7 @@ use crate::{
     },
     graphics::{
         ActiveGraphicsBackend,
-        buffer::{Buffer, BufferContent, BufferUsage},
+        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         pipeline::{
             PipelineBindingType, PipelineResource,
             PipelineResourceBindingLayout, PipelineShaderStage,
@@ -49,32 +49,32 @@ impl TransformData {
         rotation: Quat,
     ) -> TransformData {
         let translation_matrix = Matrix4f::translation(position);
-        let translation_buffer = backend
-            .create_buffer(BufferContent::from_slice(&[translation_matrix]), &[
-                BufferUsage::Uniform,
-            ])
+        let translation_buffer = BufferBuilder::new()
+            .usage(&[BufferUsage::Uniform])
+            .data(BufferContent::from_slice(&[translation_matrix]))
+            .build(backend)
             .unwrap();
         let scale_matrix = Matrix4f::scale(scale);
-        let scale_buffer = backend
-            .create_buffer(BufferContent::from_slice(&[scale_matrix]), &[
-                BufferUsage::Uniform,
-            ])
+        let scale_buffer = BufferBuilder::new()
+            .usage(&[BufferUsage::Uniform])
+            .data(BufferContent::from_slice(&[scale_matrix]))
+            .build(backend)
             .unwrap();
         let rotation_matrix = rotation.into_matrix();
-        let rotation_buffer = backend
-            .create_buffer(BufferContent::from_slice(&[scale_matrix]), &[
-                BufferUsage::Uniform,
-            ])
+        let rotation_buffer = BufferBuilder::new()
+            .usage(&[BufferUsage::Uniform])
+            .data(BufferContent::from_slice(&[scale_matrix]))
+            .build(backend)
             .unwrap();
         let look_at_matrix = Matrix4f::look_at(
             position,
             Vec3f::FORWARD * rotation,
             Vec3f::UP * rotation,
         );
-        let look_at_buffer = backend
-            .create_buffer(BufferContent::from_slice(&[scale_matrix]), &[
-                BufferUsage::Uniform,
-            ])
+        let look_at_buffer = BufferBuilder::new()
+            .usage(&[BufferUsage::Uniform])
+            .data(BufferContent::from_slice(&[scale_matrix]))
+            .build(backend)
             .unwrap();
         let model_pipeline_layout = backend
             .create_pipeline_resource_layout(&[
@@ -105,14 +105,14 @@ impl TransformData {
             .create_pipeline_resource(look_at_pipeline_layout)
             .unwrap();
         backend
-            .bind_buffer(model_binding, translation_buffer, 0)
+            .bind_buffer(model_binding, translation_buffer.handle(), 0)
             .unwrap();
-        backend.bind_buffer(model_binding, scale_buffer, 1).unwrap();
+        backend.bind_buffer(model_binding, scale_buffer.handle(), 1).unwrap();
         backend
-            .bind_buffer(model_binding, rotation_buffer, 2)
+            .bind_buffer(model_binding, rotation_buffer.handle(), 2)
             .unwrap();
         backend
-            .bind_buffer(look_at_binding, look_at_buffer, 0)
+            .bind_buffer(look_at_binding, look_at_buffer.handle(), 0)
             .unwrap();
         TransformData {
             transform_data_id: ID_COUNTER.next(),
@@ -135,25 +135,25 @@ impl TransformData {
     ) {
         backend
             .update_buffer(
-                self.translation_buffer,
+                self.translation_buffer.handle(),
                 BufferContent::from_slice(&[self.translation_matrix]),
             )
             .unwrap();
         backend
             .update_buffer(
-                self.scale_buffer,
+                self.scale_buffer.handle(),
                 BufferContent::from_slice(&[self.scale_matrix]),
             )
             .unwrap();
         backend
             .update_buffer(
-                self.rotation_buffer,
+                self.rotation_buffer.handle(),
                 BufferContent::from_slice(&[self.rotation_matrix]),
             )
             .unwrap();
         backend
             .update_buffer(
-                self.look_at_buffer,
+                self.look_at_buffer.handle(),
                 BufferContent::from_slice(&[self.look_at_matrix]),
             )
             .unwrap();

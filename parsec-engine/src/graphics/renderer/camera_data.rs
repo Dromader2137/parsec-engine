@@ -7,7 +7,7 @@ use crate::{
     },
     graphics::{
         ActiveGraphicsBackend,
-        buffer::{Buffer, BufferContent, BufferUsage},
+        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         pipeline::{
             PipelineBindingType, PipelineResource,
             PipelineResourceBindingLayout, PipelineShaderStage,
@@ -45,11 +45,10 @@ impl CameraData {
     ) -> CameraData {
         let projection_matrix =
             Matrix4f::perspective(vfov, window.aspect_ratio(), near, far);
-        let projection_buffer = backend
-            .create_buffer(BufferContent::from_slice(&[projection_matrix]), &[
-                BufferUsage::Uniform,
-            ])
-            .unwrap();
+        let projection_buffer = BufferBuilder::new()
+            .usage(&[BufferUsage::Uniform])
+            .data(BufferContent::from_slice(&[projection_matrix]))
+            .build(backend).unwrap();
         let projection_binding_layout = backend
             .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
@@ -60,7 +59,7 @@ impl CameraData {
             .create_pipeline_resource(projection_binding_layout)
             .unwrap();
         backend
-            .bind_buffer(projection_binding, projection_buffer, 0)
+            .bind_buffer(projection_binding, projection_buffer.handle(), 0)
             .unwrap();
         CameraData {
             camera_data_id: ID_COUNTER.next(),
@@ -126,7 +125,7 @@ fn update_camera_data(
             );
             backend
                 .update_buffer(
-                    camera_data.projection_buffer,
+                    camera_data.projection_buffer.handle(),
                     BufferContent::from_slice(&[camera_data.projection_matrix]),
                 )
                 .unwrap();
