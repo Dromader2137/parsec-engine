@@ -8,7 +8,8 @@ use crate::{
         system::SystemInput,
         world::{World, fetch::Fetch},
     },
-    resources::Resources, error::ParsecError,
+    error::ParsecError,
+    resources::Resources,
 };
 
 /// Stores the data needed to query entities from [`World`][crate::ecs::world::World].

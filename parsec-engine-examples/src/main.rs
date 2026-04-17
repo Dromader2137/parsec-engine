@@ -63,7 +63,7 @@ fn test_system(
         &mut *backend,
         vertex,
         fragment,
-        renderpass.0,
+        renderpass.0.handle(),
         vec![
             vec![
                 PipelineResourceBindingLayout::new(

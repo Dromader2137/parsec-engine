@@ -231,6 +231,8 @@ impl Vec3u {
     pub fn length_sqr(&mut self) -> u32 {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
-    
-    pub fn signed(&self) -> Vec3i { Vec3i::new(self.x as i32, self.y as i32, self.z as i32) }
+
+    pub fn signed(&self) -> Vec3i {
+        Vec3i::new(self.x as i32, self.y as i32, self.z as i32)
+    }
 }

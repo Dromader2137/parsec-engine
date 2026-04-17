@@ -1,7 +1,8 @@
 use crate::{
     error::ParsecError,
     graphics::{
-        ActiveGraphicsBackend, image::ImageViewHandle, renderpass::Renderpass,
+        ActiveGraphicsBackend, image::ImageViewHandle,
+        renderpass::RenderpassHandle,
     },
     math::uvec::Vec2u,
 };
@@ -52,7 +53,7 @@ impl Framebuffer {
 pub struct FramebufferBuilder {
     attachments: Vec<ImageViewHandle>,
     size: Option<Vec2u>,
-    renderpass: Option<Renderpass>,
+    renderpass: Option<RenderpassHandle>,
 }
 
 impl FramebufferBuilder {
@@ -74,7 +75,7 @@ impl FramebufferBuilder {
         self
     }
 
-    pub fn renderpass(mut self, renderpass: Renderpass) -> Self {
+    pub fn renderpass(mut self, renderpass: RenderpassHandle) -> Self {
         self.renderpass = Some(renderpass);
         self
     }

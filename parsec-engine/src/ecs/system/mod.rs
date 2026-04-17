@@ -6,7 +6,8 @@ use std::{collections::HashMap, fmt::Debug, time::Instant};
 
 use crate::{
     ecs::{system::requests::Requests, world::World},
-    resources::{Resource, Resources}, error::ParsecError,
+    error::ParsecError,
+    resources::{Resource, Resources},
 };
 
 /// List of possible actions a system can run on.

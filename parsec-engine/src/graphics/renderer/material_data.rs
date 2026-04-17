@@ -7,7 +7,7 @@ use crate::{
             PipelineResourceBindingLayout, PipelineResourceLayout,
         },
         renderer::{camera_data::CameraData, transform_data::TransformData},
-        renderpass::Renderpass,
+        renderpass::RenderpassHandle,
         shader::Shader,
     },
     utils::{IdType, identifiable::Identifiable},
@@ -26,7 +26,7 @@ impl MaterialBase {
         backend: &mut ActiveGraphicsBackend,
         vertex_shader: Shader,
         fragment_shader: Shader,
-        renderpass: Renderpass,
+        renderpass: RenderpassHandle,
         binding_layouts: Vec<Vec<PipelineResourceBindingLayout>>,
         pipeline_options: PipelineOptions,
     ) -> MaterialBase {

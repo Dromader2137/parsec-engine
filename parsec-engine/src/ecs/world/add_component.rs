@@ -26,6 +26,6 @@ impl AddComponent for Box<dyn AddComponent> {
         (**self).archetype_id()
     }
     fn add_to(&self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
-        (**self).add_to(archetype)   
+        (**self).add_to(archetype)
     }
 }

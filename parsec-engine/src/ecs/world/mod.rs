@@ -8,7 +8,10 @@ use thiserror::Error;
 
 use crate::ecs::{
     entity::Entity,
-    world::{add_component::AddComponent, remove_component::{RemoveComponent, RemoveComponentData}},
+    world::{
+        add_component::AddComponent,
+        remove_component::{RemoveComponent, RemoveComponentData},
+    },
 };
 
 pub mod add_component;
@@ -166,7 +169,8 @@ impl World {
                 });
             },
         };
-        let t_archetype_id = bundle_extension.archetype_id()
+        let t_archetype_id = bundle_extension
+            .archetype_id()
             .map_err(|e| WorldError::AddComponentError { kind: e })?;
         let new_archetype_id = archetype_id
             .merge_with(t_archetype_id)
@@ -222,14 +226,16 @@ impl World {
     ) -> Result<(), WorldError> {
         let t_archetype_id = T::archetype_id()
             .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
-        let data = RemoveComponentData { archetype_id: t_archetype_id };
+        let data = RemoveComponentData {
+            archetype_id: t_archetype_id,
+        };
         self.remove_components_using_data(entity, data)
     }
-    
+
     pub fn remove_components_using_data(
         &mut self,
         entity: Entity,
-        data: RemoveComponentData
+        data: RemoveComponentData,
     ) -> Result<(), WorldError> {
         let (archetype_id, old_archetype) = match self
             .archetypes

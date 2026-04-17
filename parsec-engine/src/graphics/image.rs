@@ -211,9 +211,7 @@ pub struct ImageViewBuilder {
 }
 
 impl ImageViewBuilder {
-    pub fn new() -> Self {
-        Self { image: None }
-    }
+    pub fn new() -> Self { Self { image: None } }
 
     pub fn image(mut self, image: ImageHandle) -> Self {
         self.image = Some(image);

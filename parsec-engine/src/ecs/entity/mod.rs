@@ -9,7 +9,5 @@ pub struct Entity {
 impl Entity {
     pub fn new(id: u32) -> Entity { Entity { id } }
 
-    pub fn id(&self) -> u32 {
-        self.id
-    }
+    pub fn id(&self) -> u32 { self.id }
 }

@@ -43,10 +43,7 @@ impl App {
         event_loop.run_app(self).unwrap();
     }
 
-    pub fn execute_system(
-        &mut self,
-        system_trigger: SystemTrigger,
-    ) {
+    pub fn execute_system(&mut self, system_trigger: SystemTrigger) {
         if let Err(err) = self.systems.execute_type(
             system_trigger,
             &mut self.resources,

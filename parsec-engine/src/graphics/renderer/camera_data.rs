@@ -48,7 +48,8 @@ impl CameraData {
         let projection_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Uniform])
             .data(BufferContent::from_slice(&[projection_matrix]))
-            .build(backend).unwrap();
+            .build(backend)
+            .unwrap();
         let projection_binding_layout = backend
             .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,

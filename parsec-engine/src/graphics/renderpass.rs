@@ -1,8 +1,70 @@
-use crate::{graphics::image::ImageFormat, error::ParsecError};
+use crate::{
+    error::ParsecError,
+    graphics::{ActiveGraphicsBackend, image::ImageFormat},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Renderpass {
+pub struct RenderpassHandle {
     id: u32,
+}
+
+impl RenderpassHandle {
+    pub fn new(id: u32) -> Self { Self { id } }
+    pub fn id(&self) -> u32 { self.id }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Renderpass {
+    handle: RenderpassHandle,
+    attachments: Vec<RenderpassAttachment>,
+}
+
+impl Renderpass {
+    fn new(
+        handle: RenderpassHandle,
+        attachments: Vec<RenderpassAttachment>,
+    ) -> Self {
+        Self {
+            handle,
+            attachments,
+        }
+    }
+
+    pub fn handle(&self) -> RenderpassHandle { self.handle }
+    pub fn id(&self) -> u32 { self.handle.id }
+    pub fn attachments(&self) -> &[RenderpassAttachment] { &self.attachments }
+
+    pub fn destroy(
+        self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<(), RenderpassError> {
+        backend.delete_renderpass(self)
+    }
+}
+
+pub struct RenderpassBuilder {
+    attachments: Vec<RenderpassAttachment>,
+}
+
+impl RenderpassBuilder {
+    pub fn new() -> Self {
+        Self {
+            attachments: Vec::new(),
+        }
+    }
+
+    pub fn attachment(mut self, attachment: RenderpassAttachment) -> Self {
+        self.attachments.push(attachment);
+        self
+    }
+
+    pub fn build(
+        self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<Renderpass, RenderpassError> {
+        let handle = backend.create_renderpass(&self.attachments)?;
+        Ok(Renderpass::new(handle, self.attachments))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -44,10 +106,4 @@ pub enum RenderpassError {
     RenderpassCreationError(ParsecError),
     RenderpassDeletionError(ParsecError),
     RenderpassNotFound,
-}
-
-impl Renderpass {
-    pub fn new(id: u32) -> Renderpass { Renderpass { id } }
-
-    pub fn id(&self) -> u32 { self.id }
 }

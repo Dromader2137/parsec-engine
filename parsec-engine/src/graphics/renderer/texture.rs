@@ -1,12 +1,16 @@
 use std::fmt::Debug;
 
-use crate::{error::ParsecError, graphics::{
-    ActiveGraphicsBackend,
-    image::{
-        Image, ImageAspect, ImageBuilder, ImageFormat, ImageHandle, ImageSize, ImageUsage, ImageView, ImageViewBuilder
+use crate::{
+    error::ParsecError,
+    graphics::{
+        ActiveGraphicsBackend,
+        image::{
+            Image, ImageAspect, ImageBuilder, ImageFormat, ImageHandle,
+            ImageSize, ImageUsage, ImageView, ImageViewBuilder,
+        },
+        sampler::Sampler,
     },
-    sampler::Sampler,
-}};
+};
 
 pub struct Texture {
     image: Image,
@@ -84,13 +88,9 @@ impl Texture {
         Ok(())
     }
 
-    pub fn image(&self) -> &Image {
-        &self.image
-    }
+    pub fn image(&self) -> &Image { &self.image }
 
-    pub fn view(&self) -> &ImageView {
-        &self.view
-    }
+    pub fn view(&self) -> &ImageView { &self.view }
 
     pub fn sampler(&self) -> Sampler { self.sampler }
 }

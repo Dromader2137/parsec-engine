@@ -49,7 +49,7 @@ use crate::{
         renderpass::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
             RenderpassAttachmentStoreOp, RenderpassAttachmentType,
-            RenderpassClearValue,
+            RenderpassBuilder, RenderpassClearValue, RenderpassHandle,
         },
         sampler::Sampler,
         shader::{Shader, ShaderType},
@@ -100,7 +100,7 @@ pub struct ResizeFlag(pub bool);
 pub struct RendererCurrentFrame(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RendererFramesInFlight(pub u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RendererMainRenderpass(pub Renderpass);
 #[derive(Debug)]
 pub struct RendererPresentImages(pub Vec<PresentImage>);
@@ -144,23 +144,22 @@ pub fn init_renderer(
 ) {
     let surface_format = backend.get_surface_format();
 
-    let renderpass = backend
-        .create_renderpass(&[
-            RenderpassAttachment {
-                attachment_type: RenderpassAttachmentType::Color,
-                image_format: surface_format,
-                clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 0.0),
-                load_op: RenderpassAttachmentLoadOp::Clear,
-                store_op: RenderpassAttachmentStoreOp::Store,
-            },
-            RenderpassAttachment {
-                attachment_type: RenderpassAttachmentType::Depth,
-                image_format: ImageFormat::D32,
-                clear_value: RenderpassClearValue::Depth(1.0),
-                load_op: RenderpassAttachmentLoadOp::Clear,
-                store_op: RenderpassAttachmentStoreOp::DontCare,
-            },
-        ])
+    let renderpass = RenderpassBuilder::new()
+        .attachment(RenderpassAttachment {
+            attachment_type: RenderpassAttachmentType::Color,
+            image_format: surface_format,
+            clear_value: RenderpassClearValue::Color(0.0, 0.0, 0.0, 0.0),
+            load_op: RenderpassAttachmentLoadOp::Clear,
+            store_op: RenderpassAttachmentStoreOp::Store,
+        })
+        .attachment(RenderpassAttachment {
+            attachment_type: RenderpassAttachmentType::Depth,
+            image_format: ImageFormat::D32,
+            clear_value: RenderpassClearValue::Depth(1.0),
+            load_op: RenderpassAttachmentLoadOp::Clear,
+            store_op: RenderpassAttachmentStoreOp::DontCare,
+        })
+        .build(&mut backend)
         .unwrap();
     let swapchain_image_handles = backend.present_images();
     let swapchain_images = swapchain_image_handles
@@ -177,7 +176,7 @@ pub fn init_renderer(
                 .attachment(present_image.image_view_handle())
                 .attachment(depth_image.image_view_handle())
                 .size(window.size())
-                .renderpass(renderpass)
+                .renderpass(renderpass.handle())
                 .build(&mut backend)
                 .unwrap()
         })
@@ -189,14 +188,15 @@ pub fn init_renderer(
     let command_lists =
         create_commad_lists(backend.deref_mut(), frames_in_flight);
 
-    let shadow_renderpass = backend
-        .create_renderpass(&[RenderpassAttachment {
+    let shadow_renderpass = RenderpassBuilder::new()
+        .attachment(RenderpassAttachment {
             attachment_type: RenderpassAttachmentType::Depth,
             image_format: ImageFormat::D32,
             clear_value: RenderpassClearValue::Depth(1.0),
             load_op: RenderpassAttachmentLoadOp::Clear,
             store_op: RenderpassAttachmentStoreOp::Store,
-        }])
+        })
+        .build(&mut backend)
         .unwrap();
     let shadow_vertex_shader = backend
         .create_shader(
@@ -214,7 +214,7 @@ pub fn init_renderer(
         &mut *backend,
         shadow_vertex_shader,
         shadow_fragment_shader,
-        shadow_renderpass,
+        shadow_renderpass.handle(),
         vec![
             vec![
                 PipelineResourceBindingLayout::new(
@@ -256,7 +256,7 @@ pub fn init_renderer(
     let shadow_framebuffer = FramebufferBuilder::new()
         .attachment(shadow_depth_view.handle())
         .size(Vec2u::new(shadow_size, shadow_size))
-        .renderpass(shadow_renderpass)
+        .renderpass(shadow_renderpass.handle())
         .build(&mut backend)
         .unwrap();
     let shadow_proj_buffer = BufferBuilder::new()
@@ -405,7 +405,7 @@ fn recreate_size_dependent_components(
     present_images: &mut [PresentImage],
     depth_image: &mut DepthImage,
     framebuffers: &mut Vec<Framebuffer>,
-    renderpass: Renderpass,
+    renderpass: RenderpassHandle,
 ) {
     backend.wait_idle();
     backend.handle_resize(window).unwrap();
@@ -475,7 +475,7 @@ pub fn render(
             &mut present_images.0,
             &mut depth_image.0,
             &mut framebuffers.0,
-            renderpass.0,
+            renderpass.0.handle(),
         );
         resize.0 = false;
         return;
@@ -499,7 +499,7 @@ pub fn render(
     command_list.reset();
     command_list.cmd(Command::Begin);
     command_list.cmd(Command::BeginRenderpass(
-        shadowpass_data.renderpass,
+        shadowpass_data.renderpass.handle(),
         shadowpass_data.framebuffer.handle(),
     ));
 
@@ -536,7 +536,10 @@ pub fn render(
     }
 
     command_list.cmd(Command::EndRenderpass);
-    command_list.cmd(Command::BeginRenderpass(renderpass.0, framebuffer.handle()));
+    command_list.cmd(Command::BeginRenderpass(
+        renderpass.0.handle(),
+        framebuffer.handle(),
+    ));
 
     for draw in draw_queue.iter() {
         match draw {

@@ -1,4 +1,7 @@
-use crate::{math::vec::{Vec2f, Vec3f}, error::ParsecError};
+use crate::{
+    error::ParsecError,
+    math::vec::{Vec2f, Vec3f},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Pipeline {

@@ -1,11 +1,13 @@
 use crate::{
-    error::ParsecError, graphics::{
+    error::ParsecError,
+    graphics::{
         buffer::BufferHandle,
         framebuffer::{Framebuffer, FramebufferHandle},
         image::Image,
         pipeline::{Pipeline, PipelineResource},
-        renderpass::Renderpass,
-    }, math::{ivec::Vec2i, uvec::Vec2u}
+        renderpass::RenderpassHandle,
+    },
+    math::{ivec::Vec2i, uvec::Vec2u},
 };
 
 #[derive(Debug)]
@@ -43,7 +45,7 @@ pub enum CommandListError {
 pub enum Command {
     Begin,
     End,
-    BeginRenderpass(Renderpass, FramebufferHandle),
+    BeginRenderpass(RenderpassHandle, FramebufferHandle),
     SetViewport(Vec2u),
     SetScissor(Vec2u, Vec2i),
     EndRenderpass,

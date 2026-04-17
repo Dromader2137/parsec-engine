@@ -4,21 +4,27 @@
 use std::collections::HashMap;
 
 use crate::{
-    error::StrError, graphics::{
+    error::StrError,
+    graphics::{
         backend::{BackendError, GraphicsBackend},
-        buffer::{Buffer, BufferContent, BufferError, BufferHandle, BufferUsage},
+        buffer::{
+            Buffer, BufferContent, BufferError, BufferHandle, BufferUsage,
+        },
         command_list::{Command, CommandList, CommandListError},
         framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
         gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
         gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
         image::{
-            Image, ImageAspect, ImageError, ImageFormat, ImageHandle, ImageUsage, ImageView, ImageViewHandle
+            Image, ImageAspect, ImageError, ImageFormat, ImageHandle,
+            ImageUsage, ImageView, ImageViewHandle,
         },
         pipeline::{
             Pipeline, PipelineError, PipelineOptions, PipelineResource,
             PipelineResourceBindingLayout, PipelineResourceLayout,
         },
-        renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
+        renderpass::{
+            Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
+        },
         sampler::{Sampler, SamplerError},
         shader::{Shader, ShaderError, ShaderType},
         vulkan::{
@@ -60,7 +66,8 @@ use crate::{
             swapchain::{VulkanSwapchain, VulkanSwapchainError},
         },
         window::Window,
-    }, math::{ivec::Vec2i, uvec::Vec2u}
+    },
+    math::{ivec::Vec2i, uvec::Vec2u},
 };
 
 mod access;
@@ -439,7 +446,7 @@ impl GraphicsBackend for VulkanBackend {
     fn create_renderpass(
         &mut self,
         attachments: &[RenderpassAttachment],
-    ) -> Result<Renderpass, RenderpassError> {
+    ) -> Result<RenderpassHandle, RenderpassError> {
         let renderpass = VulkanRenderpass::new(
             &self.device,
             &attachments
@@ -455,7 +462,7 @@ impl GraphicsBackend for VulkanBackend {
         .map_err(|err| RenderpassError::RenderpassCreationError(err.into()))?;
         let rendrepass_id = renderpass.id();
         self.renderpasses.insert(rendrepass_id, renderpass);
-        Ok(Renderpass::new(rendrepass_id))
+        Ok(RenderpassHandle::new(rendrepass_id))
     }
 
     fn delete_renderpass(
@@ -500,7 +507,7 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         vertex_shader: Shader,
         fragment_shader: Shader,
-        renderpass: Renderpass,
+        renderpass: RenderpassHandle,
         binding_layouts: &[PipelineResourceLayout],
         options: PipelineOptions,
     ) -> Result<Pipeline, PipelineError> {
@@ -1002,7 +1009,7 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         size: Vec2u,
         attachments: &[ImageViewHandle],
-        renderpass: Renderpass,
+        renderpass: RenderpassHandle,
     ) -> Result<FramebufferHandle, FramebufferError> {
         let att = attachments
             .iter()

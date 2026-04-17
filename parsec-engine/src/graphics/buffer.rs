@@ -21,10 +21,7 @@ pub struct Buffer {
 
 impl Buffer {
     fn new(handle: BufferHandle, usage: Vec<BufferUsage>) -> Buffer {
-        Buffer {
-            handle,
-            usage,
-        }
+        Buffer { handle, usage }
     }
 
     pub fn handle(&self) -> BufferHandle { self.handle }

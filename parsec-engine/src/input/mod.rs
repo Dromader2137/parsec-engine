@@ -3,7 +3,9 @@
 use keys::Keys;
 
 use crate::{
-    ecs::system::{System, SystemBundle, SystemTrigger, requests::Requests, system},
+    ecs::system::{
+        System, SystemBundle, SystemTrigger, requests::Requests, system,
+    },
     graphics::window::Window,
     input::{
         keys::KeyboardInputEvent,

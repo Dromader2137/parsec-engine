@@ -1,22 +1,29 @@
 use crate::{
-    error::ParsecError, graphics::{
-        buffer::{Buffer, BufferContent, BufferError, BufferHandle, BufferUsage},
+    error::ParsecError,
+    graphics::{
+        buffer::{
+            Buffer, BufferContent, BufferError, BufferHandle, BufferUsage,
+        },
         command_list::{CommandList, CommandListError},
         framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
         gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
         gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
         image::{
-            Image, ImageAspect, ImageError, ImageFormat, ImageHandle, ImageUsage, ImageView, ImageViewHandle
+            Image, ImageAspect, ImageError, ImageFormat, ImageHandle,
+            ImageUsage, ImageView, ImageViewHandle,
         },
         pipeline::{
             Pipeline, PipelineError, PipelineOptions, PipelineResource,
             PipelineResourceBindingLayout, PipelineResourceLayout,
         },
-        renderpass::{Renderpass, RenderpassAttachment, RenderpassError},
+        renderpass::{
+            Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
+        },
         sampler::{Sampler, SamplerError},
         shader::{Shader, ShaderError, ShaderType},
         window::Window,
-    }, math::uvec::Vec2u
+    },
+    math::uvec::Vec2u,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -57,7 +64,7 @@ pub trait GraphicsBackend: Send + Sync + 'static {
     fn create_renderpass(
         &mut self,
         attachments: &[RenderpassAttachment],
-    ) -> Result<Renderpass, RenderpassError>;
+    ) -> Result<RenderpassHandle, RenderpassError>;
     fn delete_renderpass(
         &mut self,
         renderpass: Renderpass,
@@ -71,7 +78,7 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         &mut self,
         vertex_shader: Shader,
         fragment_shader: Shader,
-        renderpass: Renderpass,
+        renderpass: RenderpassHandle,
         binding_layouts: &[PipelineResourceLayout],
         options: PipelineOptions,
     ) -> Result<Pipeline, PipelineError>;
@@ -147,7 +154,7 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         &mut self,
         size: Vec2u,
         attachments: &[ImageViewHandle],
-        renderpass: Renderpass,
+        renderpass: RenderpassHandle,
     ) -> Result<FramebufferHandle, FramebufferError>;
     fn delete_framebuffer(
         &mut self,

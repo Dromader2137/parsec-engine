@@ -107,7 +107,9 @@ impl TransformData {
         backend
             .bind_buffer(model_binding, translation_buffer.handle(), 0)
             .unwrap();
-        backend.bind_buffer(model_binding, scale_buffer.handle(), 1).unwrap();
+        backend
+            .bind_buffer(model_binding, scale_buffer.handle(), 1)
+            .unwrap();
         backend
             .bind_buffer(model_binding, rotation_buffer.handle(), 2)
             .unwrap();

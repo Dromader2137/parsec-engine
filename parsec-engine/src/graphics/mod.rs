@@ -26,12 +26,15 @@ use std::ops::{Deref, DerefMut};
 use window::Window;
 
 use crate::{
-    app::{self}, ecs::{
+    app::{self},
+    ecs::{
         system::{
             System, SystemBundle, SystemTrigger, requests::Requests, system,
         },
         world::query::Query,
-    }, error::{OptionNoneErr, ParsecError}, graphics::{
+    },
+    error::{OptionNoneErr, ParsecError},
+    graphics::{
         backend::GraphicsBackend,
         renderer::{
             InitRenderer, QueueClear, Render, ResizeFlag,
@@ -48,7 +51,9 @@ use crate::{
             },
         },
         vulkan::VulkanBackend,
-    }, resources::Resource, utils::identifiable::IdStore
+    },
+    resources::Resource,
+    utils::identifiable::IdStore,
 };
 
 pub mod backend;

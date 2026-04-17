@@ -3,7 +3,9 @@
 use std::time::SystemTime;
 
 use crate::{
-    ecs::system::{System, SystemBundle, SystemTrigger, requests::Requests, system},
+    ecs::system::{
+        System, SystemBundle, SystemTrigger, requests::Requests, system,
+    },
     resources::Resource,
 };
 

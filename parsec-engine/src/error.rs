@@ -1,4 +1,4 @@
-use std::fmt::{Display, Debug};
+use std::fmt::{Debug, Display};
 
 pub struct ParsecError {
     error: Box<dyn std::error::Error + Send + Sync + 'static>,

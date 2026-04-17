@@ -1,7 +1,16 @@
 use crate::{
-    error::ParsecError, graphics::{
-        ActiveGraphicsBackend, buffer::BufferHandle, command_list::{Command, CommandList}, image::{ImageAspect, ImageBuilder, ImageFormat, ImageSize, ImageUsage, ImageViewBuilder}, renderer::texture::Texture
-    }, math::uvec::Vec2u
+    error::ParsecError,
+    graphics::{
+        ActiveGraphicsBackend,
+        buffer::BufferHandle,
+        command_list::{Command, CommandList},
+        image::{
+            ImageAspect, ImageBuilder, ImageFormat, ImageSize, ImageUsage,
+            ImageViewBuilder,
+        },
+        renderer::texture::Texture,
+    },
+    math::uvec::Vec2u,
 };
 
 struct TextureAtlasElement {
