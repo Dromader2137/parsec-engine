@@ -11,6 +11,7 @@ pub mod light_data;
 pub mod material_data;
 pub mod mesh_data;
 pub mod present_image;
+pub mod shadow;
 pub mod sync;
 pub mod texture;
 pub mod texture_atlas;
@@ -45,6 +46,8 @@ use crate::{
             },
             mesh_data::MeshData,
             present_image::PresentImage,
+            shadow::RendererShadowpassData,
+            texture_atlas::TextureAtlas,
             transform_data::{TransformData, TransformDataManager},
         },
         renderpass::{
@@ -110,26 +113,6 @@ pub struct RendererDepthImage(pub DepthImage);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
-#[allow(unused)]
-pub struct RendererShadowpassData {
-    light_dir_buffer: Buffer,
-    light_dir_layout: PipelineResourceLayout,
-    light_dir_resource: PipelineResource,
-    renderpass: Renderpass,
-    material_id: u32,
-    vertex_shader: Shader,
-    fragment_shader: Shader,
-    image: Image,
-    image_view: ImageView,
-    image_sampler: Sampler,
-    image_resource: PipelineResource,
-    framebuffer: Framebuffer,
-    proj_buffer: Buffer,
-    proj_resource: PipelineResource,
-    look_buffer: Buffer,
-    look_resource: PipelineResource,
-}
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::NoUninit)]
 struct LD {
@@ -190,177 +173,14 @@ pub fn init_renderer(
     let command_lists =
         create_commad_lists(backend.deref_mut(), frames_in_flight);
 
-    let shadow_renderpass = RenderpassBuilder::new()
-        .attachment(RenderpassAttachment {
-            attachment_type: RenderpassAttachmentType::Depth,
-            image_format: ImageFormat::D32,
-            clear_value: RenderpassClearValue::Depth(1.0),
-            load_op: RenderpassAttachmentLoadOp::Clear,
-            store_op: RenderpassAttachmentStoreOp::Store,
-        })
-        .build(&mut backend)
-        .unwrap();
-    let shadow_vertex_shader = ShaderBuilder::new()
-        .code(&read_shader_code("shaders/shadow_vert.spv").unwrap())
-        .shader_type(ShaderType::Vertex)
-        .build(&mut backend)
-        .unwrap();
-    let shadow_fragment_shader = ShaderBuilder::new()
-        .code(&read_shader_code("shaders/shadow_frag.spv").unwrap())
-        .shader_type(ShaderType::Fragment)
-        .build(&mut backend)
-        .unwrap();
-    let shadow_material_base = MaterialBase::new(
-        &mut *backend,
-        shadow_vertex_shader.handle(),
-        shadow_fragment_shader.handle(),
-        shadow_renderpass.handle(),
-        vec![
-            vec![
-                PipelineResourceBindingLayout::new(
-                    PipelineBindingType::UniformBuffer,
-                    &[PipelineShaderStage::Vertex],
-                ),
-                PipelineResourceBindingLayout::new(
-                    PipelineBindingType::UniformBuffer,
-                    &[PipelineShaderStage::Vertex],
-                ),
-                PipelineResourceBindingLayout::new(
-                    PipelineBindingType::UniformBuffer,
-                    &[PipelineShaderStage::Vertex],
-                ),
-            ],
-            vec![PipelineResourceBindingLayout::new(
-                PipelineBindingType::UniformBuffer,
-                &[PipelineShaderStage::Vertex],
-            )],
-            vec![PipelineResourceBindingLayout::new(
-                PipelineBindingType::UniformBuffer,
-                &[PipelineShaderStage::Vertex],
-            )],
-        ],
-        PipelineOptions::default(),
-    );
-    let shadow_size = 1 << 10;
-    let shadow_depth_image = ImageBuilder::new()
-        .size(ImageSize::new(Vec2u::new(shadow_size, shadow_size)).unwrap())
-        .format(ImageFormat::D32)
-        .aspect(ImageAspect::Depth)
-        .usage(&[ImageUsage::DepthAttachment, ImageUsage::Sampled])
-        .build(&mut backend)
-        .unwrap();
-    let shadow_depth_view = ImageViewBuilder::new()
-        .image(shadow_depth_image.handle())
-        .build(&mut backend)
-        .unwrap();
-    let shadow_framebuffer = FramebufferBuilder::new()
-        .attachment(shadow_depth_view.handle())
-        .size(Vec2u::new(shadow_size, shadow_size))
-        .renderpass(shadow_renderpass.handle())
-        .build(&mut backend)
-        .unwrap();
-    let shadow_proj_buffer = BufferBuilder::new()
-        .usage(&[BufferUsage::Uniform])
-        .data(BufferContent::from_slice(&[Matrix4f::orthographic(
-            0.0, 100.0, 25.0, 25.0,
-        )]))
-        .build(&mut backend)
-        .unwrap();
-    let shadow_look_buffer = BufferBuilder::new()
-        .usage(&[BufferUsage::Uniform])
-        .data(BufferContent::from_slice(&[Matrix4f::look_at(
-            Vec3f::new(-40.0, 40.0, -40.0),
-            Vec3f::new(1.0, -1.0, 1.0),
-            Vec3f::new(1.0, 1.0, 1.0),
-        )]))
-        .build(&mut backend)
-        .unwrap();
-    let shadow_proj_resource = shadow_material_base.resource_layouts()[2]
-        .create_resource(&mut backend)
-        .unwrap();
-    let shadow_look_resource = shadow_material_base.resource_layouts()[1]
-        .create_resource(&mut backend)
-        .unwrap();
-    shadow_proj_resource
-        .bind_buffer(&mut backend, shadow_proj_buffer.handle(), 0)
-        .unwrap();
-    shadow_look_resource
-        .bind_buffer(&mut backend, shadow_look_buffer.handle(), 0)
-        .unwrap();
-    let shadow_material = MaterialData::new(&shadow_material_base, vec![
-        MaterialPipelineBinding::Model,
-        MaterialPipelineBinding::Generic(shadow_look_resource.handle()),
-        MaterialPipelineBinding::Generic(shadow_proj_resource.handle()),
-    ]);
-    let shadow_sampler = SamplerBuilder::new().build(&mut backend).unwrap();
-    let shadow_tex_resource = PipelineResourceLayoutBuilder::new()
-        .bindings(&[PipelineResourceBindingLayout {
-            binding_type: PipelineBindingType::TextureSampler,
-            shader_stages: vec![PipelineShaderStage::Fragment],
-        }])
-        .build(&mut backend)
-        .unwrap()
-        .create_resource(&mut backend)
-        .unwrap();
-    shadow_tex_resource
-        .bind_sampler(
-            &mut backend,
-            shadow_sampler.handle(),
-            shadow_depth_view.handle(),
-            0,
-        )
-        .unwrap();
-
-    let light_buffer = BufferBuilder::new()
-        .usage(&[BufferUsage::Uniform])
-        .data(BufferContent::from_slice(&[LD {
-            dir: Vec3f::new(1.0, -1.0, 1.0),
-            mat: Matrix4f::orthographic(0.0, 100.0, 25.0, 25.0)
-                * Matrix4f::look_at(
-                    Vec3f::new(-40.0, 40.0, -40.0),
-                    Vec3f::new(1.0, -1.0, 1.0),
-                    Vec3f::new(1.0, 1.0, 1.0),
-                ),
-            _pad: 0,
-        }]))
-        .build(&mut backend)
-        .unwrap();
-    let light_layout = PipelineResourceLayoutBuilder::new()
-        .bindings(&[PipelineResourceBindingLayout::new(
-            PipelineBindingType::UniformBuffer,
-            &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
-        )])
-        .build(&mut backend)
-        .unwrap();
-    let light_resource = light_layout.create_resource(&mut backend).unwrap();
-    light_resource
-        .bind_buffer(&mut backend, light_buffer.handle(), 0)
-        .unwrap();
-
     let mut material_bases = IdStore::new();
     let mut materials_data = IdStore::new();
 
-    material_bases.push(shadow_material_base);
-    let shadow_material_id = materials_data.push(shadow_material);
-
-    let shadow_data = RendererShadowpassData {
-        light_dir_buffer: light_buffer,
-        light_dir_layout: light_layout,
-        light_dir_resource: light_resource,
-        renderpass: shadow_renderpass,
-        material_id: shadow_material_id,
-        vertex_shader: shadow_vertex_shader,
-        fragment_shader: shadow_fragment_shader,
-        image: shadow_depth_image,
-        image_view: shadow_depth_view,
-        image_sampler: shadow_sampler,
-        image_resource: shadow_tex_resource,
-        framebuffer: shadow_framebuffer,
-        proj_buffer: shadow_proj_buffer,
-        proj_resource: shadow_proj_resource,
-        look_buffer: shadow_look_buffer,
-        look_resource: shadow_look_resource,
-    };
+    let shadow_data = RendererShadowpassData::new(
+        &mut backend,
+        &mut material_bases,
+        &mut materials_data,
+    );
 
     requests.create_resource(shadow_data);
     requests.create_resource(RendererMainRenderpass(renderpass));
