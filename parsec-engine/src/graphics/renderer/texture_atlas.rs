@@ -9,6 +9,7 @@ use crate::{
             ImageViewBuilder,
         },
         renderer::texture::Texture,
+        sampler::SamplerBuilder,
     },
     math::uvec::Vec2u,
 };
@@ -66,7 +67,7 @@ impl<'a> TextureAtlasBuilder<'a> {
         let view = ImageViewBuilder::new()
             .image(image.handle())
             .build(backend)?;
-        let sampler = backend.create_image_sampler()?;
+        let sampler = SamplerBuilder::new().build(backend)?;
         let texture = Texture::new(image, view, sampler);
 
         Ok(TextureAtlas {

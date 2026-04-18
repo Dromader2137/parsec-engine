@@ -19,14 +19,16 @@ use crate::{
             ImageUsage, ImageView, ImageViewHandle,
         },
         pipeline::{
-            Pipeline, PipelineError, PipelineOptions, PipelineResource,
-            PipelineResourceBindingLayout, PipelineResourceLayout,
+            Pipeline, PipelineError, PipelineHandle, PipelineOptions,
+            PipelineResource, PipelineResourceBindingLayout,
+            PipelineResourceHandle, PipelineResourceLayout,
+            PipelineResourceLayoutHandle,
         },
         renderpass::{
             Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
         },
-        sampler::{Sampler, SamplerError},
-        shader::{Shader, ShaderError, ShaderType},
+        sampler::{Sampler, SamplerError, SamplerHandle},
+        shader::{Shader, ShaderError, ShaderHandle, ShaderType},
         vulkan::{
             allocator::{VulkanAllocator, VulkanMemoryProperties},
             buffer::VulkanBuffer,
@@ -425,19 +427,19 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         code: &[u32],
         shader_type: ShaderType,
-    ) -> Result<Shader, ShaderError> {
+    ) -> Result<ShaderHandle, ShaderError> {
         let shader =
             VulkanShaderModule::new(&self.device, code, shader_type)
                 .map_err(|err| ShaderError::ShaderCreationError(err.into()))?;
         let shader_id = shader.id();
         self.shaders.insert(shader_id, shader);
-        Ok(Shader::new(shader_id))
+        Ok(ShaderHandle::new(shader_id))
     }
 
     fn delete_shader(&mut self, shader: Shader) -> Result<(), ShaderError> {
         let shader = self
             .shaders
-            .remove(&shader.id())
+            .remove(&shader.handle().id())
             .ok_or(ShaderError::ShaderNotFound)?;
         shader.destroy(&self.device);
         Ok(())
@@ -477,40 +479,14 @@ impl GraphicsBackend for VulkanBackend {
         Ok(())
     }
 
-    fn create_pipeline_resource_layout(
-        &mut self,
-        subbindings: &[PipelineResourceBindingLayout],
-    ) -> Result<PipelineResourceLayout, PipelineError> {
-        let set_bindings = subbindings
-            .iter()
-            .enumerate()
-            .map(|(id, binding)| {
-                VulkanDescriptorSetBinding::new(
-                    id as u32,
-                    VulkanDescriptorType::new(binding.binding_type),
-                    &binding
-                        .shader_stages
-                        .iter()
-                        .map(|x| VulkanShaderStage::new(*x))
-                        .collect::<Vec<_>>(),
-                )
-            })
-            .collect::<Vec<_>>();
-        let dsl = VulkanDescriptorSetLayout::new(&self.device, set_bindings)
-            .map_err(|err| PipelineError::LayoutCreationError(err.into()))?;
-        let dsl_id = dsl.id();
-        self.descriptor_set_layouts.insert(dsl_id, dsl);
-        Ok(PipelineResourceLayout::new(dsl_id))
-    }
-
     fn create_pipeline(
         &mut self,
-        vertex_shader: Shader,
-        fragment_shader: Shader,
+        vertex_shader: ShaderHandle,
+        fragment_shader: ShaderHandle,
         renderpass: RenderpassHandle,
-        binding_layouts: &[PipelineResourceLayout],
+        binding_layouts: &[PipelineResourceLayoutHandle],
         options: PipelineOptions,
-    ) -> Result<Pipeline, PipelineError> {
+    ) -> Result<PipelineHandle, PipelineError> {
         let vsm = self
             .shaders
             .get(&vertex_shader.id())
@@ -543,13 +519,63 @@ impl GraphicsBackend for VulkanBackend {
         .map_err(|err| PipelineError::PipelineCreationError(err.into()))?;
         let pipeline_id = pipeline.id();
         self.pipelines.insert(pipeline_id, pipeline);
-        Ok(Pipeline::new(pipeline_id))
+        Ok(PipelineHandle::new(pipeline_id))
+    }
+
+    fn delete_pipeline(
+        &mut self,
+        pipeline: Pipeline,
+    ) -> Result<(), PipelineError> {
+        let pip = self
+            .pipelines
+            .remove(&pipeline.id())
+            .ok_or(PipelineError::PipelineNotFound)?;
+        pip.destroy(&self.device);
+        Ok(())
+    }
+
+    fn create_pipeline_resource_layout(
+        &mut self,
+        subbindings: &[PipelineResourceBindingLayout],
+    ) -> Result<PipelineResourceLayoutHandle, PipelineError> {
+        let set_bindings = subbindings
+            .iter()
+            .enumerate()
+            .map(|(id, binding)| {
+                VulkanDescriptorSetBinding::new(
+                    id as u32,
+                    VulkanDescriptorType::new(binding.binding_type),
+                    &binding
+                        .shader_stages
+                        .iter()
+                        .map(|x| VulkanShaderStage::new(*x))
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let dsl = VulkanDescriptorSetLayout::new(&self.device, set_bindings)
+            .map_err(|err| PipelineError::LayoutCreationError(err.into()))?;
+        let dsl_id = dsl.id();
+        self.descriptor_set_layouts.insert(dsl_id, dsl);
+        Ok(PipelineResourceLayoutHandle::new(dsl_id))
+    }
+
+    fn delete_pipeline_resource_layout(
+        &mut self,
+        layout: PipelineResourceLayout,
+    ) -> Result<(), PipelineError> {
+        let dsl = self
+            .descriptor_set_layouts
+            .remove(&layout.id())
+            .ok_or(PipelineError::ResourceLayoutNotFound)?;
+        dsl.destroy(&self.device);
+        Ok(())
     }
 
     fn create_pipeline_resource(
         &mut self,
-        pipeline_layout: PipelineResourceLayout,
-    ) -> Result<PipelineResource, PipelineError> {
+        pipeline_layout: PipelineResourceLayoutHandle,
+    ) -> Result<PipelineResourceHandle, PipelineError> {
         let dsl = self
             .descriptor_set_layouts
             .get(&pipeline_layout.id())
@@ -561,56 +587,70 @@ impl GraphicsBackend for VulkanBackend {
                 })?;
         let ds_id = ds.id();
         self.descriptor_sets.insert(ds_id, ds);
-        Ok(PipelineResource::new(ds_id))
+        Ok(PipelineResourceHandle::new(ds_id))
+    }
+
+    fn delete_pipeline_resource(
+        &mut self,
+        resrouce: PipelineResource,
+    ) -> Result<(), PipelineError> {
+        let ds = self
+            .descriptor_sets
+            .remove(&resrouce.id())
+            .ok_or(PipelineError::ResourceNotFound)?;
+        ds.free(&self.device, &self.descriptor_pool).map_err(|err| {
+            PipelineError::PipelineResourceDestructionError(err.into())
+        })?;
+        Ok(())
     }
 
     fn bind_buffer(
         &mut self,
-        pipeline_binding: PipelineResource,
+        pipeline_binding: PipelineResourceHandle,
         buffer: BufferHandle,
         index: u32,
-    ) -> Result<(), BufferError> {
+    ) -> Result<(), PipelineError> {
         let ds = self
             .descriptor_sets
             .get_mut(&pipeline_binding.id())
-            .unwrap();
+            .ok_or(PipelineError::ResourceNotFound)?;
         let dsl = self
             .descriptor_set_layouts
             .get(&ds.descriptor_layout_id())
-            .ok_or(BufferError::PipelineBindingNotFound)?;
+            .ok_or(PipelineError::ResourceLayoutNotFound)?;
         let buf = self
             .buffers
             .get(&buffer.id())
-            .ok_or(BufferError::BufferNotFound)?;
+            .ok_or(PipelineError::BufferNotFound)?;
         ds.bind_buffer(buf, &self.device, dsl, index)
-            .map_err(|err| BufferError::BufferBindError(err.into()))
+            .map_err(|err| PipelineError::BufferBindError(err.into()))
     }
 
     fn bind_sampler(
         &mut self,
-        pipeline_binding: PipelineResource,
-        sampler: Sampler,
+        pipeline_binding: PipelineResourceHandle,
+        sampler: SamplerHandle,
         image_view: ImageViewHandle,
         index: u32,
-    ) -> Result<(), SamplerError> {
+    ) -> Result<(), PipelineError> {
         let ds = self
             .descriptor_sets
             .get_mut(&pipeline_binding.id())
-            .ok_or(SamplerError::PipelineResourceNotFound)?;
+            .ok_or(PipelineError::ResourceNotFound)?;
         let dsl = self
             .descriptor_set_layouts
             .get(&ds.descriptor_layout_id())
-            .ok_or(SamplerError::PipelineResourceLayoutNotFound)?;
+            .ok_or(PipelineError::ResourceLayoutNotFound)?;
         let sam = self
             .samplers
             .get(&sampler.id())
-            .ok_or(SamplerError::SamplerNotFound)?;
+            .ok_or(PipelineError::SamplerNotFound)?;
         let imv = self
             .image_views
             .get(&image_view.id())
-            .ok_or(SamplerError::ImageViewNowFound)?;
+            .ok_or(PipelineError::ImageViewNotFound)?;
         ds.bind_image_view(imv, sam, &self.device, dsl, index)
-            .map_err(|err| SamplerError::SamplerBindError(err.into()))
+            .map_err(|err| PipelineError::SamplerBindError(err.into()))
     }
 
     fn create_command_list(&mut self) -> Result<CommandList, CommandListError> {
@@ -897,15 +937,6 @@ impl GraphicsBackend for VulkanBackend {
         Ok(ImageHandle::new(image_id))
     }
 
-    fn delete_image(&mut self, image: Image) -> Result<(), ImageError> {
-        let result = self
-            .images
-            .remove(&image.id())
-            .ok_or(ImageError::ImageNotFound)?;
-        result.destroy(&self.device, &mut self.allocator);
-        Ok(())
-    }
-
     fn load_image_from_buffer(
         &mut self,
         buffer: BufferHandle,
@@ -958,6 +989,15 @@ impl GraphicsBackend for VulkanBackend {
         Ok(())
     }
 
+    fn delete_image(&mut self, image: Image) -> Result<(), ImageError> {
+        let result = self
+            .images
+            .remove(&image.id())
+            .ok_or(ImageError::ImageNotFound)?;
+        result.destroy(&self.device, &mut self.allocator);
+        Ok(())
+    }
+
     fn create_image_view(
         &mut self,
         image: ImageHandle,
@@ -985,12 +1025,12 @@ impl GraphicsBackend for VulkanBackend {
         Ok(())
     }
 
-    fn create_image_sampler(&mut self) -> Result<Sampler, SamplerError> {
+    fn create_image_sampler(&mut self) -> Result<SamplerHandle, SamplerError> {
         let sampler = VulkanSampler::new(&self.device)
             .map_err(|err| SamplerError::SamplerCreationError(err.into()))?;
         let sampler_id = sampler.id();
         self.samplers.insert(sampler_id, sampler);
-        Ok(Sampler::new(sampler_id))
+        Ok(SamplerHandle::new(sampler_id))
     }
 
     fn delete_image_sampler(
@@ -1028,7 +1068,7 @@ impl GraphicsBackend for VulkanBackend {
         let ren = self
             .renderpasses
             .get(&renderpass.id())
-            .ok_or(FramebufferError::RenderpassNotFound)?;
+            .ok_or(FramebufferError::RenderpassNotSet)?;
         let framebuffer = VulkanFramebuffer::new(&self.device, &att, ren, size)
             .map_err(|err| {
                 FramebufferError::FramebufferCreationError(err.into())

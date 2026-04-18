@@ -3,12 +3,13 @@ use crate::{
         ActiveGraphicsBackend,
         command_list::{Command, CommandList},
         pipeline::{
-            Pipeline, PipelineOptions, PipelineResource,
-            PipelineResourceBindingLayout, PipelineResourceLayout,
+            Pipeline, PipelineBuilder, PipelineOptions,
+            PipelineResourceBindingLayout, PipelineResourceHandle,
+            PipelineResourceLayout, PipelineResourceLayoutBuilder,
         },
         renderer::{camera_data::CameraData, transform_data::TransformData},
         renderpass::RenderpassHandle,
-        shader::Shader,
+        shader::ShaderHandle,
     },
     utils::{IdType, identifiable::Identifiable},
 };
@@ -16,47 +17,52 @@ use crate::{
 pub struct MaterialBase {
     material_base_id: IdType,
     pipeline: Pipeline,
-    #[allow(unused)]
-    binding_layouts: Vec<PipelineResourceLayout>,
+    resource_layouts: Vec<PipelineResourceLayout>,
 }
 
 crate::create_counter! {ID_COUNTER}
 impl MaterialBase {
     pub fn new(
         backend: &mut ActiveGraphicsBackend,
-        vertex_shader: Shader,
-        fragment_shader: Shader,
+        vertex_shader: ShaderHandle,
+        fragment_shader: ShaderHandle,
         renderpass: RenderpassHandle,
         binding_layouts: Vec<Vec<PipelineResourceBindingLayout>>,
         pipeline_options: PipelineOptions,
     ) -> MaterialBase {
-        let binding_layouts = binding_layouts
+        let resource_layouts = binding_layouts
             .iter()
             .map(|binding_layout| {
-                backend
-                    .create_pipeline_resource_layout(&binding_layout)
+                PipelineResourceLayoutBuilder::new()
+                    .bindings(binding_layout)
+                    .build(backend)
                     .unwrap()
             })
-            .collect::<Vec<_>>();
+            .collect::<Vec<PipelineResourceLayout>>();
 
-        let pipeline = backend
-            .create_pipeline(
-                vertex_shader,
-                fragment_shader,
-                renderpass,
-                &binding_layouts,
-                pipeline_options,
-            )
+        let layout_handles: Vec<_> =
+            resource_layouts.iter().map(|l| l.handle()).collect();
+        let pipeline = PipelineBuilder::new()
+            .renderpass(renderpass)
+            .vertex_shader(vertex_shader)
+            .fragment_shader(fragment_shader)
+            .resource_layouts(&layout_handles)
+            .cull_mode(pipeline_options.culling_mode)
+            .build(backend)
             .unwrap();
 
         MaterialBase {
             material_base_id: ID_COUNTER.next(),
             pipeline,
-            binding_layouts,
+            resource_layouts,
         }
     }
 
     pub fn id(&self) -> u32 { self.material_base_id }
+
+    pub fn resource_layouts(&self) -> &[PipelineResourceLayout] {
+        &self.resource_layouts
+    }
 }
 
 impl Identifiable for MaterialBase {
@@ -69,25 +75,25 @@ pub enum MaterialPipelineBinding {
     Projection,
     ShadowMap,
     Light,
-    Generic(PipelineResource),
+    Generic(PipelineResourceHandle),
 }
 
 pub struct MaterialData {
     material_id: IdType,
     material_base_id: IdType,
-    descriptor_sets: Vec<MaterialPipelineBinding>,
+    resources: Vec<MaterialPipelineBinding>,
 }
 
 crate::create_counter! {ID_COUNTER_MAT}
 impl MaterialData {
     pub fn new(
         material_base: &MaterialBase,
-        material_descriptor_sets: Vec<MaterialPipelineBinding>,
+        material_resrouces: Vec<MaterialPipelineBinding>,
     ) -> MaterialData {
         MaterialData {
             material_id: ID_COUNTER_MAT.next(),
             material_base_id: material_base.id(),
-            descriptor_sets: material_descriptor_sets,
+            resources: material_resrouces,
         }
     }
 
@@ -98,21 +104,27 @@ impl MaterialData {
         camera: &CameraData,
         camera_transform: &TransformData,
         transform: &TransformData,
-        light_binding: PipelineResource,
-        shadowmap_binding: PipelineResource,
+        light_resource: PipelineResourceHandle,
+        shadowmap_resource: PipelineResourceHandle,
     ) {
-        command_list.cmd(Command::BindGraphicsPipeline(material_base.pipeline));
-        for (set_index, binding) in self.descriptor_sets.iter().enumerate() {
+        command_list.cmd(Command::BindGraphicsPipeline(
+            material_base.pipeline.handle(),
+        ));
+        for (set_index, binding) in self.resources.iter().enumerate() {
             let pipeline_binding = match binding {
                 MaterialPipelineBinding::View => {
-                    camera_transform.look_at_binding
+                    camera_transform.look_at_resource.handle()
                 },
                 MaterialPipelineBinding::Projection => {
-                    camera.projection_binding
+                    camera.projection_resource.handle()
                 },
-                MaterialPipelineBinding::Model => transform.model_binding,
-                MaterialPipelineBinding::Light => light_binding,
-                MaterialPipelineBinding::ShadowMap => shadowmap_binding,
+                MaterialPipelineBinding::Model => {
+                    transform.model_resource.handle()
+                },
+                MaterialPipelineBinding::Light => light_resource,
+                MaterialPipelineBinding::ShadowMap => {
+                    shadowmap_resource
+                },
                 MaterialPipelineBinding::Generic(bind) => *bind,
             };
             command_list.cmd(Command::BindPipelineBinding(

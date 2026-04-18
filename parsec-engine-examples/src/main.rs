@@ -13,7 +13,7 @@ use parsec_engine::{
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode,
             PipelineOptions, PipelineResourceBindingLayout,
-            PipelineShaderStage,
+            PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         renderer::{
             RendererMainRenderpass,
@@ -26,12 +26,13 @@ use parsec_engine::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
             },
         },
-        shader::ShaderType,
+        sampler::SamplerBuilder,
+        shader::{ShaderBuilder, ShaderType},
         vulkan::shader::read_shader_code,
         window::Window,
     },
     input::{Input, InputBundle},
-    math::{mat::Matrix4f, quat::Quat, uvec::Vec2u, vec::Vec3f},
+    math::{quat::Quat, uvec::Vec2u, vec::Vec3f},
     resources::Resource,
     time::{Time, TimeBundle},
     utils::identifiable::IdStore,
@@ -46,23 +47,21 @@ fn test_system(
     mut meshes: Resource<IdStore<Mesh>>,
     renderpass: Resource<RendererMainRenderpass>,
 ) -> Result<(), ParsecError> {
-    let vertex = backend
-        .create_shader(
-            &read_shader_code("shaders/simple.spv")?,
-            ShaderType::Vertex,
-        )
+    let vertex = ShaderBuilder::new()
+        .code(&read_shader_code("shaders/simple.spv")?)
+        .shader_type(ShaderType::Vertex)
+        .build(&mut backend)
         .unwrap();
-    let fragment = backend
-        .create_shader(
-            &read_shader_code("shaders/flat.spv")?,
-            ShaderType::Fragment,
-        )
+    let fragment = ShaderBuilder::new()
+        .code(&read_shader_code("shaders/flat.spv")?)
+        .shader_type(ShaderType::Fragment)
+        .build(&mut backend)
         .unwrap();
 
     let material_base = MaterialBase::new(
         &mut *backend,
-        vertex,
-        fragment,
+        vertex.handle(),
+        fragment.handle(),
         renderpass.0.handle(),
         vec![
             vec![
@@ -128,19 +127,19 @@ fn test_system(
             Vec2u::ZERO,
         )
         .unwrap();
-    let texture_binding_layout = backend
-        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout::new(
+    let texture_binding = PipelineResourceLayoutBuilder::new()
+        .bindings(&[PipelineResourceBindingLayout::new(
             PipelineBindingType::TextureSampler,
             &[PipelineShaderStage::Fragment],
         )])
+        .build(&mut backend)
+        .unwrap()
+        .create_resource(&mut backend)
         .unwrap();
-    let texture_binding = backend
-        .create_pipeline_resource(texture_binding_layout)
-        .unwrap();
-    let texture_sampler = backend.create_image_sampler().unwrap();
+    let texture_sampler = SamplerBuilder::new().build(&mut backend).unwrap();
     let texture_image_view = backend.create_image_view(texture_image).unwrap();
     backend
-        .bind_sampler(texture_binding, texture_sampler, texture_image_view, 0)
+        .bind_sampler(texture_binding.handle(), texture_sampler.handle(), texture_image_view, 0)
         .unwrap();
 
     let material = MaterialData::new(&material_base, vec![
@@ -148,7 +147,7 @@ fn test_system(
         MaterialPipelineBinding::View,
         MaterialPipelineBinding::Projection,
         MaterialPipelineBinding::Light,
-        MaterialPipelineBinding::Generic(texture_binding),
+        MaterialPipelineBinding::Generic(texture_binding.handle()),
         MaterialPipelineBinding::ShadowMap,
     ]);
 

@@ -1,7 +1,4 @@
-use std::collections::{
-    LinkedList,
-    linked_list::{Cursor, CursorMut},
-};
+use std::collections::{LinkedList, linked_list::CursorMut};
 
 use crate::graphics::vulkan::{
     allocator::{VulkanMemoryProperties, VulkanMemoryRequirements},

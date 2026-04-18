@@ -10,7 +10,9 @@ use crate::{
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         pipeline::{
             PipelineBindingType, PipelineResource,
-            PipelineResourceBindingLayout, PipelineShaderStage,
+            PipelineResourceBindingLayout, PipelineResourceHandle,
+            PipelineResourceLayout, PipelineResourceLayoutBuilder,
+            PipelineShaderStage,
         },
         renderer::components::transform::Transform,
     },
@@ -30,10 +32,12 @@ pub struct TransformData {
     pub translation_buffer: Buffer,
     pub scale_buffer: Buffer,
     pub rotation_buffer: Buffer,
-    pub model_binding: PipelineResource,
+    model_layout: PipelineResourceLayout,
+    pub model_resource: PipelineResource,
     pub look_at_matrix: Matrix4f,
     pub look_at_buffer: Buffer,
-    pub look_at_binding: PipelineResource,
+    look_at_layout: PipelineResourceLayout,
+    pub look_at_resource: PipelineResource,
 }
 
 pub struct TransformDataManager {
@@ -76,8 +80,8 @@ impl TransformData {
             .data(BufferContent::from_slice(&[scale_matrix]))
             .build(backend)
             .unwrap();
-        let model_pipeline_layout = backend
-            .create_pipeline_resource_layout(&[
+        let mut model_layout = PipelineResourceLayoutBuilder::new()
+            .bindings(&[
                 PipelineResourceBindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
                     shader_stages: vec![PipelineShaderStage::Vertex],
@@ -91,30 +95,28 @@ impl TransformData {
                     shader_stages: vec![PipelineShaderStage::Vertex],
                 },
             ])
+            .build(backend)
             .unwrap();
-        let look_at_pipeline_layout = backend
-            .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
+        let mut look_at_layout = PipelineResourceLayoutBuilder::new()
+            .bindings(&[PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
             }])
+            .build(backend)
             .unwrap();
-        let model_binding = backend
-            .create_pipeline_resource(model_pipeline_layout)
+        let model_resource = model_layout.create_resource(backend).unwrap();
+        let look_at_resource = look_at_layout.create_resource(backend).unwrap();
+        model_resource
+            .bind_buffer(backend, translation_buffer.handle(), 0)
             .unwrap();
-        let look_at_binding = backend
-            .create_pipeline_resource(look_at_pipeline_layout)
+        model_resource
+            .bind_buffer(backend, scale_buffer.handle(), 1)
             .unwrap();
-        backend
-            .bind_buffer(model_binding, translation_buffer.handle(), 0)
+        model_resource
+            .bind_buffer(backend, rotation_buffer.handle(), 2)
             .unwrap();
-        backend
-            .bind_buffer(model_binding, scale_buffer.handle(), 1)
-            .unwrap();
-        backend
-            .bind_buffer(model_binding, rotation_buffer.handle(), 2)
-            .unwrap();
-        backend
-            .bind_buffer(look_at_binding, look_at_buffer.handle(), 0)
+        look_at_resource
+            .bind_buffer(backend, look_at_buffer.handle(), 0)
             .unwrap();
         TransformData {
             transform_data_id: ID_COUNTER.next(),
@@ -124,10 +126,12 @@ impl TransformData {
             translation_buffer,
             scale_buffer,
             rotation_buffer,
-            model_binding,
+            model_layout,
+            model_resource,
             look_at_matrix,
             look_at_buffer,
-            look_at_binding,
+            look_at_layout,
+            look_at_resource,
         }
     }
 

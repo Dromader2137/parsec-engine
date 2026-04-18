@@ -24,15 +24,16 @@ use crate::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         command_list::{Command, CommandList},
-        framebuffer::{Framebuffer, FramebufferBuilder, FramebufferHandle},
+        framebuffer::{Framebuffer, FramebufferBuilder},
         image::{
-            Image, ImageAspect, ImageBuilder, ImageFormat, ImageHandle,
-            ImageSize, ImageUsage, ImageView, ImageViewBuilder,
+            Image, ImageAspect, ImageBuilder, ImageFormat, ImageSize,
+            ImageUsage, ImageView, ImageViewBuilder,
         },
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineOptions,
             PipelineResource, PipelineResourceBindingLayout,
-            PipelineShaderStage,
+            PipelineResourceHandle, PipelineResourceLayout,
+            PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         renderer::{
             assets::mesh::Mesh,
@@ -51,8 +52,8 @@ use crate::{
             RenderpassAttachmentStoreOp, RenderpassAttachmentType,
             RenderpassBuilder, RenderpassClearValue, RenderpassHandle,
         },
-        sampler::Sampler,
-        shader::{Shader, ShaderType},
+        sampler::{Sampler, SamplerBuilder},
+        shader::{Shader, ShaderBuilder, ShaderType},
         vulkan::shader::read_shader_code,
         window::Window,
     },
@@ -112,7 +113,8 @@ pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 #[allow(unused)]
 pub struct RendererShadowpassData {
     light_dir_buffer: Buffer,
-    light_dir_binding: PipelineResource,
+    light_dir_layout: PipelineResourceLayout,
+    light_dir_resource: PipelineResource,
     renderpass: Renderpass,
     material_id: u32,
     vertex_shader: Shader,
@@ -120,12 +122,12 @@ pub struct RendererShadowpassData {
     image: Image,
     image_view: ImageView,
     image_sampler: Sampler,
-    image_binding: PipelineResource,
+    image_resource: PipelineResource,
     framebuffer: Framebuffer,
     proj_buffer: Buffer,
+    proj_resource: PipelineResource,
     look_buffer: Buffer,
-    proj_binding: PipelineResource,
-    look_binding: PipelineResource,
+    look_resource: PipelineResource,
 }
 
 #[repr(C)]
@@ -198,22 +200,20 @@ pub fn init_renderer(
         })
         .build(&mut backend)
         .unwrap();
-    let shadow_vertex_shader = backend
-        .create_shader(
-            &read_shader_code("shaders/shadow_vert.spv").unwrap(),
-            ShaderType::Vertex,
-        )
+    let shadow_vertex_shader = ShaderBuilder::new()
+        .code(&read_shader_code("shaders/shadow_vert.spv").unwrap())
+        .shader_type(ShaderType::Vertex)
+        .build(&mut backend)
         .unwrap();
-    let shadow_fragment_shader = backend
-        .create_shader(
-            &read_shader_code("shaders/shadow_frag.spv").unwrap(),
-            ShaderType::Fragment,
-        )
+    let shadow_fragment_shader = ShaderBuilder::new()
+        .code(&read_shader_code("shaders/shadow_frag.spv").unwrap())
+        .shader_type(ShaderType::Fragment)
+        .build(&mut backend)
         .unwrap();
     let shadow_material_base = MaterialBase::new(
         &mut *backend,
-        shadow_vertex_shader,
-        shadow_fragment_shader,
+        shadow_vertex_shader.handle(),
+        shadow_fragment_shader.handle(),
         shadow_renderpass.handle(),
         vec![
             vec![
@@ -275,48 +275,37 @@ pub fn init_renderer(
         )]))
         .build(&mut backend)
         .unwrap();
-    let shadow_proj_layout = backend
-        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
-            binding_type: PipelineBindingType::UniformBuffer,
-            shader_stages: vec![PipelineShaderStage::Vertex],
-        }])
+    let shadow_proj_resource = shadow_material_base.resource_layouts()[2]
+        .create_resource(&mut backend)
         .unwrap();
-    let shadow_look_layout = backend
-        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
-            binding_type: PipelineBindingType::UniformBuffer,
-            shader_stages: vec![PipelineShaderStage::Vertex],
-        }])
+    let shadow_look_resource = shadow_material_base.resource_layouts()[1]
+        .create_resource(&mut backend)
         .unwrap();
-    let shadow_proj_binding = backend
-        .create_pipeline_resource(shadow_proj_layout)
+    shadow_proj_resource
+        .bind_buffer(&mut backend, shadow_proj_buffer.handle(), 0)
         .unwrap();
-    let shadow_look_binding = backend
-        .create_pipeline_resource(shadow_look_layout)
-        .unwrap();
-    backend
-        .bind_buffer(shadow_proj_binding, shadow_proj_buffer.handle(), 0)
-        .unwrap();
-    backend
-        .bind_buffer(shadow_look_binding, shadow_look_buffer.handle(), 0)
+    shadow_look_resource
+        .bind_buffer(&mut backend, shadow_look_buffer.handle(), 0)
         .unwrap();
     let shadow_material = MaterialData::new(&shadow_material_base, vec![
         MaterialPipelineBinding::Model,
-        MaterialPipelineBinding::Generic(shadow_look_binding),
-        MaterialPipelineBinding::Generic(shadow_proj_binding),
+        MaterialPipelineBinding::Generic(shadow_look_resource.handle()),
+        MaterialPipelineBinding::Generic(shadow_proj_resource.handle()),
     ]);
-    let shadow_sampler = backend.create_image_sampler().unwrap();
-    let shadow_tex_layout = backend
-        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
+    let shadow_sampler = SamplerBuilder::new().build(&mut backend).unwrap();
+    let shadow_tex_resource = PipelineResourceLayoutBuilder::new()
+        .bindings(&[PipelineResourceBindingLayout {
             binding_type: PipelineBindingType::TextureSampler,
             shader_stages: vec![PipelineShaderStage::Fragment],
         }])
+        .build(&mut backend)
+        .unwrap()
+        .create_resource(&mut backend)
         .unwrap();
-    let shadow_tex_binding =
-        backend.create_pipeline_resource(shadow_tex_layout).unwrap();
-    backend
+    shadow_tex_resource
         .bind_sampler(
-            shadow_tex_binding,
-            shadow_sampler,
+            &mut backend,
+            shadow_sampler.handle(),
             shadow_depth_view.handle(),
             0,
         )
@@ -336,17 +325,16 @@ pub fn init_renderer(
         }]))
         .build(&mut backend)
         .unwrap();
-    let light_binding_layout = backend
-        .create_pipeline_resource_layout(&[PipelineResourceBindingLayout::new(
+    let light_layout = PipelineResourceLayoutBuilder::new()
+        .bindings(&[PipelineResourceBindingLayout::new(
             PipelineBindingType::UniformBuffer,
             &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
         )])
+        .build(&mut backend)
         .unwrap();
-    let light_binding = backend
-        .create_pipeline_resource(light_binding_layout)
-        .unwrap();
-    backend
-        .bind_buffer(light_binding, light_buffer.handle(), 0)
+    let light_resource = light_layout.create_resource(&mut backend).unwrap();
+    light_resource
+        .bind_buffer(&mut backend, light_buffer.handle(), 0)
         .unwrap();
 
     let mut material_bases = IdStore::new();
@@ -357,7 +345,8 @@ pub fn init_renderer(
 
     let shadow_data = RendererShadowpassData {
         light_dir_buffer: light_buffer,
-        light_dir_binding: light_binding,
+        light_dir_layout: light_layout,
+        light_dir_resource: light_resource,
         renderpass: shadow_renderpass,
         material_id: shadow_material_id,
         vertex_shader: shadow_vertex_shader,
@@ -365,12 +354,12 @@ pub fn init_renderer(
         image: shadow_depth_image,
         image_view: shadow_depth_view,
         image_sampler: shadow_sampler,
-        image_binding: shadow_tex_binding,
+        image_resource: shadow_tex_resource,
         framebuffer: shadow_framebuffer,
         proj_buffer: shadow_proj_buffer,
-        proj_binding: shadow_proj_binding,
+        proj_resource: shadow_proj_resource,
         look_buffer: shadow_look_buffer,
-        look_binding: shadow_look_binding,
+        look_resource: shadow_look_resource,
     };
 
     requests.create_resource(shadow_data);
@@ -527,8 +516,8 @@ pub fn render(
                     camera,
                     camera_transform,
                     transform,
-                    shadowpass_data.light_dir_binding,
-                    shadowpass_data.image_binding,
+                    shadowpass_data.light_dir_resource.handle(),
+                    shadowpass_data.image_resource.handle(),
                 );
                 mesh.record_commands(command_list);
             },
@@ -564,8 +553,8 @@ pub fn render(
                     camera,
                     camera_transform,
                     transform,
-                    shadowpass_data.light_dir_binding,
-                    shadowpass_data.image_binding,
+                    shadowpass_data.light_dir_resource.handle(),
+                    shadowpass_data.image_resource.handle(),
                 );
                 mesh.record_commands(command_list);
             },

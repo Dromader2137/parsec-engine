@@ -13,14 +13,13 @@ use crate::{
             ImageUsage, ImageView, ImageViewHandle,
         },
         pipeline::{
-            Pipeline, PipelineError, PipelineOptions, PipelineResource,
-            PipelineResourceBindingLayout, PipelineResourceLayout,
+            Pipeline, PipelineError, PipelineHandle, PipelineOptions, PipelineResource, PipelineResourceBindingLayout, PipelineResourceHandle, PipelineResourceLayout, PipelineResourceLayoutHandle
         },
         renderpass::{
             Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
         },
-        sampler::{Sampler, SamplerError},
-        shader::{Shader, ShaderError, ShaderType},
+        sampler::{Sampler, SamplerError, SamplerHandle},
+        shader::{Shader, ShaderError, ShaderHandle, ShaderType},
         window::Window,
     },
     math::uvec::Vec2u,
@@ -58,7 +57,7 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         &mut self,
         code: &[u32],
         shader_type: ShaderType,
-    ) -> Result<Shader, ShaderError>;
+    ) -> Result<ShaderHandle, ShaderError>;
     fn delete_shader(&mut self, shader: Shader) -> Result<(), ShaderError>;
 
     fn create_renderpass(
@@ -70,35 +69,57 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         renderpass: Renderpass,
     ) -> Result<(), RenderpassError>;
 
+    // Pipeline
+
+    fn create_pipeline(
+        &mut self,
+        vertex_shader: ShaderHandle,
+        fragment_shader: ShaderHandle,
+        renderpass: RenderpassHandle,
+        binding_layouts: &[PipelineResourceLayoutHandle],
+        options: PipelineOptions,
+    ) -> Result<PipelineHandle, PipelineError>;
+    fn delete_pipeline(
+        &mut self,
+        pipeline: Pipeline,
+    ) -> Result<(), PipelineError>;
+
+    // Pipeline resource layout
+
     fn create_pipeline_resource_layout(
         &mut self,
         subbindings: &[PipelineResourceBindingLayout],
-    ) -> Result<PipelineResourceLayout, PipelineError>;
-    fn create_pipeline(
+    ) -> Result<PipelineResourceLayoutHandle, PipelineError>;
+    fn delete_pipeline_resource_layout(
         &mut self,
-        vertex_shader: Shader,
-        fragment_shader: Shader,
-        renderpass: RenderpassHandle,
-        binding_layouts: &[PipelineResourceLayout],
-        options: PipelineOptions,
-    ) -> Result<Pipeline, PipelineError>;
+        layout: PipelineResourceLayout,
+    ) -> Result<(), PipelineError>;
+
+    // Pipeline resource
+
     fn create_pipeline_resource(
         &mut self,
-        pipeline_layout: PipelineResourceLayout,
-    ) -> Result<PipelineResource, PipelineError>;
+        pipeline_layout: PipelineResourceLayoutHandle,
+    ) -> Result<PipelineResourceHandle, PipelineError>;
+    fn delete_pipeline_resource(
+        &mut self,
+        resrouce: PipelineResource,
+    ) -> Result<(), PipelineError>;
     fn bind_buffer(
         &mut self,
-        pipeline_binding: PipelineResource,
+        pipeline_resource: PipelineResourceHandle,
         buffer: BufferHandle,
         index: u32,
-    ) -> Result<(), BufferError>;
+    ) -> Result<(), PipelineError>;
     fn bind_sampler(
         &mut self,
-        pipeline_binding: PipelineResource,
-        sampler: Sampler,
+        pipeline_binding: PipelineResourceHandle,
+        sampler: SamplerHandle,
         image_view: ImageViewHandle,
         index: u32,
-    ) -> Result<(), SamplerError>;
+    ) -> Result<(), PipelineError>;
+
+    // Commands
 
     fn create_command_list(&mut self) -> Result<CommandList, CommandListError>;
     fn submit_commands(
@@ -108,6 +129,8 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         signal_fence: &[GpuToGpuFence],
         signal_fence: GpuToCpuFence,
     ) -> Result<(), CommandListError>;
+
+    // Frame handling
 
     fn handle_resize(&mut self, window: &Window) -> Result<(), BackendError>;
     fn present_images(&mut self) -> Vec<ImageHandle>;
@@ -120,6 +143,8 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         wait_fence: &[GpuToGpuFence],
         present_image_index: u32,
     ) -> Result<(), BackendError>;
+
+    // Image
 
     fn create_image(
         &mut self,
@@ -136,6 +161,9 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         image_offset: Vec2u,
     ) -> Result<(), ImageError>;
     fn delete_image(&mut self, image: Image) -> Result<(), ImageError>;
+
+    // Image view
+
     fn create_image_view(
         &mut self,
         image: ImageHandle,
@@ -144,11 +172,16 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         &mut self,
         image_view: ImageView,
     ) -> Result<(), ImageError>;
-    fn create_image_sampler(&mut self) -> Result<Sampler, SamplerError>;
+
+    // Sampler
+
+    fn create_image_sampler(&mut self) -> Result<SamplerHandle, SamplerError>;
     fn delete_image_sampler(
         &mut self,
         sampler: Sampler,
     ) -> Result<(), SamplerError>;
+
+    // Framebuffer
 
     fn create_framebuffer(
         &mut self,
@@ -160,6 +193,8 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         &mut self,
         framebuffer: Framebuffer,
     ) -> Result<(), FramebufferError>;
+
+    // Sync
 
     fn create_gpu_to_cpu_fence(
         &mut self,

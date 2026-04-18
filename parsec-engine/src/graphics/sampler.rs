@@ -1,8 +1,46 @@
-use crate::error::ParsecError;
+use crate::{error::ParsecError, graphics::ActiveGraphicsBackend};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Sampler {
+pub struct SamplerHandle {
     id: u32,
+}
+
+impl SamplerHandle {
+    pub fn new(id: u32) -> Self { Self { id } }
+    pub fn id(&self) -> u32 { self.id }
+}
+
+#[derive(Debug)]
+pub struct Sampler {
+    handle: SamplerHandle,
+}
+
+impl Sampler {
+    fn new(handle: SamplerHandle) -> Self { Self { handle } }
+
+    pub fn handle(&self) -> SamplerHandle { self.handle }
+    pub fn id(&self) -> u32 { self.handle.id }
+
+    pub fn destroy(
+        self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<(), SamplerError> {
+        backend.delete_image_sampler(self)
+    }
+}
+
+pub struct SamplerBuilder;
+
+impl SamplerBuilder {
+    pub fn new() -> Self { Self }
+
+    pub fn build(
+        self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<Sampler, SamplerError> {
+        let handle = backend.create_image_sampler()?;
+        Ok(Sampler::new(handle))
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -20,11 +58,5 @@ pub enum SamplerError {
     #[error("sampler does not exist")]
     SamplerNotFound,
     #[error("image view does not exist")]
-    ImageViewNowFound,
-}
-
-impl Sampler {
-    pub fn new(id: u32) -> Sampler { Sampler { id } }
-
-    pub fn id(&self) -> u32 { self.id }
+    ImageViewNotFound,
 }

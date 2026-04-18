@@ -5,10 +5,10 @@ use crate::{
     graphics::{
         ActiveGraphicsBackend,
         image::{
-            Image, ImageAspect, ImageBuilder, ImageFormat, ImageHandle,
-            ImageSize, ImageUsage, ImageView, ImageViewBuilder,
+            Image, ImageAspect, ImageBuilder, ImageFormat, ImageSize,
+            ImageUsage, ImageView, ImageViewBuilder,
         },
-        sampler::Sampler,
+        sampler::{Sampler, SamplerBuilder, SamplerHandle},
     },
 };
 
@@ -60,7 +60,7 @@ impl<'a> TextureBuilder<'a> {
         let view = ImageViewBuilder::new()
             .image(image.handle())
             .build(backend)?;
-        let sampler = backend.create_image_sampler()?;
+        let sampler = SamplerBuilder::new().build(backend)?;
         Ok(Texture {
             image,
             view,
@@ -92,5 +92,5 @@ impl Texture {
 
     pub fn view(&self) -> &ImageView { &self.view }
 
-    pub fn sampler(&self) -> Sampler { self.sampler }
+    pub fn sampler_handle(&self) -> SamplerHandle { self.sampler.handle() }
 }

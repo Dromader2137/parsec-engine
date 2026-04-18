@@ -1,26 +1,307 @@
 use crate::{
     error::ParsecError,
+    graphics::{
+        ActiveGraphicsBackend, buffer::BufferHandle, image::ImageViewHandle, renderpass::RenderpassHandle, sampler::SamplerHandle, shader::ShaderHandle
+    },
     math::vec::{Vec2f, Vec3f},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Pipeline {
+pub struct PipelineHandle {
     id: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PipelineResourceLayout {
-    id: u32,
+impl PipelineHandle {
+    pub fn new(id: u32) -> Self { Self { id } }
+    pub fn id(&self) -> u32 { self.id }
+}
+
+#[derive(Debug)]
+pub struct Pipeline {
+    handle: PipelineHandle,
+    resource_layouts: Vec<PipelineResourceLayoutHandle>,
+    vertex_shader: ShaderHandle,
+    fragment_shader: ShaderHandle,
+    renderpass: RenderpassHandle,
+    options: PipelineOptions,
+}
+
+impl Pipeline {
+    fn new(
+        handle: PipelineHandle,
+        resource_layouts: Vec<PipelineResourceLayoutHandle>,
+        vertex_shader: ShaderHandle,
+        fragment_shader: ShaderHandle,
+        renderpass: RenderpassHandle,
+        options: PipelineOptions,
+    ) -> Self {
+        Self {
+            handle,
+            resource_layouts,
+            vertex_shader,
+            fragment_shader,
+            renderpass,
+            options,
+        }
+    }
+
+    pub fn handle(&self) -> PipelineHandle { self.handle }
+    pub fn id(&self) -> u32 { self.handle.id }
+    pub fn destroy(
+        self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<(), PipelineError> {
+        backend.delete_pipeline(self)
+    }
+
+    pub fn layouts(&self) -> &[PipelineResourceLayoutHandle] {
+        &self.resource_layouts
+    }
+    pub fn vertex_shader(&self) -> ShaderHandle { self.vertex_shader }
+    pub fn fragment_shader(&self) -> ShaderHandle { self.fragment_shader }
+    pub fn renderpass(&self) -> RenderpassHandle { self.renderpass }
+    pub fn options(&self) -> &PipelineOptions { &self.options }
+}
+
+pub struct PipelineBuilder {
+    resource_layouts: Vec<PipelineResourceLayoutHandle>,
+    vertex_shader: Option<ShaderHandle>,
+    fragment_shader: Option<ShaderHandle>,
+    renderpass: Option<RenderpassHandle>,
+    options: PipelineOptions,
+}
+
+impl PipelineBuilder {
+    pub fn new() -> Self {
+        Self {
+            resource_layouts: Vec::new(),
+            vertex_shader: None,
+            fragment_shader: None,
+            renderpass: None,
+            options: PipelineOptions::default(),
+        }
+    }
+
+    pub fn resource_layout(
+        mut self,
+        resource_layout: PipelineResourceLayoutHandle,
+    ) -> Self {
+        self.resource_layouts.push(resource_layout);
+        self
+    }
+
+    pub fn resource_layouts(
+        mut self,
+        resource_layouts: &[PipelineResourceLayoutHandle],
+    ) -> Self {
+        self.resource_layouts.extend_from_slice(resource_layouts);
+        self
+    }
+
+    pub fn vertex_shader(mut self, shader: ShaderHandle) -> Self {
+        self.vertex_shader = Some(shader);
+        self
+    }
+
+    pub fn fragment_shader(mut self, shader: ShaderHandle) -> Self {
+        self.fragment_shader = Some(shader);
+        self
+    }
+
+    pub fn renderpass(mut self, renderpass: RenderpassHandle) -> Self {
+        self.renderpass = Some(renderpass);
+        self
+    }
+
+    pub fn cull_mode(mut self, cull_mode: PipelineCullingMode) -> Self {
+        self.options.culling_mode = cull_mode;
+        self
+    }
+
+    pub fn build(
+        self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<Pipeline, PipelineError> {
+        let vs = self
+            .vertex_shader
+            .ok_or(PipelineError::VertexShaderNotSet)?;
+        let fs = self
+            .fragment_shader
+            .ok_or(PipelineError::FragmentShaderNotSet)?;
+        let renderpass =
+            self.renderpass.ok_or(PipelineError::RenderpassNotSet)?;
+        let handle = backend.create_pipeline(
+            vs,
+            fs,
+            renderpass,
+            &self.resource_layouts,
+            self.options.clone(),
+        )?;
+        Ok(Pipeline::new(
+            handle,
+            self.resource_layouts,
+            vs,
+            fs,
+            renderpass,
+            self.options,
+        ))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PipelineResource {
+pub struct PipelineResourceLayoutHandle {
     id: u32,
 }
 
+impl PipelineResourceLayoutHandle {
+    pub fn new(id: u32) -> Self { Self { id } }
+    pub fn id(&self) -> u32 { self.id }
+
+    pub fn create_resource(
+        &self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<PipelineResource, PipelineError> {
+        let handle = backend.create_pipeline_resource(*self)?;
+        Ok(PipelineResource::new(handle, *self))
+    }
+}
+
+#[derive(Debug)]
+pub struct PipelineResourceLayout {
+    handle: PipelineResourceLayoutHandle,
+    bindings: Vec<PipelineResourceBindingLayout>,
+}
+
+impl PipelineResourceLayout {
+    fn new(
+        handle: PipelineResourceLayoutHandle,
+        bindings: Vec<PipelineResourceBindingLayout>,
+    ) -> Self {
+        Self { handle, bindings }
+    }
+
+    pub fn handle(&self) -> PipelineResourceLayoutHandle { self.handle }
+    pub fn id(&self) -> u32 { self.handle.id }
+    pub fn destroy(
+        self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<(), PipelineError> {
+        backend.delete_pipeline_resource_layout(self)
+    }
+
+    pub fn bindings(&self) -> &[PipelineResourceBindingLayout] {
+        &self.bindings
+    }
+
+    pub fn create_resource(
+        &self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<PipelineResource, PipelineError> {
+        self.handle.create_resource(backend)
+    }
+}
+
+pub struct PipelineResourceLayoutBuilder {
+    bindings: Vec<PipelineResourceBindingLayout>,
+}
+
+impl PipelineResourceLayoutBuilder {
+    pub fn new() -> Self {
+        Self {
+            bindings: Vec::new(),
+        }
+    }
+
+    pub fn binding(mut self, binding: PipelineResourceBindingLayout) -> Self {
+        self.bindings.push(binding);
+        self
+    }
+
+    pub fn bindings(
+        mut self,
+        bindings: &[PipelineResourceBindingLayout],
+    ) -> Self {
+        self.bindings.extend_from_slice(bindings);
+        self
+    }
+
+    pub fn build(
+        self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<PipelineResourceLayout, PipelineError> {
+        let handle = backend.create_pipeline_resource_layout(&self.bindings)?;
+        Ok(PipelineResourceLayout::new(handle, self.bindings))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PipelineResourceHandle {
+    id: u32,
+}
+
+impl PipelineResourceHandle {
+    pub fn new(id: u32) -> Self { Self { id } }
+    pub fn id(&self) -> u32 { self.id }
+}
+
+#[derive(Debug)]
+pub struct PipelineResource {
+    handle: PipelineResourceHandle,
+    layout: PipelineResourceLayoutHandle,
+}
+
+impl PipelineResource {
+    fn new(
+        handle: PipelineResourceHandle,
+        layout: PipelineResourceLayoutHandle,
+    ) -> Self {
+        Self { handle, layout }
+    }
+    pub fn handle(&self) -> PipelineResourceHandle { self.handle }
+    pub fn id(&self) -> u32 { self.handle.id }
+    pub fn destroy(
+        self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<(), PipelineError> {
+        backend.delete_pipeline_resource(self)
+    }
+
+    pub fn bind_buffer(
+        &self,
+        backend: &mut ActiveGraphicsBackend,
+        buffer: BufferHandle,
+        binding_idx: u32,
+    ) -> Result<(), PipelineError> {
+        backend.bind_buffer(self.handle, buffer, binding_idx)
+    }
+    
+    pub fn bind_sampler(
+        &self,
+        backend: &mut ActiveGraphicsBackend,
+        sampler: SamplerHandle,
+        image_view: ImageViewHandle,
+        binding_idx: u32,
+    ) -> Result<(), PipelineError> {
+        backend.bind_sampler(self.handle, sampler, image_view, binding_idx)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct PipelineResourceBindingLayout {
     pub binding_type: PipelineBindingType,
     pub shader_stages: Vec<PipelineShaderStage>,
+}
+
+impl PipelineResourceBindingLayout {
+    pub fn new(
+        binding_type: PipelineBindingType,
+        shader_stages: &[PipelineShaderStage],
+    ) -> PipelineResourceBindingLayout {
+        PipelineResourceBindingLayout {
+            binding_type,
+            shader_stages: shader_stages.to_vec(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,36 +423,16 @@ pub enum PipelineError {
     FramebufferNotFound,
     BindingLayoutNotFound,
     BindingNotFound,
-}
-
-impl Pipeline {
-    pub fn new(id: u32) -> Pipeline { Pipeline { id } }
-
-    pub fn id(&self) -> u32 { self.id }
-}
-
-impl PipelineResourceLayout {
-    pub fn new(id: u32) -> PipelineResourceLayout {
-        PipelineResourceLayout { id }
-    }
-
-    pub fn id(&self) -> u32 { self.id }
-}
-
-impl PipelineResourceBindingLayout {
-    pub fn new(
-        binding_type: PipelineBindingType,
-        shader_stages: &[PipelineShaderStage],
-    ) -> PipelineResourceBindingLayout {
-        PipelineResourceBindingLayout {
-            binding_type,
-            shader_stages: shader_stages.to_vec(),
-        }
-    }
-}
-
-impl PipelineResource {
-    pub fn new(id: u32) -> PipelineResource { PipelineResource { id } }
-
-    pub fn id(&self) -> u32 { self.id }
+    FragmentShaderNotSet,
+    VertexShaderNotSet,
+    RenderpassNotSet,
+    ResourceLayoutNotFound,
+    BufferNotFound,
+    BufferBindError(ParsecError),
+    ResourceNotFound,
+    SamplerNotFound,
+    ImageViewNotFound,
+    SamplerBindError(ParsecError),
+    PipelineNotFound,
+    PipelineResourceDestructionError(ParsecError),
 }

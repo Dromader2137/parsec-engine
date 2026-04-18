@@ -10,7 +10,9 @@ use crate::{
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         pipeline::{
             PipelineBindingType, PipelineResource,
-            PipelineResourceBindingLayout, PipelineShaderStage,
+            PipelineResourceBindingLayout, PipelineResourceHandle,
+            PipelineResourceLayout, PipelineResourceLayoutBuilder,
+            PipelineShaderStage,
         },
         renderer::components::camera::Camera,
         window::Window,
@@ -27,7 +29,8 @@ pub struct CameraData {
     camera_data_id: IdType,
     pub projection_matrix: Matrix4f,
     pub projection_buffer: Buffer,
-    pub projection_binding: PipelineResource,
+    projection_layout: PipelineResourceLayout,
+    pub projection_resource: PipelineResource,
 }
 
 pub struct CameraDataManager {
@@ -50,23 +53,24 @@ impl CameraData {
             .data(BufferContent::from_slice(&[projection_matrix]))
             .build(backend)
             .unwrap();
-        let projection_binding_layout = backend
-            .create_pipeline_resource_layout(&[PipelineResourceBindingLayout {
+        let mut projection_layout = PipelineResourceLayoutBuilder::new()
+            .binding(PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
-            }])
+            })
+            .build(backend)
             .unwrap();
-        let projection_binding = backend
-            .create_pipeline_resource(projection_binding_layout)
-            .unwrap();
-        backend
-            .bind_buffer(projection_binding, projection_buffer.handle(), 0)
+        let projection_binding =
+            projection_layout.create_resource(backend).unwrap();
+        projection_binding
+            .bind_buffer(backend, projection_buffer.handle(), 0)
             .unwrap();
         CameraData {
             camera_data_id: ID_COUNTER.next(),
             projection_matrix,
             projection_buffer,
-            projection_binding,
+            projection_layout,
+            projection_resource: projection_binding,
         }
     }
 }

@@ -87,6 +87,8 @@ pub enum VulkanDescriptorError {
     BindingDoesntExist,
     #[error("Failed to bind: invalid binding type for this operation")]
     InvalidBindingType,
+    #[error("Failed to free a descriptor set: {0}")]
+    SetDeletionError(ash::vk::Result),
 }
 
 impl<'a> VulkanDescriptorSetBinding {
@@ -369,5 +371,18 @@ impl VulkanDescriptorSet {
                 }
             })
             .collect::<Vec<_>>()
+    }
+
+    pub fn free(
+        self,
+        device: &VulkanDevice,
+        descriptor_pool: &VulkanDescriptorPool,
+    ) -> Result<(), VulkanDescriptorError> {
+        unsafe {
+            device
+                .raw_device()
+                .free_descriptor_sets(descriptor_pool.pool, &[self.set])
+                .map_err(|err| VulkanDescriptorError::SetDeletionError(err))
+        }
     }
 }

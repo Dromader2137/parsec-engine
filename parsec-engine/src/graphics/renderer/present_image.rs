@@ -30,7 +30,7 @@ impl PresentImage {
         backend: &mut ActiveGraphicsBackend,
         image_handle: ImageHandle,
     ) -> Result<(), ParsecError> {
-        self.image_view.take().unwrap().destroy(backend);
+        self.image_view.take().unwrap().destroy(backend)?;
         let image_view =
             ImageViewBuilder::new().image(image_handle).build(backend)?;
         self.image_handle = image_handle;

@@ -41,8 +41,8 @@ impl DepthImage {
         backend: &mut ActiveGraphicsBackend,
         size: ImageSize,
     ) -> Result<(), ParsecError> {
-        self.image.take().unwrap().destroy(backend);
-        self.image_view.take().unwrap().destroy(backend);
+        self.image.take().unwrap().destroy(backend)?;
+        self.image_view.take().unwrap().destroy(backend)?;
         let image = ImageBuilder::new()
             .size(size)
             .format(ImageFormat::D32)

@@ -21,6 +21,7 @@ impl FramebufferHandle {
 pub struct Framebuffer {
     handle: FramebufferHandle,
     attachments: Vec<ImageViewHandle>,
+    renderpass: RenderpassHandle,
     size: Vec2u,
 }
 
@@ -28,11 +29,13 @@ impl Framebuffer {
     fn new(
         handle: FramebufferHandle,
         attachments: Vec<ImageViewHandle>,
+        renderpass: RenderpassHandle,
         size: Vec2u,
     ) -> Self {
         Self {
             handle,
             attachments,
+            renderpass,
             size,
         }
     }
@@ -41,6 +44,7 @@ impl Framebuffer {
     pub fn id(&self) -> u32 { self.handle.id }
     pub fn attachments(&self) -> &[ImageViewHandle] { &self.attachments }
     pub fn size(&self) -> Vec2u { self.size }
+    pub fn renderpass(&self) -> RenderpassHandle { self.renderpass }
 
     pub fn destroy(
         self,
@@ -84,13 +88,12 @@ impl FramebufferBuilder {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<Framebuffer, FramebufferError> {
-        let size = self.size.ok_or(FramebufferError::InvalidSize)?;
-        let renderpass = self
-            .renderpass
-            .ok_or(FramebufferError::RenderpassNotFound)?;
+        let size = self.size.ok_or(FramebufferError::RenderpassSizeNotSet)?;
+        let renderpass =
+            self.renderpass.ok_or(FramebufferError::RenderpassNotSet)?;
         let handle =
             backend.create_framebuffer(size, &self.attachments, renderpass)?;
-        Ok(Framebuffer::new(handle, self.attachments, size))
+        Ok(Framebuffer::new(handle, self.attachments, renderpass, size))
     }
 }
 
@@ -99,8 +102,8 @@ pub enum FramebufferError {
     FramebufferCreationError(ParsecError),
     FramebufferDeletionError(ParsecError),
     ImageViewNotFound,
-    RenderpassNotFound,
+    RenderpassNotSet,
     FramebufferNotFound,
     ImageNotFound,
-    InvalidSize,
+    RenderpassSizeNotSet,
 }
