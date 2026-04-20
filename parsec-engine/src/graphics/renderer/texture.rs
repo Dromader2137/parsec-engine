@@ -92,5 +92,5 @@ impl Texture {
 
     pub fn view(&self) -> &ImageView { &self.view }
 
-    pub fn sampler_handle(&self) -> SamplerHandle { self.sampler.handle() }
+    pub fn sampler(&self) -> &Sampler { &self.sampler }
 }

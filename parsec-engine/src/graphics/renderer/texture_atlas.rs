@@ -14,7 +14,7 @@ use crate::{
     math::uvec::Vec2u,
 };
 
-struct TextureAtlasElement {
+pub struct TextureAtlasRegion {
     offset: Vec2u,
     size: Vec2u,
 }
@@ -22,7 +22,7 @@ struct TextureAtlasElement {
 pub struct TextureAtlas {
     size: Vec2u,
     texture: Texture,
-    elements: Vec<TextureAtlasElement>,
+    elements: Vec<TextureAtlasRegion>,
 }
 
 #[derive(Debug, Default)]
@@ -83,29 +83,28 @@ impl TextureAtlas {
         &self,
         backend: &mut ActiveGraphicsBackend,
         buffer: BufferHandle,
-        size: Vec2u,
-        offset: Vec2u,
+        region: TextureAtlasRegion,
     ) -> Result<(), ParsecError> {
         backend.load_image_from_buffer(
             buffer,
             self.texture.image().handle(),
-            size,
-            offset,
+            region.size,
+            region.offset,
         )?;
         Ok(())
     }
 
     pub fn set_rendering_region(
         mut command_list: CommandList,
-        size: Vec2u,
-        offset: Vec2u,
+        region: TextureAtlasRegion,
     ) -> Result<(), ParsecError> {
-        command_list.cmd(Command::SetScissor(offset, size.signed()));
-        command_list.cmd(Command::SetViewport(size));
+        command_list
+            .cmd(Command::SetScissor(region.offset, region.size.signed()));
+        command_list.cmd(Command::SetViewport(region.size));
         Ok(())
     }
 
-    pub fn delete(
+    pub fn destroy(
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), ParsecError> {

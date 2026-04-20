@@ -46,7 +46,7 @@ use crate::{
             },
             mesh_data::MeshData,
             present_image::PresentImage,
-            shadow::RendererShadowpassData,
+            shadow::RendererShadowData,
             texture_atlas::TextureAtlas,
             transform_data::{TransformData, TransformDataManager},
         },
@@ -173,14 +173,7 @@ pub fn init_renderer(
     let command_lists =
         create_commad_lists(backend.deref_mut(), frames_in_flight);
 
-    let mut material_bases = IdStore::new();
-    let mut materials_data = IdStore::new();
-
-    let shadow_data = RendererShadowpassData::new(
-        &mut backend,
-        &mut material_bases,
-        &mut materials_data,
-    );
+    let shadow_data = RendererShadowData::new(&mut backend);
 
     requests.create_resource(shadow_data);
     requests.create_resource(RendererMainRenderpass(renderpass));
@@ -196,8 +189,8 @@ pub fn init_renderer(
     requests.create_resource(Vec::<Draw>::new());
     requests.create_resource(IdStore::<MeshData<DefaultVertex>>::new());
     requests.create_resource(IdStore::<Mesh>::new());
-    requests.create_resource(material_bases);
-    requests.create_resource(materials_data);
+    requests.create_resource(IdStore::<MaterialBase>::new());
+    requests.create_resource(IdStore::<MaterialData>::new());
     requests.create_resource(IdStore::<TransformData>::new());
     requests.create_resource(IdStore::<CameraData>::new());
     requests.create_resource(TransformDataManager {
@@ -271,7 +264,7 @@ pub fn render(
     material_bases: Resource<IdStore<MaterialBase>>,
     transforms_data: Resource<IdStore<TransformData>>,
     cameras_data: Resource<IdStore<CameraData>>,
-    shadowpass_data: Resource<RendererShadowpassData>,
+    shadowpass_data: Resource<RendererShadowData>,
 ) {
     if window.minimized() {
         return;
@@ -321,10 +314,8 @@ pub fn render(
                 transform,
                 ..
             }) => {
-                let material =
-                    materials_data.get(shadowpass_data.material_id).unwrap();
-                let material_base =
-                    material_bases.get(material.material_base_id()).unwrap();
+                let material = &shadowpass_data.material;
+                let material_base = &shadowpass_data.material_base;
                 let mesh = meshes_data.get(*mesh).unwrap();
                 let camera = cameras_data.get(*camera).unwrap();
                 let camera_transform =
@@ -336,7 +327,7 @@ pub fn render(
                     camera,
                     camera_transform,
                     transform,
-                    shadowpass_data.light_dir_resource.handle(),
+                    shadowpass_data.light_resource.handle(),
                     shadowpass_data.image_resource.handle(),
                 );
                 mesh.record_commands(command_list);
@@ -373,7 +364,7 @@ pub fn render(
                     camera,
                     camera_transform,
                     transform,
-                    shadowpass_data.light_dir_resource.handle(),
+                    shadowpass_data.light_resource.handle(),
                     shadowpass_data.image_resource.handle(),
                 );
                 mesh.record_commands(command_list);

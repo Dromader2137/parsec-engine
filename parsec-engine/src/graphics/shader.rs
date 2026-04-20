@@ -77,6 +77,7 @@ pub enum ShaderError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShaderType {
+        // TODO maybe cleanup shadow material
     Vertex,
     Fragment,
 }

@@ -281,7 +281,7 @@ pub enum ResourceError {
     ResourceAlreadyExists,
     #[error("Resource of this type is also stored somewhere else")]
     ResourceNotUnique,
-    #[error("Failed to find a resource of a type")]
+    #[error("Failed to find a resource of a type: {0}")]
     ResourceNotFound(&'static str),
     #[error("Other resources depend on this on so it can't be deleted")]
     ResourceDependedOn,

@@ -32,32 +32,28 @@ use crate::{
     utils::identifiable::IdStore,
 };
 
-pub struct RendererShadowpassData {
+pub struct RendererShadowData {
     vertex_shader: Shader,
     fragment_shader: Shader,
-    material_id: u32,
-    renderpass: Renderpass,
-    framebuffer: Framebuffer,
+    pub material_base: MaterialBase,
+    pub material: MaterialData,
+    pub renderpass: Renderpass,
+    pub framebuffer: Framebuffer,
     atlas: TextureAtlas,
-    // image: Image,
-    // image_view: ImageView,
-    // image_sampler: Sampler,
-    image_resource: PipelineResource,
+    pub image_resource: PipelineResource,
     light_buffer: Buffer,
     light_layout: PipelineResourceLayout,
-    light_resource: PipelineResource,
+    pub light_resource: PipelineResource,
     proj_buffer: Buffer,
     proj_resource: PipelineResource,
     look_buffer: Buffer,
     look_resource: PipelineResource,
 }
 
-impl RendererShadowpassData {
+impl RendererShadowData {
     pub fn new(
         backend: &mut ActiveGraphicsBackend,
-        material_bases: &mut IdStore<MaterialBase>,
-        materials_data: &mut IdStore<MaterialData>,
-    ) {
+    ) -> RendererShadowData {
         let renderpass = RenderpassBuilder::new()
             .attachment(RenderpassAttachment {
                 attachment_type: RenderpassAttachmentType::Depth,
@@ -69,12 +65,12 @@ impl RendererShadowpassData {
             .build(backend)
             .unwrap();
         let vertex_shader = ShaderBuilder::new()
-            .code(&read_shader_code("shaders/vert.spv").unwrap())
+            .code(&read_shader_code("shaders/shadow_vert.spv").unwrap())
             .shader_type(ShaderType::Vertex)
             .build(backend)
             .unwrap();
         let fragment_shader = ShaderBuilder::new()
-            .code(&read_shader_code("shaders/frag.spv").unwrap())
+            .code(&read_shader_code("shaders/shadow_frag.spv").unwrap())
             .shader_type(ShaderType::Fragment)
             .build(backend)
             .unwrap();
@@ -171,14 +167,14 @@ impl RendererShadowpassData {
         tex_resource
             .bind_sampler(
                 backend,
-                sampler.handle(),
-                depth_view.handle(),
+                atlas.texture().sampler().handle(),
+                atlas.texture().view().handle(),
                 0,
             )
             .unwrap();
 
         let framebuffer = FramebufferBuilder::new()
-            .attachment(depth_view.handle())
+            .attachment(atlas.texture().view().handle())
             .size(Vec2u::new(image_size, image_size))
             .renderpass(renderpass.handle())
             .build(backend)
@@ -210,16 +206,14 @@ impl RendererShadowpassData {
             .bind_buffer(backend, light_buffer.handle(), 0)
             .unwrap();
 
-        material_bases.push(material_base);
-        let material_id = materials_data.push(material);
-
-        RendererShadowpassData {
+        RendererShadowData {
             atlas,
             light_buffer,
             light_layout,
             light_resource,
             renderpass,
-            material_id,
+            material,
+            material_base,
             vertex_shader,
             fragment_shader,
             image_resource: tex_resource,
@@ -228,6 +222,25 @@ impl RendererShadowpassData {
             proj_resource: proj_resource,
             look_buffer: look_buffer,
             look_resource,
-        };
+        }
+    }
+
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) {
+        self.look_resource.destroy(backend).unwrap();
+        self.look_buffer.destroy(backend).unwrap();
+        self.proj_resource.destroy(backend).unwrap();
+        self.proj_buffer.destroy(backend).unwrap();
+        self.light_resource.destroy(backend).unwrap();
+        self.light_layout.destroy(backend).unwrap();
+        self.light_buffer.destroy(backend).unwrap();
+        self.image_resource.destroy(backend).unwrap();
+        self.atlas.destroy(backend).unwrap();
+        self.framebuffer.destroy(backend).unwrap();
+        self.renderpass.destroy(backend).unwrap();
+        // TODO maybe cleanup shadow material
+        // self.material.destroy(backend).unwrap();
+        // self.material_base.destroy(backend).unwrap();
+        self.fragment_shader.destroy(backend).unwrap();
+        self.vertex_shader.destroy(backend).unwrap();
     }
 }
