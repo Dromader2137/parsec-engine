@@ -87,7 +87,7 @@ fn test_system(
                 &[PipelineShaderStage::Vertex],
             )],
             vec![PipelineResourceBindingLayout::new(
-                PipelineBindingType::UniformBuffer,
+                PipelineBindingType::StorageBuffer,
                 &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
             )],
             vec![PipelineResourceBindingLayout::new(

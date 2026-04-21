@@ -7,7 +7,10 @@ use crate::{
             PipelineResourceBindingLayout, PipelineResourceHandle,
             PipelineResourceLayout, PipelineResourceLayoutBuilder,
         },
-        renderer::{camera_data::CameraData, transform_data::TransformData},
+        renderer::{
+            camera_data::CameraData, light_data::RendererLights,
+            shadow::RendererShadows, transform_data::TransformData,
+        },
         renderpass::RenderpassHandle,
         shader::ShaderHandle,
     },
@@ -104,8 +107,8 @@ impl MaterialData {
         camera: &CameraData,
         camera_transform: &TransformData,
         transform: &TransformData,
-        light_resource: PipelineResourceHandle,
-        shadowmap_resource: PipelineResourceHandle,
+        lights: &RendererLights,
+        shadows: &RendererShadows,
     ) {
         command_list.cmd(Command::BindGraphicsPipeline(
             material_base.pipeline.handle(),
@@ -121,9 +124,9 @@ impl MaterialData {
                 MaterialPipelineBinding::Model => {
                     transform.model_resource.handle()
                 },
-                MaterialPipelineBinding::Light => light_resource,
+                MaterialPipelineBinding::Light => lights.resource.handle(),
                 MaterialPipelineBinding::ShadowMap => {
-                    shadowmap_resource
+                    shadows.texture_resource.handle()
                 },
                 MaterialPipelineBinding::Generic(bind) => *bind,
             };

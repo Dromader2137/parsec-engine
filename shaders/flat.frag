@@ -1,25 +1,31 @@
 #version 450
 
+struct DirLightData {
+    mat4 world_to_light;
+    vec3 direction;
+    vec3 color;
+};
+
 layout(location = 0) out vec4 outColor;
 
 layout(location = 0) in vec3 inNormal;
 layout(location = 1) in vec2 inUV;
 layout(location = 2) in vec3 inPosition;
-layout(location = 3) noperspective in vec4 inLPosition;
 
-layout(set = 3, binding = 0) uniform Light {
-    vec3 dir;
-    mat4 mat;
-} light;
+layout(std140, set = 3, binding = 0) readonly buffer LightData {
+    uint light_count;
+    DirLightData data[32];
+} lightData;
+
 layout(set = 4, binding = 0) uniform sampler2D tex;
 layout(set = 5, binding = 0) uniform sampler2D shadow;
 
 int num_rings = 2;
 
 void main() {
-    float light_angle = dot(-normalize(light.dir), inNormal);
+    float light_angle = dot(-normalize(lightData.data[0].direction), inNormal);
     float intensity = clamp(light_angle, 0.02, 1.0);
-    vec3 light_pos = inLPosition.xyz / inLPosition.w;
+    vec3 light_pos = inPosition.xyz;
     float shadow_samples = 0.0;
 	int total_points = 0;
     for (int ring = 1; ring <= num_rings; ++ring) {

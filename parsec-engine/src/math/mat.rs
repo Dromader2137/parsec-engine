@@ -2,7 +2,7 @@
 
 use std::ops::Mul;
 
-use crate::math::vec::Vec3f;
+use crate::math::vec::{Vec2f, Vec3f};
 
 /// 4x4 matrix of floats.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default)]
@@ -124,6 +124,19 @@ impl Matrix4f {
             [1.0 / width, 0.0, 0.0, 0.0],
             [0.0, -1.0 / height, 0.0, 0.0],
             [0.0, 0.0, 1.0 / (far - near), -near / (far - near)],
+            [0.0, 0.0, 0.0, 1.0],
+        ])
+    }
+    
+    pub fn subimage(
+        from: Vec2f,
+        to: Vec2f
+    ) -> Matrix4f {
+        let diff = to - from;
+        Matrix4f::new([
+            [diff.x, 0.0, 0.0, from.x],
+            [0.0, diff.y, 0.0, from.y],
+            [0.0, 0.0, 1.0, 0.0],
             [0.0, 0.0, 0.0, 1.0],
         ])
     }

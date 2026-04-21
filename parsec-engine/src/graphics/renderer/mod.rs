@@ -25,16 +25,19 @@ use crate::{
         ActiveGraphicsBackend,
         command_list::{Command, CommandList},
         framebuffer::{Framebuffer, FramebufferBuilder},
-        image::{
-            ImageFormat, ImageSize,
-        },
-        pipeline::
-            DefaultVertex
-        ,
+        image::{ImageFormat, ImageSize},
+        pipeline::DefaultVertex,
         renderer::{
-            assets::mesh::Mesh, camera_data::{CameraData, CameraDataManager}, depth_image::DepthImage, draw_queue::{Draw, MeshAndMaterial}, light_data::RendererLights, material_data::{
-                MaterialBase, MaterialData,
-            }, mesh_data::MeshData, present_image::PresentImage, shadow::RendererShadow, transform_data::{TransformData, TransformDataManager}
+            assets::mesh::Mesh,
+            camera_data::{CameraData, CameraDataManager},
+            depth_image::DepthImage,
+            draw_queue::{Draw, MeshAndMaterial},
+            light_data::RendererLights,
+            material_data::{MaterialBase, MaterialData},
+            mesh_data::MeshData,
+            present_image::PresentImage,
+            shadow::RendererShadows,
+            transform_data::{TransformData, TransformDataManager},
         },
         renderpass::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
@@ -43,7 +46,7 @@ use crate::{
         },
         window::Window,
     },
-    math::{mat::Matrix4f, vec::Vec3f},
+    math::{mat::Matrix4f, vec::{Vec2f, Vec3f}},
     resources::Resource,
     utils::identifiable::IdStore,
 };
@@ -95,14 +98,6 @@ pub struct RendererPresentImages(pub Vec<PresentImage>);
 pub struct RendererDepthImage(pub DepthImage);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RendererFramebuffers(pub Vec<Framebuffer>);
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct LD {
-    dir: Vec3f,
-    _pad: u32,
-    mat: Matrix4f,
-}
 
 #[system]
 pub fn init_renderer(
@@ -156,8 +151,16 @@ pub fn init_renderer(
     let command_lists =
         create_commad_lists(backend.deref_mut(), frames_in_flight);
 
-    let shadow_data = RendererShadow::new(&mut backend);
-    let light_data = RendererLights::new(&mut backend);
+    let shadow_data = RendererShadows::new(&mut backend);
+    let mut light_data = RendererLights::new(&mut backend);
+    light_data.add_light_data(
+        Vec3f::ONE * 20.0,
+        (Vec3f::ONE * -1.0).normalize(),
+        Vec3f::new(-1.0, 1.0, -1.0).normalize(),
+        Vec2f::ZERO,
+        Vec2f::ONE,
+    );
+    light_data.update_buffer(&mut backend);
 
     requests.create_resource(shadow_data);
     requests.create_resource(light_data);
@@ -249,7 +252,8 @@ pub fn render(
     material_bases: Resource<IdStore<MaterialBase>>,
     transforms_data: Resource<IdStore<TransformData>>,
     cameras_data: Resource<IdStore<CameraData>>,
-    shadowpass_data: Resource<RendererShadow>,
+    shadows: Resource<RendererShadows>,
+    lights: Resource<RendererLights>,
 ) {
     if window.minimized() {
         return;
@@ -286,8 +290,8 @@ pub fn render(
     command_list.reset();
     command_list.cmd(Command::Begin);
     command_list.cmd(Command::BeginRenderpass(
-        shadowpass_data.renderpass.handle(),
-        shadowpass_data.framebuffer.handle(),
+        shadows.renderpass.handle(),
+        shadows.framebuffer.handle(),
     ));
 
     for draw in draw_queue.iter() {
@@ -299,8 +303,8 @@ pub fn render(
                 transform,
                 ..
             }) => {
-                let material = &shadowpass_data.material;
-                let material_base = &shadowpass_data.material_base;
+                let material = &shadows.material;
+                let material_base = &shadows.material_base;
                 let mesh = meshes_data.get(*mesh).unwrap();
                 let camera = cameras_data.get(*camera).unwrap();
                 let camera_transform =
@@ -312,8 +316,8 @@ pub fn render(
                     camera,
                     camera_transform,
                     transform,
-                    shadowpass_data.light_resource.handle(),
-                    shadowpass_data.image_resource.handle(),
+                    &lights,
+                    &shadows,
                 );
                 mesh.record_commands(command_list);
             },
@@ -349,8 +353,8 @@ pub fn render(
                     camera,
                     camera_transform,
                     transform,
-                    shadowpass_data.light_resource.handle(),
-                    shadowpass_data.image_resource.handle(),
+                    &lights,
+                    &shadows,
                 );
                 mesh.record_commands(command_list);
             },

@@ -78,7 +78,7 @@ impl Texture {
         }
     }
 
-    pub fn delete(
+    pub fn destroy(
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), ParsecError> {

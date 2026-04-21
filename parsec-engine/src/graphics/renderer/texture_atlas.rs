@@ -108,7 +108,7 @@ impl TextureAtlas {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), ParsecError> {
-        self.texture.delete(backend)
+        self.texture.destroy(backend)
     }
 
     pub fn size(&self) -> Vec2u { self.size }

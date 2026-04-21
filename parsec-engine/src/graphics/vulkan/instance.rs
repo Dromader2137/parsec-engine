@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use crate::graphics::window::Window;
 
 pub struct VulkanInstance {
@@ -38,19 +40,17 @@ impl VulkanInstance {
             },
         };
 
-        let mut extension_names =
-            match ash_window::enumerate_required_extensions(
-                display_handle.as_raw(),
-            ) {
-                Ok(val) => val,
-                Err(err) => {
-                    return Err(
-                        VulkanInstanceError::ExtensionEnumerationError(err),
-                    );
-                },
-            }
-            .to_vec();
-        extension_names.push(ash::ext::debug_utils::NAME.as_ptr());
+        let extension_names = match ash_window::enumerate_required_extensions(
+            display_handle.as_raw(),
+        ) {
+            Ok(val) => val,
+            Err(err) => {
+                return Err(VulkanInstanceError::ExtensionEnumerationError(
+                    err,
+                ));
+            },
+        }
+        .to_vec();
 
         let layer_names_raw = [];
 
