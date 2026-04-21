@@ -18,6 +18,7 @@ impl VulkanBufferUsage {
             BufferUsage::TransferSrc => Self::TransferSrc,
             BufferUsage::TransferDst => Self::TransferDst,
             BufferUsage::Uniform => Self::UniformBuffer,
+            BufferUsage::Storage => Self::StorageBuffer,
             BufferUsage::Index => Self::IndexBuffer,
             BufferUsage::Vertex => Self::VertexBuffer,
         }

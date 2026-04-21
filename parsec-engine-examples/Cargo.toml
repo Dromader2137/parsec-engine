@@ -8,4 +8,3 @@ image = "0.25.9"
 anyhow = "1.0.100"
 parsec-engine = { path = "../parsec-engine" }
 rand = "0.10.0"
-bytemuck = { version = "1.25.0", features = [ "derive" ] }

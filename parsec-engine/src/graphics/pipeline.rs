@@ -308,6 +308,7 @@ impl PipelineResourceBindingLayout {
 pub enum PipelineBindingType {
     UniformBuffer,
     TextureSampler,
+    StorageBuffer,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -336,12 +337,12 @@ pub struct VertexField {
     pub format: VertexFieldFormat,
 }
 
-pub trait Vertex: Clone + Copy + bytemuck::NoUninit {
+pub trait Vertex: Clone + Copy {
     fn fields() -> Vec<VertexField>;
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::NoUninit)]
+#[derive(Debug, Clone, Copy)]
 pub struct DefaultVertex {
     position: [f32; 3],
     normal: [f32; 3],

@@ -23,44 +23,27 @@ use crate::{
     ecs::system::{requests::Requests, system},
     graphics::{
         ActiveGraphicsBackend,
-        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         command_list::{Command, CommandList},
         framebuffer::{Framebuffer, FramebufferBuilder},
         image::{
-            Image, ImageAspect, ImageBuilder, ImageFormat, ImageSize,
-            ImageUsage, ImageView, ImageViewBuilder,
+            ImageFormat, ImageSize,
         },
-        pipeline::{
-            DefaultVertex, PipelineBindingType, PipelineOptions,
-            PipelineResource, PipelineResourceBindingLayout,
-            PipelineResourceHandle, PipelineResourceLayout,
-            PipelineResourceLayoutBuilder, PipelineShaderStage,
-        },
+        pipeline::
+            DefaultVertex
+        ,
         renderer::{
-            assets::mesh::Mesh,
-            camera_data::{CameraData, CameraDataManager},
-            depth_image::DepthImage,
-            draw_queue::{Draw, MeshAndMaterial},
-            material_data::{
-                MaterialBase, MaterialData, MaterialPipelineBinding,
-            },
-            mesh_data::MeshData,
-            present_image::PresentImage,
-            shadow::RendererShadowData,
-            texture_atlas::TextureAtlas,
-            transform_data::{TransformData, TransformDataManager},
+            assets::mesh::Mesh, camera_data::{CameraData, CameraDataManager}, depth_image::DepthImage, draw_queue::{Draw, MeshAndMaterial}, light_data::RendererLights, material_data::{
+                MaterialBase, MaterialData,
+            }, mesh_data::MeshData, present_image::PresentImage, shadow::RendererShadow, transform_data::{TransformData, TransformDataManager}
         },
         renderpass::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
             RenderpassAttachmentStoreOp, RenderpassAttachmentType,
             RenderpassBuilder, RenderpassClearValue, RenderpassHandle,
         },
-        sampler::{Sampler, SamplerBuilder},
-        shader::{Shader, ShaderBuilder, ShaderType},
-        vulkan::shader::read_shader_code,
         window::Window,
     },
-    math::{mat::Matrix4f, uvec::Vec2u, vec::Vec3f},
+    math::{mat::Matrix4f, vec::Vec3f},
     resources::Resource,
     utils::identifiable::IdStore,
 };
@@ -114,7 +97,7 @@ pub struct RendererDepthImage(pub DepthImage);
 pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::NoUninit)]
+#[derive(Debug, Clone, Copy)]
 struct LD {
     dir: Vec3f,
     _pad: u32,
@@ -173,9 +156,11 @@ pub fn init_renderer(
     let command_lists =
         create_commad_lists(backend.deref_mut(), frames_in_flight);
 
-    let shadow_data = RendererShadowData::new(&mut backend);
+    let shadow_data = RendererShadow::new(&mut backend);
+    let light_data = RendererLights::new(&mut backend);
 
     requests.create_resource(shadow_data);
+    requests.create_resource(light_data);
     requests.create_resource(RendererMainRenderpass(renderpass));
     requests.create_resource(RendererPresentImages(swapchain_images));
     requests.create_resource(RendererDepthImage(depth_image));
@@ -264,7 +249,7 @@ pub fn render(
     material_bases: Resource<IdStore<MaterialBase>>,
     transforms_data: Resource<IdStore<TransformData>>,
     cameras_data: Resource<IdStore<CameraData>>,
-    shadowpass_data: Resource<RendererShadowData>,
+    shadowpass_data: Resource<RendererShadow>,
 ) {
     if window.minimized() {
         return;

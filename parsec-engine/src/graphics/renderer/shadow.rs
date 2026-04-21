@@ -32,7 +32,7 @@ use crate::{
     utils::identifiable::IdStore,
 };
 
-pub struct RendererShadowData {
+pub struct RendererShadow {
     vertex_shader: Shader,
     fragment_shader: Shader,
     pub material_base: MaterialBase,
@@ -50,10 +50,10 @@ pub struct RendererShadowData {
     look_resource: PipelineResource,
 }
 
-impl RendererShadowData {
+impl RendererShadow {
     pub fn new(
         backend: &mut ActiveGraphicsBackend,
-    ) -> RendererShadowData {
+    ) -> RendererShadow {
         let renderpass = RenderpassBuilder::new()
             .attachment(RenderpassAttachment {
                 attachment_type: RenderpassAttachmentType::Depth,
@@ -206,7 +206,7 @@ impl RendererShadowData {
             .bind_buffer(backend, light_buffer.handle(), 0)
             .unwrap();
 
-        RendererShadowData {
+        RendererShadow {
             atlas,
             light_buffer,
             light_layout,

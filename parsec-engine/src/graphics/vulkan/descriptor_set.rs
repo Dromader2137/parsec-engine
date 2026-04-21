@@ -20,6 +20,7 @@ impl VulkanDescriptorType {
         match value {
             PipelineBindingType::UniformBuffer => Self::UniformBuffer,
             PipelineBindingType::TextureSampler => Self::CombinedImageSampler,
+            PipelineBindingType::StorageBuffer => Self::StorageBuffer,
         }
     }
 
