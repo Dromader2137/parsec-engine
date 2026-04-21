@@ -168,7 +168,7 @@ fn test_system(
         },
     ));
 
-    for _ in 0..50 {
+    for _ in 0..20 {
         requests.spawn_entity((
             Transform::new(
                 Vec3f::new(
@@ -176,12 +176,8 @@ fn test_system(
                     rand::random_range(-10.0..10.0),
                     rand::random_range(-10.0..10.0),
                 ),
-                Vec3f::ONE * rand::random::<f32>(),
-                Quat::from_euler(Vec3f::new(
-                    rand::random_range(0.0..std::f32::consts::PI),
-                    rand::random_range(0.0..std::f32::consts::PI),
-                    rand::random_range(0.0..std::f32::consts::PI),
-                )),
+                Vec3f::ONE,
+                Quat::IDENTITY,
             ),
             MeshRenderer::new(mesh, material_id),
         ));

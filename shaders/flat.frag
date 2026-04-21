@@ -25,12 +25,12 @@ int num_rings = 2;
 void main() {
     float light_angle = dot(-normalize(lightData.data[0].direction), inNormal);
     float intensity = clamp(light_angle, 0.02, 1.0);
-    vec3 light_pos = inPosition.xyz;
+    vec3 light_pos = (lightData.data[0].world_to_light * vec4(inPosition, 1.0)).xyz;
     float shadow_samples = 0.0;
-	int total_points = 0;
+    int total_points = 0;
     for (int ring = 1; ring <= num_rings; ++ring) {
-		int point_count = ring * ring;
-		total_points += point_count;
+        int point_count = ring * ring;
+        total_points += point_count;
         for (int i = 0; i < point_count; ++i) {
             float theta = i / float(point_count) * 6.283;
             vec2 ofst = vec2(sin(theta), cos(theta)) * float(ring) * 0.0003;

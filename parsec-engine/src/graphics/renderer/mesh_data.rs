@@ -52,7 +52,7 @@ impl<V: Vertex> MeshBuffer<V> {
         command_list
             .cmd(Command::BindVertexBuffer(self.vertex_buffer.handle()));
         command_list.cmd(Command::BindIndexBuffer(self.index_buffer.handle()));
-        command_list.cmd(Command::DrawIndexed(self.len, 1, 0, 0, 1));
+        command_list.cmd(Command::DrawIndexed(self.len, 1, 0, 0, 0));
     }
 }
 

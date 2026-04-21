@@ -10,7 +10,7 @@ use crate::{
     },
     math::{
         mat::Matrix4f,
-        vec::{Vec2f, Vec3f},
+        vec::{Vec2f, Vec3f, Vec4f},
     },
 };
 
@@ -20,14 +20,15 @@ pub const MAX_LIGHT_COUNT: usize = 32;
 #[repr(C)]
 pub struct DirectionalLightData {
     world_to_light: Matrix4f,
-    direction: Vec3f,
-    color: Vec3f,
+    direction: Vec4f,
+    color: Vec4f,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
 #[repr(C)]
 pub struct RendererLightsData {
     light_count: u32,
+    _pad: [u32; 3],
     data: [DirectionalLightData; MAX_LIGHT_COUNT],
 }
 
@@ -43,6 +44,7 @@ impl RendererLights {
     pub fn new(backend: &mut ActiveGraphicsBackend) -> RendererLights {
         let data = RendererLightsData {
             light_count: 0,
+            _pad: [0; 3],
             data: std::array::from_fn(|_| DirectionalLightData::default()),
         };
 
@@ -90,8 +92,9 @@ impl RendererLights {
         let light_idx = self.data.light_count as usize;
         self.data.light_count += 1;
         self.data.data[light_idx].world_to_light = world_to_light;
-        self.data.data[light_idx].direction = light_dir;
-        self.data.data[light_idx].color = Vec3f::ONE;
+        self.data.data[light_idx].direction =
+            Vec4f::new(light_dir.x, light_dir.y, light_dir.z, 0.0);
+        self.data.data[light_idx].color = Vec4f::ONE;
         self.data_changed = true;
     }
 

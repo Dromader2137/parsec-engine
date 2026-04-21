@@ -83,7 +83,10 @@ impl RendererShadows {
                 ],
                 vec![PipelineResourceBindingLayout::new(
                     PipelineBindingType::StorageBuffer,
-                    &[PipelineShaderStage::Vertex],
+                    &[
+                        PipelineShaderStage::Vertex,
+                        PipelineShaderStage::Fragment,
+                    ],
                 )],
             ],
             PipelineOptions::default(),
