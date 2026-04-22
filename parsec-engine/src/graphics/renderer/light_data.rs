@@ -1,4 +1,5 @@
 use crate::{
+    ecs::{system::system, world::query::Query},
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -7,11 +8,14 @@ use crate::{
             PipelineResourceBindingLayout, PipelineResourceLayout,
             PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
+        renderer::components::{light::Light, transform::Transform},
     },
     math::{
         mat::Matrix4f,
+        uvec::Vec2u,
         vec::{Vec2f, Vec3f, Vec4f},
     },
+    resources::Resource,
 };
 
 pub const MAX_LIGHT_COUNT: usize = 32;
@@ -20,6 +24,7 @@ pub const MAX_LIGHT_COUNT: usize = 32;
 #[repr(C)]
 pub struct DirectionalLightData {
     world_to_light: Matrix4f,
+    atlas_clip: Vec4f,
     direction: Vec4f,
     color: Vec4f,
 }
@@ -27,13 +32,13 @@ pub struct DirectionalLightData {
 #[derive(Debug, Default, Clone, Copy)]
 #[repr(C)]
 pub struct RendererLightsData {
-    light_count: u32,
+    pub light_count: u32,
     _pad: [u32; 3],
     data: [DirectionalLightData; MAX_LIGHT_COUNT],
 }
 
 pub struct RendererLights {
-    data: RendererLightsData,
+    pub data: RendererLightsData,
     data_buffer: Buffer,
     data_changed: bool,
     resource_layout: PipelineResourceLayout,
@@ -81,22 +86,35 @@ impl RendererLights {
         light_pos: Vec3f,
         light_dir: Vec3f,
         light_up: Vec3f,
-        shadow_texture_from: Vec2f,
-        shadow_texture_to: Vec2f,
+        light_color: Vec3f,
+        light_size: f32,
     ) {
+        let light_idx = self.data.light_count as usize;
+        let y = light_idx / 8;
+        let x = light_idx % 8;
+        let shadow_texture_from =
+            Vec2f::new(x as f32, y as f32) / Vec2f::new(8.0, 4.0);
+        let shadow_texture_to =
+            Vec2f::new((x + 1) as f32, (y + 1) as f32) / Vec2f::new(8.0, 4.0);
         let world_to_light =
-            Matrix4f::subimage(shadow_texture_from, shadow_texture_to)
-                * Matrix4f::orthographic(0.0, 100.0, 25.0, 25.0)
+            Matrix4f::orthographic(0.0, 100.0, light_size, light_size)
                 * Matrix4f::look_at(light_pos, light_dir, light_up);
 
-        let light_idx = self.data.light_count as usize;
         self.data.light_count += 1;
         self.data.data[light_idx].world_to_light = world_to_light;
         self.data.data[light_idx].direction =
             Vec4f::new(light_dir.x, light_dir.y, light_dir.z, 0.0);
-        self.data.data[light_idx].color = Vec4f::ONE;
+        self.data.data[light_idx].color = light_color.into();
+        self.data.data[light_idx].atlas_clip = Vec4f::new(
+            shadow_texture_from.x,
+            shadow_texture_from.y,
+            shadow_texture_to.x,
+            shadow_texture_to.y,
+        );
         self.data_changed = true;
     }
+
+    pub fn clear_data(&mut self) { self.data.light_count = 0; }
 
     pub fn update_buffer(&self, backend: &mut ActiveGraphicsBackend) {
         backend
@@ -106,4 +124,29 @@ impl RendererLights {
             )
             .unwrap();
     }
+
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) {
+        self.resource.destroy(backend).unwrap();
+        self.resource_layout.destroy(backend).unwrap();
+        self.data_buffer.destroy(backend).unwrap();
+    }
+}
+
+#[system]
+fn update_light_data(
+    mut backend: Resource<ActiveGraphicsBackend>,
+    mut light_data: Resource<RendererLights>,
+    mut lights: Query<(Light, Transform)>,
+) {
+    light_data.clear_data();
+    for (_, (light, transfrom)) in lights.iter() {
+        light_data.add_light_data(
+            transfrom.position,
+            light.direction,
+            light.up,
+            light.color,
+            20.0,
+        );
+    }
+    light_data.update_buffer(&mut backend);
 }

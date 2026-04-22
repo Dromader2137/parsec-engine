@@ -5,6 +5,7 @@
 
 struct DirLightData {
     mat4 world_to_light;
+	vec4 atlas_clip;
     vec3 direction;
     vec3 color;
 };

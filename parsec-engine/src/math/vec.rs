@@ -625,6 +625,10 @@ impl From<Vec4f> for Vec3f {
     fn from(value: Vec4f) -> Self { Vec3f::new(value.x, value.y, value.z) }
 }
 
+impl From<Vec3f> for Vec4f {
+    fn from(value: Vec3f) -> Self { Vec4f::new(value.x, value.y, value.z, 1.0) }
+}
+
 impl Vec4f {
     pub const ZERO: Vec4f = Vec4f {
         x: 0.0,

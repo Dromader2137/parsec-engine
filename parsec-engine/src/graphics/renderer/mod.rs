@@ -46,7 +46,10 @@ use crate::{
         },
         window::Window,
     },
-    math::{mat::Matrix4f, vec::{Vec2f, Vec3f}},
+    math::{
+        mat::Matrix4f,
+        vec::{Vec2f, Vec3f},
+    },
     resources::Resource,
     utils::identifiable::IdStore,
 };
@@ -152,15 +155,7 @@ pub fn init_renderer(
         create_commad_lists(backend.deref_mut(), frames_in_flight);
 
     let shadow_data = RendererShadows::new(&mut backend);
-    let mut light_data = RendererLights::new(&mut backend);
-    light_data.add_light_data(
-        Vec3f::ONE * 20.0,
-        (Vec3f::ONE * -1.0).normalize(),
-        Vec3f::new(-1.0, 1.0, -1.0).normalize(),
-        Vec2f::ZERO,
-        Vec2f::ONE,
-    );
-    light_data.update_buffer(&mut backend);
+    let light_data = RendererLights::new(&mut backend);
 
     requests.create_resource(shadow_data);
     requests.create_resource(light_data);
@@ -319,7 +314,10 @@ pub fn render(
                     &lights,
                     &shadows,
                 );
-                mesh.record_commands(command_list);
+                mesh.record_commands_instanced(
+                    command_list,
+                    lights.data.light_count,
+                );
             },
         }
     }

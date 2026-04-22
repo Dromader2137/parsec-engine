@@ -19,7 +19,7 @@ use parsec_engine::{
             RendererMainRenderpass,
             assets::mesh::{Mesh, obj::load_obj},
             components::{
-                camera::Camera, mesh_renderer::MeshRenderer,
+                camera::Camera, light::Light, mesh_renderer::MeshRenderer,
                 transform::Transform,
             },
             material_data::{
@@ -53,7 +53,7 @@ fn test_system(
         .build(&mut backend)
         .unwrap();
     let fragment = ShaderBuilder::new()
-        .code(&read_shader_code("shaders/flat.spv")?)
+        .code(&read_shader_code("shaders/multilight.spv")?)
         .shader_type(ShaderType::Fragment)
         .build(&mut backend)
         .unwrap();
@@ -139,7 +139,12 @@ fn test_system(
     let texture_sampler = SamplerBuilder::new().build(&mut backend).unwrap();
     let texture_image_view = backend.create_image_view(texture_image).unwrap();
     backend
-        .bind_sampler(texture_binding.handle(), texture_sampler.handle(), texture_image_view, 0)
+        .bind_sampler(
+            texture_binding.handle(),
+            texture_sampler.handle(),
+            texture_image_view,
+            0,
+        )
         .unwrap();
 
     let material = MaterialData::new(&material_base, vec![
@@ -182,14 +187,34 @@ fn test_system(
             MeshRenderer::new(mesh, material_id),
         ));
     }
+    requests.spawn_entity((
+        Transform::new(Vec3f::ONE * 20.0, Vec3f::ONE, Quat::IDENTITY),
+        Light::new(
+            (Vec3f::ONE * -1.0).normalize(),
+            Vec3f::new(-1.0, 1.0, -1.0).normalize(),
+            Vec3f::ONE * 0.8,
+        ),
+        Movable {orbit_radius: 20.0, speed: 0.5}
+    ));
+    requests.spawn_entity((
+        Transform::new(
+            Vec3f::new(1.0, 1.0, -1.0) * 20.0,
+            Vec3f::ONE,
+            Quat::IDENTITY,
+        ),
+        Light::new(
+            Vec3f::new(-1.0, -1.0, 1.0).normalize(),
+            Vec3f::new(-1.0, 1.0, 1.0).normalize(),
+            Vec3f::ONE * 0.2,
+        ),
+    ));
 
     Ok(())
 }
 
 #[derive(Debug, Component)]
 pub struct Movable {
-    base_pos: Vec3f,
-    offset: f32,
+    orbit_radius: f32,
     speed: f32,
 }
 
@@ -263,21 +288,34 @@ fn camera_movement(
 }
 
 #[system]
-fn box_mover(
-    mut movable_boxes: Query<(Mut<Transform>, Movable)>,
+fn light_mover(
+    mut movable_lights: Query<(Mut<Transform>, Mut<Light>, Movable)>,
     time: Resource<Time>,
 ) {
-    for (_, (tra, mov)) in movable_boxes.iter() {
-        tra.position.y = mov.base_pos.y
-            + (time
-                .current_time()
-                .duration_since(time.start_time())
-                .unwrap()
-                .as_millis() as f32
-                / 1000.0
-                * mov.speed
-                + mov.offset)
-                .sin();
+    for (_, (tra, lig, mov)) in movable_lights.iter() {
+        tra.position.x = (time
+            .current_time()
+            .duration_since(time.start_time())
+            .unwrap()
+            .as_millis() as f32
+            / 1000.0
+            * mov.speed)
+            .sin() * mov.orbit_radius;
+        tra.position.z = (time
+            .current_time()
+            .duration_since(time.start_time())
+            .unwrap()
+            .as_millis() as f32
+            / 1000.0
+            * mov.speed)
+            .cos() * mov.orbit_radius;
+        tra.position.y = mov.orbit_radius;
+        lig.direction = tra.position.normalize() * -1.0;
+        lig.up = (tra.position * Vec3f::new(1.0, -1.0, 1.0)).normalize();
+        lig.color.x = rand::random_range(0.0..1.0);
+        lig.color.y = rand::random_range(0.0..1.0);
+        lig.color.z = rand::random_range(0.0..1.0);
+        lig.color.normalize();
     }
 }
 
@@ -289,6 +327,6 @@ fn main() {
     app.systems.add(SystemTrigger::LateStart, TestSystem::new());
     app.systems
         .add(SystemTrigger::Update, CameraMovement::new());
-    app.systems.add(SystemTrigger::Update, BoxMover::new());
+    app.systems.add(SystemTrigger::Update, LightMover::new());
     app.run();
 }

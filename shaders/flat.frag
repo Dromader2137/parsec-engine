@@ -2,6 +2,7 @@
 
 struct DirLightData {
     mat4 world_to_light;
+	vec4 atlas_clip;
     vec3 direction;
     vec3 color;
 };
@@ -26,6 +27,9 @@ void main() {
     float light_angle = dot(-normalize(lightData.data[0].direction), inNormal);
     float intensity = clamp(light_angle, 0.02, 1.0);
     vec3 light_pos = (lightData.data[0].world_to_light * vec4(inPosition, 1.0)).xyz;
+	vec2 lo = lightData.data[0].atlas_clip.xy * 2.0 - 1.0;
+	vec2 hi = lightData.data[0].atlas_clip.zw * 2.0 - 1.0;
+	light_pos.xy = lo + (light_pos.xy + 1.0) * (hi - lo) * 0.5;
     float shadow_samples = 0.0;
     int total_points = 0;
     for (int ring = 1; ring <= num_rings; ++ring) {
@@ -42,6 +46,6 @@ void main() {
     }
     intensity *= shadow_samples / float(total_points);
     intensity = clamp(intensity, 0.02, 1.0);
-    vec3 color = texture(tex, inUV).rgb;
+    vec3 color = texture(tex, inUV).rgb * lightData.data[0].color;
     outColor = vec4(color * intensity, 1.0);
 }

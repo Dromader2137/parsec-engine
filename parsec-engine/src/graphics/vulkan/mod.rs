@@ -203,6 +203,10 @@ impl GraphicsBackend for VulkanBackend {
                 VulkanDescriptorType::UniformBuffer,
             ),
             VulkanDescriptorPoolSize::new(
+                1024,
+                VulkanDescriptorType::StorageBuffer,
+            ),
+            VulkanDescriptorPoolSize::new(
                 16,
                 VulkanDescriptorType::CombinedImageSampler,
             ),

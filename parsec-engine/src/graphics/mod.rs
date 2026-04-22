@@ -37,18 +37,12 @@ use crate::{
     graphics::{
         backend::GraphicsBackend,
         renderer::{
-            InitRenderer, QueueClear, Render, ResizeFlag,
-            assets::mesh::Mesh,
-            camera_data::{AddCameraData, CameraDataManager, UpdateCameraData},
-            components::{
+            InitRenderer, QueueClear, Render, ResizeFlag, assets::mesh::Mesh, camera_data::{AddCameraData, CameraDataManager, UpdateCameraData}, components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            },
-            draw_queue::{Draw, MeshAndMaterial},
-            mesh_data::AddMeshData,
-            transform_data::{
+            }, draw_queue::{Draw, MeshAndMaterial}, light_data::UpdateLightData, mesh_data::AddMeshData, transform_data::{
                 AddTransformData, TransformDataManager, UpdateTransformData,
-            },
+            }
         },
         vulkan::VulkanBackend,
     },
@@ -81,6 +75,7 @@ impl SystemBundle for GraphicsBundle {
             (SystemTrigger::LateStart, InitRenderer::new()),
             (SystemTrigger::Render, UpdateCameraData::new()),
             (SystemTrigger::Render, UpdateTransformData::new()),
+            (SystemTrigger::Render, UpdateLightData::new()),
             (SystemTrigger::Render, AutoEnqueue::new()),
             (SystemTrigger::Render, Render::new()),
             (SystemTrigger::Render, QueueClear::new()),

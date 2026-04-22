@@ -1,7 +1,6 @@
 use crate::{
     graphics::{
         ActiveGraphicsBackend,
-        buffer::{BufferBuilder, BufferContent, BufferUsage},
         framebuffer::{Framebuffer, FramebufferBuilder},
         image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
         pipeline::{
@@ -10,7 +9,6 @@ use crate::{
             PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         renderer::{
-            light_data::RendererLights,
             material_data::{
                 MaterialBase, MaterialData, MaterialPipelineBinding,
             },
@@ -24,7 +22,7 @@ use crate::{
         shader::{Shader, ShaderBuilder, ShaderType},
         vulkan::shader::read_shader_code,
     },
-    math::{mat::Matrix4f, uvec::Vec2u, vec::Vec3f},
+    math::uvec::Vec2u,
 };
 
 pub struct RendererShadows {
@@ -92,7 +90,7 @@ impl RendererShadows {
             PipelineOptions::default(),
         );
 
-        let texture_size = 1 << 10;
+        let texture_size = 1 << 12;
 
         let material = MaterialData::new(&material_base, vec![
             MaterialPipelineBinding::Model,
@@ -101,7 +99,8 @@ impl RendererShadows {
 
         let shadow_texture = TextureBuilder::default()
             .size(
-                ImageSize::new(Vec2u::new(texture_size, texture_size)).unwrap(),
+                ImageSize::new(Vec2u::new(texture_size << 1, texture_size))
+                    .unwrap(),
             )
             .format(ImageFormat::D32)
             .aspect(ImageAspect::Depth)
@@ -131,7 +130,7 @@ impl RendererShadows {
 
         let framebuffer = FramebufferBuilder::new()
             .attachment(shadow_texture.view().handle())
-            .size(Vec2u::new(texture_size, texture_size))
+            .size(Vec2u::new(texture_size << 1, texture_size))
             .renderpass(renderpass.handle())
             .build(backend)
             .unwrap();
