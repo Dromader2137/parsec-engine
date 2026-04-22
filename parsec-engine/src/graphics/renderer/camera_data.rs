@@ -10,9 +10,8 @@ use crate::{
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         pipeline::{
             PipelineBindingType, PipelineResource,
-            PipelineResourceBindingLayout, PipelineResourceHandle,
-            PipelineResourceLayout, PipelineResourceLayoutBuilder,
-            PipelineShaderStage,
+            PipelineResourceBindingLayout, PipelineResourceLayout,
+            PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         renderer::components::camera::Camera,
         window::Window,
@@ -53,7 +52,7 @@ impl CameraData {
             .data(BufferContent::from_slice(&[projection_matrix]))
             .build(backend)
             .unwrap();
-        let mut projection_layout = PipelineResourceLayoutBuilder::new()
+        let projection_layout = PipelineResourceLayoutBuilder::new()
             .binding(PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
@@ -72,6 +71,12 @@ impl CameraData {
             projection_layout,
             projection_resource: projection_binding,
         }
+    }
+
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) {
+        self.projection_buffer.destroy(backend).unwrap();
+        self.projection_resource.destroy(backend).unwrap();
+        self.projection_layout.destroy(backend).unwrap();
     }
 }
 

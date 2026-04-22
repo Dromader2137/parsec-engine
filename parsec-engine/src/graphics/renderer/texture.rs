@@ -8,7 +8,7 @@ use crate::{
             Image, ImageAspect, ImageBuilder, ImageFormat, ImageSize,
             ImageUsage, ImageView, ImageViewBuilder,
         },
-        sampler::{Sampler, SamplerBuilder, SamplerHandle},
+        sampler::{Sampler, SamplerBuilder},
     },
 };
 

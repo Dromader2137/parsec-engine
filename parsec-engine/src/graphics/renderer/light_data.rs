@@ -12,7 +12,6 @@ use crate::{
     },
     math::{
         mat::Matrix4f,
-        uvec::Vec2u,
         vec::{Vec2f, Vec3f, Vec4f},
     },
     resources::Resource,

@@ -93,9 +93,8 @@ impl<'a> BufferContent<'a> {
     pub fn from_slice<T: Copy>(data: &'a [T]) -> Self {
         let ptr = data.as_ptr();
         let len = size_of::<T>().next_multiple_of(align_of::<T>()) * data.len();
-        let bytes = unsafe {
-            std::slice::from_raw_parts(ptr as *const u8, len)
-        };
+        let bytes =
+            unsafe { std::slice::from_raw_parts(ptr as *const u8, len) };
         BufferContent {
             data: bytes,
             align: std::mem::align_of::<T>() as u32,

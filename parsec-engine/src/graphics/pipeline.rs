@@ -1,7 +1,9 @@
 use crate::{
     error::ParsecError,
     graphics::{
-        ActiveGraphicsBackend, buffer::BufferHandle, image::ImageViewHandle, renderpass::RenderpassHandle, sampler::SamplerHandle, shader::ShaderHandle
+        ActiveGraphicsBackend, buffer::BufferHandle, image::ImageViewHandle,
+        renderpass::RenderpassHandle, sampler::SamplerHandle,
+        shader::ShaderHandle,
     },
     math::vec::{Vec2f, Vec3f},
 };
@@ -258,6 +260,7 @@ impl PipelineResource {
         Self { handle, layout }
     }
     pub fn handle(&self) -> PipelineResourceHandle { self.handle }
+    pub fn layout(&self) -> PipelineResourceLayoutHandle { self.layout }
     pub fn id(&self) -> u32 { self.handle.id }
     pub fn destroy(
         self,
@@ -274,7 +277,7 @@ impl PipelineResource {
     ) -> Result<(), PipelineError> {
         backend.bind_buffer(self.handle, buffer, binding_idx)
     }
-    
+
     pub fn bind_sampler(
         &self,
         backend: &mut ActiveGraphicsBackend,

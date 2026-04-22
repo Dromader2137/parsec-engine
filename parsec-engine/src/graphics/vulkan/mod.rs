@@ -602,9 +602,10 @@ impl GraphicsBackend for VulkanBackend {
             .descriptor_sets
             .remove(&resrouce.id())
             .ok_or(PipelineError::ResourceNotFound)?;
-        ds.free(&self.device, &self.descriptor_pool).map_err(|err| {
-            PipelineError::PipelineResourceDestructionError(err.into())
-        })?;
+        ds.free(&self.device, &self.descriptor_pool)
+            .map_err(|err| {
+                PipelineError::PipelineResourceDestructionError(err.into())
+            })?;
         Ok(())
     }
 

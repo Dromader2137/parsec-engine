@@ -46,10 +46,6 @@ use crate::{
         },
         window::Window,
     },
-    math::{
-        mat::Matrix4f,
-        vec::{Vec2f, Vec3f},
-    },
     resources::Resource,
     utils::identifiable::IdStore,
 };

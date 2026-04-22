@@ -18,7 +18,10 @@ pub struct Shader {
 
 impl Shader {
     fn new(handle: ShaderHandle, shader_type: ShaderType) -> Self {
-        Self { handle, shader_type }
+        Self {
+            handle,
+            shader_type,
+        }
     }
 
     pub fn handle(&self) -> ShaderHandle { self.handle }
@@ -40,7 +43,10 @@ pub struct ShaderBuilder<'a> {
 
 impl<'a> ShaderBuilder<'a> {
     pub fn new() -> Self {
-        Self { code: None, shader_type: ShaderType::Vertex }
+        Self {
+            code: None,
+            shader_type: ShaderType::Vertex,
+        }
     }
 
     pub fn code(mut self, code: &'a [u32]) -> Self {
@@ -77,7 +83,7 @@ pub enum ShaderError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShaderType {
-        // TODO maybe cleanup shadow material
+    // TODO maybe cleanup shadow material
     Vertex,
     Fragment,
 }

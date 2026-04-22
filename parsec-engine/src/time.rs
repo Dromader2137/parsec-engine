@@ -1,6 +1,6 @@
 //! Module responsible for timing.
 
-use std::time::SystemTime;
+use std::time::{SystemTime, SystemTimeError};
 
 use crate::{
     ecs::system::{
@@ -47,6 +47,12 @@ impl Time {
 
     /// Gets current frame time. May differ slightly from [`SystemTime::now()`].
     pub fn current_time(&self) -> SystemTime { self.current_time }
+
+    pub fn elapsed_time(&self) -> Result<f64, SystemTimeError> {
+        self.current_time
+            .duration_since(self.start_time)
+            .map(|x| x.as_millis() as f64 / 1000.0)
+    }
 }
 
 #[system]

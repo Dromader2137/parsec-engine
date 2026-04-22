@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use crate::graphics::window::Window;
 
 pub struct VulkanInstance {

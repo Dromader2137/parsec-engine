@@ -127,11 +127,8 @@ impl Matrix4f {
             [0.0, 0.0, 0.0, 1.0],
         ])
     }
-    
-    pub fn subimage(
-        from: Vec2f,
-        to: Vec2f
-    ) -> Matrix4f {
+
+    pub fn subimage(from: Vec2f, to: Vec2f) -> Matrix4f {
         let diff = to - from;
         Matrix4f::new([
             [diff.x, 0.0, 0.0, from.x],

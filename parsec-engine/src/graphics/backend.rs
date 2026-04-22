@@ -13,7 +13,10 @@ use crate::{
             ImageUsage, ImageView, ImageViewHandle,
         },
         pipeline::{
-            Pipeline, PipelineError, PipelineHandle, PipelineOptions, PipelineResource, PipelineResourceBindingLayout, PipelineResourceHandle, PipelineResourceLayout, PipelineResourceLayoutHandle
+            Pipeline, PipelineError, PipelineHandle, PipelineOptions,
+            PipelineResource, PipelineResourceBindingLayout,
+            PipelineResourceHandle, PipelineResourceLayout,
+            PipelineResourceLayoutHandle,
         },
         renderpass::{
             Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,

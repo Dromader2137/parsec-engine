@@ -1,7 +1,4 @@
-use crate::{
-    ecs::world::component::Component,
-    math::vec::Vec3f,
-};
+use crate::{ecs::world::component::Component, math::vec::Vec3f};
 
 #[derive(Debug, Component)]
 pub struct Light {

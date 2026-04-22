@@ -194,7 +194,11 @@ fn test_system(
             Vec3f::new(-1.0, 1.0, -1.0).normalize(),
             Vec3f::ONE * 0.8,
         ),
-        Movable {orbit_radius: 20.0, speed: 0.5}
+        OrbitingLight {
+            orbit_radius: 20.0,
+            speed: 0.1,
+            offset: std::f32::consts::PI / 0.5,
+        },
     ));
     requests.spawn_entity((
         Transform::new(
@@ -207,15 +211,21 @@ fn test_system(
             Vec3f::new(-1.0, 1.0, 1.0).normalize(),
             Vec3f::ONE * 0.2,
         ),
+        OrbitingLight {
+            orbit_radius: 20.0,
+            speed: 0.1,
+            offset: 0.0,
+        },
     ));
 
     Ok(())
 }
 
 #[derive(Debug, Component)]
-pub struct Movable {
+pub struct OrbitingLight {
     orbit_radius: f32,
     speed: f32,
+    offset: f32,
 }
 
 #[derive(Debug, Component)]
@@ -289,33 +299,21 @@ fn camera_movement(
 
 #[system]
 fn light_mover(
-    mut movable_lights: Query<(Mut<Transform>, Mut<Light>, Movable)>,
+    mut movable_lights: Query<(Mut<Transform>, Mut<Light>, OrbitingLight)>,
     time: Resource<Time>,
 ) {
     for (_, (tra, lig, mov)) in movable_lights.iter() {
-        tra.position.x = (time
-            .current_time()
-            .duration_since(time.start_time())
-            .unwrap()
-            .as_millis() as f32
-            / 1000.0
-            * mov.speed)
-            .sin() * mov.orbit_radius;
-        tra.position.z = (time
-            .current_time()
-            .duration_since(time.start_time())
-            .unwrap()
-            .as_millis() as f32
-            / 1000.0
-            * mov.speed)
-            .cos() * mov.orbit_radius;
+        tra.position.x = (time.elapsed_time().unwrap() * mov.speed as f64
+            + mov.offset as f64)
+            .sin() as f32
+            * mov.orbit_radius;
+        tra.position.y = (time.elapsed_time().unwrap() * mov.speed as f64
+            + mov.offset as f64)
+            .cos() as f32
+            * mov.orbit_radius;
         tra.position.y = mov.orbit_radius;
         lig.direction = tra.position.normalize() * -1.0;
         lig.up = (tra.position * Vec3f::new(1.0, -1.0, 1.0)).normalize();
-        lig.color.x = rand::random_range(0.0..1.0);
-        lig.color.y = rand::random_range(0.0..1.0);
-        lig.color.z = rand::random_range(0.0..1.0);
-        lig.color.normalize();
     }
 }
 

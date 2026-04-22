@@ -10,9 +10,8 @@ use crate::{
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         pipeline::{
             PipelineBindingType, PipelineResource,
-            PipelineResourceBindingLayout, PipelineResourceHandle,
-            PipelineResourceLayout, PipelineResourceLayoutBuilder,
-            PipelineShaderStage,
+            PipelineResourceBindingLayout, PipelineResourceLayout,
+            PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         renderer::components::transform::Transform,
     },
@@ -80,7 +79,7 @@ impl TransformData {
             .data(BufferContent::from_slice(&[scale_matrix]))
             .build(backend)
             .unwrap();
-        let mut model_layout = PipelineResourceLayoutBuilder::new()
+        let model_layout = PipelineResourceLayoutBuilder::new()
             .bindings(&[
                 PipelineResourceBindingLayout {
                     binding_type: PipelineBindingType::UniformBuffer,
@@ -97,7 +96,7 @@ impl TransformData {
             ])
             .build(backend)
             .unwrap();
-        let mut look_at_layout = PipelineResourceLayoutBuilder::new()
+        let look_at_layout = PipelineResourceLayoutBuilder::new()
             .bindings(&[PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
@@ -163,6 +162,17 @@ impl TransformData {
                 BufferContent::from_slice(&[self.look_at_matrix]),
             )
             .unwrap();
+    }
+
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) {
+        self.translation_buffer.destroy(backend).unwrap();
+        self.scale_buffer.destroy(backend).unwrap();
+        self.rotation_buffer.destroy(backend).unwrap();
+        self.look_at_buffer.destroy(backend).unwrap();
+        self.model_resource.destroy(backend).unwrap();
+        self.look_at_resource.destroy(backend).unwrap();
+        self.model_layout.destroy(backend).unwrap();
+        self.look_at_layout.destroy(backend).unwrap();
     }
 }
 

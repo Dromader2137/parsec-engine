@@ -114,4 +114,6 @@ impl TextureAtlas {
     pub fn size(&self) -> Vec2u { self.size }
 
     pub fn texture(&self) -> &Texture { &self.texture }
+
+    pub fn elements(&self) -> &[TextureAtlasRegion] { &self.elements }
 }

@@ -37,12 +37,19 @@ use crate::{
     graphics::{
         backend::GraphicsBackend,
         renderer::{
-            InitRenderer, QueueClear, Render, ResizeFlag, assets::mesh::Mesh, camera_data::{AddCameraData, CameraDataManager, UpdateCameraData}, components::{
+            InitRenderer, QueueClear, Render, ResizeFlag,
+            assets::mesh::Mesh,
+            camera_data::{AddCameraData, CameraDataManager, UpdateCameraData},
+            components::{
                 camera::Camera, mesh_renderer::MeshRenderer,
                 transform::Transform,
-            }, draw_queue::{Draw, MeshAndMaterial}, light_data::UpdateLightData, mesh_data::AddMeshData, transform_data::{
+            },
+            draw_queue::{Draw, MeshAndMaterial},
+            light_data::UpdateLightData,
+            mesh_data::AddMeshData,
+            transform_data::{
                 AddTransformData, TransformDataManager, UpdateTransformData,
-            }
+            },
         },
         vulkan::VulkanBackend,
     },
