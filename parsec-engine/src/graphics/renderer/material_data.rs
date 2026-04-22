@@ -3,7 +3,7 @@ use crate::{
         ActiveGraphicsBackend,
         command_list::{Command, CommandList},
         pipeline::{
-            Pipeline, PipelineBuilder, PipelineOptions,
+            Pipeline, PipelineBuilder, PipelineError, PipelineOptions,
             PipelineResourceBindingLayout, PipelineResourceHandle,
             PipelineResourceLayout, PipelineResourceLayoutBuilder,
         },
@@ -65,6 +65,19 @@ impl MaterialBase {
 
     pub fn resource_layouts(&self) -> &[PipelineResourceLayout] {
         &self.resource_layouts
+    }
+
+    pub fn destroy(
+        mut self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<(), PipelineError> {
+        self.pipeline.destroy(backend)?;
+        for layout in
+            self.resource_layouts.drain(0..self.resource_layouts.len())
+        {
+            layout.destroy(backend)?;
+        }
+        Ok(())
     }
 }
 

@@ -155,8 +155,7 @@ impl RendererShadows {
         self.framebuffer.destroy(backend).unwrap();
         self.renderpass.destroy(backend).unwrap();
         // TODO maybe cleanup shadow material
-        // self.material.destroy(backend).unwrap();
-        // self.material_base.destroy(backend).unwrap();
+        self.material_base.destroy(backend).unwrap();
         self.fragment_shader.destroy(backend).unwrap();
         self.vertex_shader.destroy(backend).unwrap();
     }
