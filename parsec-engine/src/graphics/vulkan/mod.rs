@@ -319,23 +319,17 @@ impl GraphicsBackend for VulkanBackend {
             builder
                 .build(&self.device, &mut cmd)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
-            let fence = VulkanFence::new(&self.device, false)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             self.present_queue
                 .submit(
                     &self.device,
                     &[],
                     &[],
                     &[&cmd],
-                    &fence,
+                    &VulkanFence::null(),
                     VulkanPipelineStage::Transfer,
                     &mut self.images,
                 )
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
-            fence
-                .wait(&self.device)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
-            fence.destroy(&self.device);
 
             self.staging_buffers.insert(device_local.id(), staging.id());
             self.buffers.insert(staging.id(), staging);
@@ -386,23 +380,17 @@ impl GraphicsBackend for VulkanBackend {
             builder
                 .build(&self.device, &mut cmd)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
-            let fence = VulkanFence::new(&self.device, false)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             self.present_queue
                 .submit(
                     &self.device,
                     &[],
                     &[],
                     &[&cmd],
-                    &fence,
+                    &VulkanFence::null(),
                     VulkanPipelineStage::Transfer,
                     &mut self.images,
                 )
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
-            fence
-                .wait(&self.device)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
-            fence.destroy(&self.device);
         } else {
             buffer
                 .update(&self.device, data)
