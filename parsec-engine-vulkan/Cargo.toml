@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+parsec-engine-math = { path = "../parsec-engine-math" }
+parsec-engine-graphics = { path = "../parsec-engine-graphics" }
+ash = "0.38.0"
+ash-window = "0.13.0"

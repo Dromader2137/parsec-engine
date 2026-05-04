@@ -6,7 +6,11 @@ edition = "2024"
 [dependencies]
 ash = "0.38.0"
 winit = { version = "0.30.13", features = [ "rwh_05" ] }
-parsec-engine-macros = { path = "../parsec-engine-macros" }
 ash-window = "0.13.0"
 once_cell = "1.21.4"
 thiserror = "2.0.18"
+parsec-engine-macros = { path = "../parsec-engine-macros" }
+parsec-engine-graphics = { path = "../parsec-engine-graphics" }
+parsec-engine-vulkan = { path = "../parsec-engine-vulkan" }
+parsec-engine-math = { path = "../parsec-engine-math" }
+parsec-engine-ecs = { path = "../parsec-engine-ecs" }
