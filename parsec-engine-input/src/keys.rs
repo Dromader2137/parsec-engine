@@ -26,9 +26,7 @@ pub struct Keys {
 }
 
 impl Default for Keys {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl Keys {

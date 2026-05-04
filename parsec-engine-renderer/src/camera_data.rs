@@ -92,8 +92,11 @@ fn add_camera_data(
     mut cameras: Query<Mut<Camera>>,
 ) {
     for (_, camera) in cameras.iter() {
-        if let std::collections::hash_map::Entry::Vacant(e) = camera_data_manager
-            .component_to_data.entry(camera.camera_id()) {
+        if let std::collections::hash_map::Entry::Vacant(e) =
+            camera_data_manager
+                .component_to_data
+                .entry(camera.camera_id())
+        {
             let camera_data = CameraData::new(
                 &mut backend,
                 &window,

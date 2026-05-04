@@ -187,8 +187,11 @@ fn add_transform_data(
     mut transforms: Query<Mut<Transform>>,
 ) {
     for (_, transform) in transforms.iter() {
-        if let std::collections::hash_map::Entry::Vacant(e) = transforms_data_manager
-            .component_to_data.entry(transform.transform_id()) {
+        if let std::collections::hash_map::Entry::Vacant(e) =
+            transforms_data_manager
+                .component_to_data
+                .entry(transform.transform_id())
+        {
             let transform_data = TransformData::new(
                 &mut backend,
                 transform.position,

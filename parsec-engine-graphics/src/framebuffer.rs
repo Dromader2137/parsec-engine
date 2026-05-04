@@ -59,9 +59,7 @@ pub struct FramebufferBuilder {
 }
 
 impl Default for FramebufferBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl FramebufferBuilder {

@@ -14,9 +14,7 @@ pub struct IdStore<T: Identifiable> {
 }
 
 impl<T: Identifiable> Default for IdStore<T> {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl<T: Identifiable> IdStore<T> {

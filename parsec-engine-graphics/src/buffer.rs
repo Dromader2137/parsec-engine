@@ -53,9 +53,7 @@ pub struct BufferBuilder<'a> {
 }
 
 impl<'a> Default for BufferBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl<'a> BufferBuilder<'a> {

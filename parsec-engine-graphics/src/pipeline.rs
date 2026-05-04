@@ -72,9 +72,7 @@ pub struct PipelineBuilder {
 }
 
 impl Default for PipelineBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl PipelineBuilder {
@@ -212,9 +210,7 @@ pub struct PipelineResourceLayoutBuilder {
 }
 
 impl Default for PipelineResourceLayoutBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl PipelineResourceLayoutBuilder {

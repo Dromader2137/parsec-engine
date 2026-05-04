@@ -46,9 +46,7 @@ pub struct RenderpassBuilder {
 }
 
 impl Default for RenderpassBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl RenderpassBuilder {

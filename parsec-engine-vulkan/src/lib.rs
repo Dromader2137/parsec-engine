@@ -492,7 +492,8 @@ impl GraphicsBackend for VulkanBackend {
             .map(|x| {
                 self.descriptor_set_layouts
                     .get(&x.id())
-                    .ok_or(PipelineError::LayoutNotFound).cloned()
+                    .ok_or(PipelineError::LayoutNotFound)
+                    .cloned()
             })
             .collect::<Result<Vec<_>, _>>()?;
         let pipeline = VulkanGraphicsPipeline::new(
@@ -808,11 +809,9 @@ impl GraphicsBackend for VulkanBackend {
             };
         }
 
-        builder
-            .build(&self.device, command_buffer)
-            .map_err(|err| {
-                CommandListError::CommandListSubmitError(err.into())
-            })?;
+        builder.build(&self.device, command_buffer).map_err(|err| {
+            CommandListError::CommandListSubmitError(err.into())
+        })?;
 
         self.present_queue
             .submit(

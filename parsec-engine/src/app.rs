@@ -21,9 +21,7 @@ pub struct App {
 }
 
 impl Default for App {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl App {
@@ -133,10 +131,7 @@ impl winit::application::ApplicationHandler for App {
                     _ => return,
                 };
 
-                self.resources.add(KeyboardInputEvent::new(
-                    key_code,
-                    state,
-                ));
+                self.resources.add(KeyboardInputEvent::new(key_code, state));
 
                 self.execute_system(SystemTrigger::KeyboardInput);
 

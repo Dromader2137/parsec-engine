@@ -44,9 +44,7 @@ pub struct World {
 }
 
 impl Default for World {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl World {

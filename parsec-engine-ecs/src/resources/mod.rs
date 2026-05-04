@@ -113,9 +113,7 @@ fn check_circularity(
 }
 
 impl Default for Resources {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl Resources {

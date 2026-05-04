@@ -254,10 +254,7 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let argument_names = input_fn.sig.inputs.iter().map(|arg| match arg {
         FnArg::Typed(PatType { pat, .. }) => {
             let argument_name = match &**pat {
-                Pat::Ident(pat_ident) => {
-                    
-                    &pat_ident.ident
-                },
+                Pat::Ident(pat_ident) => &pat_ident.ident,
                 _ => panic!("Only ident is supported inside systems"),
             };
             quote! { #argument_name }

@@ -155,9 +155,7 @@ pub struct ImageBuilder<'a> {
 }
 
 impl<'a> Default for ImageBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl<'a> ImageBuilder<'a> {
@@ -216,9 +214,7 @@ pub struct ImageViewBuilder {
 }
 
 impl Default for ImageViewBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl ImageViewBuilder {

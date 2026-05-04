@@ -22,7 +22,9 @@
 //! Layers can only use types and functions provided by the layer directly below it
 
 use std::{
-    ops::{Deref, DerefMut}, ptr::NonNull, thread::{self, ThreadId}
+    ops::{Deref, DerefMut},
+    ptr::NonNull,
+    thread::{self, ThreadId},
 };
 
 use parsec_engine_error::{ParsecError, StrError};

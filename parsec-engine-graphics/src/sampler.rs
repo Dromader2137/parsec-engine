@@ -34,9 +34,7 @@ impl Sampler {
 pub struct SamplerBuilder;
 
 impl Default for SamplerBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl SamplerBuilder {

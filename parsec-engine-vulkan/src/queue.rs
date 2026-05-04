@@ -64,8 +64,7 @@ impl VulkanQueue {
                 .map_err(VulkanQueueError::SubmitError)?;
         }
 
-        for image_state in
-            command_buffers.iter().flat_map(|x| x.image_state())
+        for image_state in command_buffers.iter().flat_map(|x| x.image_state())
         {
             if let Some(image) = image_map.get_mut(&image_state.0) {
                 image.set_layout(image_state.1.last_layout);

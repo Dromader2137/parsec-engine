@@ -24,9 +24,7 @@ pub struct Input {
 }
 
 impl Default for Input {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl Input {

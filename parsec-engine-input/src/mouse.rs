@@ -60,9 +60,7 @@ pub struct Mouse {
 }
 
 impl Default for Mouse {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl Mouse {
