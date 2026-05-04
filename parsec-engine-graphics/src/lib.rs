@@ -21,9 +21,11 @@
 //!
 //! Layers can only use types and functions provided by the layer directly below it
 
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut}, ptr::NonNull, thread::{self, ThreadId}
+};
 
-use parsec_engine_error::ParsecError;
+use parsec_engine_error::{ParsecError, StrError};
 
 use crate::{backend::GraphicsBackend, window::Window};
 
@@ -57,5 +59,37 @@ impl ActiveGraphicsBackend {
     ) -> Result<Self, ParsecError> {
         let backend = T::init(window)?;
         Ok(Self(Box::new(backend)))
+    }
+}
+
+pub struct ActiveEventLoop {
+    raw_active_event_loop: NonNull<winit::event_loop::ActiveEventLoop>,
+    thread_id: ThreadId,
+}
+
+unsafe impl Send for ActiveEventLoop {}
+unsafe impl Sync for ActiveEventLoop {}
+
+impl ActiveEventLoop {
+    pub fn new(
+        raw_active_event_loop: &winit::event_loop::ActiveEventLoop,
+    ) -> Self {
+        ActiveEventLoop {
+            raw_active_event_loop: NonNull::from_ref(raw_active_event_loop),
+            thread_id: thread::current().id(),
+        }
+    }
+
+    pub fn raw_active_event_loop(
+        &self,
+    ) -> Result<&winit::event_loop::ActiveEventLoop, ParsecError> {
+        if self.thread_id != thread::current().id() {
+            return Err(StrError(
+                "Active event loop can only be accessed from the creating \
+                 thread",
+            )
+            .into());
+        }
+        Ok(unsafe { self.raw_active_event_loop.as_ref() })
     }
 }

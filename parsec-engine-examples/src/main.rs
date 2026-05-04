@@ -20,7 +20,6 @@ use parsec_engine::{
         shader::{ShaderBuilder, ShaderType},
         window::Window,
     },
-    graphics_bundle::GraphicsBundle,
     input::{Input, InputBundle},
     math::{quat::Quat, uvec::Vec2u, vec::Vec3f},
     renderer::{
@@ -30,6 +29,7 @@ use parsec_engine::{
             camera::Camera, light::Light, mesh_renderer::MeshRenderer,
             transform::Transform,
         },
+        graphics_bundle::GraphicsBundle,
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
     },
     time::{Time, TimeBundle},

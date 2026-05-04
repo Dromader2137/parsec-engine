@@ -7,6 +7,7 @@ pub mod camera_data;
 pub mod components;
 pub mod depth_image;
 pub mod draw_queue;
+pub mod graphics_bundle;
 pub mod light_data;
 pub mod material_data;
 pub mod mesh_data;

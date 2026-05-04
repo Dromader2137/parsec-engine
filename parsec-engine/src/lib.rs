@@ -1,5 +1,4 @@
 pub mod app;
-pub mod graphics_bundle;
 pub mod time;
 
 pub use parsec_engine_ecs as ecs;

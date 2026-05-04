@@ -660,7 +660,7 @@ impl GraphicsBackend for VulkanBackend {
         signal_semaphores: &[GpuToGpuFence],
         signal_fence: GpuToCpuFence,
     ) -> Result<(), CommandListError> {
-        let mut command_buffer = self
+        let command_buffer = self
             .command_buffers
             .get_mut(&command_list.id())
             .ok_or(CommandListError::CommandListNotFound)?;

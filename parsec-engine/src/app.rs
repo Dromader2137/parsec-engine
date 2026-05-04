@@ -1,12 +1,11 @@
 //! Modele responsible managing the lifecycle of an application.
 
-use std::{cell::RefCell, ptr::NonNull};
-
 use parsec_engine_ecs::{
     resources::Resources,
     system::{SystemTrigger, Systems, requests::Requests},
     world::World,
 };
+use parsec_engine_graphics::ActiveEventLoop;
 use parsec_engine_input::{
     key::StorageKeyCode,
     keys::KeyboardInputEvent,
@@ -61,33 +60,34 @@ impl App {
     }
 }
 
-pub struct ActiveEventLoopStore {
-    event_loop: NonNull<winit::event_loop::ActiveEventLoop>,
-}
-
-thread_local! {
-pub static ACTIVE_EVENT_LOOP: RefCell<Option<ActiveEventLoopStore>> = const { RefCell::new(None) };
-}
-
-impl ActiveEventLoopStore {
-    fn new(
-        event_loop: &winit::event_loop::ActiveEventLoop,
-    ) -> ActiveEventLoopStore {
-        ActiveEventLoopStore {
-            event_loop: NonNull::from_ref(event_loop),
-        }
-    }
-
-    pub fn get_event_loop(&self) -> &winit::event_loop::ActiveEventLoop {
-        unsafe { self.event_loop.as_ref() }
-    }
-}
+// pub struct ActiveEventLoopStore {
+//     event_loop: NonNull<winit::event_loop::ActiveEventLoop>,
+// }
+//
+// thread_local! {
+// pub static ACTIVE_EVENT_LOOP: RefCell<Option<ActiveEventLoopStore>> = const { RefCell::new(None) };
+// }
+//
+// impl ActiveEventLoopStore {
+//     fn new(
+//         event_loop: &winit::event_loop::ActiveEventLoop,
+//     ) -> ActiveEventLoopStore {
+//         ActiveEventLoopStore {
+//             event_loop: NonNull::from_ref(event_loop),
+//         }
+//     }
+//
+//     pub fn get_event_loop(&self) -> &winit::event_loop::ActiveEventLoop {
+//         unsafe { self.event_loop.as_ref() }
+//     }
+// }
 
 impl winit::application::ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        ACTIVE_EVENT_LOOP.with_borrow_mut(|x| {
-            *x = Some(ActiveEventLoopStore::new(event_loop))
-        });
+        self.resources.add(ActiveEventLoop::new(event_loop));
+        // ACTIVE_EVENT_LOOP.with_borrow_mut(|x| {
+        //     *x = Some(ActiveEventLoopStore::new(event_loop))
+        // });
         self.execute_system(SystemTrigger::LateStart);
     }
 
@@ -193,7 +193,7 @@ impl winit::application::ApplicationHandler for App {
                 self.resources.remove::<MouseWheelEvent>().unwrap();
             },
             winit::event::WindowEvent::CloseRequested => {
-                ACTIVE_EVENT_LOOP.with_borrow_mut(|x| *x = None);
+                self.resources.remove::<ActiveEventLoop>().unwrap();
                 self.execute_system(SystemTrigger::End);
                 event_loop.exit();
             },

@@ -4,8 +4,13 @@ use parsec_engine_ecs::{
     world::query::Query,
 };
 use parsec_engine_error::{OptionNoneErr, ParsecError};
-use parsec_engine_graphics::{ActiveGraphicsBackend, window::Window};
-use parsec_engine_renderer::{
+use parsec_engine_graphics::{
+    ActiveEventLoop, ActiveGraphicsBackend, window::Window,
+};
+use parsec_engine_utils::identifiable::IdStore;
+use parsec_engine_vulkan::VulkanBackend;
+
+use crate::{
     InitRenderer, QueueClear, Render, ResizeFlag,
     assets::mesh::Mesh,
     camera_data::{AddCameraData, CameraDataManager, UpdateCameraData},
@@ -19,8 +24,6 @@ use parsec_engine_renderer::{
         AddTransformData, TransformDataManager, UpdateTransformData,
     },
 };
-use parsec_engine_utils::identifiable::IdStore;
-use parsec_engine_vulkan::VulkanBackend;
 
 #[derive(Default)]
 pub struct GraphicsBundle {}
@@ -70,11 +73,13 @@ fn end_wait_idle(backend: Resource<ActiveGraphicsBackend>) {
 }
 
 #[system]
-fn init_window(mut requests: Resource<Requests>) -> Result<(), ParsecError> {
+fn init_window(
+    mut requests: Resource<Requests>,
+    event_loop: Resource<ActiveEventLoop>,
+) -> Result<(), ParsecError> {
     let window = {
-        let event_loop = crate::app::ACTIVE_EVENT_LOOP.take().none_err()?;
-        let event_loop_raw = event_loop.get_event_loop();
-        Window::new(event_loop_raw, "Oxide Engine test")?
+        let event_loop = event_loop.raw_active_event_loop()?;
+        Window::new(event_loop, "Oxide Engine test")?
     };
     requests.create_resource(window);
     Ok(())
