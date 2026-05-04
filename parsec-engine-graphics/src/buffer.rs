@@ -52,6 +52,12 @@ pub struct BufferBuilder<'a> {
     usage: &'a [BufferUsage],
 }
 
+impl<'a> Default for BufferBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> BufferBuilder<'a> {
     pub fn new() -> Self {
         Self {

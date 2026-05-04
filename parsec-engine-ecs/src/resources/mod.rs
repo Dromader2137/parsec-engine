@@ -84,7 +84,7 @@ impl<T: ResourceMarker> SystemInput for Resource<T> {
         Ok(Resource {
             guard: ManuallyDrop::new(guard),
             _arc: arc,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         })
     }
 }
@@ -110,6 +110,12 @@ fn check_circularity(
         ret |= check_circularity(*dependency, target_id, resources);
     }
     ret
+}
+
+impl Default for Resources {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Resources {

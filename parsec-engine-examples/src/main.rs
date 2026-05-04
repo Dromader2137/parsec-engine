@@ -58,7 +58,7 @@ fn test_system(
         .unwrap();
 
     let material_base = MaterialBase::new(
-        &mut *backend,
+        &mut backend,
         vertex.handle(),
         fragment.handle(),
         renderpass.0.handle(),
@@ -320,7 +320,7 @@ fn main() {
     let mut app = App::new();
     app.systems.add_bundle(GraphicsBundle::default());
     app.systems.add_bundle(InputBundle::default());
-    app.systems.add_bundle(TimeBundle::default());
+    app.systems.add_bundle(TimeBundle);
     app.systems.add(SystemTrigger::LateStart, TestSystem::new());
     app.systems
         .add(SystemTrigger::Update, CameraMovement::new());

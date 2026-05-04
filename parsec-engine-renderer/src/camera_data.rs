@@ -92,21 +92,17 @@ fn add_camera_data(
     mut cameras: Query<Mut<Camera>>,
 ) {
     for (_, camera) in cameras.iter() {
-        if !camera_data_manager
-            .component_to_data
-            .contains_key(&camera.camera_id())
-        {
+        if let std::collections::hash_map::Entry::Vacant(e) = camera_data_manager
+            .component_to_data.entry(camera.camera_id()) {
             let camera_data = CameraData::new(
-                &mut *backend,
+                &mut backend,
                 &window,
                 camera.vertical_fov,
                 camera.near_clipping_plane,
                 camera.far_clipping_plane,
             );
             let data_id = cameras_data.push(camera_data);
-            camera_data_manager
-                .component_to_data
-                .insert(camera.camera_id(), data_id);
+            e.insert(data_id);
         }
     }
 }

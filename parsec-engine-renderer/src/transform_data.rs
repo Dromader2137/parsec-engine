@@ -187,20 +187,16 @@ fn add_transform_data(
     mut transforms: Query<Mut<Transform>>,
 ) {
     for (_, transform) in transforms.iter() {
-        if !transforms_data_manager
-            .component_to_data
-            .contains_key(&transform.transform_id())
-        {
+        if let std::collections::hash_map::Entry::Vacant(e) = transforms_data_manager
+            .component_to_data.entry(transform.transform_id()) {
             let transform_data = TransformData::new(
-                &mut *backend,
+                &mut backend,
                 transform.position,
                 transform.scale,
                 transform.rotation,
             );
             let data_id = transforms_data.push(transform_data);
-            transforms_data_manager
-                .component_to_data
-                .insert(transform.transform_id(), data_id);
+            e.insert(data_id);
         }
     }
 }
@@ -226,7 +222,7 @@ fn update_transform_data(
                 Vec3f::FORWARD * transform.rotation,
                 Vec3f::UP * transform.rotation,
             );
-            data.update_buffers_from_data(&mut *backend);
+            data.update_buffers_from_data(&mut backend);
         }
     }
 }

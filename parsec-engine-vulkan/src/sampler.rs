@@ -26,7 +26,7 @@ impl VulkanSampler {
             device
                 .raw_device()
                 .create_sampler(&sampler_info, None)
-                .map_err(|err| VulkanSamplerError::SamplerCreationError(err))?
+                .map_err(VulkanSamplerError::SamplerCreationError)?
         };
 
         Ok(VulkanSampler {

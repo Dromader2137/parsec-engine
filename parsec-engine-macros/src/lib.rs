@@ -255,8 +255,8 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
         FnArg::Typed(PatType { pat, .. }) => {
             let argument_name = match &**pat {
                 Pat::Ident(pat_ident) => {
-                    let ident = &pat_ident.ident;
-                    ident
+                    
+                    &pat_ident.ident
                 },
                 _ => panic!("Only ident is supported inside systems"),
             };

@@ -23,7 +23,7 @@ impl VulkanPhysicalDevice {
             instance
                 .raw_handle()
                 .enumerate_physical_devices()
-                .map_err(|err| VulkanPhysicalDeviceError::CreationError(err))?
+                .map_err(VulkanPhysicalDeviceError::CreationError)?
         };
 
         let (physical_device, queue_family_index) = match physical_devices

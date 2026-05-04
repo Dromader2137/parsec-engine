@@ -42,7 +42,7 @@ impl<V: Vertex> MeshBuffer<V> {
             vertex_buffer,
             index_buffer,
             len: indices.len() as u32,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 
@@ -117,7 +117,7 @@ fn add_mesh_data(
     for mesh in meshes.iter_mut() {
         if mesh.data_id.is_none() {
             let mesh_data =
-                MeshData::new(&mut *backend, &mesh.vertices, &mesh.indices);
+                MeshData::new(&mut backend, &mesh.vertices, &mesh.indices);
             let data_id = meshes_data.push(mesh_data);
             mesh.data_id = Some(data_id);
         }

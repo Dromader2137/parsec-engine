@@ -71,6 +71,12 @@ pub struct PipelineBuilder {
     options: PipelineOptions,
 }
 
+impl Default for PipelineBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PipelineBuilder {
     pub fn new() -> Self {
         Self {
@@ -203,6 +209,12 @@ impl PipelineResourceLayout {
 
 pub struct PipelineResourceLayoutBuilder {
     bindings: Vec<PipelineResourceBindingLayout>,
+}
+
+impl Default for PipelineResourceLayoutBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PipelineResourceLayoutBuilder {

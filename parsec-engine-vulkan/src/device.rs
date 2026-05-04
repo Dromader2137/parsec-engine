@@ -44,7 +44,7 @@ impl VulkanDevice {
                     &device_create_info,
                     None,
                 )
-                .map_err(|err| VulkanDeviceError::DeviceCreationError(err))?
+                .map_err(VulkanDeviceError::DeviceCreationError)?
         };
 
         Ok(VulkanDevice {

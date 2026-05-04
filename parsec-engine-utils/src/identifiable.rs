@@ -13,6 +13,12 @@ pub struct IdStore<T: Identifiable> {
     elements: HashMap<IdType, T>,
 }
 
+impl<T: Identifiable> Default for IdStore<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Identifiable> IdStore<T> {
     pub fn new() -> IdStore<T> {
         IdStore {

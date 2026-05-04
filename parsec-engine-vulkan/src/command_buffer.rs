@@ -44,7 +44,7 @@ impl VulkanCommandPool {
             device
                 .raw_device()
                 .create_command_pool(&pool_info, None)
-                .map_err(|err| VulkanCommandPoolError::CreationError(err))?
+                .map_err(VulkanCommandPoolError::CreationError)?
         };
 
         Ok(VulkanCommandPool { raw_command_pool })
@@ -118,7 +118,7 @@ impl VulkanCommandBuffer {
             device
                 .raw_device()
                 .allocate_command_buffers(&create_info)
-                .map_err(|err| VulkanCommandBufferError::CreationError(err))?[0]
+                .map_err(VulkanCommandBufferError::CreationError)?[0]
         };
 
         Ok(Self {
@@ -141,7 +141,7 @@ impl VulkanCommandBuffer {
                     self.raw_command_buffer,
                     ash::vk::CommandBufferResetFlags::RELEASE_RESOURCES,
                 )
-                .map_err(|err| VulkanCommandBufferError::ResetError(err))
+                .map_err(VulkanCommandBufferError::ResetError)
         }
     }
 

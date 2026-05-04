@@ -43,6 +43,12 @@ pub struct ShaderBuilder<'a> {
     shader_type: ShaderType,
 }
 
+impl<'a> Default for ShaderBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> ShaderBuilder<'a> {
     pub fn new() -> Self {
         Self {

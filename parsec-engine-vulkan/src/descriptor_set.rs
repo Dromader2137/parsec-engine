@@ -145,7 +145,7 @@ impl VulkanDescriptorPool {
             device
                 .raw_device()
                 .create_descriptor_pool(&create_info, None)
-                .map_err(|err| VulkanDescriptorError::PoolCreationError(err))?
+                .map_err(VulkanDescriptorError::PoolCreationError)?
         };
 
         Ok(VulkanDescriptorPool { pool })
@@ -383,7 +383,7 @@ impl VulkanDescriptorSet {
             device
                 .raw_device()
                 .free_descriptor_sets(descriptor_pool.pool, &[self.set])
-                .map_err(|err| VulkanDescriptorError::SetDeletionError(err))
+                .map_err(VulkanDescriptorError::SetDeletionError)
         }
     }
 }

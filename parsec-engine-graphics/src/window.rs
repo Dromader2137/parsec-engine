@@ -90,7 +90,7 @@ impl Window {
 
         self.window
             .set_cursor_grab(new_mode)
-            .map_err(|err| WindowError::SetCursorModeError(err))?;
+            .map_err(WindowError::SetCursorModeError)?;
 
         self.cursor_mode = new_mode;
         Ok(())
@@ -104,7 +104,7 @@ impl Window {
             .set_cursor_position(winit::dpi::LogicalPosition::new(
                 position.x, position.y,
             ))
-            .map_err(|r| WindowError::SetCursorPositionError(r))
+            .map_err(WindowError::SetCursorPositionError)
     }
 
     pub fn raw_display_handle(

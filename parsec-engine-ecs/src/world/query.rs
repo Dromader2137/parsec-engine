@@ -50,7 +50,7 @@ impl<T: Fetch> Query<T> {
     /// Creates an iterator over [`self`].
     pub fn iter<'a>(&'a mut self) -> QueryIter<'a, T> {
         let inside_len = match self.fetches.first() {
-            Some(first_fetch) => T::len(&first_fetch),
+            Some(first_fetch) => T::len(first_fetch),
             None => 0,
         };
         QueryIter {
@@ -59,7 +59,7 @@ impl<T: Fetch> Query<T> {
             outside_idx: 0,
             inside_idx: 0,
             query: self,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }

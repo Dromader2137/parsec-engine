@@ -175,9 +175,9 @@ impl Drop for VulkanBackend {
 
 impl GraphicsBackend for VulkanBackend {
     fn init(window: &Window) -> Result<Self, BackendError> {
-        let instance = VulkanInstance::new(&window)
+        let instance = VulkanInstance::new(window)
             .map_err(|err| BackendError::InitError(err.into()))?;
-        let initial_surface = VulkanInitialSurface::new(&instance, &window)
+        let initial_surface = VulkanInitialSurface::new(&instance, window)
             .map_err(|err| BackendError::InitError(err.into()))?;
         let physical_device =
             VulkanPhysicalDevice::new(&instance, &initial_surface)
@@ -368,7 +368,7 @@ impl GraphicsBackend for VulkanBackend {
                 .begin()
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             builder
-                .copy_buffer_to_buffer(&staging, &buffer)
+                .copy_buffer_to_buffer(staging, buffer)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
             builder
                 .end()
@@ -488,12 +488,11 @@ impl GraphicsBackend for VulkanBackend {
             .get(&renderpass.id())
             .ok_or(PipelineError::RenderpassNotFound)?;
         let dsl = binding_layouts
-            .into_iter()
+            .iter()
             .map(|x| {
                 self.descriptor_set_layouts
                     .get(&x.id())
-                    .ok_or(PipelineError::LayoutNotFound)
-                    .map(|o| o.clone())
+                    .ok_or(PipelineError::LayoutNotFound).cloned()
             })
             .collect::<Result<Vec<_>, _>>()?;
         let pipeline = VulkanGraphicsPipeline::new(
@@ -810,7 +809,7 @@ impl GraphicsBackend for VulkanBackend {
         }
 
         builder
-            .build(&self.device, &mut command_buffer)
+            .build(&self.device, command_buffer)
             .map_err(|err| {
                 CommandListError::CommandListSubmitError(err.into())
             })?;
@@ -821,7 +820,7 @@ impl GraphicsBackend for VulkanBackend {
                 &ws,
                 &ss,
                 &[command_buffer],
-                &fen,
+                fen,
                 VulkanPipelineStage::ColorAttachmentOutput,
                 &mut self.images,
             )

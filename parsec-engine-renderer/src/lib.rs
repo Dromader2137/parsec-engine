@@ -252,7 +252,7 @@ pub fn render(
 
     if resize.0 {
         recreate_size_dependent_components(
-            &mut *backend,
+            &mut backend,
             &window,
             &mut present_images.0,
             &mut depth_image.0,
@@ -360,7 +360,7 @@ pub fn render(
 
     backend
         .submit_commands(
-            &command_list,
+            command_list,
             &[frame_sync[current_frame.0 as usize].image_available_semaphore],
             &[image_sync[present_index as usize].rendering_complete_semaphore],
             frame_sync[current_frame.0 as usize].command_buffer_fence,

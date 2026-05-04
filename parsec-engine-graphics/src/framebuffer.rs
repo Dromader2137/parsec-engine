@@ -58,6 +58,12 @@ pub struct FramebufferBuilder {
     renderpass: Option<RenderpassHandle>,
 }
 
+impl Default for FramebufferBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FramebufferBuilder {
     pub fn new() -> Self {
         Self {

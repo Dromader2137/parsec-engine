@@ -55,13 +55,13 @@ impl VulkanBuffer {
         memory_properties: VulkanMemoryProperties,
     ) -> Result<VulkanBuffer, VulkanBufferError> {
         let buffer_info = ash::vk::BufferCreateInfo::default()
-            .size(size as u64)
+            .size(size)
             .usage(VulkanBufferUsage::raw_combined_buffer_usage(usage))
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
         let buffer =
             unsafe { device.raw_device().create_buffer(&buffer_info, None) }
-                .map_err(|err| VulkanBufferError::CreationError(err))?;
+                .map_err(VulkanBufferError::CreationError)?;
 
         let memory_requirements =
             VulkanMemoryRequirements::from_raw_requirements(unsafe {
@@ -70,7 +70,7 @@ impl VulkanBuffer {
 
         let (memory, memory_offset, memory_size, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
-            .map_err(|err| VulkanBufferError::AllocationError(err))?;
+            .map_err(VulkanBufferError::AllocationError)?;
 
         unsafe {
             device.raw_device().bind_buffer_memory(
@@ -79,7 +79,7 @@ impl VulkanBuffer {
                 memory_offset,
             )
         }
-        .map_err(|err| VulkanBufferError::BindError(err))?;
+        .map_err(VulkanBufferError::BindError)?;
 
         Ok(VulkanBuffer {
             id: BUFFER_ID_COUNTER.next(),
@@ -102,13 +102,13 @@ impl VulkanBuffer {
         let size = data.data.len() as u64;
 
         let buffer_info = ash::vk::BufferCreateInfo::default()
-            .size(size as u64)
+            .size(size)
             .usage(VulkanBufferUsage::raw_combined_buffer_usage(usage))
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
         let buffer =
             unsafe { device.raw_device().create_buffer(&buffer_info, None) }
-                .map_err(|err| VulkanBufferError::CreationError(err))?;
+                .map_err(VulkanBufferError::CreationError)?;
 
         let memory_requirements =
             VulkanMemoryRequirements::from_raw_requirements(unsafe {
@@ -117,7 +117,7 @@ impl VulkanBuffer {
 
         let (memory, memory_offset, memory_size, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
-            .map_err(|err| VulkanBufferError::AllocationError(err))?;
+            .map_err(VulkanBufferError::AllocationError)?;
 
         if memory.properties() == VulkanMemoryProperties::Device {
             return Err(VulkanBufferError::CannotMapDeviceLocalMemory);
@@ -130,7 +130,7 @@ impl VulkanBuffer {
                     ash::vk::MemoryMapFlags::empty(),
                 )
             }
-            .map_err(|err| VulkanBufferError::MapError(err))?;
+            .map_err(VulkanBufferError::MapError)?;
 
             unsafe {
                 std::ptr::copy_nonoverlapping(
@@ -187,7 +187,7 @@ impl VulkanBuffer {
                 ash::vk::MemoryMapFlags::empty(),
             )
         }
-        .map_err(|err| VulkanBufferError::MapError(err))?;
+        .map_err(VulkanBufferError::MapError)?;
 
         unsafe {
             std::ptr::copy_nonoverlapping(

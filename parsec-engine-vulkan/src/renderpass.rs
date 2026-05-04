@@ -194,7 +194,7 @@ impl VulkanRenderpass {
         if depth_attachment_refs.len() > 1 {
             return Err(VulkanRenderpassError::OnlyOneDepthAttachmentAllowed);
         }
-        let depth_attachment_ref = depth_attachment_refs.get(0);
+        let depth_attachment_ref = depth_attachment_refs.first();
 
         let mut subpass = ash::vk::SubpassDescription::default()
             .color_attachments(&color_attachment_refs)

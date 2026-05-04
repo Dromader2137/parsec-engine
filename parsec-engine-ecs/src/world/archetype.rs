@@ -478,10 +478,7 @@ impl Archetype {
 
     /// Checks if `entity` is stored in `self`.
     pub fn check_entity(&self, entity: Entity) -> bool {
-        match self.entities.iter().find(|x| **x == entity) {
-            Some(_) => true,
-            None => false,
-        }
+        self.entities.iter().find(|x| **x == entity).is_some()
     }
 
     /// Check if all columns all mutable. Useful for spawns/deletes/cuts.

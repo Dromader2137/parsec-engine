@@ -45,6 +45,12 @@ pub struct RenderpassBuilder {
     attachments: Vec<RenderpassAttachment>,
 }
 
+impl Default for RenderpassBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RenderpassBuilder {
     pub fn new() -> Self {
         Self {

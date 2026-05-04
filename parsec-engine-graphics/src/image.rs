@@ -154,6 +154,12 @@ pub struct ImageBuilder<'a> {
     usage: &'a [ImageUsage],
 }
 
+impl<'a> Default for ImageBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> ImageBuilder<'a> {
     pub fn new() -> Self {
         Self {
@@ -193,7 +199,7 @@ impl<'a> ImageBuilder<'a> {
             size.get_size(),
             self.format,
             self.aspect,
-            &self.usage,
+            self.usage,
         )?;
         Ok(Image::new(
             handle,
@@ -207,6 +213,12 @@ impl<'a> ImageBuilder<'a> {
 
 pub struct ImageViewBuilder {
     image: Option<ImageHandle>,
+}
+
+impl Default for ImageViewBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ImageViewBuilder {

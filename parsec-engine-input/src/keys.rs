@@ -25,6 +25,12 @@ pub struct Keys {
     up: HashSet<StorageKeyCode>,
 }
 
+impl Default for Keys {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Keys {
     pub fn new() -> Keys {
         Keys {

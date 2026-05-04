@@ -146,9 +146,9 @@ impl VulkanSwapchain {
             Ok(val) => Ok(val),
             Err(err) => {
                 if err == ash::vk::Result::ERROR_OUT_OF_DATE_KHR {
-                    return Err(VulkanSwapchainError::OutOfDate);
+                    Err(VulkanSwapchainError::OutOfDate)
                 } else {
-                    return Err(VulkanSwapchainError::NextImageError(err));
+                    Err(VulkanSwapchainError::NextImageError(err))
                 }
             },
         }

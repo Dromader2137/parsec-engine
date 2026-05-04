@@ -42,10 +42,10 @@ impl VulkanInitialSurface {
     ) -> Result<VulkanInitialSurface, VulkanSurfaceError> {
         let display_handle = window
             .raw_display_handle()
-            .map_err(|err| VulkanSurfaceError::DisplayHandleError(err))?;
+            .map_err(VulkanSurfaceError::DisplayHandleError)?;
         let window_handle = window
             .raw_window_handle()
-            .map_err(|err| VulkanSurfaceError::WindowHandleError(err))?;
+            .map_err(VulkanSurfaceError::WindowHandleError)?;
 
         let surface = unsafe {
             ash_window::create_surface(
@@ -55,7 +55,7 @@ impl VulkanInitialSurface {
                 window_handle.as_raw(),
                 None,
             )
-            .map_err(|err| VulkanSurfaceError::CreationError(err))?
+            .map_err(VulkanSurfaceError::CreationError)?
         };
 
         let surface_loader = ash::khr::surface::Instance::new(
@@ -81,7 +81,7 @@ impl VulkanInitialSurface {
                     queue_family_index,
                     self.surface,
                 )
-                .map_err(|err| VulkanSurfaceError::SupportError(err))
+                .map_err(VulkanSurfaceError::SupportError)
         }
     }
 
@@ -108,7 +108,7 @@ impl VulkanSurface {
                     *physical_device.raw_handle(),
                     surface,
                 )
-                .map_err(|err| VulkanSurfaceError::FormatsError(err))?
+                .map_err(VulkanSurfaceError::FormatsError)?
         };
 
         if surface_formats.is_empty() {
@@ -121,7 +121,7 @@ impl VulkanSurface {
                     *physical_device.raw_handle(),
                     surface,
                 )
-                .map_err(|err| VulkanSurfaceError::CapabilitiesError(err))?
+                .map_err(VulkanSurfaceError::CapabilitiesError)?
         };
 
         let preferred_formats =

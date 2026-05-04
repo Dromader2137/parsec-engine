@@ -24,7 +24,7 @@ impl VulkanMemory {
             device
                 .raw_device()
                 .allocate_memory(&allocate_info, None)
-                .map_err(|err| VulkanMemoryError::AllocateMemoryError(err))?
+                .map_err(VulkanMemoryError::AllocateMemoryError)?
         };
 
         Ok(VulkanMemory {

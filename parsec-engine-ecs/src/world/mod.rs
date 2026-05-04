@@ -43,6 +43,12 @@ pub struct World {
     pub current_id: u32,
 }
 
+impl Default for World {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl World {
     pub fn new() -> Self {
         Self {

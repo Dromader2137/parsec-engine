@@ -21,6 +21,12 @@ pub struct App {
     resources: Resources,
 }
 
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl App {
     pub fn new() -> App {
         App {
@@ -60,7 +66,7 @@ pub struct ActiveEventLoopStore {
 }
 
 thread_local! {
-pub static ACTIVE_EVENT_LOOP: RefCell<Option<ActiveEventLoopStore>> = RefCell::new(None);
+pub static ACTIVE_EVENT_LOOP: RefCell<Option<ActiveEventLoopStore>> = const { RefCell::new(None) };
 }
 
 impl ActiveEventLoopStore {
@@ -91,18 +97,15 @@ impl winit::application::ApplicationHandler for App {
         _device_id: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) {
-        match event {
-            winit::event::DeviceEvent::MouseMotion { delta } => {
-                self.resources.add(MouseMovementEvent::delta(Vec2f::new(
-                    delta.0 as f32,
-                    delta.1 as f32,
-                )));
+        if let winit::event::DeviceEvent::MouseMotion { delta } = event {
+            self.resources.add(MouseMovementEvent::delta(Vec2f::new(
+                delta.0 as f32,
+                delta.1 as f32,
+            )));
 
-                self.execute_system(SystemTrigger::MouseMovement);
+            self.execute_system(SystemTrigger::MouseMovement);
 
-                self.resources.remove::<MouseMovementEvent>().unwrap();
-            },
-            _ => (),
+            self.resources.remove::<MouseMovementEvent>().unwrap();
         }
     }
 
@@ -131,8 +134,8 @@ impl winit::application::ApplicationHandler for App {
                 };
 
                 self.resources.add(KeyboardInputEvent::new(
-                    key_code.into(),
-                    state.into(),
+                    key_code,
+                    state,
                 ));
 
                 self.execute_system(SystemTrigger::KeyboardInput);

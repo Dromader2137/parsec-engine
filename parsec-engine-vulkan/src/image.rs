@@ -421,7 +421,7 @@ impl VulkanOwnedImage {
 
         let (memory, memory_offset, memory_size, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
-            .map_err(|err| VulkanImageError::AllocationError(err))?;
+            .map_err(VulkanImageError::AllocationError)?;
 
         if let Err(err) = unsafe {
             device.raw_device().bind_image_memory(

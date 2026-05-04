@@ -96,7 +96,7 @@ impl Systems {
         &mut self,
         system_trigger: SystemTrigger,
     ) -> &mut Vec<(Box<dyn System>, SystemStats)> {
-        self.systems.entry(system_trigger).or_insert(Vec::new())
+        self.systems.entry(system_trigger).or_default()
     }
 
     /// Registers a new system to be executed on `system_trigger`.

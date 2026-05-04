@@ -59,6 +59,12 @@ pub struct Mouse {
     up: HashSet<MouseButton>,
 }
 
+impl Default for Mouse {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Mouse {
     pub fn new() -> Mouse {
         Mouse {
@@ -122,7 +128,7 @@ impl Mouse {
 
     fn press(&mut self, button: MouseButton) {
         if !self.down.contains(&button) {
-            self.pressed.insert(button.clone());
+            self.pressed.insert(button);
         }
         self.down.insert(button);
     }
