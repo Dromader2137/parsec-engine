@@ -17,7 +17,10 @@ pub mod texture;
 pub mod texture_atlas;
 pub mod transform_data;
 
-use parsec_engine_ecs::{resources::Resource, system::{requests::Requests, system}};
+use parsec_engine_ecs::{
+    resources::Resource,
+    system::{requests::Requests, system},
+};
 use parsec_engine_graphics::{
     ActiveGraphicsBackend,
     command_list::{Command, CommandList},

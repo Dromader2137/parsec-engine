@@ -7,13 +7,12 @@ use parsec_engine_ecs::{
     system::{SystemTrigger, Systems, requests::Requests},
     world::World,
 };
-use parsec_engine_math::vec::Vec2f;
-
-use crate::input::{
+use parsec_engine_input::{
     key::StorageKeyCode,
     keys::KeyboardInputEvent,
     mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
 };
+use parsec_engine_math::vec::Vec2f;
 
 #[allow(unused)]
 pub struct App {

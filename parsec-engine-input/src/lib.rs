@@ -7,7 +7,7 @@ use parsec_engine_ecs::{
 };
 use parsec_engine_graphics::window::Window;
 
-use crate::input::{
+use crate::{
     keys::KeyboardInputEvent,
     mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
 };

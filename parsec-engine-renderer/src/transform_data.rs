@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use parsec_engine_ecs::{
-    resources::Resource, system::system, world::{fetch::Mut, query::Query}
+    resources::Resource,
+    system::system,
+    world::{fetch::Mut, query::Query},
 };
 use parsec_engine_graphics::{
     ActiveGraphicsBackend,
@@ -14,7 +16,8 @@ use parsec_engine_graphics::{
 };
 use parsec_engine_math::{mat::Matrix4f, quat::Quat, vec::Vec3f};
 use parsec_engine_utils::{
-    IdType, create_counter, identifiable::{IdStore, Identifiable}
+    IdType, create_counter,
+    identifiable::{IdStore, Identifiable},
 };
 
 use crate::components::transform::Transform;

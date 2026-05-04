@@ -2,9 +2,10 @@
 
 use std::time::{SystemTime, SystemTimeError};
 
-use parsec_engine_ecs::{resources::Resource, system::{
-    System, SystemBundle, SystemTrigger, requests::Requests, system,
-}};
+use parsec_engine_ecs::{
+    resources::Resource,
+    system::{System, SystemBundle, SystemTrigger, requests::Requests, system},
+};
 
 /// Stores timing information like delta_time and current_time.
 pub struct Time {

@@ -10,6 +10,7 @@ ash-window = "0.13.0"
 once_cell = "1.21.4"
 thiserror = "2.0.18"
 parsec-engine-macros = { path = "../parsec-engine-macros" }
+parsec-engine-input = { path = "../parsec-engine-input" }
 parsec-engine-graphics = { path = "../parsec-engine-graphics" }
 parsec-engine-vulkan = { path = "../parsec-engine-vulkan" }
 parsec-engine-math = { path = "../parsec-engine-math" }

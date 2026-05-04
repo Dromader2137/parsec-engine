@@ -14,8 +14,8 @@ use parsec_engine_graphics::{
     },
     shader::{Shader, ShaderBuilder, ShaderType},
 };
-use parsec_engine_vulkan::shader::read_shader_code;
 use parsec_engine_math::uvec::Vec2u;
+use parsec_engine_vulkan::shader::read_shader_code;
 
 use crate::{
     material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},

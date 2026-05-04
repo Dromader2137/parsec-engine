@@ -6,7 +6,11 @@ use std::{collections::HashMap, fmt::Debug, time::Instant};
 
 use parsec_engine_error::ParsecError;
 
-use crate::{resources::{Resource, Resources}, system::requests::Requests, world::World};
+use crate::{
+    resources::{Resource, Resources},
+    system::requests::Requests,
+    world::World,
+};
 
 /// List of possible actions a system can run on.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]

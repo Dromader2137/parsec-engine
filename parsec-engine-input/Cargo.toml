@@ -1,0 +1,12 @@
+[package]
+name = "parsec-engine-input"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+parsec-engine-math = { path = "../parsec-engine-math" }
+parsec-engine-ecs = { path = "../parsec-engine-ecs" }
+parsec-engine-error = { path = "../parsec-engine-error" }
+parsec-engine-utils = { path = "../parsec-engine-utils" }
+parsec-engine-graphics = { path = "../parsec-engine-graphics" }
+winit = { version = "0.30.13", features = [ "rwh_05" ] }
