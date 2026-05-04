@@ -127,7 +127,7 @@ impl Window {
 
     pub fn focused(&self) -> bool { self.window.has_focus() }
 
-    pub fn minimized(&self) -> bool { self.width() <= 0 || self.height() <= 0 }
+    pub fn minimized(&self) -> bool { self.width() == 0 || self.height() == 0 }
 
     pub fn id(&self) -> u32 { self.id }
 }

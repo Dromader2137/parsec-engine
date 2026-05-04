@@ -376,6 +376,7 @@ impl ArchetypeColumn {
     /// # Errors
     ///
     /// - If the column is not writable (`self.borrow.access` != [`ArchetypeColumnAccess::ReadWrite`]).
+    #[allow(clippy::mut_from_ref)]
     fn get_mut_slice<T: Component>(&self) -> Result<&mut [T], ArchetypeError> {
         if !self.is_mutable() {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
