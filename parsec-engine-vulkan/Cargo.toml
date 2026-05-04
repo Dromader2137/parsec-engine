@@ -5,6 +5,10 @@ edition = "2024"
 
 [dependencies]
 parsec-engine-math = { path = "../parsec-engine-math" }
+parsec-engine-error = { path = "../parsec-engine-error" }
+parsec-engine-utils = { path = "../parsec-engine-utils" }
 parsec-engine-graphics = { path = "../parsec-engine-graphics" }
 ash = "0.38.0"
 ash-window = "0.13.0"
+thiserror = "2.0.18"
+winit = { version = "0.30.13", features = [ "rwh_05" ] }

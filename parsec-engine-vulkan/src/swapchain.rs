@@ -1,0 +1,205 @@
+use core::cmp::Ord;
+
+use parsec_engine_graphics::window::Window;
+use parsec_engine_math::uvec::Vec2u;
+
+use crate::{
+    device::VulkanDevice,
+    fence::VulkanFence,
+    image::{VulkanImage, VulkanImageSize, VulkanSwapchainImage},
+    instance::VulkanInstance,
+    queue::VulkanQueue,
+    semaphore::VulkanSemaphore,
+    surface::VulkanSurface,
+    utils::raw_extent_2d,
+};
+
+pub struct VulkanSwapchain {
+    _swapchain_image_ids: Vec<u32>,
+    swapchain: ash::vk::SwapchainKHR,
+    swapchain_loader: ash::khr::swapchain::Device,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum VulkanSwapchainError {
+    #[error("Failed to create Swapchain: {0}")]
+    CreationError(ash::vk::Result),
+    #[error("Failed to acquiere next image: {0}")]
+    ImageAcquisitionError(ash::vk::Result),
+    #[error("Failed to acquiere next image: {0}")]
+    NextImageError(ash::vk::Result),
+    #[error("Failed to present image: {0}")]
+    PresentError(ash::vk::Result),
+    #[error("Swapchain out of date")]
+    OutOfDate,
+    #[error("Invalid swapchain size")]
+    InvalidSize,
+}
+
+impl VulkanSwapchain {
+    pub fn new(
+        instance: &VulkanInstance,
+        window: &Window,
+        surface: &VulkanSurface,
+        device: &VulkanDevice,
+        old_swapchain: Option<&VulkanSwapchain>,
+    ) -> Result<
+        (VulkanSwapchain, Vec<VulkanSwapchainImage>),
+        VulkanSwapchainError,
+    > {
+        let desired_image_count = surface.min_image_count().max(3).min(
+            match surface.max_image_count() {
+                0 => u32::MAX,
+                val => val,
+            },
+        );
+
+        let surface_resolution = raw_extent_2d(window.size());
+
+        let pre_transform = if surface
+            .raw_supported_transforms()
+            .contains(ash::vk::SurfaceTransformFlagsKHR::IDENTITY)
+        {
+            ash::vk::SurfaceTransformFlagsKHR::IDENTITY
+        } else {
+            surface.raw_current_transform()
+        };
+
+        let present_mode = ash::vk::PresentModeKHR::FIFO;
+
+        let swapchain_loader = ash::khr::swapchain::Device::new(
+            instance.raw_handle(),
+            device.raw_device(),
+        );
+
+        let mut swapchain_create_info =
+            ash::vk::SwapchainCreateInfoKHR::default()
+                .surface(*surface.raw_handle())
+                .min_image_count(desired_image_count)
+                .image_color_space(ash::vk::ColorSpaceKHR::SRGB_NONLINEAR)
+                .image_format(surface.format().raw_image_format())
+                .image_extent(surface_resolution)
+                .image_usage(ash::vk::ImageUsageFlags::COLOR_ATTACHMENT)
+                .image_sharing_mode(ash::vk::SharingMode::EXCLUSIVE)
+                .pre_transform(pre_transform)
+                .composite_alpha(ash::vk::CompositeAlphaFlagsKHR::OPAQUE)
+                .present_mode(present_mode)
+                .clipped(true)
+                .image_array_layers(1);
+
+        if let Some(val) = old_swapchain {
+            swapchain_create_info =
+                swapchain_create_info.old_swapchain(*val.get_swapchain_raw());
+        }
+
+        let swapchain = match unsafe {
+            swapchain_loader.create_swapchain(&swapchain_create_info, None)
+        } {
+            Ok(val) => val,
+            Err(err) => return Err(VulkanSwapchainError::CreationError(err)),
+        };
+
+        let extent = VulkanImageSize::new(Vec2u::new(
+            surface_resolution.width,
+            surface_resolution.height,
+        ))
+        .ok_or(VulkanSwapchainError::InvalidSize)?;
+
+        let swapchain_images = match unsafe {
+            swapchain_loader.get_swapchain_images(swapchain)
+        } {
+            Ok(val) => val
+                .into_iter()
+                .map(|x| VulkanSwapchainImage::new(surface.format(), extent, x))
+                .collect::<Vec<_>>(),
+            Err(err) => {
+                return Err(VulkanSwapchainError::ImageAcquisitionError(err));
+            },
+        };
+
+        Ok((
+            VulkanSwapchain {
+                swapchain,
+                _swapchain_image_ids: swapchain_images
+                    .iter()
+                    .map(|x| x.id())
+                    .collect(),
+                swapchain_loader,
+            },
+            swapchain_images,
+        ))
+    }
+
+    pub fn acquire_next_image(
+        &self,
+        semaphore: &VulkanSemaphore,
+        fence: &VulkanFence,
+    ) -> Result<(u32, bool), VulkanSwapchainError> {
+        match unsafe {
+            self.swapchain_loader.acquire_next_image(
+                self.swapchain,
+                u64::MAX,
+                *semaphore.get_semaphore_raw(),
+                *fence.get_fence_raw(),
+            )
+        } {
+            Ok(val) => Ok(val),
+            Err(err) => {
+                if err == ash::vk::Result::ERROR_OUT_OF_DATE_KHR {
+                    return Err(VulkanSwapchainError::OutOfDate);
+                } else {
+                    return Err(VulkanSwapchainError::NextImageError(err));
+                }
+            },
+        }
+    }
+
+    pub fn present(
+        &self,
+        present_queue: &VulkanQueue,
+        wait_semaphores: &[&VulkanSemaphore],
+        image_index: u32,
+    ) -> Result<(), VulkanSwapchainError> {
+        let wait_semaphores = wait_semaphores
+            .iter()
+            .map(|x| *x.get_semaphore_raw())
+            .collect::<Vec<_>>();
+        let swapchains = [self.swapchain];
+        let image_indices = [image_index];
+
+        let present_info = ash::vk::PresentInfoKHR::default()
+            .wait_semaphores(&wait_semaphores)
+            .swapchains(&swapchains)
+            .image_indices(&image_indices);
+
+        if let Err(err) = unsafe {
+            self.swapchain_loader
+                .queue_present(*present_queue.get_queue_raw(), &present_info)
+        } {
+            if err == ash::vk::Result::ERROR_OUT_OF_DATE_KHR {
+                return Err(VulkanSwapchainError::OutOfDate);
+            } else {
+                return Err(VulkanSwapchainError::PresentError(err));
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn destroy(&self) {
+        unsafe {
+            self.swapchain_loader
+                .destroy_swapchain(self.swapchain, None)
+        }
+    }
+
+    pub fn get_swapchain_raw(&self) -> &ash::vk::SwapchainKHR {
+        &self.swapchain
+    }
+
+    pub fn _get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
+        &self.swapchain_loader
+    }
+
+    pub fn swapchain_image_ids(&self) -> &[u32] { &self._swapchain_image_ids }
+}

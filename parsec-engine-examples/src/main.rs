@@ -2,12 +2,13 @@ use image::EncodableLayout;
 use parsec_engine::{
     app::App,
     ecs::{
+        resources::Resource,
         system::{SystemTrigger, requests::Requests, system},
         world::{component::Component, fetch::Mut, query::Query},
     },
     error::ParsecError,
     graphics::{
-        ActiveGraphicsBackend, GraphicsBundle,
+        ActiveGraphicsBackend,
         buffer::{BufferBuilder, BufferContent, BufferUsage},
         image::{ImageAspect, ImageFormat, ImageUsage},
         pipeline::{
@@ -15,27 +16,25 @@ use parsec_engine::{
             PipelineOptions, PipelineResourceBindingLayout,
             PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
-        renderer::{
-            RendererMainRenderpass,
-            assets::mesh::{Mesh, obj::load_obj},
-            components::{
-                camera::Camera, light::Light, mesh_renderer::MeshRenderer,
-                transform::Transform,
-            },
-            material_data::{
-                MaterialBase, MaterialData, MaterialPipelineBinding,
-            },
-        },
         sampler::SamplerBuilder,
         shader::{ShaderBuilder, ShaderType},
-        vulkan::shader::read_shader_code,
         window::Window,
     },
+    graphics_bundle::GraphicsBundle,
     input::{Input, InputBundle},
     math::{quat::Quat, uvec::Vec2u, vec::Vec3f},
-    resources::Resource,
+    renderer::{
+        RendererMainRenderpass,
+        assets::mesh::{Mesh, obj::load_obj},
+        components::{
+            camera::Camera, light::Light, mesh_renderer::MeshRenderer,
+            transform::Transform,
+        },
+        material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
+    },
     time::{Time, TimeBundle},
     utils::identifiable::IdStore,
+    vulkan::shader::read_shader_code,
 };
 
 #[system]
@@ -194,11 +193,11 @@ fn test_system(
             Vec3f::new(-1.0, 1.0, -1.0).normalize(),
             Vec3f::ONE * 0.8,
         ),
-        OrbitingLight {
-            orbit_radius: 20.0,
-            speed: 0.1,
-            offset: std::f32::consts::PI / 0.5,
-        },
+        // OrbitingLight {
+        //     orbit_radius: 20.0,
+        //     speed: 0.1,
+        //     offset: std::f32::consts::PI / 0.5,
+        // },
     ));
     requests.spawn_entity((
         Transform::new(
@@ -211,11 +210,11 @@ fn test_system(
             Vec3f::new(-1.0, 1.0, 1.0).normalize(),
             Vec3f::ONE * 0.2,
         ),
-        OrbitingLight {
-            orbit_radius: 20.0,
-            speed: 0.1,
-            offset: 0.0,
-        },
+        // OrbitingLight {
+        //     orbit_radius: 20.0,
+        //     speed: 0.1,
+        //     offset: 0.0,
+        // },
     ));
 
     Ok(())
@@ -307,7 +306,7 @@ fn light_mover(
             + mov.offset as f64)
             .sin() as f32
             * mov.orbit_radius;
-        tra.position.y = (time.elapsed_time().unwrap() * mov.speed as f64
+        tra.position.z = (time.elapsed_time().unwrap() * mov.speed as f64
             + mov.offset as f64)
             .cos() as f32
             * mov.orbit_radius;

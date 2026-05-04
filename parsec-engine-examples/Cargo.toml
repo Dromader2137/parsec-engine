@@ -6,4 +6,6 @@ edition = "2024"
 [dependencies]
 image = "0.25.9"
 parsec-engine = { path = "../parsec-engine" }
+parsec-engine-ecs = { path = "../parsec-engine-ecs" }
+parsec-engine-error = { path = "../parsec-engine-error" }
 rand = "0.10.0"

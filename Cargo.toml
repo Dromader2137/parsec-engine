@@ -1,3 +1,3 @@
 [workspace]
 resolver = "3"
-members = ["parsec-engine", "parsec-engine-cli", "parsec-engine-ecs", "parsec-engine-examples", "parsec-engine-graphics", "parsec-engine-macros", "parsec-engine-math", "parsec-engine-vulkan"]
+members = ["parsec-engine", "parsec-engine-cli", "parsec-engine-ecs", "parsec-engine-error", "parsec-engine-examples", "parsec-engine-graphics", "parsec-engine-macros", "parsec-engine-math", "parsec-engine-renderer", "parsec-engine-utils", "parsec-engine-vulkan"]

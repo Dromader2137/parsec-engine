@@ -201,10 +201,21 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
         format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
     let struct_name_str = struct_name.to_token_stream().to_string();
 
-    let found_crate = crate_name("parsec-engine")
-        .expect("parsec-engine is present in `Cargo.toml`");
+    let ecs_found_crate = crate_name("parsec-engine-ecs")
+        .expect("parsec-engine-ecs is present in `Cargo.toml`");
 
-    let engine_crate = match found_crate {
+    let error_found_crate = crate_name("parsec-engine-error")
+        .expect("parsec-engine-error is present in `Cargo.toml`");
+
+    let ecs_crate = match ecs_found_crate {
+        FoundCrate::Itself => quote!(crate),
+        FoundCrate::Name(name) => {
+            let ident = Ident::new(&name, Span::call_site());
+            quote!( ::#ident )
+        },
+    };
+
+    let error_crate = match error_found_crate {
         FoundCrate::Itself => quote!(crate),
         FoundCrate::Name(name) => {
             let ident = Ident::new(&name, Span::call_site());
@@ -227,11 +238,11 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             if mutability {
                 quote! {
-                    let mut #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world)?;
+                    let mut #argument_name = <#argument_type as #ecs_crate::system::SystemInput>::borrow(resources, world)?;
                 }
             } else {
                 quote! {
-                    let #argument_name = <#argument_type as #engine_crate::ecs::system::SystemInput>::borrow(resources, world)?;
+                    let #argument_name = <#argument_type as #ecs_crate::system::SystemInput>::borrow(resources, world)?;
                 }
             }
         },
@@ -275,13 +286,13 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl #engine_crate::ecs::system::System for #struct_name {
+        impl #ecs_crate::system::System for #struct_name {
             fn name(&self) -> &'static str {
                 #struct_name_str
             }
 
-            fn run(&mut self, resources: & #engine_crate::resources::Resources, world: & #engine_crate::ecs::world::World)
-                -> Result<(), #engine_crate::error::ParsecError> {
+            fn run(&mut self, resources: & #ecs_crate::resources::Resources, world: & #ecs_crate::world::World)
+                -> Result<(), #error_crate::ParsecError> {
                 #(#borrows)*
                 #function_call;
                 Ok(())

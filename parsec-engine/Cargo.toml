@@ -14,3 +14,6 @@ parsec-engine-graphics = { path = "../parsec-engine-graphics" }
 parsec-engine-vulkan = { path = "../parsec-engine-vulkan" }
 parsec-engine-math = { path = "../parsec-engine-math" }
 parsec-engine-ecs = { path = "../parsec-engine-ecs" }
+parsec-engine-error = { path = "../parsec-engine-error" }
+parsec-engine-renderer = { path = "../parsec-engine-renderer" }
+parsec-engine-utils = { path = "../parsec-engine-utils" }

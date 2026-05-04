@@ -1,17 +1,15 @@
 //! Module responsible for handling user input.
 
 use keys::Keys;
-
-use crate::{
-    ecs::system::{
-        System, SystemBundle, SystemTrigger, requests::Requests, system,
-    },
-    graphics::window::Window,
-    input::{
-        keys::KeyboardInputEvent,
-        mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
-    },
+use parsec_engine_ecs::{
     resources::Resource,
+    system::{System, SystemBundle, SystemTrigger, requests::Requests, system},
+};
+use parsec_engine_graphics::window::Window;
+
+use crate::input::{
+    keys::KeyboardInputEvent,
+    mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
 };
 
 pub mod key;

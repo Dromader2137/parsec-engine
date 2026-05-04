@@ -2,18 +2,17 @@
 
 use std::{cell::RefCell, ptr::NonNull};
 
-use crate::{
-    ecs::{
-        system::{SystemTrigger, Systems, requests::Requests},
-        world::World,
-    },
-    input::{
-        key::StorageKeyCode,
-        keys::KeyboardInputEvent,
-        mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
-    },
-    math::vec::Vec2f,
+use parsec_engine_ecs::{
     resources::Resources,
+    system::{SystemTrigger, Systems, requests::Requests},
+    world::World,
+};
+use parsec_engine_math::vec::Vec2f;
+
+use crate::input::{
+    key::StorageKeyCode,
+    keys::KeyboardInputEvent,
+    mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
 };
 
 #[allow(unused)]
@@ -49,7 +48,10 @@ impl App {
             &mut self.resources,
             &mut self.world,
         ) {
-            panic!("system returned: {}", err);
+            panic!(
+                "System triggered with {:?} returned: {}",
+                system_trigger, err
+            );
         }
     }
 }

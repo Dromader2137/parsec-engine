@@ -5,7 +5,7 @@ pub type MouseButtonState = winit::event::ElementState;
 
 use std::collections::HashSet;
 
-use crate::math::vec::Vec2f;
+use parsec_engine_math::vec::Vec2f;
 
 /// A mouse movement event.
 #[derive(Debug, Clone, Copy, PartialEq)]
