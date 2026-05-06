@@ -1,13 +1,10 @@
 use std::{
-    collections::{HashMap, LinkedList},
-    fs::File,
-    io::{BufReader, BufWriter},
-    path::PathBuf,
-    time::SystemTime,
+    collections::{HashMap, LinkedList}, fs::{self, File}, io::{BufReader, BufWriter}, path::{Path, PathBuf}, str::FromStr, time::SystemTime
 };
 
 use clap::Parser;
-use parsec_engine_error::ParsecError;
+use parsec_engine_assets::{Cooker, assets::mesh::Mesh};
+use parsec_engine_error::{OptionNoneErr, ParsecError};
 
 /// parsec-engine-cli add <name> <path> // adds an asset
 /// parsec-engine-cli remove <name> // removes an asset
@@ -102,12 +99,28 @@ fn write_manifest(manifest: &Manifest) -> Result<(), ManifestWriteError> {
     Ok(())
 }
 
-fn cook(name: &str, manifest: &mut Manifest, assets_types: &mut AssetTypes) -> Result<(), ParsecError> {}
+fn get_cook_dir<'a>() -> &'a Path {
+    fs::create_dir("./assets/").unwrap();
+    Path::new("./assets/")
+}
+
+fn cook(
+    name: &str,
+    manifest: &Manifest,
+    cooker: &Cooker,
+) -> Result<(), ParsecError> {
+    let in_path = manifest.assets.iter().find(|a| a.0 == name).none_err()?;
+    let out_path = get_cook_dir();
+    cooker.cook(&in_path.1.path, out_path);
+    Ok(())
+}
 
 fn main() {
     let args = Args::parse();
 
     let mut manifest = get_manifest();
+    let mut cooker = Cooker::new();
+    cooker.register::<Mesh>();
 
     match args.command {
         Commands::Add { name, path } => {
@@ -133,6 +146,9 @@ fn main() {
         },
         Commands::Cook => {
             println!("Cooking...");
+            for name in manifest.assets.keys() {
+                cook(name, &manifest, &cooker).unwrap();
+            }
             todo!();
         },
     }
