@@ -1,9 +1,10 @@
 use std::{fs::File, io::Read};
 
+use parsec_engine_graphics::pipeline::DefaultVertex;
 use parsec_engine_math::vec::{Vec2f, Vec3f};
 use thiserror::Error;
 
-use crate::{DefaultVertex, assets::mesh::Mesh};
+use crate::assets::mesh::Mesh;
 
 #[derive(Error, Debug)]
 pub enum LoadOBJError {

@@ -99,9 +99,9 @@ fn write_manifest(manifest: &Manifest) -> Result<(), ManifestWriteError> {
     Ok(())
 }
 
-fn get_cook_dir<'a>() -> &'a Path {
-    fs::create_dir("./assets/").unwrap();
-    Path::new("./assets/")
+fn get_cook_dir() -> PathBuf {
+    fs::create_dir("./assets/");
+    PathBuf::from_str("./assets/").unwrap()
 }
 
 fn cook(
@@ -110,8 +110,9 @@ fn cook(
     cooker: &Cooker,
 ) -> Result<(), ParsecError> {
     let in_path = manifest.assets.iter().find(|a| a.0 == name).none_err()?;
-    let out_path = get_cook_dir();
-    cooker.cook(&in_path.1.path, out_path);
+    let out_path = get_cook_dir().join(name).with_extension("asset");
+    println!("{:?}", out_path);
+    cooker.cook(&in_path.1.path, &out_path);
     Ok(())
 }
 
@@ -149,7 +150,6 @@ fn main() {
             for name in manifest.assets.keys() {
                 cook(name, &manifest, &cooker).unwrap();
             }
-            todo!();
         },
     }
 }

@@ -2,9 +2,9 @@ use std::{
     collections::HashMap,
     ffi::OsStr,
     fs::File,
-    io::{BufReader, Read, Write},
+    io::{Read, Write},
     marker::PhantomData,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 pub mod assets;
@@ -26,9 +26,6 @@ pub trait Asset {
 
     const ASSET_TYPE: &'static str;
     const EXTENSIONS: &'static [&'static str];
-
-    // fn asset_type(&self) -> &'static str { Self::ASSET_TYPE }
-    // fn extensions(&self) -> &'static [&'static str] { Self::EXTENSIONS }
 
     fn cook(source: Self::Source) -> Self::Cooked;
     fn load(cooked: Self::Cooked) -> Self;
@@ -79,6 +76,7 @@ impl Cooker {
         input_file.read_to_end(&mut input_bytes).unwrap();
         let out_bytes = (handler.cook_fn)(input_bytes.as_slice());
         let mut out_file = File::options()
+            .create(true)
             .write(true)
             .truncate(true)
             .open(output)
