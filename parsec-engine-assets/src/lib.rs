@@ -1,12 +1,25 @@
-pub fn add(left: u64, right: u64) -> u64 { left + right }
+use std::{collections::HashMap, fs::File, io::BufReader};
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct AssetHandle;
+pub struct AssetLibrary;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub trait Asset {
+    type Cooked;
+
+    fn type_name() -> &'static str;
+    fn name(&self) -> &'static str;
+    fn cook(reader: BufReader<File>) -> Self::Cooked; 
+    fn load();
+    fn unload();
+    fn reload();
+}
+
+pub struct AssetHandler {
+    load_fn: Box<fn()>,
+    unload_fn: Box<fn()>,
+    reload_fn: Box<fn()>
+}
+
+pub struct AssetTypes {
+    handlers: HashMap<&'static str, Box<>>
 }

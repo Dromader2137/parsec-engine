@@ -200,27 +200,28 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
         format_ident!("{}", fn_name.to_string().to_case(Case::Pascal));
     let struct_name_str = struct_name.to_token_stream().to_string();
 
-    let ecs_found_crate = crate_name("parsec-engine-ecs")
-        .expect("parsec-engine-ecs is present in `Cargo.toml`");
+    let ecs_found_crate =
+        crate_name("parsec-engine-ecs").map(|val| match val {
+            FoundCrate::Itself => quote!(crate),
+            FoundCrate::Name(name) => {
+                let ident = Ident::new(&name, Span::call_site());
+                quote!( ::#ident )
+            },
+        });
 
-    let error_found_crate = crate_name("parsec-engine-error")
-        .expect("parsec-engine-error is present in `Cargo.toml`");
-
-    let ecs_crate = match ecs_found_crate {
-        FoundCrate::Itself => quote!(crate),
+    let engine_found_crate = crate_name("parsec-engine").map(|val| match val {
+        FoundCrate::Itself => quote!(crate::ecs),
         FoundCrate::Name(name) => {
             let ident = Ident::new(&name, Span::call_site());
-            quote!( ::#ident )
+            quote!( ::#ident::ecs )
         },
-    };
+    });
 
-    let error_crate = match error_found_crate {
-        FoundCrate::Itself => quote!(crate),
-        FoundCrate::Name(name) => {
-            let ident = Ident::new(&name, Span::call_site());
-            quote!( ::#ident )
-        },
-    };
+    let ecs_crate = engine_found_crate
+        .or(ecs_found_crate)
+        .expect("parsec-engine or parsec-engine-ecs not found");
+
+    let error_crate = quote!( #ecs_crate::error );
 
     let borrows = input_fn.sig.inputs.iter().map(|arg| match arg {
         FnArg::Typed(PatType { pat, ty, .. }) => {
