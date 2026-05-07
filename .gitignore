@@ -7,4 +7,5 @@ renderdoc/
 log
 *.log
 .claude
-*assets*
+./assets/
+assets.json

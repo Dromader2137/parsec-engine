@@ -22,10 +22,10 @@ layout(set = 4, binding = 0) uniform sampler2D albedo;
 layout(set = 5, binding = 0) uniform sampler2D shadow;
 
 void main() {
-    vec3 finalColor = vec3(0.0);
+    vec3 finalColor = vec3(0.0, 0.0, 0.01);
     for (int lightIdx = 0; lightIdx < lightData.light_count; ++lightIdx) {
         float light_angle = dot(-normalize(lightData.data[lightIdx].direction), inNormal);
-        float light_intensity = clamp(light_angle, 0.02, 1.0);
+        float light_intensity = clamp(light_angle, 0.0, 1.0);
         vec3 light_space_position = (lightData.data[lightIdx].world_to_light * vec4(inPosition, 1.0)).xyz;
         if (light_space_position.x > 1.0 && light_space_position.y > 1.0 && light_space_position.x < -1.0 && light_space_position.y < -1.0) {
             finalColor += texture(albedo, inUV).rgb * lightData.data[lightIdx].color * light_intensity;

@@ -101,8 +101,7 @@ fn input_mouse_wheel(
     input.mouse.process_wheel_event(*wheel_event);
 }
 
-#[derive(Default)]
-pub struct InputBundle {}
+pub struct InputBundle;
 impl SystemBundle for InputBundle {
     fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
         vec![

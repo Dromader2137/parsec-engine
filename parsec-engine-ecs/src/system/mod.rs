@@ -103,10 +103,10 @@ impl Systems {
     pub fn add(
         &mut self,
         system_trigger: SystemTrigger,
-        system: Box<dyn System>,
+        system: impl System,
     ) {
         let system_vec = self.get_systems_by_trigger(system_trigger);
-        system_vec.push((system, SystemStats::default()));
+        system_vec.push((Box::new(system), SystemStats::default()));
     }
 
     /// Registers an entire [SystemBundle].
@@ -162,7 +162,7 @@ pub trait SystemInput {
 }
 
 /// Marks a type that is a system. Implemented using the [`system`] macro.
-pub trait System: Send + Sync {
+pub trait System: Send + Sync + 'static {
     fn name(&self) -> &'static str;
     fn run(
         &mut self,

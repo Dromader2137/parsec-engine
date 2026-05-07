@@ -171,64 +171,24 @@ fn test_system(
             fov: 40.0,
         },
     ));
-
-    for _ in 0..20 {
-        requests.spawn_entity((
-            Transform::new(
-                Vec3f::new(
-                    rand::random_range(-10.0..10.0),
-                    rand::random_range(-10.0..10.0),
-                    rand::random_range(-10.0..10.0),
-                ),
-                Vec3f::ONE,
-                Quat::IDENTITY,
-            ),
-            MeshRenderer::new(mesh, material_id),
-        ));
-    }
+    requests.spawn_entity((
+        Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
+        MeshRenderer::new(mesh, material_id),
+    ));
     requests.spawn_entity((
         Transform::new(Vec3f::ONE * 20.0, Vec3f::ONE, Quat::IDENTITY),
         Light::new(
             (Vec3f::ONE * -1.0).normalize(),
             Vec3f::new(-1.0, 1.0, -1.0).normalize(),
-            Vec3f::ONE * 0.8,
+            Vec3f::ONE * 0.9,
         ),
-        // OrbitingLight {
-        //     orbit_radius: 20.0,
-        //     speed: 0.1,
-        //     offset: std::f32::consts::PI / 0.5,
-        // },
-    ));
-    requests.spawn_entity((
-        Transform::new(
-            Vec3f::new(1.0, 1.0, -1.0) * 20.0,
-            Vec3f::ONE,
-            Quat::IDENTITY,
-        ),
-        Light::new(
-            Vec3f::new(-1.0, -1.0, 1.0).normalize(),
-            Vec3f::new(-1.0, 1.0, 1.0).normalize(),
-            Vec3f::ONE * 0.2,
-        ),
-        // OrbitingLight {
-        //     orbit_radius: 20.0,
-        //     speed: 0.1,
-        //     offset: 0.0,
-        // },
     ));
 
     Ok(())
 }
 
 #[derive(Debug, Component)]
-pub struct OrbitingLight {
-    orbit_radius: f32,
-    speed: f32,
-    offset: f32,
-}
-
-#[derive(Debug, Component)]
-pub struct CameraController {
+struct CameraController {
     yaw: f32,
     target_yaw: f32,
     pitch: f32,
@@ -237,7 +197,7 @@ pub struct CameraController {
 }
 
 #[system]
-fn camera_movement(
+fn controller(
     mut cameras: Query<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>,
     mut window: Resource<Window>,
     input: Resource<Input>,
@@ -296,34 +256,12 @@ fn camera_movement(
     }
 }
 
-#[system]
-fn light_mover(
-    mut movable_lights: Query<(Mut<Transform>, Mut<Light>, OrbitingLight)>,
-    time: Resource<Time>,
-) {
-    for (_, (tra, lig, mov)) in movable_lights.iter() {
-        tra.position.x = (time.elapsed_time().unwrap() * mov.speed as f64
-            + mov.offset as f64)
-            .sin() as f32
-            * mov.orbit_radius;
-        tra.position.z = (time.elapsed_time().unwrap() * mov.speed as f64
-            + mov.offset as f64)
-            .cos() as f32
-            * mov.orbit_radius;
-        tra.position.y = mov.orbit_radius;
-        lig.direction = tra.position.normalize() * -1.0;
-        lig.up = (tra.position * Vec3f::new(1.0, -1.0, 1.0)).normalize();
-    }
-}
-
 fn main() {
     let mut app = App::new();
-    app.systems.add_bundle(GraphicsBundle::default());
-    app.systems.add_bundle(InputBundle::default());
+    app.systems.add_bundle(GraphicsBundle);
+    app.systems.add_bundle(InputBundle);
     app.systems.add_bundle(TimeBundle);
-    app.systems.add(SystemTrigger::LateStart, TestSystem::new());
-    app.systems
-        .add(SystemTrigger::Update, CameraMovement::new());
-    app.systems.add(SystemTrigger::Update, LightMover::new());
+    app.systems.add(SystemTrigger::LateStart, TestSystem);
+    app.systems.add(SystemTrigger::Update, Controller);
     app.run();
 }

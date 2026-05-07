@@ -1,3 +1,38 @@
 [workspace]
 resolver = "3"
-members = ["parsec-engine", "parsec-engine-assets", "parsec-engine-cli", "parsec-engine-ecs", "parsec-engine-error", "parsec-engine-examples", "parsec-engine-graphics", "parsec-engine-input", "parsec-engine-macros", "parsec-engine-math", "parsec-engine-renderer", "parsec-engine-utils", "parsec-engine-vulkan"]
+members = ["parsec-engine", "parsec-engine-assets", "parsec-engine-cli", "parsec-engine-cli-core", "parsec-engine-ecs", "parsec-engine-error", "parsec-engine-examples", "parsec-engine-graphics", "parsec-engine-input", "parsec-engine-macros", "parsec-engine-math", "parsec-engine-renderer", "parsec-engine-utils", "parsec-engine-vulkan"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+anyhow = "1.0.102"
+ash = "0.38.0"
+ash-window = "0.13.0"
+clap = { version = "4.6.1", features = ["derive"] }
+convert_case = "0.9.0"
+image = "0.25.9"
+once_cell = "1.21.4"
+postcard = { version = "1.1.3", features = ["use-std"] }
+proc-macro-crate = "3.4.0"
+proc-macro2 = "1.0"
+quote = "1.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+syn = { version = "2.0", features = ["full"] }
+thiserror = "2.0.18"
+winit = { version = "0.30.13", features = ["rwh_05"] }
+
+parsec-engine          = { path = "parsec-engine",          version = "0.1.0" }
+parsec-engine-assets   = { path = "parsec-engine-assets",   version = "0.1.0" }
+parsec-engine-cli-core = { path = "parsec-engine-cli-core", version = "0.1.0" }
+parsec-engine-ecs      = { path = "parsec-engine-ecs",      version = "0.1.0" }
+parsec-engine-error    = { path = "parsec-engine-error",    version = "0.1.0" }
+parsec-engine-graphics = { path = "parsec-engine-graphics", version = "0.1.0" }
+parsec-engine-input    = { path = "parsec-engine-input",    version = "0.1.0" }
+parsec-engine-macros   = { path = "parsec-engine-macros",   version = "0.1.0" }
+parsec-engine-math     = { path = "parsec-engine-math",     version = "0.1.0" }
+parsec-engine-renderer = { path = "parsec-engine-renderer", version = "0.1.0" }
+parsec-engine-utils    = { path = "parsec-engine-utils",    version = "0.1.0" }
+parsec-engine-vulkan   = { path = "parsec-engine-vulkan",   version = "0.1.0" }

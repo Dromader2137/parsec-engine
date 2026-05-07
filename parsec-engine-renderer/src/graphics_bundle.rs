@@ -25,8 +25,7 @@ use crate::{
     },
 };
 
-#[derive(Default)]
-pub struct GraphicsBundle {}
+pub struct GraphicsBundle;
 impl SystemBundle for GraphicsBundle {
     fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
         vec![

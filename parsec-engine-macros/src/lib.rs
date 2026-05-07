@@ -276,11 +276,8 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #input_fn
 
         pub struct #struct_name;
-
         impl #struct_name {
-            pub fn new() -> Box<Self> {
-                Box::new(Self)
-            }
+            pub fn new() -> Box<Self> { Box::new(Self) }
         }
 
         impl #ecs_crate::system::System for #struct_name {
