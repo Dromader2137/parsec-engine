@@ -12,3 +12,4 @@ parsec-engine-macros.workspace = true
 parsec-engine-math.workspace = true
 parsec-engine-utils.workspace = true
 parsec-engine-vulkan.workspace = true
+parsec-engine-assets.workspace = true

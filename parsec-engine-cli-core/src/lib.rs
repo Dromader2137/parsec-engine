@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, LinkedList},
+    collections::HashMap,
     ffi::OsStr,
     fs::{self, File},
     io::{BufReader, BufWriter, Read, Write},
@@ -9,7 +9,7 @@ use std::{
 };
 
 use clap::Parser;
-use parsec_engine_assets::{Asset, AssetSource ,assets::mesh::Mesh};
+use parsec_engine_assets::{Asset,assets::mesh::Mesh};
 use parsec_engine_error::{OptionNoneErr, ParsecError};
 
 /// parsec-engine-cli add <name> <path> // adds an asset
@@ -132,8 +132,7 @@ pub struct Cooker {
 }
 
 fn cook_type_erased<T: Asset>(bytes: &[u8]) -> Vec<u8> {
-    let source = T::Source::parse(bytes);
-    let out = T::cook(source);
+    let out = T::cook(bytes);
     let out_bytes = postcard::to_stdvec(&out).unwrap();
     out_bytes
 }

@@ -2,7 +2,6 @@
 
 use std::{collections::HashMap, ops::DerefMut};
 
-pub mod assets;
 pub mod camera_data;
 pub mod components;
 pub mod depth_image;
@@ -18,6 +17,7 @@ pub mod texture;
 pub mod texture_atlas;
 pub mod transform_data;
 
+use parsec_engine_assets::assets::mesh::Mesh;
 use parsec_engine_ecs::{
     resources::Resource,
     system::{requests::Requests, system},
@@ -39,7 +39,6 @@ use parsec_engine_utils::identifiable::IdStore;
 use sync::{RendererFrameSync, RendererImageSync};
 
 use crate::{
-    assets::mesh::Mesh,
     camera_data::{CameraData, CameraDataManager},
     depth_image::DepthImage,
     draw_queue::{Draw, MeshAndMaterial},
