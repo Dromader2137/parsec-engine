@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use parsec_engine_ecs::{
-    resources::Resource,
-    system::system,
-    world::{fetch::Mut, query::Query},
-};
+use parsec_engine_ecs::world::{World, fetch::Mut};
 use parsec_engine_graphics::{
     ActiveGraphicsBackend,
     buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -83,14 +79,13 @@ impl Identifiable for CameraData {
     fn id(&self) -> IdType { self.camera_data_id }
 }
 
-#[system]
-fn add_camera_data(
-    window: Resource<Window>,
-    mut backend: Resource<ActiveGraphicsBackend>,
-    mut cameras_data: Resource<IdStore<CameraData>>,
-    mut camera_data_manager: Resource<CameraDataManager>,
-    mut cameras: Query<Mut<Camera>>,
-) {
+pub fn add_camera_data(world: &World) {
+    let window = world.resource::<Window>();
+    let mut backend = world.resource::<ActiveGraphicsBackend>();
+    let mut cameras_data = world.resource::<IdStore<CameraData>>();
+    let mut camera_data_manager = world.resource::<CameraDataManager>();
+    let mut cameras = world.query::<Mut<Camera>>();
+
     for (_, camera) in cameras.iter() {
         if let std::collections::hash_map::Entry::Vacant(e) =
             camera_data_manager
@@ -110,14 +105,13 @@ fn add_camera_data(
     }
 }
 
-#[system]
-fn update_camera_data(
-    window: Resource<Window>,
-    mut backend: Resource<ActiveGraphicsBackend>,
-    mut cameras_data: Resource<IdStore<CameraData>>,
-    camera_data_manager: Resource<CameraDataManager>,
-    mut cameras: Query<Camera>,
-) {
+pub fn update_camera_data(world: &World) {
+    let window = world.resource::<Window>();
+    let mut backend = world.resource::<ActiveGraphicsBackend>();
+    let mut cameras_data = world.resource::<IdStore<CameraData>>();
+    let camera_data_manager = world.resource::<CameraDataManager>();
+    let mut cameras = world.query::<Camera>();
+
     let aspect_ratio = window.aspect_ratio();
     for (_, camera) in cameras.iter() {
         if let Some(data_id) = camera_data_manager

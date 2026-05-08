@@ -2,8 +2,8 @@
 
 use keys::Keys;
 use parsec_engine_ecs::{
-    resources::Resource,
-    system::{System, SystemBundle, SystemTrigger, requests::Requests, system},
+    system::{System, SystemBundle, SystemTrigger, Systems},
+    world::World,
 };
 use parsec_engine_graphics::window::Window;
 
@@ -36,82 +36,73 @@ impl Input {
     }
 }
 
-#[system]
-fn input_start(mut requests: Resource<Requests>) {
-    requests.create_resource(Input::new());
+fn input_start(world: &mut World) {
+    world.resources.add(Input::new());
 }
 
-#[system]
-fn input_clear(mut input: Resource<Input>) {
+fn input_clear(world: &World) {
+    let mut input = world.resource::<Input>();
     input.keys.clear();
     input.mouse.clear();
 }
 
-#[system]
-fn input_clear_all(mut input: Resource<Input>) {
+fn input_clear_all(world: &World) {
+    let mut input = world.resource::<Input>();
     input.keys.clear_all();
     input.mouse.clear();
 }
 
-#[system]
-fn input_keyboard_event(
-    mut input: Resource<Input>,
-    input_event: Resource<KeyboardInputEvent>,
-    window: Resource<Window>,
-) {
+fn input_keyboard_event(world: &World) {
+    let window = world.resource::<Window>();
     if !window.focused() {
         return;
     }
-    input.keys.process_input_event((*input_event).clone());
+    let input_event = world.resource::<KeyboardInputEvent>();
+    world
+        .resource::<Input>()
+        .keys
+        .process_input_event((*input_event).clone());
 }
 
-#[system]
-fn input_mouse_movement(
-    mut input: Resource<Input>,
-    movement_event: Resource<MouseMovementEvent>,
-    window: Resource<Window>,
-) {
+fn input_mouse_movement(world: &World) {
+    let window = world.resource::<Window>();
     if !window.focused() {
         return;
     }
-    input.mouse.process_movement(*movement_event);
+    let movement_event = world.resource::<MouseMovementEvent>();
+    world.resource::<Input>().mouse.process_movement(*movement_event);
 }
 
-#[system]
-fn input_mouse_button(
-    mut input: Resource<Input>,
-    button_event: Resource<MouseButtonEvent>,
-    window: Resource<Window>,
-) {
+fn input_mouse_button(world: &World) {
+    let window = world.resource::<Window>();
     if !window.focused() {
         return;
     }
-    input.mouse.process_button_event(*button_event);
+    let button_event = world.resource::<MouseButtonEvent>();
+    world
+        .resource::<Input>()
+        .mouse
+        .process_button_event(*button_event);
 }
 
-#[system]
-fn input_mouse_wheel(
-    mut input: Resource<Input>,
-    wheel_event: Resource<MouseWheelEvent>,
-    window: Resource<Window>,
-) {
+fn input_mouse_wheel(world: &World) {
+    let window = world.resource::<Window>();
     if !window.focused() {
         return;
     }
-    input.mouse.process_wheel_event(*wheel_event);
+    let wheel_event = world.resource::<MouseWheelEvent>();
+    world.resource::<Input>().mouse.process_wheel_event(*wheel_event);
 }
 
 pub struct InputBundle;
 impl SystemBundle for InputBundle {
-    fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
-        vec![
-            (SystemTrigger::Start, InputStart::new()),
-            (SystemTrigger::LateUpdate, InputClear::new()),
-            (SystemTrigger::WindowCursorLeft, InputClearAll::new()),
-            (SystemTrigger::KeyboardInput, InputKeyboardEvent::new()),
-            (SystemTrigger::MouseMovement, InputMouseMovement::new()),
-            (SystemTrigger::MouseButton, InputMouseButton::new()),
-            (SystemTrigger::MouseWheel, InputMouseWheel::new()),
-        ]
+    fn insert(self, systems: &mut Systems) {
+            systems.add(SystemTrigger::Start, input_start);
+            systems.add(SystemTrigger::LateUpdate, input_clear);
+            systems.add(SystemTrigger::WindowCursorLeft, input_clear_all);
+            systems.add(SystemTrigger::KeyboardInput, input_keyboard_event);
+            systems.add(SystemTrigger::MouseMovement, input_mouse_movement);
+            systems.add(SystemTrigger::MouseButton, input_mouse_button);
+            systems.add(SystemTrigger::MouseWheel, input_mouse_wheel);
     }
 }

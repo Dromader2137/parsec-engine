@@ -1,6 +1,7 @@
 pub mod app;
 pub mod time;
 
+pub use parsec_engine_assets as assets;
 pub use parsec_engine_ecs as ecs;
 pub use parsec_engine_error as error;
 pub use parsec_engine_graphics as graphics;

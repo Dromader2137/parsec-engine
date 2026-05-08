@@ -1,8 +1,7 @@
 //! Modele responsible managing the lifecycle of an application.
 
 use parsec_engine_ecs::{
-    resources::Resources,
-    system::{SystemTrigger, Systems, requests::Requests},
+    system::{SystemTrigger, Systems},
     world::World,
 };
 use parsec_engine_graphics::ActiveEventLoop;
@@ -17,7 +16,6 @@ use parsec_engine_math::vec::Vec2f;
 pub struct App {
     pub systems: Systems,
     world: World,
-    resources: Resources,
 }
 
 impl Default for App {
@@ -29,13 +27,10 @@ impl App {
         App {
             systems: Systems::new(),
             world: World::new(),
-            resources: Resources::new(),
         }
     }
 
     pub fn run(&mut self) {
-        self.resources.add(Requests::new(self.world.current_id));
-
         self.execute_system(SystemTrigger::Start);
 
         let event_loop =
@@ -45,11 +40,9 @@ impl App {
     }
 
     pub fn execute_system(&mut self, system_trigger: SystemTrigger) {
-        if let Err(err) = self.systems.execute_type(
-            system_trigger,
-            &mut self.resources,
-            &mut self.world,
-        ) {
+        if let Err(err) =
+            self.systems.fire_trigger(system_trigger, &mut self.world)
+        {
             panic!(
                 "System triggered with {:?} returned: {}",
                 system_trigger, err
@@ -58,34 +51,9 @@ impl App {
     }
 }
 
-// pub struct ActiveEventLoopStore {
-//     event_loop: NonNull<winit::event_loop::ActiveEventLoop>,
-// }
-//
-// thread_local! {
-// pub static ACTIVE_EVENT_LOOP: RefCell<Option<ActiveEventLoopStore>> = const { RefCell::new(None) };
-// }
-//
-// impl ActiveEventLoopStore {
-//     fn new(
-//         event_loop: &winit::event_loop::ActiveEventLoop,
-//     ) -> ActiveEventLoopStore {
-//         ActiveEventLoopStore {
-//             event_loop: NonNull::from_ref(event_loop),
-//         }
-//     }
-//
-//     pub fn get_event_loop(&self) -> &winit::event_loop::ActiveEventLoop {
-//         unsafe { self.event_loop.as_ref() }
-//     }
-// }
-
 impl winit::application::ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        self.resources.add(ActiveEventLoop::new(event_loop));
-        // ACTIVE_EVENT_LOOP.with_borrow_mut(|x| {
-        //     *x = Some(ActiveEventLoopStore::new(event_loop))
-        // });
+        self.world.resources.add(ActiveEventLoop::new(event_loop));
         self.execute_system(SystemTrigger::LateStart);
     }
 
@@ -96,14 +64,14 @@ impl winit::application::ApplicationHandler for App {
         event: winit::event::DeviceEvent,
     ) {
         if let winit::event::DeviceEvent::MouseMotion { delta } = event {
-            self.resources.add(MouseMovementEvent::delta(Vec2f::new(
+            self.world.resources.add(MouseMovementEvent::delta(Vec2f::new(
                 delta.0 as f32,
                 delta.1 as f32,
             )));
 
             self.execute_system(SystemTrigger::MouseMovement);
 
-            self.resources.remove::<MouseMovementEvent>().unwrap();
+            self.world.resources.remove::<MouseMovementEvent>().unwrap();
         }
     }
 
@@ -131,11 +99,16 @@ impl winit::application::ApplicationHandler for App {
                     _ => return,
                 };
 
-                self.resources.add(KeyboardInputEvent::new(key_code, state));
+                self.world
+                    .resources
+                    .add(KeyboardInputEvent::new(key_code, state));
 
                 self.execute_system(SystemTrigger::KeyboardInput);
 
-                self.resources.remove::<KeyboardInputEvent>().unwrap();
+                self.world
+                    .resources
+                    .remove::<KeyboardInputEvent>()
+                    .unwrap();
             },
             winit::event::WindowEvent::CursorLeft { device_id: _ } => {
                 self.execute_system(SystemTrigger::WindowCursorLeft);
@@ -147,25 +120,24 @@ impl winit::application::ApplicationHandler for App {
                 device_id: _,
                 position,
             } => {
-                self.resources.add(MouseMovementEvent::position(Vec2f::new(
-                    position.x as f32,
-                    position.y as f32,
-                )));
+                self.world.resources.add(MouseMovementEvent::position(
+                    Vec2f::new(position.x as f32, position.y as f32),
+                ));
 
                 self.execute_system(SystemTrigger::MouseMovement);
 
-                self.resources.remove::<MouseMovementEvent>().unwrap();
+                self.world.resources.remove::<MouseMovementEvent>().unwrap();
             },
             winit::event::WindowEvent::MouseInput {
                 device_id: _,
                 state,
                 button,
             } => {
-                self.resources.add(MouseButtonEvent::new(button, state));
+                self.world.resources.add(MouseButtonEvent::new(button, state));
 
                 self.execute_system(SystemTrigger::MouseButton);
 
-                self.resources.remove::<MouseButtonEvent>().unwrap();
+                self.world.resources.remove::<MouseButtonEvent>().unwrap();
             },
             winit::event::WindowEvent::MouseWheel {
                 device_id: _,
@@ -181,14 +153,16 @@ impl winit::application::ApplicationHandler for App {
                     },
                 };
 
-                self.resources.add(MouseWheelEvent::new(processed_delta));
+                self.world
+                    .resources
+                    .add(MouseWheelEvent::new(processed_delta));
 
                 self.execute_system(SystemTrigger::MouseWheel);
 
-                self.resources.remove::<MouseWheelEvent>().unwrap();
+                self.world.resources.remove::<MouseWheelEvent>().unwrap();
             },
             winit::event::WindowEvent::CloseRequested => {
-                self.resources.remove::<ActiveEventLoop>().unwrap();
+                self.world.resources.remove::<ActiveEventLoop>().unwrap();
                 self.execute_system(SystemTrigger::End);
                 event_loop.exit();
             },

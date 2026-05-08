@@ -45,5 +45,7 @@ impl Asset for Mesh {
         CookedMesh { xd: [3; 32] } 
     }
 
-    fn load(cooked: Self::Cooked) -> Self { Self::new(vec![], vec![]) }
+    fn load(_cooked: Self::Cooked, _world: &parsec_engine_ecs::world::World) -> Self {
+        Self::new(vec![], vec![])
+    }
 }

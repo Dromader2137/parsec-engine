@@ -124,15 +124,15 @@ fn cook(
 
 pub struct CookerAssetRegistation {
     extensions: &'static [&'static str],
-    cook_fn: Box<fn(&[u8]) -> Vec<u8>>,
+    cook_fn: Box<fn(File) -> Vec<u8>>,
 }
 
 pub struct Cooker {
     handlers: HashMap<&'static str, CookerAssetRegistation>,
 }
 
-fn cook_type_erased<T: Asset>(bytes: &[u8]) -> Vec<u8> {
-    let out = T::cook(bytes);
+fn cook_type_erased<T: Asset>(file: File) -> Vec<u8> {
+    let out = T::cook(file);
     let out_bytes = postcard::to_stdvec(&out).unwrap();
     out_bytes
 }
@@ -163,10 +163,8 @@ impl Cooker {
             .iter()
             .find(|(_, v)| v.extensions.contains(&ext))
             .unwrap();
-        let mut input_file = File::open(input).unwrap();
-        let mut input_bytes = Vec::new();
-        input_file.read_to_end(&mut input_bytes).unwrap();
-        let out_bytes = (handler.cook_fn)(input_bytes.as_slice());
+        let input_file = File::open(input).unwrap();
+        let out_bytes = (handler.cook_fn)(input_file);
         let mut out_file = File::options()
             .create(true)
             .write(true)

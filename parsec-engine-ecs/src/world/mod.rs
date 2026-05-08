@@ -8,8 +8,11 @@ use thiserror::Error;
 
 use crate::{
     entity::Entity,
+    resources::{Resource, ResourceMarker, Resources},
     world::{
         add_component::AddComponent,
+        fetch::Fetch,
+        query::Query,
         remove_component::{RemoveComponent, RemoveComponentData},
     },
 };
@@ -34,13 +37,15 @@ pub enum WorldError {
     DeleteComponentError { kind: ArchetypeError },
 }
 
-/// Stores all data about components and entities.
+/// Stores all data about components, entities, and global resources.
 #[derive(Debug)]
 pub struct World {
     /// Contains all archetypes indexed by their id.
     archetypes: HashMap<ArchetypeId, Archetype>,
     /// New entity id counter.
     pub current_id: u32,
+    /// Global resource storage.
+    pub resources: Resources,
 }
 
 impl Default for World {
@@ -52,7 +57,19 @@ impl World {
         Self {
             archetypes: HashMap::new(),
             current_id: 0,
+            resources: Resources::new(),
         }
+    }
+
+    /// Borrows the resource of type `R`. Panics if not found.
+    pub fn resource<R: ResourceMarker>(&self) -> Resource<R> {
+        Resource::<R>::from_resources(&self.resources)
+            .unwrap_or_else(|_| panic!("resource {} not found", std::any::type_name::<R>()))
+    }
+
+    /// Creates a query for all entities matching `T`. Panics on archetype errors.
+    pub fn query<T: Fetch>(&self) -> Query<T> {
+        Query::<T>::from_world(self).expect("query failed")
     }
 
     /// Returns a mutable reference to the archetype stored under `archetype_id`.

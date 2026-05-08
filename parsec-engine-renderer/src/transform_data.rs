@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use parsec_engine_ecs::{
-    resources::Resource,
-    system::system,
-    world::{fetch::Mut, query::Query},
-};
+use parsec_engine_ecs::world::{World, fetch::Mut};
 use parsec_engine_graphics::{
     ActiveGraphicsBackend,
     buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -179,13 +175,12 @@ impl Identifiable for TransformData {
     fn id(&self) -> IdType { self.transform_data_id }
 }
 
-#[system]
-fn add_transform_data(
-    mut backend: Resource<ActiveGraphicsBackend>,
-    mut transforms_data: Resource<IdStore<TransformData>>,
-    mut transforms_data_manager: Resource<TransformDataManager>,
-    mut transforms: Query<Mut<Transform>>,
-) {
+pub fn add_transform_data(world: &World) {
+    let mut backend = world.resource::<ActiveGraphicsBackend>();
+    let mut transforms_data = world.resource::<IdStore<TransformData>>();
+    let mut transforms_data_manager = world.resource::<TransformDataManager>();
+    let mut transforms = world.query::<Mut<Transform>>();
+
     for (_, transform) in transforms.iter() {
         if let std::collections::hash_map::Entry::Vacant(e) =
             transforms_data_manager
@@ -204,13 +199,12 @@ fn add_transform_data(
     }
 }
 
-#[system]
-fn update_transform_data(
-    mut backend: Resource<ActiveGraphicsBackend>,
-    mut transforms_data: Resource<IdStore<TransformData>>,
-    transforms_data_manager: Resource<TransformDataManager>,
-    mut transforms: Query<Transform>,
-) {
+pub fn update_transform_data(world: &World) {
+    let mut backend = world.resource::<ActiveGraphicsBackend>();
+    let mut transforms_data = world.resource::<IdStore<TransformData>>();
+    let transforms_data_manager = world.resource::<TransformDataManager>();
+    let mut transforms = world.query::<Transform>();
+
     for (_, transform) in transforms.iter() {
         if let Some(data_id) = transforms_data_manager
             .component_to_data

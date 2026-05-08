@@ -1,7 +1,6 @@
 use parsec_engine_ecs::{
-    resources::Resource,
-    system::{System, SystemBundle, SystemTrigger, requests::Requests, system},
-    world::query::Query,
+    system::{System, SystemBundle, SystemTrigger},
+    world::World,
 };
 use parsec_engine_error::{OptionNoneErr, ParsecError};
 use parsec_engine_graphics::{
@@ -10,89 +9,78 @@ use parsec_engine_graphics::{
 use parsec_engine_utils::identifiable::IdStore;
 use parsec_engine_vulkan::VulkanBackend;
 
+use parsec_engine_assets::assets::mesh::Mesh;
+
 use crate::{
-    InitRenderer, QueueClear, Render, ResizeFlag,
-    assets::mesh::Mesh,
-    camera_data::{AddCameraData, CameraDataManager, UpdateCameraData},
-    components::{
+    ResizeFlag, camera_data::{CameraDataManager, add_camera_data, update_camera_data}, components::{
         camera::Camera, mesh_renderer::MeshRenderer, transform::Transform,
-    },
-    draw_queue::{Draw, MeshAndMaterial},
-    light_data::UpdateLightData,
-    mesh_data::AddMeshData,
-    transform_data::{
-        AddTransformData, TransformDataManager, UpdateTransformData,
-    },
+    }, draw_queue::{Draw, MeshAndMaterial}, light_data::update_light_data, mesh_data::add_mesh_data, queue_clear, render, transform_data::{TransformDataManager, add_transform_data, update_transform_data}
 };
 
 pub struct GraphicsBundle;
 impl SystemBundle for GraphicsBundle {
-    fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
-        vec![
-            (SystemTrigger::LateStart, InitWindow::new()),
-            (SystemTrigger::LateStart, InitVulkan::new()),
-            (SystemTrigger::LateStart, InitRenderer::new()),
-            (SystemTrigger::Render, UpdateCameraData::new()),
-            (SystemTrigger::Render, UpdateTransformData::new()),
-            (SystemTrigger::Render, UpdateLightData::new()),
-            (SystemTrigger::Render, AutoEnqueue::new()),
-            (SystemTrigger::Render, Render::new()),
-            (SystemTrigger::Render, QueueClear::new()),
-            (SystemTrigger::Update, RequestRedraw::new()),
-            (SystemTrigger::Update, AddCameraData::new()),
-            (SystemTrigger::Update, AddMeshData::new()),
-            (SystemTrigger::Update, AddTransformData::new()),
-            (SystemTrigger::End, EndWaitIdle::new()),
-            (SystemTrigger::WindowResized, MarkResize::new()),
-        ]
+    fn insert(self, systems: &mut parsec_engine_ecs::system::Systems) {
+        
+            systems.add( SystemTrigger::LateStart,  init_window as fn(&mut World) -> Result<(), ParsecError>);
+            systems.add( SystemTrigger::LateStart,  init_vulkan as fn(&mut World) -> Result<(), ParsecError>);
+            systems.add( SystemTrigger::LateStart, crate::init_renderer as fn(&mut World));
+            systems.add( SystemTrigger::Render, update_camera_data as fn(&World));
+            systems.add( SystemTrigger::Render, update_transform_data as fn(&World));
+            systems.add( SystemTrigger::Render, update_light_data as fn(&World));
+            systems.add( SystemTrigger::Render, auto_enqueue as fn(&World) -> Result<(), ParsecError>);
+            systems.add( SystemTrigger::Render, render as fn(&World));
+            systems.add( SystemTrigger::Render, queue_clear as fn(&World));
+            systems.add( SystemTrigger::Update, request_redraw as fn(&World));
+            systems.add( SystemTrigger::Update, add_camera_data as fn(&World));
+            systems.add( SystemTrigger::Update, add_mesh_data as fn(&World));
+            systems.add( SystemTrigger::Update, add_transform_data as fn(&World));
+            systems.add( SystemTrigger::End, end_wait_idle as fn(&World));
+            systems.add( SystemTrigger::WindowResized, mark_resize as fn(&World));
     }
 }
 
-#[system]
-pub fn init_vulkan(
-    mut requests: Resource<Requests>,
-    window: Resource<Window>,
-) -> Result<(), ParsecError> {
-    requests.create_resource(ActiveGraphicsBackend::with_backend::<
-        VulkanBackend,
-    >(&window)?);
-    requests.create_resource_dependency::<ActiveGraphicsBackend, Window>();
+pub fn init_vulkan(world: &mut World) -> Result<(), ParsecError> {
+    let window = world.resource::<Window>();
+    world.resources.add(
+        ActiveGraphicsBackend::with_backend::<VulkanBackend>(&window)?,
+    );
+    world
+        .resources
+        .add_dependency::<ActiveGraphicsBackend, Window>()
+        .unwrap();
     Ok(())
 }
 
-#[system]
-fn mark_resize(mut resize: Resource<ResizeFlag>) { resize.0 = true; }
-
-#[system]
-fn request_redraw(window: Resource<Window>) { window.request_redraw(); }
-
-#[system]
-fn end_wait_idle(backend: Resource<ActiveGraphicsBackend>) {
-    backend.wait_idle();
+fn mark_resize(world: &World) {
+    world.resource::<ResizeFlag>().0 = true;
 }
 
-#[system]
-fn init_window(
-    mut requests: Resource<Requests>,
-    event_loop: Resource<ActiveEventLoop>,
-) -> Result<(), ParsecError> {
+fn request_redraw(world: &World) {
+    world.resource::<Window>().request_redraw();
+}
+
+fn end_wait_idle(world: &World) {
+    world.resource::<ActiveGraphicsBackend>().wait_idle();
+}
+
+fn init_window(world: &mut World) -> Result<(), ParsecError> {
     let window = {
+        let event_loop = world.resource::<ActiveEventLoop>();
         let event_loop = event_loop.raw_active_event_loop()?;
         Window::new(event_loop, "Oxide Engine test")?
     };
-    requests.create_resource(window);
+    world.resources.add(window);
     Ok(())
 }
 
-#[system]
-fn auto_enqueue(
-    mut draw_queue: Resource<Vec<Draw>>,
-    meshes: Resource<IdStore<Mesh>>,
-    mut cameras: Query<(Transform, Camera)>,
-    camera_data_manager: Resource<CameraDataManager>,
-    mut mesh_renderers: Query<(Transform, MeshRenderer)>,
-    transform_data_manager: Resource<TransformDataManager>,
-) -> Result<(), ParsecError> {
+fn auto_enqueue(world: &World) -> Result<(), ParsecError> {
+    let mut draw_queue = world.resource::<Vec<Draw>>();
+    let meshes = world.resource::<IdStore<Mesh>>();
+    let camera_data_manager = world.resource::<CameraDataManager>();
+    let transform_data_manager = world.resource::<TransformDataManager>();
+    let mut cameras = world.query::<(Transform, Camera)>();
+    let mut mesh_renderers = world.query::<(Transform, MeshRenderer)>();
+
     for (_, (camera_transform, camera)) in cameras.iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
             let mesh_asset = meshes.get(mesh_renderer.mesh_id).none_err()?;

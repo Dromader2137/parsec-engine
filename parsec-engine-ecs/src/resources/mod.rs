@@ -12,13 +12,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use parsec_engine_error::ParsecError;
-
-use crate::{
-    resources::{data::ResourceData, dependency::ResourceDependencyData},
-    system::SystemInput,
-    world::World,
-};
+use crate::resources::{data::ResourceData, dependency::ResourceDependencyData};
 
 /// Marks a type as a resource that can be stored in a global storage.
 pub trait ResourceMarker: Send + Sync + 'static {
@@ -68,12 +62,9 @@ impl<R: ResourceMarker> Drop for Resource<R> {
     fn drop(&mut self) { unsafe { ManuallyDrop::drop(&mut self.guard) }; }
 }
 
-impl<T: ResourceMarker> SystemInput for Resource<T> {
-    fn borrow(
-        resources: &Resources,
-        _world: &World,
-    ) -> Result<Self, ParsecError> {
-        let arc = resources.get::<T>()?;
+impl<R: ResourceMarker> Resource<R> {
+    pub fn from_resources(resources: &Resources) -> Result<Self, ResourceError> {
+        let arc = resources.get::<R>()?;
         let locked = arc.lock().expect("Mutex poisoned");
         let guard = unsafe {
             std::mem::transmute::<

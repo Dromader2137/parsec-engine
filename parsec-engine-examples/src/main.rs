@@ -1,10 +1,10 @@
 use image::EncodableLayout;
 use parsec_engine::{
     app::App,
+    assets::assets::mesh::{Mesh, obj::load_obj},
     ecs::{
-        resources::Resource,
-        system::{SystemTrigger, requests::Requests, system},
-        world::{component::Component, fetch::Mut, query::Query},
+        system::SystemTrigger,
+        world::{World, component::Component, fetch::Mut},
     },
     error::ParsecError,
     graphics::{
@@ -24,7 +24,6 @@ use parsec_engine::{
     math::{quat::Quat, uvec::Vec2u, vec::Vec3f},
     renderer::{
         RendererMainRenderpass,
-        assets::mesh::{Mesh, obj::load_obj},
         components::{
             camera::Camera, light::Light, mesh_renderer::MeshRenderer,
             transform::Transform,
@@ -37,15 +36,13 @@ use parsec_engine::{
     vulkan::shader::read_shader_code,
 };
 
-#[system]
-fn test_system(
-    mut requests: Resource<Requests>,
-    mut backend: Resource<ActiveGraphicsBackend>,
-    mut materials: Resource<IdStore<MaterialData>>,
-    mut material_bases: Resource<IdStore<MaterialBase>>,
-    mut meshes: Resource<IdStore<Mesh>>,
-    renderpass: Resource<RendererMainRenderpass>,
-) -> Result<(), ParsecError> {
+fn test_system(world: &mut World) -> Result<(), ParsecError> {
+    let mut backend = world.resource::<ActiveGraphicsBackend>();
+    let mut materials = world.resource::<IdStore<MaterialData>>();
+    let mut material_bases = world.resource::<IdStore<MaterialBase>>();
+    let mut meshes = world.resource::<IdStore<Mesh>>();
+    let renderpass = world.resource::<RendererMainRenderpass>();
+
     let vertex = ShaderBuilder::new()
         .code(&read_shader_code("shaders/simple.spv")?)
         .shader_type(ShaderType::Vertex)
@@ -157,10 +154,16 @@ fn test_system(
 
     material_bases.push(material_base);
     let material_id = materials.push(material);
-
     let mesh = meshes.push(load_obj("test.obj").unwrap());
 
-    requests.spawn_entity((
+    // Drop resource guards before spawning (avoids holding guards across &mut world)
+    drop(backend);
+    drop(materials);
+    drop(material_bases);
+    drop(meshes);
+    drop(renderpass);
+
+    world.spawn((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
         Transform::new(Vec3f::BACK, Vec3f::ZERO, Quat::IDENTITY),
         CameraController {
@@ -170,19 +173,19 @@ fn test_system(
             target_pitch: 0.0,
             fov: 40.0,
         },
-    ));
-    requests.spawn_entity((
+    ))?;
+    world.spawn((
         Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
         MeshRenderer::new(mesh, material_id),
-    ));
-    requests.spawn_entity((
+    ))?;
+    world.spawn((
         Transform::new(Vec3f::ONE * 20.0, Vec3f::ONE, Quat::IDENTITY),
         Light::new(
             (Vec3f::ONE * -1.0).normalize(),
             Vec3f::new(-1.0, 1.0, -1.0).normalize(),
             Vec3f::ONE * 0.9,
         ),
-    ));
+    ))?;
 
     Ok(())
 }
@@ -196,13 +199,13 @@ struct CameraController {
     fov: f32,
 }
 
-#[system]
-fn controller(
-    mut cameras: Query<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>,
-    mut window: Resource<Window>,
-    input: Resource<Input>,
-    time: Resource<Time>,
-) {
+fn controller(world: &World) {
+    let mut cameras =
+        world.query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
+    let mut window = world.resource::<Window>();
+    let input = world.resource::<Input>();
+    let time = world.resource::<Time>();
+
     for (_, (transform, camera, camera_controller)) in cameras.iter() {
         let delta = input.mouse.positon_delta();
         camera_controller.target_yaw += -delta.x / window.width() as f32 * 10.0;
@@ -261,7 +264,11 @@ fn main() {
     app.systems.add_bundle(GraphicsBundle);
     app.systems.add_bundle(InputBundle);
     app.systems.add_bundle(TimeBundle);
-    app.systems.add(SystemTrigger::LateStart, TestSystem);
-    app.systems.add(SystemTrigger::Update, Controller);
+    app.systems.add(
+        SystemTrigger::LateStart,
+        test_system as fn(&mut World) -> Result<(), ParsecError>,
+    );
+    app.systems
+        .add(SystemTrigger::Update, controller as fn(&World));
     app.run();
 }

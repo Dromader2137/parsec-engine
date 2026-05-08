@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use parsec_engine_ecs::{resources::Resource, system::system};
+use parsec_engine_ecs::world::World;
 use parsec_engine_graphics::{
     ActiveGraphicsBackend,
     buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -12,7 +12,7 @@ use parsec_engine_utils::{
     identifiable::{IdStore, Identifiable},
 };
 
-use crate::assets::mesh::Mesh;
+use parsec_engine_assets::assets::mesh::Mesh;
 
 pub struct MeshBuffer<V: Vertex> {
     vertex_buffer: Buffer,
@@ -108,12 +108,11 @@ impl<V: Vertex> Identifiable for MeshData<V> {
     fn id(&self) -> IdType { self.mesh_data_id }
 }
 
-#[system]
-fn add_mesh_data(
-    mut backend: Resource<ActiveGraphicsBackend>,
-    mut meshes_data: Resource<IdStore<MeshData<DefaultVertex>>>,
-    mut meshes: Resource<IdStore<Mesh>>,
-) {
+pub fn add_mesh_data(world: &World) {
+    let mut backend = world.resource::<ActiveGraphicsBackend>();
+    let mut meshes_data = world.resource::<IdStore<MeshData<DefaultVertex>>>();
+    let mut meshes = world.resource::<IdStore<Mesh>>();
+
     for mesh in meshes.iter_mut() {
         if mesh.data_id.is_none() {
             let mesh_data =

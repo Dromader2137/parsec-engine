@@ -1,6 +1,4 @@
-use parsec_engine_ecs::{
-    resources::Resource, system::system, world::query::Query,
-};
+use parsec_engine_ecs::world::World;
 use parsec_engine_graphics::{
     ActiveGraphicsBackend,
     buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -131,12 +129,11 @@ impl RendererLights {
     }
 }
 
-#[system]
-fn update_light_data(
-    mut backend: Resource<ActiveGraphicsBackend>,
-    mut light_data: Resource<RendererLights>,
-    mut lights: Query<(Light, Transform)>,
-) {
+pub fn update_light_data(world: &World) {
+    let mut backend = world.resource::<ActiveGraphicsBackend>();
+    let mut light_data = world.resource::<RendererLights>();
+    let mut lights = world.query::<(Light, Transform)>();
+
     light_data.clear_data();
     for (_, (light, transfrom)) in lights.iter() {
         light_data.add_light_data(

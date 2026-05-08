@@ -9,6 +9,7 @@ ash-window.workspace = true
 once_cell.workspace = true
 thiserror.workspace = true
 winit.workspace = true
+parsec-engine-assets.workspace = true
 parsec-engine-ecs.workspace = true
 parsec-engine-error.workspace = true
 parsec-engine-graphics.workspace = true

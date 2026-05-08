@@ -1,16 +1,10 @@
 //! Module responsible for systems management.
 
-pub mod requests;
-
-use std::{collections::HashMap, fmt::Debug, time::Instant};
+use std::{any::type_name, collections::HashMap, fmt::Debug, time::Instant};
 
 use parsec_engine_error::ParsecError;
 
-use crate::{
-    resources::{Resource, Resources},
-    system::requests::Requests,
-    world::World,
-};
+use crate::world::World;
 
 /// List of possible actions a system can run on.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -45,44 +39,9 @@ pub enum SystemTrigger {
     MouseWheel,
 }
 
-/// Stores all systems groped by [`SystemTrigger`].
+/// Stores all systems grouped by [`SystemTrigger`].
 pub struct Systems {
-    systems: HashMap<SystemTrigger, Vec<(Box<dyn System>, SystemStats)>>,
-}
-
-impl Debug for Systems {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut builder = f.debug_struct("Systems");
-
-        for systems_by_trig in self.systems.iter() {
-            for system in systems_by_trig.1.iter() {
-                builder.field(system.0.name(), &system.1);
-            }
-        }
-
-        builder.finish()
-    }
-}
-
-#[derive(Debug)]
-pub struct SystemStats {
-    pub times_called: u32,
-    pub total_time: f64,
-    pub min_time: f64,
-    pub max_time: f64,
-    pub avg_time: f64,
-}
-
-impl Default for SystemStats {
-    fn default() -> Self {
-        SystemStats {
-            times_called: 0,
-            total_time: 0.0,
-            min_time: 1000.0,
-            max_time: 0.0,
-            avg_time: 0.0,
-        }
-    }
+    systems: HashMap<SystemTrigger, Vec<Box<dyn System>>>,
 }
 
 impl Systems {
@@ -95,51 +54,30 @@ impl Systems {
     fn get_systems_by_trigger(
         &mut self,
         system_trigger: SystemTrigger,
-    ) -> &mut Vec<(Box<dyn System>, SystemStats)> {
+    ) -> &mut Vec<Box<dyn System>> {
         self.systems.entry(system_trigger).or_default()
     }
 
     /// Registers a new system to be executed on `system_trigger`.
-    pub fn add(
-        &mut self,
-        system_trigger: SystemTrigger,
-        system: impl System,
-    ) {
-        let system_vec = self.get_systems_by_trigger(system_trigger);
-        system_vec.push((Box::new(system), SystemStats::default()));
+    pub fn add(&mut self, system_trigger: SystemTrigger, system: impl System) {
+        let trigger_vec = self.get_systems_by_trigger(system_trigger);
+        trigger_vec.push(Box::new(system));
     }
 
     /// Registers an entire [SystemBundle].
     pub fn add_bundle(&mut self, bundle: impl SystemBundle) {
-        for system in bundle.systems() {
-            let system_vec = self.get_systems_by_trigger(system.0);
-            system_vec.push((system.1, SystemStats::default()));
-        }
+        bundle.insert(self);
     }
 
     /// Executes all the systems registered for trigger `system_type`.
-    pub fn execute_type(
+    pub fn fire_trigger(
         &mut self,
         system_type: SystemTrigger,
-        resources: &mut Resources,
         world: &mut World,
     ) -> Result<(), ParsecError> {
         if let Some(systems) = self.systems.get_mut(&system_type) {
-            for (system, stats) in systems.iter_mut() {
-                let instant = Instant::now();
-                system.run(resources, world)?;
-                let duration = (instant.elapsed().as_micros() as f64) / 1000.0;
-                let mut requests =
-                    Resource::<Requests>::borrow(resources, world)?;
-                requests.handle_requests(world, resources)?;
-                stats.times_called += 1;
-                if stats.times_called < 25 {
-                    continue;
-                }
-                stats.total_time += duration;
-                stats.min_time = stats.min_time.min(duration);
-                stats.max_time = stats.max_time.max(duration);
-                stats.avg_time = stats.total_time / stats.times_called as f64;
+            for system in systems.iter_mut() {
+                system.run(world)?;
             }
         }
         Ok(())
@@ -150,32 +88,39 @@ impl Default for Systems {
     fn default() -> Self { Self::new() }
 }
 
-/// Marks a type that can be used as an argument inside a [`System`] function.
-pub trait SystemInput {
-    /// Used to create an instance of `Self` at the beginning of a system.
-    fn borrow(
-        resources: &Resources,
-        world: &World,
-    ) -> Result<Self, ParsecError>
-    where
-        Self: Sized;
+/// Marks a type that is a system.
+pub trait System: Send + Sync + 'static {
+    fn run<'b>(&mut self, world: &'b mut World) -> Result<(), ParsecError>;
 }
 
-/// Marks a type that is a system. Implemented using the [`system`] macro.
-pub trait System: Send + Sync + 'static {
-    fn name(&self) -> &'static str;
-    fn run(
-        &mut self,
-        resources: &Resources,
-        world: &World,
-    ) -> Result<(), ParsecError>;
+impl System for fn(&World) {
+    fn run<'b>(&mut self, world: &'b mut World) -> Result<(), ParsecError> {
+        (*self)(world);
+        Ok(())
+    }
+}
+
+impl<'a> System<'a> for fn(&mut World) {
+    fn run<'b: 'a>(&mut self, world: &'b mut World) -> Result<(), ParsecError> {
+        (*self)(world);
+        Ok(())
+    }
+}
+
+impl<'a> System<'a> for fn(&World) -> Result<(), ParsecError> {
+    fn run<'b: 'a>(&mut self, world: &'b mut World) -> Result<(), ParsecError> {
+        (*self)(world)
+    }
+}
+
+impl<'a> System<'a> for fn(&mut World) -> Result<(), ParsecError> {
+    fn run<'b: 'a>(&mut self, world: &'b mut World) -> Result<(), ParsecError> {
+        (*self)(world)
+    }
 }
 
 /// Marks a type used to group systems into interdependent bundles.
 pub trait SystemBundle {
     /// Returns a vec of grouped systems and their respective triggers.
-    fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)>;
+    fn insert(self, systems: &mut Systems);
 }
-
-/// Macro used to mark functions as systems.
-pub use parsec_engine_macros::system;

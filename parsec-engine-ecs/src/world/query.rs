@@ -6,8 +6,6 @@ use parsec_engine_error::ParsecError;
 
 use crate::{
     entity::Entity,
-    resources::Resources,
-    system::SystemInput,
     world::{World, fetch::Fetch},
 };
 
@@ -17,11 +15,8 @@ pub struct Query<T: Fetch> {
     entities: Vec<Vec<Entity>>,
 }
 
-impl<T: Fetch> SystemInput for Query<T> {
-    fn borrow(
-        _resources: &Resources,
-        world: &World,
-    ) -> Result<Self, ParsecError> {
+impl<T: Fetch> Query<T> {
+    pub fn from_world(world: &World) -> Result<Self, ParsecError> {
         let archetype_id = T::archetype_id()?;
         let archetypes = world
             .archetypes
@@ -44,9 +39,7 @@ impl<T: Fetch> SystemInput for Query<T> {
             .collect();
         Ok(Query { fetches, entities })
     }
-}
 
-impl<T: Fetch> Query<T> {
     /// Creates an iterator over [`self`].
     pub fn iter<'a>(&'a mut self) -> QueryIter<'a, T> {
         let inside_len = match self.fetches.first() {

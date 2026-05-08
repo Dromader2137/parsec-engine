@@ -3,8 +3,8 @@
 use std::time::{SystemTime, SystemTimeError};
 
 use parsec_engine_ecs::{
-    resources::Resource,
-    system::{System, SystemBundle, SystemTrigger, requests::Requests, system},
+    system::{System, SystemBundle, SystemTrigger},
+    world::World,
 };
 
 /// Stores timing information like delta_time and current_time.
@@ -53,13 +53,13 @@ impl Time {
     }
 }
 
-#[system]
-fn time_init(mut requests: Resource<Requests>) {
-    requests.create_resource(Time::new());
+fn time_init(world: &mut World) {
+    world.resources.add(Time::new());
 }
 
-#[system]
-fn time_update(mut time: Resource<Time>) { time.update_time(); }
+fn time_update(world: &World) {
+    world.resource::<Time>().update_time();
+}
 
 /// Bundle containing systems responsible for time calculations.
 #[derive(Default)]
@@ -67,8 +67,8 @@ pub struct TimeBundle;
 impl SystemBundle for TimeBundle {
     fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
         vec![
-            (SystemTrigger::Start, TimeInit::new()),
-            (SystemTrigger::EarlyUpdate, TimeUpdate::new()),
+            (SystemTrigger::Start, Box::new(time_init as fn(&mut World))),
+            (SystemTrigger::EarlyUpdate, Box::new(time_update as fn(&World))),
         ]
     }
 }
