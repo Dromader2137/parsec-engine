@@ -1,7 +1,9 @@
-use crate::error::ParsecError;
 use parsec_engine_math::uvec::Vec2u;
 
-use crate::graphics::{ActiveGraphicsBackend, buffer::BufferHandle};
+use crate::{
+    error::ParsecError,
+    graphics::{ActiveGraphicsBackend, buffer::BufferHandle},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ImageHandle {

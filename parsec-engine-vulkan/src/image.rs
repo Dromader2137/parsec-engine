@@ -1,12 +1,12 @@
 use parsec_engine::graphics::image::{ImageAspect, ImageFormat, ImageUsage};
 use parsec_engine_math::uvec::Vec2u;
-use crate::create_counter;
 
 use crate::{
     allocation::VulkanAllocationError,
     allocator::{
         VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements,
     },
+    create_counter,
     device::VulkanDevice,
     format_size::format_size,
     memory::VulkanMemory,

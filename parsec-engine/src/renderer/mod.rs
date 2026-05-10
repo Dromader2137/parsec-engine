@@ -17,34 +17,36 @@ pub mod texture;
 pub mod texture_atlas;
 pub mod transform_data;
 
-use crate::assets::assets::mesh::Mesh;
-use crate::ecs::world::World;
-use crate::graphics::{
-    ActiveGraphicsBackend,
-    command_list::{Command, CommandList},
-    framebuffer::{Framebuffer, FramebufferBuilder},
-    image::{ImageFormat, ImageSize},
-    pipeline::DefaultVertex,
-    renderpass::{
-        Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
-        RenderpassAttachmentStoreOp, RenderpassAttachmentType,
-        RenderpassBuilder, RenderpassClearValue, RenderpassHandle,
-    },
-    window::Window,
-};
-use crate::utils::identifiable::IdStore;
 use sync::{RendererFrameSync, RendererImageSync};
 
-use crate::renderer::{
-    camera_data::{CameraData, CameraDataManager},
-    depth_image::DepthImage,
-    draw_queue::{Draw, MeshAndMaterial},
-    light_data::RendererLights,
-    material_data::{MaterialBase, MaterialData},
-    mesh_data::MeshData,
-    present_image::PresentImage,
-    shadow::RendererShadows,
-    transform_data::{TransformData, TransformDataManager},
+use crate::{
+    assets::assets::mesh::Mesh,
+    ecs::world::World,
+    graphics::{
+        ActiveGraphicsBackend,
+        command_list::{Command, CommandList},
+        framebuffer::{Framebuffer, FramebufferBuilder},
+        image::{ImageFormat, ImageSize},
+        pipeline::DefaultVertex,
+        renderpass::{
+            Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
+            RenderpassAttachmentStoreOp, RenderpassAttachmentType,
+            RenderpassBuilder, RenderpassClearValue, RenderpassHandle,
+        },
+        window::Window,
+    },
+    renderer::{
+        camera_data::{CameraData, CameraDataManager},
+        depth_image::DepthImage,
+        draw_queue::{Draw, MeshAndMaterial},
+        light_data::RendererLights,
+        material_data::{MaterialBase, MaterialData},
+        mesh_data::MeshData,
+        present_image::PresentImage,
+        shadow::RendererShadows,
+        transform_data::{TransformData, TransformDataManager},
+    },
+    utils::identifiable::IdStore,
 };
 
 fn create_frame_sync(

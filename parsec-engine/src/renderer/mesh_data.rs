@@ -1,18 +1,20 @@
 use std::marker::PhantomData;
 
-use crate::assets::assets::mesh::Mesh;
-use crate::ecs::world::World;
-use crate::graphics::{
-    ActiveGraphicsBackend,
-    buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
-    command_list::{Command, CommandList},
-    pipeline::{DefaultVertex, Vertex},
+use crate::{
+    assets::assets::mesh::Mesh,
+    create_counter,
+    ecs::world::World,
+    graphics::{
+        ActiveGraphicsBackend,
+        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
+        command_list::{Command, CommandList},
+        pipeline::{DefaultVertex, Vertex},
+    },
+    utils::{
+        IdType,
+        identifiable::{IdStore, Identifiable},
+    },
 };
-use crate::utils::{
-    IdType,
-    identifiable::{IdStore, Identifiable},
-};
-use crate::create_counter;
 
 pub struct MeshBuffer<V: Vertex> {
     vertex_buffer: Buffer,

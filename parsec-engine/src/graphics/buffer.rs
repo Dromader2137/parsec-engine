@@ -1,6 +1,7 @@
-use crate::error::{ParsecError, StrError};
-
-use crate::graphics::ActiveGraphicsBackend;
+use crate::{
+    error::{ParsecError, StrError},
+    graphics::ActiveGraphicsBackend,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BufferHandle {

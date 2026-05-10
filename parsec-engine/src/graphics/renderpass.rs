@@ -1,6 +1,7 @@
-use crate::error::ParsecError;
-
-use crate::graphics::{ActiveGraphicsBackend, image::ImageFormat};
+use crate::{
+    error::ParsecError,
+    graphics::{ActiveGraphicsBackend, image::ImageFormat},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RenderpassHandle {

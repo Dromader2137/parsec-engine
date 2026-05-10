@@ -1,24 +1,26 @@
 use std::collections::HashMap;
 
-use crate::create_counter;
-use crate::ecs::world::{World, fetch::Mut};
-use crate::graphics::{
-    ActiveGraphicsBackend,
-    buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
-    pipeline::{
-        PipelineBindingType, PipelineResource, PipelineResourceBindingLayout,
-        PipelineResourceLayout, PipelineResourceLayoutBuilder,
-        PipelineShaderStage,
-    },
-    window::Window,
-};
 use parsec_engine_math::mat::Matrix4f;
-use crate::utils::{
-    IdType,
-    identifiable::{IdStore, Identifiable},
-};
 
-use crate::renderer::components::camera::Camera;
+use crate::{
+    create_counter,
+    ecs::world::{World, fetch::Mut},
+    graphics::{
+        ActiveGraphicsBackend,
+        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
+        pipeline::{
+            PipelineBindingType, PipelineResource,
+            PipelineResourceBindingLayout, PipelineResourceLayout,
+            PipelineResourceLayoutBuilder, PipelineShaderStage,
+        },
+        window::Window,
+    },
+    renderer::components::camera::Camera,
+    utils::{
+        IdType,
+        identifiable::{IdStore, Identifiable},
+    },
+};
 
 pub struct CameraData {
     camera_data_id: IdType,

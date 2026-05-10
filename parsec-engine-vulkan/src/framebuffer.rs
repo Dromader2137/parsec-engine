@@ -1,7 +1,7 @@
 use parsec_engine_math::uvec::Vec2u;
-use crate::create_counter;
 
 use crate::{
+    create_counter,
     device::VulkanDevice,
     image::{VulkanImage, VulkanImageView},
     renderpass::VulkanRenderpass,

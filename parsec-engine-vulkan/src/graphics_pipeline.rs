@@ -2,12 +2,11 @@ use parsec_engine::graphics::pipeline::{
     PipelineCullingMode, PipelineOptions, PipelineShaderStage,
     PipelineVertexLayout, VertexFieldFormat,
 };
-use crate::create_counter;
 
 use crate::{
-    descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,
-    format_size::format_size, renderpass::VulkanRenderpass,
-    shader::VulkanShaderModule,
+    create_counter, descriptor_set::VulkanDescriptorSetLayout,
+    device::VulkanDevice, format_size::format_size,
+    renderpass::VulkanRenderpass, shader::VulkanShaderModule,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

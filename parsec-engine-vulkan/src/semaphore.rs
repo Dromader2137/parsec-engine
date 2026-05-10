@@ -1,6 +1,4 @@
-use crate::create_counter;
-
-use crate::device::VulkanDevice;
+use crate::{create_counter, device::VulkanDevice};
 
 #[derive(Clone)]
 pub struct VulkanSemaphore {

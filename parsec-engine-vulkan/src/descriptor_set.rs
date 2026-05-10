@@ -1,8 +1,7 @@
 use parsec_engine::graphics::pipeline::PipelineBindingType;
-use crate::create_counter;
 
 use crate::{
-    buffer::VulkanBuffer, device::VulkanDevice,
+    buffer::VulkanBuffer, create_counter, device::VulkanDevice,
     graphics_pipeline::VulkanShaderStage, image::VulkanImageView,
     sampler::VulkanSampler,
 };

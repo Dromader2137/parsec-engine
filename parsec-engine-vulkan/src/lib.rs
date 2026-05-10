@@ -5,30 +5,34 @@
 
 use std::collections::HashMap;
 
-use parsec_engine::error::StrError;
-use parsec_engine::graphics::{
-    backend::{BackendError, GraphicsBackend},
-    buffer::{Buffer, BufferContent, BufferError, BufferHandle, BufferUsage},
-    command_list::{Command, CommandList, CommandListError},
-    framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
-    gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
-    gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
-    image::{
-        Image, ImageAspect, ImageError, ImageFormat, ImageHandle, ImageUsage,
-        ImageView, ImageViewHandle,
+use parsec_engine::{
+    error::StrError,
+    graphics::{
+        backend::{BackendError, GraphicsBackend},
+        buffer::{
+            Buffer, BufferContent, BufferError, BufferHandle, BufferUsage,
+        },
+        command_list::{Command, CommandList, CommandListError},
+        framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
+        gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
+        gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
+        image::{
+            Image, ImageAspect, ImageError, ImageFormat, ImageHandle,
+            ImageUsage, ImageView, ImageViewHandle,
+        },
+        pipeline::{
+            Pipeline, PipelineError, PipelineHandle, PipelineOptions,
+            PipelineResource, PipelineResourceBindingLayout,
+            PipelineResourceHandle, PipelineResourceLayout,
+            PipelineResourceLayoutHandle,
+        },
+        renderpass::{
+            Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
+        },
+        sampler::{Sampler, SamplerError, SamplerHandle},
+        shader::{Shader, ShaderError, ShaderHandle, ShaderType},
+        window::Window,
     },
-    pipeline::{
-        Pipeline, PipelineError, PipelineHandle, PipelineOptions,
-        PipelineResource, PipelineResourceBindingLayout,
-        PipelineResourceHandle, PipelineResourceLayout,
-        PipelineResourceLayoutHandle,
-    },
-    renderpass::{
-        Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
-    },
-    sampler::{Sampler, SamplerError, SamplerHandle},
-    shader::{Shader, ShaderError, ShaderHandle, ShaderType},
-    window::Window,
 };
 use parsec_engine_math::{ivec::Vec2i, uvec::Vec2u};
 

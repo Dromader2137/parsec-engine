@@ -1,13 +1,15 @@
 use std::fmt::Debug;
 
-use crate::error::ParsecError;
-use crate::graphics::{
-    ActiveGraphicsBackend,
-    image::{
-        Image, ImageAspect, ImageBuilder, ImageFormat, ImageSize, ImageUsage,
-        ImageView, ImageViewBuilder,
+use crate::{
+    error::ParsecError,
+    graphics::{
+        ActiveGraphicsBackend,
+        image::{
+            Image, ImageAspect, ImageBuilder, ImageFormat, ImageSize,
+            ImageUsage, ImageView, ImageViewBuilder,
+        },
+        sampler::{Sampler, SamplerBuilder},
     },
-    sampler::{Sampler, SamplerBuilder},
 };
 
 pub struct Texture {

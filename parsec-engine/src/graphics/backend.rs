@@ -1,28 +1,32 @@
-use crate::error::ParsecError;
 use parsec_engine_math::uvec::Vec2u;
 
-use crate::graphics::{
-    buffer::{Buffer, BufferContent, BufferError, BufferHandle, BufferUsage},
-    command_list::{CommandList, CommandListError},
-    framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
-    gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
-    gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
-    image::{
-        Image, ImageAspect, ImageError, ImageFormat, ImageHandle, ImageUsage,
-        ImageView, ImageViewHandle,
+use crate::{
+    error::ParsecError,
+    graphics::{
+        buffer::{
+            Buffer, BufferContent, BufferError, BufferHandle, BufferUsage,
+        },
+        command_list::{CommandList, CommandListError},
+        framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
+        gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
+        gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
+        image::{
+            Image, ImageAspect, ImageError, ImageFormat, ImageHandle,
+            ImageUsage, ImageView, ImageViewHandle,
+        },
+        pipeline::{
+            Pipeline, PipelineError, PipelineHandle, PipelineOptions,
+            PipelineResource, PipelineResourceBindingLayout,
+            PipelineResourceHandle, PipelineResourceLayout,
+            PipelineResourceLayoutHandle,
+        },
+        renderpass::{
+            Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
+        },
+        sampler::{Sampler, SamplerError, SamplerHandle},
+        shader::{Shader, ShaderError, ShaderHandle, ShaderType},
+        window::Window,
     },
-    pipeline::{
-        Pipeline, PipelineError, PipelineHandle, PipelineOptions,
-        PipelineResource, PipelineResourceBindingLayout,
-        PipelineResourceHandle, PipelineResourceLayout,
-        PipelineResourceLayoutHandle,
-    },
-    renderpass::{
-        Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
-    },
-    sampler::{Sampler, SamplerError, SamplerHandle},
-    shader::{Shader, ShaderError, ShaderHandle, ShaderType},
-    window::Window,
 };
 
 #[derive(Debug, thiserror::Error)]

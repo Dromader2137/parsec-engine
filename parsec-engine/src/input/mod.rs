@@ -1,16 +1,18 @@
 //! Module responsible for handling user input.
 
 use keys::Keys;
-use crate::ecs::{
-    system::{SystemBundle, SystemTrigger, Systems},
-    world::World,
-};
-use crate::error::ParsecError;
-use crate::graphics::window::Window;
 
-use crate::input::{
-    keys::KeyboardInputEvent,
-    mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
+use crate::{
+    ecs::{
+        system::{SystemBundle, SystemTrigger, Systems},
+        world::World,
+    },
+    error::ParsecError,
+    graphics::window::Window,
+    input::{
+        keys::KeyboardInputEvent,
+        mouse::{Mouse, MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
+    },
 };
 
 pub mod key;

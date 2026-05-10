@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use parsec_engine_math::{ivec::Vec2i, uvec::Vec2u};
-use crate::create_counter;
 
 use crate::{
     access::VulkanAccess,
@@ -10,6 +9,7 @@ use crate::{
         VulkanMemoryBarrier,
     },
     buffer::VulkanBuffer,
+    create_counter,
     descriptor_set::VulkanDescriptorSet,
     device::VulkanDevice,
     framebuffer::VulkanFramebuffer,

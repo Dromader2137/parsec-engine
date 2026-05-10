@@ -1,9 +1,12 @@
-use crate::error::ParsecError;
-use crate::graphics::{
-    ActiveGraphicsBackend,
-    image::{
-        Image, ImageAspect, ImageBuilder, ImageFormat, ImageHandle, ImageSize,
-        ImageUsage, ImageView, ImageViewBuilder, ImageViewHandle,
+use crate::{
+    error::ParsecError,
+    graphics::{
+        ActiveGraphicsBackend,
+        image::{
+            Image, ImageAspect, ImageBuilder, ImageFormat, ImageHandle,
+            ImageSize, ImageUsage, ImageView, ImageViewBuilder,
+            ImageViewHandle,
+        },
     },
 };
 

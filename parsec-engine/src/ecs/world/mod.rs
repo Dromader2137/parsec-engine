@@ -6,14 +6,17 @@ use archetype::{Archetype, ArchetypeError, ArchetypeId};
 use spawn::Spawn;
 use thiserror::Error;
 
-use crate::ecs::{
-    entity::Entity,
-    resources::{Resource, ResourceMarker, Resources},
-    world::{
-        add_component::AddComponent,
-        fetch::Fetch,
-        query::Query,
-        remove_component::{RemoveComponent, RemoveComponentData},
+use crate::{
+    assets::AssetLibrary,
+    ecs::{
+        entity::Entity,
+        resources::{Resource, ResourceMarker, Resources},
+        world::{
+            add_component::AddComponent,
+            fetch::Fetch,
+            query::Query,
+            remove_component::{RemoveComponent, RemoveComponentData},
+        },
     },
 };
 
@@ -43,9 +46,11 @@ pub struct World {
     /// Contains all archetypes indexed by their id.
     archetypes: HashMap<ArchetypeId, Archetype>,
     /// New entity id counter.
-    pub current_id: u32,
+    entity_id_counter: u32,
     /// Global resource storage.
     pub resources: Resources,
+    /// Global assets storage.
+    pub assets: AssetLibrary,
 }
 
 impl Default for World {
@@ -56,8 +61,9 @@ impl World {
     pub fn new() -> Self {
         Self {
             archetypes: HashMap::new(),
-            current_id: 0,
+            entity_id_counter: 0,
             resources: Resources::new(),
+            assets: AssetLibrary::new(),
         }
     }
 
@@ -98,7 +104,7 @@ impl World {
         let archetype_id = bundle
             .archetype_id()
             .map_err(|e| WorldError::SpawnError { kind: e })?;
-        let entity_id = self.current_id;
+        let entity_id = self.entity_id_counter;
         let archetype = self.get_archetype_mut(&archetype_id);
         let entity = archetype
             .new_entity(entity_id)
@@ -107,7 +113,7 @@ impl World {
             .spawn(archetype)
             .map_err(|e| WorldError::SpawnError { kind: e })?;
         archetype.bundle_count += 1;
-        self.current_id += 1;
+        self.entity_id_counter += 1;
         Ok(entity)
     }
 
@@ -134,7 +140,7 @@ impl World {
             .spawn(archetype)
             .map_err(|e| WorldError::SpawnError { kind: e })?;
         archetype.bundle_count += 1;
-        self.current_id = entity_id + 1;
+        self.entity_id_counter = entity_id + 1;
         Ok(())
     }
 
@@ -313,4 +319,6 @@ impl World {
 
         Ok(())
     }
+
+    pub fn entity_id_counter(&self) -> u32 { self.entity_id_counter }
 }

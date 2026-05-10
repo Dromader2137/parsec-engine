@@ -1,19 +1,21 @@
-use crate::ecs::world::World;
-use crate::graphics::{
-    ActiveGraphicsBackend,
-    buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
-    pipeline::{
-        PipelineBindingType, PipelineResource, PipelineResourceBindingLayout,
-        PipelineResourceLayout, PipelineResourceLayoutBuilder,
-        PipelineShaderStage,
-    },
-};
 use parsec_engine_math::{
     mat::Matrix4f,
     vec::{Vec2f, Vec3f, Vec4f},
 };
 
-use crate::renderer::components::{light::Light, transform::Transform};
+use crate::{
+    ecs::world::World,
+    graphics::{
+        ActiveGraphicsBackend,
+        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
+        pipeline::{
+            PipelineBindingType, PipelineResource,
+            PipelineResourceBindingLayout, PipelineResourceLayout,
+            PipelineResourceLayoutBuilder, PipelineShaderStage,
+        },
+    },
+    renderer::components::{light::Light, transform::Transform},
+};
 
 pub const MAX_LIGHT_COUNT: usize = 32;
 

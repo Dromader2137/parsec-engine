@@ -1,16 +1,19 @@
 //! Modele responsible managing the lifecycle of an application.
 
-use crate::ecs::{
-    system::{SystemTrigger, Systems},
-    world::World,
-};
-use crate::graphics::ActiveEventLoop;
-use crate::input::{
-    key::StorageKeyCode,
-    keys::KeyboardInputEvent,
-    mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
-};
 use parsec_engine_math::vec::Vec2f;
+
+use crate::{
+    ecs::{
+        system::{SystemTrigger, Systems},
+        world::World,
+    },
+    graphics::ActiveEventLoop,
+    input::{
+        key::StorageKeyCode,
+        keys::KeyboardInputEvent,
+        mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
+    },
+};
 
 #[allow(unused)]
 pub struct App {

@@ -1,7 +1,6 @@
 use parsec_engine::graphics::shader::ShaderType;
-use crate::create_counter;
 
-use crate::device::VulkanDevice;
+use crate::{create_counter, device::VulkanDevice};
 
 #[derive(Debug)]
 pub struct VulkanShaderModule {

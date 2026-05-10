@@ -4,11 +4,10 @@ use parsec_engine::graphics::renderpass::{
     RenderpassClearValue,
 };
 use parsec_engine_math::vec::Vec4f;
-use crate::create_counter;
 
 use crate::{
-    access::VulkanAccess, device::VulkanDevice, image::VulkanImageFormat,
-    pipeline_stage::VulkanPipelineStage,
+    access::VulkanAccess, create_counter, device::VulkanDevice,
+    image::VulkanImageFormat, pipeline_stage::VulkanPipelineStage,
 };
 
 pub struct VulkanRenderpass {

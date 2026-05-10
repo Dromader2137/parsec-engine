@@ -1,6 +1,4 @@
-use crate::error::ParsecError;
-
-use crate::graphics::ActiveGraphicsBackend;
+use crate::{error::ParsecError, graphics::ActiveGraphicsBackend};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SamplerHandle {

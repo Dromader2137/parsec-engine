@@ -256,7 +256,8 @@ fn controller(world: &World) {
 
 fn main() {
     let mut app = App::new();
-    app.systems.add_bundle(GraphicsBundle::<VulkanBackend>::default());
+    app.systems
+        .add_bundle(GraphicsBundle::<VulkanBackend>::default());
     app.systems.add_bundle(InputBundle);
     app.systems.add_bundle(TimeBundle);
     app.systems.add(SystemTrigger::LateStart, test_system);

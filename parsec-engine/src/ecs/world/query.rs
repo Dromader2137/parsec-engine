@@ -2,11 +2,12 @@
 
 use std::marker::PhantomData;
 
-use crate::error::ParsecError;
-
-use crate::ecs::{
-    entity::Entity,
-    world::{World, fetch::Fetch},
+use crate::{
+    ecs::{
+        entity::Entity,
+        world::{World, fetch::Fetch},
+    },
+    error::ParsecError,
 };
 
 /// Stores the data needed to query entities from [`World`][crate::ecs::world::World].

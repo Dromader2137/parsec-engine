@@ -1,5 +1,4 @@
-use crate::ecs::world::component::Component;
-use crate::create_counter;
+use crate::{create_counter, ecs::world::component::Component};
 
 #[derive(Debug, Component)]
 pub struct Camera {

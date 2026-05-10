@@ -35,7 +35,9 @@ pub struct GraphicsBundle<B: GraphicsBackend> {
 
 impl<B: GraphicsBackend> Default for GraphicsBundle<B> {
     fn default() -> Self {
-        Self { _marker: PhantomData }
+        Self {
+            _marker: PhantomData,
+        }
     }
 }
 

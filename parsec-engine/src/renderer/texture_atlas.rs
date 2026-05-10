@@ -1,17 +1,19 @@
-use crate::error::ParsecError;
-use crate::graphics::{
-    ActiveGraphicsBackend,
-    buffer::BufferHandle,
-    command_list::{Command, CommandList},
-    image::{
-        ImageAspect, ImageBuilder, ImageFormat, ImageSize, ImageUsage,
-        ImageViewBuilder,
-    },
-    sampler::SamplerBuilder,
-};
 use parsec_engine_math::uvec::Vec2u;
 
-use crate::renderer::texture::Texture;
+use crate::{
+    error::ParsecError,
+    graphics::{
+        ActiveGraphicsBackend,
+        buffer::BufferHandle,
+        command_list::{Command, CommandList},
+        image::{
+            ImageAspect, ImageBuilder, ImageFormat, ImageSize, ImageUsage,
+            ImageViewBuilder,
+        },
+        sampler::SamplerBuilder,
+    },
+    renderer::texture::Texture,
+};
 
 pub struct TextureAtlasRegion {
     offset: Vec2u,

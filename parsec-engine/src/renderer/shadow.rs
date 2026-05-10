@@ -1,25 +1,25 @@
-use crate::graphics::{
-    ActiveGraphicsBackend,
-    framebuffer::{Framebuffer, FramebufferBuilder},
-    image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
-    pipeline::{
-        PipelineBindingType, PipelineOptions, PipelineResource,
-        PipelineResourceBindingLayout, PipelineResourceLayout,
-        PipelineResourceLayoutBuilder, PipelineShaderStage,
+use crate::{
+    graphics::{
+        ActiveGraphicsBackend,
+        framebuffer::{Framebuffer, FramebufferBuilder},
+        image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
+        pipeline::{
+            PipelineBindingType, PipelineOptions, PipelineResource,
+            PipelineResourceBindingLayout, PipelineResourceLayout,
+            PipelineResourceLayoutBuilder, PipelineShaderStage,
+        },
+        renderpass::{
+            Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
+            RenderpassAttachmentStoreOp, RenderpassAttachmentType,
+            RenderpassBuilder, RenderpassClearValue,
+        },
+        shader::{Shader, ShaderBuilder, ShaderType, read_shader_code},
     },
-    renderpass::{
-        Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
-        RenderpassAttachmentStoreOp, RenderpassAttachmentType,
-        RenderpassBuilder, RenderpassClearValue,
+    math::uvec::Vec2u,
+    renderer::{
+        material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
+        texture::{Texture, TextureBuilder},
     },
-    shader::{Shader, ShaderBuilder, ShaderType},
-};
-use crate::math::uvec::Vec2u;
-use crate::graphics::shader::read_shader_code;
-
-use crate::renderer::{
-    material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
-    texture::{Texture, TextureBuilder},
 };
 
 pub struct RendererShadows {

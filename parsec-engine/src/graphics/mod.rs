@@ -27,9 +27,10 @@ use std::{
     thread::{self, ThreadId},
 };
 
-use crate::error::{ParsecError, StrError};
-
-use crate::graphics::{backend::GraphicsBackend, window::Window};
+use crate::{
+    error::{ParsecError, StrError},
+    graphics::{backend::GraphicsBackend, window::Window},
+};
 
 pub mod backend;
 pub mod buffer;

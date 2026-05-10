@@ -1,4 +1,7 @@
-use std::{fs::File, io::{Read, Seek}};
+use std::{
+    fs::File,
+    io::{Read, Seek},
+};
 
 use crate::{error::ParsecError, graphics::ActiveGraphicsBackend};
 

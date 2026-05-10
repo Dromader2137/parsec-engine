@@ -1,19 +1,21 @@
-use crate::{create_counter, graphics::{
-    ActiveGraphicsBackend,
-    command_list::{Command, CommandList},
-    pipeline::{
-        Pipeline, PipelineBuilder, PipelineError, PipelineOptions,
-        PipelineResourceBindingLayout, PipelineResourceHandle,
-        PipelineResourceLayout, PipelineResourceLayoutBuilder,
+use crate::{
+    create_counter,
+    graphics::{
+        ActiveGraphicsBackend,
+        command_list::{Command, CommandList},
+        pipeline::{
+            Pipeline, PipelineBuilder, PipelineError, PipelineOptions,
+            PipelineResourceBindingLayout, PipelineResourceHandle,
+            PipelineResourceLayout, PipelineResourceLayoutBuilder,
+        },
+        renderpass::RenderpassHandle,
+        shader::ShaderHandle,
     },
-    renderpass::RenderpassHandle,
-    shader::ShaderHandle,
-}};
-use crate::utils::{IdType, identifiable::Identifiable};
-
-use crate::renderer::{
-    camera_data::CameraData, light_data::RendererLights,
-    shadow::RendererShadows, transform_data::TransformData,
+    renderer::{
+        camera_data::CameraData, light_data::RendererLights,
+        shadow::RendererShadows, transform_data::TransformData,
+    },
+    utils::{IdType, identifiable::Identifiable},
 };
 
 pub struct MaterialBase {

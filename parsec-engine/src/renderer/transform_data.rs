@@ -1,23 +1,25 @@
 use std::collections::HashMap;
 
-use crate::ecs::world::{World, fetch::Mut};
-use crate::graphics::{
-    ActiveGraphicsBackend,
-    buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
-    pipeline::{
-        PipelineBindingType, PipelineResource, PipelineResourceBindingLayout,
-        PipelineResourceLayout, PipelineResourceLayoutBuilder,
-        PipelineShaderStage,
+use parsec_engine_math::{mat::Matrix4f, quat::Quat, vec::Vec3f};
+
+use crate::{
+    create_counter,
+    ecs::world::{World, fetch::Mut},
+    graphics::{
+        ActiveGraphicsBackend,
+        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
+        pipeline::{
+            PipelineBindingType, PipelineResource,
+            PipelineResourceBindingLayout, PipelineResourceLayout,
+            PipelineResourceLayoutBuilder, PipelineShaderStage,
+        },
+    },
+    renderer::components::transform::Transform,
+    utils::{
+        IdType,
+        identifiable::{IdStore, Identifiable},
     },
 };
-use parsec_engine_math::{mat::Matrix4f, quat::Quat, vec::Vec3f};
-use crate::utils::{
-    IdType,
-    identifiable::{IdStore, Identifiable},
-};
-
-use crate::renderer::components::transform::Transform;
-use crate::create_counter;
 
 pub struct TransformData {
     transform_data_id: IdType,

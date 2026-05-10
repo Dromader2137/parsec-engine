@@ -30,6 +30,7 @@ impl<T: Asset> AssetHandle<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct AssetLibrary {
     manifest: Manifest,
     assets: HashMap<TypeId, Vec<(&'static str, Box<dyn Any>)>>,
