@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
-use parsec_engine_graphics::buffer::BufferContent;
-use parsec_engine_utils::create_counter;
+use parsec_engine::graphics::buffer::BufferContent;
 
 use crate::{
     allocation::VulkanAllocationError,
@@ -9,6 +8,7 @@ use crate::{
         VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements,
     },
     buffer_usage::VulkanBufferUsage,
+    create_counter,
     device::VulkanDevice,
     memory::VulkanMemory,
 };

@@ -2,7 +2,7 @@
 
 use std::time::{SystemTime, SystemTimeError};
 
-use parsec_engine_ecs::{
+use crate::ecs::{
     system::{SystemBundle, SystemTrigger, Systems},
     world::World,
 };

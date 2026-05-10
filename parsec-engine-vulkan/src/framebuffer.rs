@@ -1,5 +1,5 @@
 use parsec_engine_math::uvec::Vec2u;
-use parsec_engine_utils::create_counter;
+use crate::create_counter;
 
 use crate::{
     device::VulkanDevice,

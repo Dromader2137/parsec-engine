@@ -1,7 +1,5 @@
-use std::fs::File;
-
-use parsec_engine_graphics::shader::ShaderType;
-use parsec_engine_utils::create_counter;
+use parsec_engine::graphics::shader::ShaderType;
+use crate::create_counter;
 
 use crate::device::VulkanDevice;
 
@@ -18,18 +16,6 @@ pub enum VulkanShaderError {
     CreationError(ash::vk::Result),
     #[error("Failed to read a SpirV shader file: {0}")]
     ShaderFileError(std::io::Error),
-}
-
-pub fn read_shader_code(path: &str) -> Result<Vec<u32>, VulkanShaderError> {
-    let mut file = match File::open(path) {
-        Ok(val) => val,
-        Err(err) => return Err(VulkanShaderError::ShaderFileError(err)),
-    };
-
-    match ash::util::read_spv(&mut file) {
-        Ok(val) => Ok(val),
-        Err(err) => Err(VulkanShaderError::ShaderFileError(err)),
-    }
 }
 
 create_counter! {ID_COUNTER}

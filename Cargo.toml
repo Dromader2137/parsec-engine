@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["parsec-engine", "parsec-engine-assets", "parsec-engine-cli", "parsec-engine-cli-core", "parsec-engine-ecs", "parsec-engine-error", "parsec-engine-examples", "parsec-engine-graphics", "parsec-engine-input", "parsec-engine-macros", "parsec-engine-math", "parsec-engine-renderer", "parsec-engine-utils", "parsec-engine-vulkan"]
+members = ["parsec-engine", "parsec-engine-cli", "parsec-engine-examples", 
+	"parsec-engine-macros", "parsec-engine-math", "parsec-engine-vulkan"]
 
 [workspace.package]
 version = "0.1.0"
@@ -25,15 +26,7 @@ syn = { version = "2.0", features = ["full"] }
 thiserror = "2.0.18"
 winit = { version = "0.30.13", features = ["rwh_05"] }
 
-parsec-engine          = { path = "parsec-engine",          version = "0.1.0" }
-parsec-engine-assets   = { path = "parsec-engine-assets",   version = "0.1.0" }
-parsec-engine-cli-core = { path = "parsec-engine-cli-core", version = "0.1.0" }
-parsec-engine-ecs      = { path = "parsec-engine-ecs",      version = "0.1.0" }
-parsec-engine-error    = { path = "parsec-engine-error",    version = "0.1.0" }
-parsec-engine-graphics = { path = "parsec-engine-graphics", version = "0.1.0" }
-parsec-engine-input    = { path = "parsec-engine-input",    version = "0.1.0" }
-parsec-engine-macros   = { path = "parsec-engine-macros",   version = "0.1.0" }
-parsec-engine-math     = { path = "parsec-engine-math",     version = "0.1.0" }
-parsec-engine-renderer = { path = "parsec-engine-renderer", version = "0.1.0" }
-parsec-engine-utils    = { path = "parsec-engine-utils",    version = "0.1.0" }
-parsec-engine-vulkan   = { path = "parsec-engine-vulkan",   version = "0.1.0" }
+parsec-engine = { path = "parsec-engine", version = "0.1.0" }
+parsec-engine-macros = { path = "parsec-engine-macros", version = "0.1.0" }
+parsec-engine-math = { path = "parsec-engine-math", version = "0.1.0" }
+parsec-engine-vulkan = { path = "parsec-engine-vulkan", version = "0.1.0" }

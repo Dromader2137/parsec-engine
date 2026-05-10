@@ -1,5 +1,5 @@
-use parsec_engine_assets::assets::mesh::Mesh;
-use parsec_engine_cli_core::{Cooker, run_cli};
+use parsec_engine::assets::assets::mesh::Mesh;
+use parsec_engine::cli::{Cooker, run_cli};
 
 fn main() {
     let mut cooker = Cooker::new();

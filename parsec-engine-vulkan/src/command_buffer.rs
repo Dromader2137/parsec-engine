@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use parsec_engine_math::{ivec::Vec2i, uvec::Vec2u};
-use parsec_engine_utils::create_counter;
+use crate::create_counter;
 
 use crate::{
     access::VulkanAccess,

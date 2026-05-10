@@ -6,3 +6,4 @@ edition.workspace = true
 [dependencies]
 image.workspace = true
 parsec-engine.workspace = true
+parsec-engine-vulkan.workspace = true

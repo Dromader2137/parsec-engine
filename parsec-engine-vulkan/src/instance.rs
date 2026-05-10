@@ -1,4 +1,4 @@
-use parsec_engine_graphics::window::Window;
+use parsec_engine::graphics::window::Window;
 
 pub struct VulkanInstance {
     entry: ash::Entry,

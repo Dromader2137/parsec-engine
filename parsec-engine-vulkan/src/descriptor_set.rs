@@ -1,5 +1,5 @@
-use parsec_engine_graphics::pipeline::PipelineBindingType;
-use parsec_engine_utils::create_counter;
+use parsec_engine::graphics::pipeline::PipelineBindingType;
+use crate::create_counter;
 
 use crate::{
     buffer::VulkanBuffer, device::VulkanDevice,

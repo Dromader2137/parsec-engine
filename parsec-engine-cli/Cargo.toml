@@ -4,5 +4,4 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-parsec-engine-assets.workspace = true
-parsec-engine-cli-core.workspace = true
+parsec-engine.workspace = true

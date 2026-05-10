@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 
-use parsec_engine_error::StrError;
-use parsec_engine_graphics::{
+use parsec_engine::error::StrError;
+use parsec_engine::graphics::{
     backend::{BackendError, GraphicsBackend},
     buffer::{Buffer, BufferContent, BufferError, BufferHandle, BufferUsage},
     command_list::{Command, CommandList, CommandListError},
@@ -94,6 +94,17 @@ pub mod shader;
 mod surface;
 mod swapchain;
 mod utils;
+
+#[macro_export]
+macro_rules! create_counter {
+    ($name:ident) => {
+        static $name: ::std::sync::LazyLock<
+            parsec_engine::utils::id_counter::IdCounter,
+        > = ::std::sync::LazyLock::new(|| {
+            parsec_engine::utils::id_counter::IdCounter::default()
+        });
+    };
+}
 
 #[allow(unused)]
 pub struct VulkanBackend {

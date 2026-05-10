@@ -1,4 +1,4 @@
-use parsec_engine_graphics::buffer::BufferUsage;
+use parsec_engine::graphics::buffer::BufferUsage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(unused)]

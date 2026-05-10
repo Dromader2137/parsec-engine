@@ -1,9 +1,0 @@
-[package]
-name = "parsec-engine-ecs"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-thiserror.workspace = true
-parsec-engine-error.workspace = true
-parsec-engine-macros.workspace = true

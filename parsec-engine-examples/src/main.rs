@@ -17,7 +17,7 @@ use parsec_engine::{
             PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         sampler::SamplerBuilder,
-        shader::{ShaderBuilder, ShaderType},
+        shader::{ShaderBuilder, ShaderType, read_shader_code},
         window::Window,
     },
     input::{Input, InputBundle},
@@ -33,8 +33,8 @@ use parsec_engine::{
     },
     time::{Time, TimeBundle},
     utils::identifiable::IdStore,
-    vulkan::shader::read_shader_code,
 };
+use parsec_engine_vulkan::VulkanBackend;
 
 fn test_system(world: &mut World) -> Result<(), ParsecError> {
     let mut backend = world.resource::<ActiveGraphicsBackend>();
@@ -256,7 +256,7 @@ fn controller(world: &World) {
 
 fn main() {
     let mut app = App::new();
-    app.systems.add_bundle(GraphicsBundle);
+    app.systems.add_bundle(GraphicsBundle::<VulkanBackend>::default());
     app.systems.add_bundle(InputBundle);
     app.systems.add_bundle(TimeBundle);
     app.systems.add(SystemTrigger::LateStart, test_system);

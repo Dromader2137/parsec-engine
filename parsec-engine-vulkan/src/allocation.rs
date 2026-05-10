@@ -1,9 +1,8 @@
 use std::collections::{LinkedList, linked_list::CursorMut};
 
-use parsec_engine_utils::create_counter;
-
 use crate::{
     allocator::{VulkanMemoryProperties, VulkanMemoryRequirements},
+    create_counter,
     device::VulkanDevice,
     memory::{VulkanMemory, VulkanMemoryError},
 };

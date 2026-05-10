@@ -1,4 +1,4 @@
-use parsec_engine_graphics::window::Window;
+use parsec_engine::graphics::window::Window;
 
 use crate::{
     image::VulkanImageFormat, instance::VulkanInstance,

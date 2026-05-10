@@ -1,8 +1,8 @@
-use parsec_engine_graphics::pipeline::{
+use parsec_engine::graphics::pipeline::{
     PipelineCullingMode, PipelineOptions, PipelineShaderStage,
     PipelineVertexLayout, VertexFieldFormat,
 };
-use parsec_engine_utils::create_counter;
+use crate::create_counter;
 
 use crate::{
     descriptor_set::VulkanDescriptorSetLayout, device::VulkanDevice,

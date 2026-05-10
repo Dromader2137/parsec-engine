@@ -1,11 +1,11 @@
 //! Modele responsible managing the lifecycle of an application.
 
-use parsec_engine_ecs::{
+use crate::ecs::{
     system::{SystemTrigger, Systems},
     world::World,
 };
-use parsec_engine_graphics::ActiveEventLoop;
-use parsec_engine_input::{
+use crate::graphics::ActiveEventLoop;
+use crate::input::{
     key::StorageKeyCode,
     keys::KeyboardInputEvent,
     mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
