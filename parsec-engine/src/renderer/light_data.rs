@@ -5,6 +5,7 @@ use parsec_engine_math::{
 
 use crate::{
     ecs::world::World,
+    error::{OptionNoneErr, ParsecError},
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -131,9 +132,9 @@ impl RendererLights {
     }
 }
 
-pub fn update_light_data(world: &World) {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
-    let mut light_data = world.resources.get::<RendererLights>();
+pub fn update_light_data(world: &World) -> Result<(), ParsecError> {
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut light_data = world.resources.get::<RendererLights>().none_err()?;
     let mut lights = world.query::<(Light, Transform)>();
 
     light_data.clear_data();
@@ -147,4 +148,5 @@ pub fn update_light_data(world: &World) {
         );
     }
     light_data.update_buffer(&mut backend);
+    Ok(())
 }

@@ -47,7 +47,7 @@ impl AssetLibrary {
     pub fn load<T: Asset>(
         &mut self,
         name: &'static str,
-        world: &World,
+        world: &mut World,
     ) -> Result<AssetHandle<T>, ParsecError> {
         if !self.manifest.assets.contains_key(name) {
             return Err(
@@ -70,12 +70,11 @@ impl AssetLibrary {
         Ok(AssetHandle::new(name))
     }
 
-    pub fn get<T: Asset>(&self, handle: AssetHandle<T>) -> &T {
+    pub fn get<T: Asset>(&self, handle: AssetHandle<T>) -> Option<&T> {
         let name = handle.name;
-        let asset_vec = self.assets.get(&TypeId::of::<T>()).unwrap();
-        let (_, asset_any) =
-            asset_vec.iter().find(|(n, _)| *n == name).unwrap();
-        asset_any.downcast_ref::<T>().unwrap()
+        let asset_vec = self.assets.get(&TypeId::of::<T>())?;
+        let (_, asset_any) = asset_vec.iter().find(|(n, _)| *n == name)?;
+        asset_any.downcast_ref::<T>()
     }
 }
 
@@ -86,7 +85,7 @@ pub trait Asset: 'static {
     const EXTENSIONS: &'static [&'static str];
 
     fn cook(data: &[u8], extension: &str) -> Self::Cooked;
-    fn load(cooked: Self::Cooked, world: &World) -> Self;
+    fn load(cooked: Self::Cooked, world: &mut World) -> Self;
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

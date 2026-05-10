@@ -5,6 +5,7 @@ use parsec_engine_math::{mat::Matrix4f, quat::Quat, vec::Vec3f};
 use crate::{
     create_counter,
     ecs::world::{World, fetch::Mut},
+    error::{OptionNoneErr, ParsecError},
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -178,10 +179,10 @@ impl Identifiable for TransformData {
     fn id(&self) -> IdType { self.transform_data_id }
 }
 
-pub fn add_transform_data(world: &World) {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
-    let mut transforms_data = world.resources.get::<IdStore<TransformData>>();
-    let mut transforms_data_manager = world.resources.get::<TransformDataManager>();
+pub fn add_transform_data(world: &World) -> Result<(), ParsecError> {
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut transforms_data = world.resources.get::<IdStore<TransformData>>().none_err()?;
+    let mut transforms_data_manager = world.resources.get::<TransformDataManager>().none_err()?;
     let mut transforms = world.query::<Mut<Transform>>();
 
     for (_, transform) in transforms.iter() {
@@ -200,12 +201,13 @@ pub fn add_transform_data(world: &World) {
             e.insert(data_id);
         }
     }
+    Ok(())
 }
 
-pub fn update_transform_data(world: &World) {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
-    let mut transforms_data = world.resources.get::<IdStore<TransformData>>();
-    let transforms_data_manager = world.resources.get::<TransformDataManager>();
+pub fn update_transform_data(world: &World) -> Result<(), ParsecError> {
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut transforms_data = world.resources.get::<IdStore<TransformData>>().none_err()?;
+    let transforms_data_manager = world.resources.get::<TransformDataManager>().none_err()?;
     let mut transforms = world.query::<Transform>();
 
     for (_, transform) in transforms.iter() {
@@ -225,4 +227,5 @@ pub fn update_transform_data(world: &World) {
             data.update_buffers_from_data(&mut backend);
         }
     }
+    Ok(())
 }

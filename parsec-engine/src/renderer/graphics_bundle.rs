@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    assets::assets::mesh::Mesh,
+    assets::{AssetHandle, assets::mesh::Mesh},
     ecs::{
         system::{SystemBundle, SystemTrigger, Systems},
         world::World,
@@ -20,13 +20,11 @@ use crate::{
         draw_queue::{Draw, MeshAndMaterial},
         init_renderer,
         light_data::update_light_data,
-        mesh_data::add_mesh_data,
         queue_clear, render,
         transform_data::{
             TransformDataManager, add_transform_data, update_transform_data,
         },
     },
-    utils::identifiable::IdStore,
 };
 
 pub struct GraphicsBundle<B: GraphicsBackend> {
@@ -45,7 +43,7 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
     fn insert(self, systems: &mut Systems) {
         systems.add(SystemTrigger::LateStart, init_window);
         systems.add(SystemTrigger::LateStart, |world: &mut World| {
-            let window = world.resources.get::<Window>();
+            let window = world.resources.get::<Window>().none_err()?;
             world
                 .resources
                 .add(ActiveGraphicsBackend::with_backend::<B>(&window)?);
@@ -64,26 +62,35 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
         systems.add(SystemTrigger::Render, queue_clear);
         systems.add(SystemTrigger::Update, request_redraw);
         systems.add(SystemTrigger::Update, add_camera_data);
-        systems.add(SystemTrigger::Update, add_mesh_data);
+        // systems.add(SystemTrigger::Update, add_mesh_data);
         systems.add(SystemTrigger::Update, add_transform_data);
         systems.add(SystemTrigger::End, end_wait_idle);
         systems.add(SystemTrigger::WindowResized, mark_resize);
     }
 }
 
-fn mark_resize(world: &World) { world.resources.get::<ResizeFlag>().0 = true; }
-
-fn request_redraw(world: &World) {
-    world.resources.get::<Window>().request_redraw();
+fn mark_resize(world: &World) -> Result<(), ParsecError> {
+    world.resources.get::<ResizeFlag>().none_err()?.0 = true;
+    Ok(())
 }
 
-fn end_wait_idle(world: &World) {
-    world.resources.get::<ActiveGraphicsBackend>().wait_idle();
+fn request_redraw(world: &World) -> Result<(), ParsecError> {
+    world.resources.get::<Window>().none_err()?.request_redraw();
+    Ok(())
+}
+
+fn end_wait_idle(world: &World) -> Result<(), ParsecError> {
+    world
+        .resources
+        .get::<ActiveGraphicsBackend>()
+        .none_err()?
+        .wait_idle();
+    Ok(())
 }
 
 fn init_window(world: &mut World) -> Result<(), ParsecError> {
     let window = {
-        let event_loop = world.resources.get::<ActiveEventLoop>();
+        let event_loop = world.resources.get::<ActiveEventLoop>().none_err()?;
         let event_loop = event_loop.raw_active_event_loop()?;
         Window::new(event_loop, "Oxide Engine test")?
     };
@@ -92,16 +99,20 @@ fn init_window(world: &mut World) -> Result<(), ParsecError> {
 }
 
 fn auto_enqueue(world: &World) -> Result<(), ParsecError> {
-    let mut draw_queue = world.resources.get::<Vec<Draw>>();
-    let meshes = world.resources.get::<IdStore<Mesh>>();
-    let camera_data_manager = world.resources.get::<CameraDataManager>();
-    let transform_data_manager = world.resources.get::<TransformDataManager>();
+    let mut draw_queue = world.resources.get::<Vec<Draw>>().none_err()?;
+    let camera_data_manager =
+        world.resources.get::<CameraDataManager>().none_err()?;
+    let transform_data_manager =
+        world.resources.get::<TransformDataManager>().none_err()?;
     let mut cameras = world.query::<(Transform, Camera)>();
     let mut mesh_renderers = world.query::<(Transform, MeshRenderer)>();
 
     for (_, (camera_transform, camera)) in cameras.iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
-            let mesh_asset = meshes.get(mesh_renderer.mesh_id).none_err()?;
+            let mesh_asset = world
+                .assets
+                .get::<Mesh>(AssetHandle::new("testmesh"))
+                .none_err()?;
             if mesh_asset.data_id.is_none()
                 || !camera_data_manager
                     .component_to_data

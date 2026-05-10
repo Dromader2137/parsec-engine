@@ -2,9 +2,12 @@
 
 use std::time::{SystemTime, SystemTimeError};
 
-use crate::ecs::{
-    system::{SystemBundle, SystemTrigger, Systems},
-    world::World,
+use crate::{
+    ecs::{
+        system::{SystemBundle, SystemTrigger, Systems},
+        world::World,
+    },
+    error::{OptionNoneErr, ParsecError},
 };
 
 /// Stores timing information like delta_time and current_time.
@@ -55,7 +58,10 @@ impl Time {
 
 fn time_init(world: &mut World) { world.resources.add(Time::new()); }
 
-fn time_update(world: &World) { world.resources.get::<Time>().update_time(); }
+fn time_update(world: &World) -> Result<(), ParsecError> {
+    world.resources.get::<Time>().none_err()?.update_time();
+    Ok(())
+}
 
 /// Bundle containing systems responsible for time calculations.
 #[derive(Default)]

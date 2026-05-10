@@ -7,7 +7,7 @@ use crate::{
         system::{SystemBundle, SystemTrigger, Systems},
         world::World,
     },
-    error::ParsecError,
+    error::{OptionNoneErr, ParsecError},
     graphics::window::Window,
     input::{
         keys::KeyboardInputEvent,
@@ -42,64 +42,78 @@ impl Input {
 fn input_start(world: &mut World) { world.resources.add(Input::new()); }
 
 fn input_clear(world: &World) -> Result<(), ParsecError> {
-    let mut input = world.resources.get::<Input>();
+    let mut input = world.resources.get::<Input>().none_err()?;
     input.keys.clear();
     input.mouse.clear();
     Ok(())
 }
 
-fn input_clear_all(world: &World) {
-    let mut input = world.resources.get::<Input>();
+fn input_clear_all(world: &World) -> Result<(), ParsecError> {
+    let mut input = world.resources.get::<Input>().none_err()?;
     input.keys.clear_all();
     input.mouse.clear();
+    Ok(())
 }
 
-fn input_keyboard_event(world: &World) {
-    let window = world.resources.get::<Window>();
+fn input_keyboard_event(world: &World) -> Result<(), ParsecError> {
+    let window = world.resources.get::<Window>().none_err()?;
     if !window.focused() {
-        return;
+        return Ok(());
     }
-    let input_event = world.resources.get::<KeyboardInputEvent>();
+    let input_event = world.resources.get::<KeyboardInputEvent>().none_err()?;
     world
-        .resources.get::<Input>()
+        .resources
+        .get::<Input>()
+        .none_err()?
         .keys
         .process_input_event((*input_event).clone());
+    Ok(())
 }
 
-fn input_mouse_movement(world: &World) {
-    let window = world.resources.get::<Window>();
+fn input_mouse_movement(world: &World) -> Result<(), ParsecError> {
+    let window = world.resources.get::<Window>().none_err()?;
     if !window.focused() {
-        return;
+        return Ok(());
     }
-    let movement_event = world.resources.get::<MouseMovementEvent>();
+    let movement_event =
+        world.resources.get::<MouseMovementEvent>().none_err()?;
     world
-        .resources.get::<Input>()
+        .resources
+        .get::<Input>()
+        .none_err()?
         .mouse
         .process_movement(*movement_event);
+    Ok(())
 }
 
-fn input_mouse_button(world: &World) {
-    let window = world.resources.get::<Window>();
+fn input_mouse_button(world: &World) -> Result<(), ParsecError> {
+    let window = world.resources.get::<Window>().none_err()?;
     if !window.focused() {
-        return;
+        return Ok(());
     }
-    let button_event = world.resources.get::<MouseButtonEvent>();
+    let button_event = world.resources.get::<MouseButtonEvent>().none_err()?;
     world
-        .resources.get::<Input>()
+        .resources
+        .get::<Input>()
+        .none_err()?
         .mouse
         .process_button_event(*button_event);
+    Ok(())
 }
 
-fn input_mouse_wheel(world: &World) {
-    let window = world.resources.get::<Window>();
+fn input_mouse_wheel(world: &World) -> Result<(), ParsecError> {
+    let window = world.resources.get::<Window>().none_err()?;
     if !window.focused() {
-        return;
+        return Ok(());
     }
-    let wheel_event = world.resources.get::<MouseWheelEvent>();
+    let wheel_event = world.resources.get::<MouseWheelEvent>().none_err()?;
     world
-        .resources.get::<Input>()
+        .resources
+        .get::<Input>()
+        .none_err()?
         .mouse
         .process_wheel_event(*wheel_event);
+    Ok(())
 }
 
 pub struct InputBundle;

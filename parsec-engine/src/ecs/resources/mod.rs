@@ -3,7 +3,7 @@
 mod data;
 
 use std::{
-    any::{Any, TypeId, type_name},
+    any::{Any, TypeId},
     collections::{HashMap, HashSet},
     marker::PhantomData,
     mem::ManuallyDrop,
@@ -50,10 +50,8 @@ impl<R: ResourceMarker> Drop for Resource<R> {
 }
 
 impl<R: ResourceMarker> Resource<R> {
-    pub fn from_resources(
-        resources: &Resources,
-    ) -> Result<Self, ResourceError> {
-        let arc = resources.get_raw::<R>()?;
+    fn from_resources(resources: &Resources) -> Option<Self> {
+        let arc = resources.resources.get(&TypeId::of::<R>())?.data.clone();
         let locked = arc.lock().expect("Mutex poisoned");
         let guard = unsafe {
             std::mem::transmute::<
@@ -61,7 +59,7 @@ impl<R: ResourceMarker> Resource<R> {
                 MutexGuard<'static, Box<dyn Any + Send + Sync + 'static>>,
             >(locked)
         };
-        Ok(Resource {
+        Some(Resource {
             guard: ManuallyDrop::new(guard),
             _arc: arc,
             _marker: PhantomData,
@@ -138,25 +136,8 @@ impl Resources {
     }
 
     /// Gets the resource of type `R`.
-    ///
-    /// # Errors
-    ///
-    /// - If there is no resource of type `R`.
-    pub fn get<R: ResourceMarker>(&self) -> Resource<R> {
-        Resource::<R>::from_resources(self).unwrap_or_else(|_| {
-            panic!("resource {} not found", std::any::type_name::<R>())
-        })
-    }
-
-    fn get_raw<R: ResourceMarker>(
-        &self,
-    ) -> Result<Arc<Mutex<Box<dyn Any + Send + Sync>>>, ResourceError> {
-        let type_id = TypeId::of::<R>();
-        let resource = self
-            .resources
-            .get(&type_id)
-            .ok_or(ResourceError::ResourceNotFound(type_name::<R>()))?;
-        Ok(resource.data.clone())
+    pub fn get<R: ResourceMarker>(&self) -> Option<Resource<R>> {
+        Resource::<R>::from_resources(self)
     }
 
     /// Removes the resource of type `R`.

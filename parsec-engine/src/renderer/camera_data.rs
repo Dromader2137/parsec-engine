@@ -5,6 +5,7 @@ use parsec_engine_math::mat::Matrix4f;
 use crate::{
     create_counter,
     ecs::world::{World, fetch::Mut},
+    error::{OptionNoneErr, ParsecError},
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -82,11 +83,14 @@ impl Identifiable for CameraData {
     fn id(&self) -> IdType { self.camera_data_id }
 }
 
-pub fn add_camera_data(world: &World) {
-    let window = world.resources.get::<Window>();
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
-    let mut cameras_data = world.resources.get::<IdStore<CameraData>>();
-    let mut camera_data_manager = world.resources.get::<CameraDataManager>();
+pub fn add_camera_data(world: &World) -> Result<(), ParsecError> {
+    let window = world.resources.get::<Window>().none_err()?;
+    let mut backend =
+        world.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut cameras_data =
+        world.resources.get::<IdStore<CameraData>>().none_err()?;
+    let mut camera_data_manager =
+        world.resources.get::<CameraDataManager>().none_err()?;
     let mut cameras = world.query::<Mut<Camera>>();
 
     for (_, camera) in cameras.iter() {
@@ -106,13 +110,15 @@ pub fn add_camera_data(world: &World) {
             e.insert(data_id);
         }
     }
+    
+    Ok(())
 }
 
-pub fn update_camera_data(world: &World) {
-    let window = world.resources.get::<Window>();
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
-    let mut cameras_data = world.resources.get::<IdStore<CameraData>>();
-    let camera_data_manager = world.resources.get::<CameraDataManager>();
+pub fn update_camera_data(world: &World) -> Result<(), ParsecError> {
+    let window = world.resources.get::<Window>().none_err()?;
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut cameras_data = world.resources.get::<IdStore<CameraData>>().none_err()?;
+    let camera_data_manager = world.resources.get::<CameraDataManager>().none_err()?;
     let mut cameras = world.query::<Camera>();
 
     let aspect_ratio = window.aspect_ratio();
@@ -136,4 +142,6 @@ pub fn update_camera_data(world: &World) {
                 .unwrap();
         }
     }
+    
+    Ok(())
 }

@@ -20,8 +20,8 @@ pub mod transform_data;
 use sync::{RendererFrameSync, RendererImageSync};
 
 use crate::{
-    assets::assets::mesh::Mesh,
     ecs::world::World,
+    error::{OptionNoneErr, ParsecError},
     graphics::{
         ActiveGraphicsBackend,
         command_list::{Command, CommandList},
@@ -97,9 +97,9 @@ pub struct RendererDepthImage(pub DepthImage);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
-pub fn init_renderer(world: &mut World) {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
-    let window = world.resources.get::<Window>();
+pub fn init_renderer(world: &mut World) -> Result<(), ParsecError> {
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let window = world.resources.get::<Window>().none_err()?;
 
     let surface_format = backend.get_surface_format();
 
@@ -172,7 +172,6 @@ pub fn init_renderer(world: &mut World) {
     world
         .resources
         .add(IdStore::<MeshData<DefaultVertex>>::new());
-    world.resources.add(IdStore::<Mesh>::new());
     world.resources.add(IdStore::<MaterialBase>::new());
     world.resources.add(IdStore::<MaterialData>::new());
     world.resources.add(IdStore::<TransformData>::new());
@@ -183,6 +182,7 @@ pub fn init_renderer(world: &mut World) {
     world.resources.add(CameraDataManager {
         component_to_data: HashMap::new(),
     });
+    Ok(())
 }
 
 fn recreate_size_dependent_components(
@@ -228,30 +228,30 @@ fn recreate_size_dependent_components(
     framebuffers.append(&mut new_framebuffers);
 }
 
-pub fn render(world: &World) {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
-    let mut current_frame = world.resources.get::<RendererCurrentFrame>();
-    let mut resize = world.resources.get::<ResizeFlag>();
-    let frames_in_flight = world.resources.get::<RendererFramesInFlight>();
-    let window = world.resources.get::<Window>();
-    let frame_sync = world.resources.get::<Vec<RendererFrameSync>>();
-    let image_sync = world.resources.get::<Vec<RendererImageSync>>();
-    let mut present_images = world.resources.get::<RendererPresentImages>();
-    let mut depth_image = world.resources.get::<RendererDepthImage>();
-    let renderpass = world.resources.get::<RendererMainRenderpass>();
-    let mut framebuffers = world.resources.get::<RendererFramebuffers>();
-    let mut command_lists = world.resources.get::<Vec<CommandList>>();
-    let draw_queue = world.resources.get::<Vec<Draw>>();
-    let meshes_data = world.resources.get::<IdStore<MeshData<DefaultVertex>>>();
-    let materials_data = world.resources.get::<IdStore<MaterialData>>();
-    let material_bases = world.resources.get::<IdStore<MaterialBase>>();
-    let transforms_data = world.resources.get::<IdStore<TransformData>>();
-    let cameras_data = world.resources.get::<IdStore<CameraData>>();
-    let shadows = world.resources.get::<RendererShadows>();
-    let lights = world.resources.get::<RendererLights>();
+pub fn render(world: &World) -> Result<(), ParsecError> {
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut current_frame = world.resources.get::<RendererCurrentFrame>().none_err()?;
+    let mut resize = world.resources.get::<ResizeFlag>().none_err()?;
+    let frames_in_flight = world.resources.get::<RendererFramesInFlight>().none_err()?;
+    let window = world.resources.get::<Window>().none_err()?;
+    let frame_sync = world.resources.get::<Vec<RendererFrameSync>>().none_err()?;
+    let image_sync = world.resources.get::<Vec<RendererImageSync>>().none_err()?;
+    let mut present_images = world.resources.get::<RendererPresentImages>().none_err()?;
+    let mut depth_image = world.resources.get::<RendererDepthImage>().none_err()?;
+    let renderpass = world.resources.get::<RendererMainRenderpass>().none_err()?;
+    let mut framebuffers = world.resources.get::<RendererFramebuffers>().none_err()?;
+    let mut command_lists = world.resources.get::<Vec<CommandList>>().none_err()?;
+    let draw_queue = world.resources.get::<Vec<Draw>>().none_err()?;
+    let meshes_data = world.resources.get::<IdStore<MeshData<DefaultVertex>>>().none_err()?;
+    let materials_data = world.resources.get::<IdStore<MaterialData>>().none_err()?;
+    let material_bases = world.resources.get::<IdStore<MaterialBase>>().none_err()?;
+    let transforms_data = world.resources.get::<IdStore<TransformData>>().none_err()?;
+    let cameras_data = world.resources.get::<IdStore<CameraData>>().none_err()?;
+    let shadows = world.resources.get::<RendererShadows>().none_err()?;
+    let lights = world.resources.get::<RendererLights>().none_err()?;
 
     if window.minimized() {
-        return;
+        return Ok(());
     }
 
     if resize.0 {
@@ -264,7 +264,7 @@ pub fn render(world: &World) {
             renderpass.0.handle(),
         );
         resize.0 = false;
-        return;
+        return Ok(());
     }
 
     let present_index = match backend.start_frame(
@@ -384,9 +384,13 @@ pub fn render(world: &World) {
     backend.wait_gpu_to_cpu_fence(command_buffer_fence).unwrap();
 
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
+    Ok(())
 }
 
-pub fn queue_clear(world: &World) { world.resources.get::<Vec<Draw>>().clear(); }
+pub fn queue_clear(world: &World) -> Result<(), ParsecError> {
+    world.resources.get::<Vec<Draw>>().none_err()?.clear();
+    Ok(())
+}
 
 #[derive(Debug)]
 pub enum RendererError {

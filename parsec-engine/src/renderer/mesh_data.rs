@@ -1,18 +1,16 @@
 use std::marker::PhantomData;
 
 use crate::{
-    assets::assets::mesh::Mesh,
     create_counter,
-    ecs::world::World,
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         command_list::{Command, CommandList},
-        pipeline::{DefaultVertex, Vertex},
+        pipeline::Vertex,
     },
     utils::{
         IdType,
-        identifiable::{IdStore, Identifiable},
+        identifiable::Identifiable,
     },
 };
 
@@ -110,17 +108,18 @@ impl<V: Vertex> Identifiable for MeshData<V> {
     fn id(&self) -> IdType { self.mesh_data_id }
 }
 
-pub fn add_mesh_data(world: &World) {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
-    let mut meshes_data = world.resources.get::<IdStore<MeshData<DefaultVertex>>>();
-    let mut meshes = world.resources.get::<IdStore<Mesh>>();
-
-    for mesh in meshes.iter_mut() {
-        if mesh.data_id.is_none() {
-            let mesh_data =
-                MeshData::new(&mut backend, &mesh.vertices, &mesh.indices);
-            let data_id = meshes_data.push(mesh_data);
-            mesh.data_id = Some(data_id);
-        }
-    }
-}
+// pub fn add_mesh_data(world: &World) -> Result<(), ParsecError> {
+//     let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
+//     let mut meshes_data = world.resources.get::<IdStore<MeshData<DefaultVertex>>>().none_err()?;
+//     let mut meshes = world.resources.get::<IdStore<Mesh>>().none_err()?;
+//
+//     for mesh in meshes.iter_mut() {
+//         if mesh.data_id.is_none() {
+//             let mesh_data =
+//                 MeshData::new(&mut backend, &mesh.vertices, &mesh.indices);
+//             let data_id = meshes_data.push(mesh_data);
+//             mesh.data_id = Some(data_id);
+//         }
+//     }
+//     Ok(())
+// }
