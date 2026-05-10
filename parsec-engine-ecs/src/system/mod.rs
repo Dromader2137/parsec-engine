@@ -118,7 +118,10 @@ where
 {
     type ResultingSystem = FunctionSystem<F, WorldMutMarker>;
     fn into_system(self) -> Self::ResultingSystem {
-        FunctionSystem { function: self, _marker: PhantomData }
+        FunctionSystem {
+            function: self,
+            _marker: PhantomData,
+        }
     }
 }
 impl<F> System for FunctionSystem<F, WorldMutMarker>
@@ -137,7 +140,10 @@ where
 {
     type ResultingSystem = FunctionSystem<F, WorldMutResultMarker>;
     fn into_system(self) -> Self::ResultingSystem {
-        FunctionSystem { function: self, _marker: PhantomData }
+        FunctionSystem {
+            function: self,
+            _marker: PhantomData,
+        }
     }
 }
 impl<F> System for FunctionSystem<F, WorldMutResultMarker>
@@ -155,7 +161,10 @@ where
 {
     type ResultingSystem = FunctionSystem<F, WorldRefMarker>;
     fn into_system(self) -> Self::ResultingSystem {
-        FunctionSystem { function: self, _marker: PhantomData }
+        FunctionSystem {
+            function: self,
+            _marker: PhantomData,
+        }
     }
 }
 impl<F> System for FunctionSystem<F, WorldRefMarker>
@@ -174,7 +183,10 @@ where
 {
     type ResultingSystem = FunctionSystem<F, WorldRefResultMarker>;
     fn into_system(self) -> Self::ResultingSystem {
-        FunctionSystem { function: self, _marker: PhantomData }
+        FunctionSystem {
+            function: self,
+            _marker: PhantomData,
+        }
     }
 }
 impl<F> System for FunctionSystem<F, WorldRefResultMarker>

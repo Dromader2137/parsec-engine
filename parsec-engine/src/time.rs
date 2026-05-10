@@ -53,13 +53,9 @@ impl Time {
     }
 }
 
-fn time_init(world: &mut World) {
-    world.resources.add(Time::new());
-}
+fn time_init(world: &mut World) { world.resources.add(Time::new()); }
 
-fn time_update(world: &World) {
-    world.resource::<Time>().update_time();
-}
+fn time_update(world: &World) { world.resource::<Time>().update_time(); }
 
 /// Bundle containing systems responsible for time calculations.
 #[derive(Default)]

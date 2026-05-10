@@ -37,9 +37,7 @@ impl Input {
     }
 }
 
-fn input_start(world: &mut World) {
-    world.resources.add(Input::new());
-}
+fn input_start(world: &mut World) { world.resources.add(Input::new()); }
 
 fn input_clear(world: &World) -> Result<(), ParsecError> {
     let mut input = world.resource::<Input>();
@@ -72,7 +70,10 @@ fn input_mouse_movement(world: &World) {
         return;
     }
     let movement_event = world.resource::<MouseMovementEvent>();
-    world.resource::<Input>().mouse.process_movement(*movement_event);
+    world
+        .resource::<Input>()
+        .mouse
+        .process_movement(*movement_event);
 }
 
 fn input_mouse_button(world: &World) {
@@ -93,18 +94,21 @@ fn input_mouse_wheel(world: &World) {
         return;
     }
     let wheel_event = world.resource::<MouseWheelEvent>();
-    world.resource::<Input>().mouse.process_wheel_event(*wheel_event);
+    world
+        .resource::<Input>()
+        .mouse
+        .process_wheel_event(*wheel_event);
 }
 
 pub struct InputBundle;
 impl SystemBundle for InputBundle {
     fn insert(self, systems: &mut Systems) {
-            systems.add(SystemTrigger::Start, input_start);
-            systems.add(SystemTrigger::LateUpdate, input_clear);
-            systems.add(SystemTrigger::WindowCursorLeft, input_clear_all);
-            systems.add(SystemTrigger::KeyboardInput, input_keyboard_event);
-            systems.add(SystemTrigger::MouseMovement, input_mouse_movement);
-            systems.add(SystemTrigger::MouseButton, input_mouse_button);
-            systems.add(SystemTrigger::MouseWheel, input_mouse_wheel);
+        systems.add(SystemTrigger::Start, input_start);
+        systems.add(SystemTrigger::LateUpdate, input_clear);
+        systems.add(SystemTrigger::WindowCursorLeft, input_clear_all);
+        systems.add(SystemTrigger::KeyboardInput, input_keyboard_event);
+        systems.add(SystemTrigger::MouseMovement, input_mouse_movement);
+        systems.add(SystemTrigger::MouseButton, input_mouse_button);
+        systems.add(SystemTrigger::MouseWheel, input_mouse_wheel);
     }
 }

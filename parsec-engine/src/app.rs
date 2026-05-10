@@ -64,10 +64,12 @@ impl winit::application::ApplicationHandler for App {
         event: winit::event::DeviceEvent,
     ) {
         if let winit::event::DeviceEvent::MouseMotion { delta } = event {
-            self.world.resources.add(MouseMovementEvent::delta(Vec2f::new(
-                delta.0 as f32,
-                delta.1 as f32,
-            )));
+            self.world
+                .resources
+                .add(MouseMovementEvent::delta(Vec2f::new(
+                    delta.0 as f32,
+                    delta.1 as f32,
+                )));
 
             self.execute_system(SystemTrigger::MouseMovement);
 
@@ -105,10 +107,7 @@ impl winit::application::ApplicationHandler for App {
 
                 self.execute_system(SystemTrigger::KeyboardInput);
 
-                self.world
-                    .resources
-                    .remove::<KeyboardInputEvent>()
-                    .unwrap();
+                self.world.resources.remove::<KeyboardInputEvent>().unwrap();
             },
             winit::event::WindowEvent::CursorLeft { device_id: _ } => {
                 self.execute_system(SystemTrigger::WindowCursorLeft);
@@ -133,7 +132,9 @@ impl winit::application::ApplicationHandler for App {
                 state,
                 button,
             } => {
-                self.world.resources.add(MouseButtonEvent::new(button, state));
+                self.world
+                    .resources
+                    .add(MouseButtonEvent::new(button, state));
 
                 self.execute_system(SystemTrigger::MouseButton);
 

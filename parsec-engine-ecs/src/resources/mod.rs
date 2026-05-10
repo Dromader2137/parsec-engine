@@ -12,7 +12,9 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use crate::resources::{data::ResourceData, dependency::ResourceDependencyData};
+use crate::resources::{
+    data::ResourceData, dependency::ResourceDependencyData,
+};
 
 /// Marks a type as a resource that can be stored in a global storage.
 pub trait ResourceMarker: Send + Sync + 'static {
@@ -63,7 +65,9 @@ impl<R: ResourceMarker> Drop for Resource<R> {
 }
 
 impl<R: ResourceMarker> Resource<R> {
-    pub fn from_resources(resources: &Resources) -> Result<Self, ResourceError> {
+    pub fn from_resources(
+        resources: &Resources,
+    ) -> Result<Self, ResourceError> {
         let arc = resources.get::<R>()?;
         let locked = arc.lock().expect("Mutex poisoned");
         let guard = unsafe {

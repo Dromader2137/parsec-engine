@@ -1,3 +1,4 @@
+use parsec_engine_assets::assets::mesh::Mesh;
 use parsec_engine_ecs::{
     system::{SystemBundle, SystemTrigger},
     world::World,
@@ -9,12 +10,19 @@ use parsec_engine_graphics::{
 use parsec_engine_utils::identifiable::IdStore;
 use parsec_engine_vulkan::VulkanBackend;
 
-use parsec_engine_assets::assets::mesh::Mesh;
-
 use crate::{
-    ResizeFlag, camera_data::{CameraDataManager, add_camera_data, update_camera_data}, components::{
+    ResizeFlag,
+    camera_data::{CameraDataManager, add_camera_data, update_camera_data},
+    components::{
         camera::Camera, mesh_renderer::MeshRenderer, transform::Transform,
-    }, draw_queue::{Draw, MeshAndMaterial}, light_data::update_light_data, mesh_data::add_mesh_data, queue_clear, render, transform_data::{TransformDataManager, add_transform_data, update_transform_data}
+    },
+    draw_queue::{Draw, MeshAndMaterial},
+    light_data::update_light_data,
+    mesh_data::add_mesh_data,
+    queue_clear, render,
+    transform_data::{
+        TransformDataManager, add_transform_data, update_transform_data,
+    },
 };
 
 pub struct GraphicsBundle;
@@ -40,9 +48,11 @@ impl SystemBundle for GraphicsBundle {
 
 pub fn init_vulkan(world: &mut World) -> Result<(), ParsecError> {
     let window = world.resource::<Window>();
-    world.resources.add(
-        ActiveGraphicsBackend::with_backend::<VulkanBackend>(&window)?,
-    );
+    world
+        .resources
+        .add(ActiveGraphicsBackend::with_backend::<VulkanBackend>(
+            &window,
+        )?);
     world
         .resources
         .add_dependency::<ActiveGraphicsBackend, Window>()
@@ -50,9 +60,7 @@ pub fn init_vulkan(world: &mut World) -> Result<(), ParsecError> {
     Ok(())
 }
 
-fn mark_resize(world: &World) {
-    world.resource::<ResizeFlag>().0 = true;
-}
+fn mark_resize(world: &World) { world.resource::<ResizeFlag>().0 = true; }
 
 fn request_redraw(world: &World) {
     world.resource::<Window>().request_redraw();

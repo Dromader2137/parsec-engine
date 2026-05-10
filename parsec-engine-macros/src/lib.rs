@@ -183,4 +183,3 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
-

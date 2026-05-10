@@ -384,9 +384,7 @@ pub fn render(world: &World) {
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
 }
 
-pub fn queue_clear(world: &World) {
-    world.resource::<Vec<Draw>>().clear();
-}
+pub fn queue_clear(world: &World) { world.resource::<Vec<Draw>>().clear(); }
 
 #[derive(Debug)]
 pub enum RendererError {

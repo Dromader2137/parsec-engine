@@ -11,3 +11,5 @@ parsec-engine-math.workspace = true
 parsec-engine-utils.workspace = true
 parsec-engine-ecs.workspace = true
 regex.workspace = true
+serde_json.workspace = true
+postcard.workspace = true

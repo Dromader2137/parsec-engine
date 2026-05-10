@@ -2,14 +2,15 @@ use std::{
     collections::HashMap,
     ffi::OsStr,
     fs::{self, File},
-    io::{BufReader, BufWriter, Write},
+    io::{BufWriter, Write},
     path::{Path, PathBuf},
     str::FromStr,
-    time::SystemTime,
 };
 
 use clap::Parser;
-use parsec_engine_assets::{Asset, assets::mesh::Mesh};
+use parsec_engine_assets::{
+    Asset, AssetDescription, Manifest, assets::mesh::Mesh,
+};
 use parsec_engine_error::{OptionNoneErr, ParsecError};
 
 /// parsec-engine-cli add <name> <path> // adds an asset
@@ -39,44 +40,6 @@ enum Commands {
     Add { name: String, path: PathBuf },
     Remove { name: String },
     Cook,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct AssetDescription {
-    name: String,
-    path: PathBuf,
-    last_cooked: Option<SystemTime>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct Manifest {
-    verison: u8,
-    assets: HashMap<String, AssetDescription>,
-}
-
-impl Manifest {
-    pub fn new() -> Self {
-        Self {
-            verison: 0,
-            assets: HashMap::new(),
-        }
-    }
-}
-
-fn get_manifest() -> Manifest {
-    let try_file = File::options().read(true).open("./assets.json");
-    if matches!(
-        try_file.as_ref().map_err(|err| err.kind()),
-        Err(std::io::ErrorKind::NotFound)
-    ) {
-        Manifest::new()
-    } else {
-        let file = try_file.expect("Failed to open assets.json");
-        let reader = BufReader::new(file);
-        let manifest = serde_json::from_reader(reader)
-            .expect("Failed to parse assets.json");
-        manifest
-    }
 }
 
 #[derive(Debug)]
@@ -180,7 +143,7 @@ impl Cooker {
 pub fn run_cli(mut cooker: Cooker) {
     let args = Args::parse();
 
-    let mut manifest = get_manifest();
+    let mut manifest = Manifest::load();
     cooker.register::<Mesh>();
 
     match args.command {

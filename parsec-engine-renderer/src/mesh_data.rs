@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use parsec_engine_assets::assets::mesh::Mesh;
 use parsec_engine_ecs::world::World;
 use parsec_engine_graphics::{
     ActiveGraphicsBackend,
@@ -11,8 +12,6 @@ use parsec_engine_utils::{
     IdType, create_counter,
     identifiable::{IdStore, Identifiable},
 };
-
-use parsec_engine_assets::assets::mesh::Mesh;
 
 pub struct MeshBuffer<V: Vertex> {
     vertex_buffer: Buffer,

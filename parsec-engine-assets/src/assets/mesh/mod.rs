@@ -76,7 +76,8 @@ impl Asset for Mesh {
 
     fn cook(data: &[u8], extension: &str) -> Self::Cooked {
         if extension == "obj" {
-            return cook_obj(data).unwrap();
+            let cooked = cook_obj(data).unwrap();
+            return cooked;
         }
         CookedMesh::default()
     }

@@ -63,8 +63,9 @@ impl World {
 
     /// Borrows the resource of type `R`. Panics if not found.
     pub fn resource<R: ResourceMarker>(&self) -> Resource<R> {
-        Resource::<R>::from_resources(&self.resources)
-            .unwrap_or_else(|_| panic!("resource {} not found", std::any::type_name::<R>()))
+        Resource::<R>::from_resources(&self.resources).unwrap_or_else(|_| {
+            panic!("resource {} not found", std::any::type_name::<R>())
+        })
     }
 
     /// Creates a query for all entities matching `T`. Panics on archetype errors.

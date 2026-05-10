@@ -154,8 +154,8 @@ fn test_system(world: &mut World) -> Result<(), ParsecError> {
 
     material_bases.push(material_base);
     let material_id = materials.push(material);
-    let mesh_data =
-        Mesh::from(cook_obj(&std::fs::read("test.obj").unwrap()).unwrap());
+    let mesh_cooked = cook_obj(&std::fs::read("test.obj").unwrap()).unwrap();
+    let mesh_data = Mesh::from(mesh_cooked);
     let mesh = meshes.push(mesh_data);
 
     world.spawn((
