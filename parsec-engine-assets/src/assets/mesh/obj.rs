@@ -1,10 +1,7 @@
-use std::{fs::File, io::Read};
-
-use parsec_engine_graphics::pipeline::DefaultVertex;
 use parsec_engine_math::vec::{Vec2f, Vec3f};
 use thiserror::Error;
 
-use crate::assets::mesh::Mesh;
+use crate::assets::mesh::CookedMesh;
 
 #[derive(Error, Debug)]
 pub enum LoadOBJError {
@@ -24,97 +21,66 @@ pub enum LoadOBJError {
     NormalNotFound,
 }
 
-pub fn load_obj(file_path: &str) -> Result<Mesh, LoadOBJError> {
-    let mut file = File::open(file_path)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
+pub fn cook_obj(data: &[u8]) -> Result<CookedMesh, LoadOBJError> {
+    let position_regex =
+        regex::Regex::new(r"v (-?\d+\.\d+) (-?\d+\.\d+) (-?\d+\.\d+)").unwrap();
+    let uv_regex = regex::Regex::new(r"vt (-?\d+\.\d+) (-?\d+\.\d+)").unwrap();
+    let normal_regex =
+        regex::Regex::new(r"vn (-?\d+\.\d+) (-?\d+\.\d+) (-?\d+\.\d+)")
+            .unwrap();
+    let index_regex = regex::Regex::new(
+        r"f (\d+)/(\d+)/(\d+) (\d+)/(\d+)/(\d+) (\d+)/(\d+)/(\d+)",
+    )
+    .unwrap();
 
-    let mut positions = Vec::new();
-    let mut uvs = Vec::new();
-    let mut normals = Vec::new();
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
-    let mut index_counter = 0;
+    let contents = String::from_utf8_lossy(data);
 
-    for line in contents.lines() {
-        let mut values = line.split(' ');
-        match values.next() {
-            Some("v") => {
-                let v1 = values
-                    .next()
-                    .ok_or(LoadOBJError::NotAllFieldsPresent)?
-                    .parse::<f32>()?;
-                let v2 = values
-                    .next()
-                    .ok_or(LoadOBJError::NotAllFieldsPresent)?
-                    .parse::<f32>()?;
-                let v3 = values
-                    .next()
-                    .ok_or(LoadOBJError::NotAllFieldsPresent)?
-                    .parse::<f32>()?;
-                positions.push(Vec3f::new(v1, v2, v3));
-            },
-            Some("vt") => {
-                let t1 = values
-                    .next()
-                    .ok_or(LoadOBJError::NotAllFieldsPresent)?
-                    .parse::<f32>()?;
-                let t2 = values
-                    .next()
-                    .ok_or(LoadOBJError::NotAllFieldsPresent)?
-                    .parse::<f32>()?;
-                uvs.push(Vec2f::new(t1, t2));
-            },
-            Some("vn") => {
-                let n1 = values
-                    .next()
-                    .ok_or(LoadOBJError::NotAllFieldsPresent)?
-                    .parse::<f32>()?;
-                let n2 = values
-                    .next()
-                    .ok_or(LoadOBJError::NotAllFieldsPresent)?
-                    .parse::<f32>()?;
-                let n3 = values
-                    .next()
-                    .ok_or(LoadOBJError::NotAllFieldsPresent)?
-                    .parse::<f32>()?;
-                normals.push(Vec3f::new(n1, n2, n3));
-            },
-            Some("f") => {
-                for i in 0..=2 {
-                    let mut index = values
-                        .next()
-                        .ok_or(LoadOBJError::NotAllFieldsPresent)?
-                        .split('/');
-                    let position_id = index.next().map(|x| x.parse::<u32>());
-                    let position = match position_id {
-                        Some(val) => *positions
-                            .get(val? as usize - 1)
-                            .ok_or(LoadOBJError::PositionNotFound)?,
-                        None => Vec3f::ZERO,
-                    };
-                    let uv_id = index.next().map(|x| x.parse::<u32>());
-                    let uv = match uv_id {
-                        Some(val) => *uvs
-                            .get(val? as usize - 1)
-                            .ok_or(LoadOBJError::UvNotFound)?,
-                        None => Vec2f::ZERO,
-                    };
-                    let normal_id = index.next().map(|x| x.parse::<u32>());
-                    let normal = match normal_id {
-                        Some(val) => *normals
-                            .get(val? as usize - 1)
-                            .ok_or(LoadOBJError::NormalNotFound)?,
-                        None => Vec3f::ZERO,
-                    };
-                    vertices.push(DefaultVertex::new(position, normal, uv));
-                    indices.push(index_counter + i);
-                }
-                index_counter += 3;
-            },
-            Some(_) | None => continue,
-        }
-    }
+    let positions: Vec<Vec3f> = position_regex
+        .captures_iter(&contents)
+        .map(|m| {
+            let (_, groups) = m.extract::<3>();
+            let x = groups[0].parse::<f32>().unwrap();
+            let y = groups[1].parse::<f32>().unwrap();
+            let z = groups[2].parse::<f32>().unwrap();
+            Vec3f::new(x, y, z)
+        })
+        .collect();
+    let uvs: Vec<Vec2f> = uv_regex
+        .captures_iter(&contents)
+        .map(|m| {
+            let (_, groups) = m.extract::<2>();
+            let x = groups[0].parse::<f32>().unwrap();
+            let y = groups[1].parse::<f32>().unwrap();
+            Vec2f::new(x, y)
+        })
+        .collect();
+    let normals: Vec<Vec3f> = normal_regex
+        .captures_iter(&contents)
+        .map(|m| {
+            let (_, groups) = m.extract::<3>();
+            let x = groups[0].parse::<f32>().unwrap();
+            let y = groups[1].parse::<f32>().unwrap();
+            let z = groups[2].parse::<f32>().unwrap();
+            Vec3f::new(x, y, z)
+        })
+        .collect();
+    let indices: Vec<u32> = index_regex
+        .captures_iter(&contents)
+        .map(|m| {
+            let (_, groups) = m.extract::<9>();
+            let v1 = groups[0].parse::<u32>().unwrap();
+            let v2 = groups[3].parse::<u32>().unwrap();
+            let v3 = groups[6].parse::<u32>().unwrap();
+            let v1t = groups[1].parse::<u32>().unwrap();
+            let v2t = groups[4].parse::<u32>().unwrap();
+            let v3t = groups[7].parse::<u32>().unwrap();
+            let v1n = groups[2].parse::<u32>().unwrap();
+            let v2n = groups[5].parse::<u32>().unwrap();
+            let v3n = groups[8].parse::<u32>().unwrap();
+            [v1, v2, v3]
+        })
+        .flatten()
+        .collect();
 
-    Ok(Mesh::new(vertices, indices))
+    Ok(CookedMesh::new(positions, normals, uvs, indices))
 }

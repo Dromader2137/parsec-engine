@@ -1,6 +1,6 @@
 //! Module responsible for systems management.
 
-use std::{any::type_name, collections::HashMap, fmt::Debug, time::Instant};
+use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
 use parsec_engine_error::ParsecError;
 
@@ -59,9 +59,13 @@ impl Systems {
     }
 
     /// Registers a new system to be executed on `system_trigger`.
-    pub fn add(&mut self, system_trigger: SystemTrigger, system: impl System) {
+    pub fn add<M>(
+        &mut self,
+        system_trigger: SystemTrigger,
+        system: impl IntoSystem<M>,
+    ) {
         let trigger_vec = self.get_systems_by_trigger(system_trigger);
-        trigger_vec.push(Box::new(system));
+        trigger_vec.push(Box::new(system.into_system()));
     }
 
     /// Registers an entire [SystemBundle].
@@ -90,37 +94,100 @@ impl Default for Systems {
 
 /// Marks a type that is a system.
 pub trait System: Send + Sync + 'static {
-    fn run<'b>(&mut self, world: &'b mut World) -> Result<(), ParsecError>;
+    fn run(&mut self, world: &mut World) -> Result<(), ParsecError>;
 }
 
-impl System for fn(&World) {
-    fn run<'b>(&mut self, world: &'b mut World) -> Result<(), ParsecError> {
-        (*self)(world);
+pub trait IntoSystem<Marker> {
+    type ResultingSystem: System;
+    fn into_system(self) -> Self::ResultingSystem;
+}
+
+pub struct FunctionSystem<F, Marker> {
+    function: F,
+    _marker: PhantomData<Marker>,
+}
+
+pub struct WorldMutMarker;
+pub struct WorldMutResultMarker;
+pub struct WorldRefMarker;
+pub struct WorldRefResultMarker;
+
+impl<F> IntoSystem<WorldMutMarker> for F
+where
+    F: FnMut(&mut World) + Send + Sync + 'static,
+{
+    type ResultingSystem = FunctionSystem<F, WorldMutMarker>;
+    fn into_system(self) -> Self::ResultingSystem {
+        FunctionSystem { function: self, _marker: PhantomData }
+    }
+}
+impl<F> System for FunctionSystem<F, WorldMutMarker>
+where
+    F: FnMut(&mut World) + Send + Sync + 'static,
+{
+    fn run(&mut self, world: &mut World) -> Result<(), ParsecError> {
+        (self.function)(world);
         Ok(())
     }
 }
 
-impl<'a> System<'a> for fn(&mut World) {
-    fn run<'b: 'a>(&mut self, world: &'b mut World) -> Result<(), ParsecError> {
-        (*self)(world);
+impl<F> IntoSystem<WorldMutResultMarker> for F
+where
+    F: FnMut(&mut World) -> Result<(), ParsecError> + Send + Sync + 'static,
+{
+    type ResultingSystem = FunctionSystem<F, WorldMutResultMarker>;
+    fn into_system(self) -> Self::ResultingSystem {
+        FunctionSystem { function: self, _marker: PhantomData }
+    }
+}
+impl<F> System for FunctionSystem<F, WorldMutResultMarker>
+where
+    F: FnMut(&mut World) -> Result<(), ParsecError> + Send + Sync + 'static,
+{
+    fn run(&mut self, world: &mut World) -> Result<(), ParsecError> {
+        (self.function)(world)
+    }
+}
+
+impl<F> IntoSystem<WorldRefMarker> for F
+where
+    F: FnMut(&World) + Send + Sync + 'static,
+{
+    type ResultingSystem = FunctionSystem<F, WorldRefMarker>;
+    fn into_system(self) -> Self::ResultingSystem {
+        FunctionSystem { function: self, _marker: PhantomData }
+    }
+}
+impl<F> System for FunctionSystem<F, WorldRefMarker>
+where
+    F: FnMut(&World) + Send + Sync + 'static,
+{
+    fn run(&mut self, world: &mut World) -> Result<(), ParsecError> {
+        (self.function)(world);
         Ok(())
     }
 }
 
-impl<'a> System<'a> for fn(&World) -> Result<(), ParsecError> {
-    fn run<'b: 'a>(&mut self, world: &'b mut World) -> Result<(), ParsecError> {
-        (*self)(world)
+impl<F> IntoSystem<WorldRefResultMarker> for F
+where
+    F: FnMut(&World) -> Result<(), ParsecError> + Send + Sync + 'static,
+{
+    type ResultingSystem = FunctionSystem<F, WorldRefResultMarker>;
+    fn into_system(self) -> Self::ResultingSystem {
+        FunctionSystem { function: self, _marker: PhantomData }
     }
 }
-
-impl<'a> System<'a> for fn(&mut World) -> Result<(), ParsecError> {
-    fn run<'b: 'a>(&mut self, world: &'b mut World) -> Result<(), ParsecError> {
-        (*self)(world)
+impl<F> System for FunctionSystem<F, WorldRefResultMarker>
+where
+    F: FnMut(&World) -> Result<(), ParsecError> + Send + Sync + 'static,
+{
+    fn run(&mut self, world: &mut World) -> Result<(), ParsecError> {
+        (self.function)(world)
     }
 }
 
 /// Marks a type used to group systems into interdependent bundles.
 pub trait SystemBundle {
-    /// Returns a vec of grouped systems and their respective triggers.
+    /// Inserts the bundle's systems into `systems`.
     fn insert(self, systems: &mut Systems);
 }

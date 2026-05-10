@@ -10,3 +10,4 @@ parsec-engine-graphics.workspace = true
 parsec-engine-math.workspace = true
 parsec-engine-utils.workspace = true
 parsec-engine-ecs.workspace = true
+regex.workspace = true

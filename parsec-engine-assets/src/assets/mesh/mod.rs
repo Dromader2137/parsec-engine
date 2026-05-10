@@ -1,17 +1,37 @@
-use std::fs::File;
-
+use parsec_engine_ecs::world::World;
 use parsec_engine_graphics::pipeline::DefaultVertex;
+use parsec_engine_math::vec::{Vec2f, Vec3f};
 use parsec_engine_utils::{IdType, create_counter, identifiable::Identifiable};
 
-use crate::Asset;
+use crate::{Asset, assets::mesh::obj::cook_obj};
 
 pub mod obj;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct CookedMesh {
-    xd: [u8; 32],
+    positions: Vec<Vec3f>,
+    normals: Vec<Vec3f>,
+    uvs: Vec<Vec2f>,
+    indices: Vec<u32>,
 }
 
+impl CookedMesh {
+    pub fn new(
+        positions: Vec<Vec3f>,
+        normals: Vec<Vec3f>,
+        uvs: Vec<Vec2f>,
+        indices: Vec<u32>,
+    ) -> Self {
+        Self {
+            positions,
+            normals,
+            uvs,
+            indices,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Mesh {
     mesh_id: IdType,
     pub vertices: Vec<DefaultVertex>,
@@ -35,17 +55,35 @@ impl Identifiable for Mesh {
     fn id(&self) -> IdType { self.mesh_id }
 }
 
+impl From<CookedMesh> for Mesh {
+    fn from(value: CookedMesh) -> Self {
+        let vertices = value
+            .positions
+            .iter()
+            .zip(value.uvs.iter())
+            .zip(value.normals.iter())
+            .map(|((pos, uv), norm)| DefaultVertex::new(*pos, *norm, *uv))
+            .collect();
+        Self::new(vertices, value.indices)
+    }
+}
+
 impl Asset for Mesh {
     type Cooked = CookedMesh;
 
     const ASSET_TYPE: &'static str = "mesh";
     const EXTENSIONS: &'static [&'static str] = &["obj"];
 
-    fn cook(file: File) -> Self::Cooked {
-        CookedMesh { xd: [3; 32] } 
+    fn cook(data: &[u8], extension: &str) -> Self::Cooked {
+        if extension == "obj" {
+            return cook_obj(data).unwrap();
+        }
+        CookedMesh::default()
     }
 
-    fn load(_cooked: Self::Cooked, _world: &parsec_engine_ecs::world::World) -> Self {
-        Self::new(vec![], vec![])
+    fn load(cooked: Self::Cooked, _world: &World) -> Self {
+        let mesh = cooked.into();
+
+        mesh
     }
 }

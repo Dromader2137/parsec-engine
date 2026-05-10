@@ -1,7 +1,7 @@
 use image::EncodableLayout;
 use parsec_engine::{
     app::App,
-    assets::assets::mesh::{Mesh, obj::load_obj},
+    assets::assets::mesh::{Mesh, obj::cook_obj},
     ecs::{
         system::SystemTrigger,
         world::{World, component::Component, fetch::Mut},
@@ -154,14 +154,9 @@ fn test_system(world: &mut World) -> Result<(), ParsecError> {
 
     material_bases.push(material_base);
     let material_id = materials.push(material);
-    let mesh = meshes.push(load_obj("test.obj").unwrap());
-
-    // Drop resource guards before spawning (avoids holding guards across &mut world)
-    drop(backend);
-    drop(materials);
-    drop(material_bases);
-    drop(meshes);
-    drop(renderpass);
+    let mesh_data =
+        Mesh::from(cook_obj(&std::fs::read("test.obj").unwrap()).unwrap());
+    let mesh = meshes.push(mesh_data);
 
     world.spawn((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
@@ -264,11 +259,7 @@ fn main() {
     app.systems.add_bundle(GraphicsBundle);
     app.systems.add_bundle(InputBundle);
     app.systems.add_bundle(TimeBundle);
-    app.systems.add(
-        SystemTrigger::LateStart,
-        test_system as fn(&mut World) -> Result<(), ParsecError>,
-    );
-    app.systems
-        .add(SystemTrigger::Update, controller as fn(&World));
+    app.systems.add(SystemTrigger::LateStart, test_system);
+    app.systems.add(SystemTrigger::Update, controller);
     app.run();
 }

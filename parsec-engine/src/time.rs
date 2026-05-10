@@ -3,7 +3,7 @@
 use std::time::{SystemTime, SystemTimeError};
 
 use parsec_engine_ecs::{
-    system::{System, SystemBundle, SystemTrigger},
+    system::{SystemBundle, SystemTrigger, Systems},
     world::World,
 };
 
@@ -65,10 +65,8 @@ fn time_update(world: &World) {
 #[derive(Default)]
 pub struct TimeBundle;
 impl SystemBundle for TimeBundle {
-    fn systems(self) -> Vec<(SystemTrigger, Box<dyn System>)> {
-        vec![
-            (SystemTrigger::Start, Box::new(time_init as fn(&mut World))),
-            (SystemTrigger::EarlyUpdate, Box::new(time_update as fn(&World))),
-        ]
+    fn insert(self, systems: &mut Systems) {
+        systems.add(SystemTrigger::Start, time_init);
+        systems.add(SystemTrigger::EarlyUpdate, time_update);
     }
 }

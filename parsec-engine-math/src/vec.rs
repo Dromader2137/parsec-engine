@@ -4,14 +4,16 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Vec2f {
     pub x: f32,
     pub y: f32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Vec3f {
     pub x: f32,
@@ -19,7 +21,7 @@ pub struct Vec3f {
     pub z: f32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Vec4f {
     pub x: f32,
@@ -28,14 +30,14 @@ pub struct Vec4f {
     pub w: f32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Vec2d {
     pub x: f64,
     pub y: f64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Vec3d {
     pub x: f64,

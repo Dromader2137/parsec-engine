@@ -2,9 +2,10 @@
 
 use keys::Keys;
 use parsec_engine_ecs::{
-    system::{System, SystemBundle, SystemTrigger, Systems},
+    system::{SystemBundle, SystemTrigger, Systems},
     world::World,
 };
+use parsec_engine_error::ParsecError;
 use parsec_engine_graphics::window::Window;
 
 use crate::{
@@ -40,10 +41,11 @@ fn input_start(world: &mut World) {
     world.resources.add(Input::new());
 }
 
-fn input_clear(world: &World) {
+fn input_clear(world: &World) -> Result<(), ParsecError> {
     let mut input = world.resource::<Input>();
     input.keys.clear();
     input.mouse.clear();
+    Ok(())
 }
 
 fn input_clear_all(world: &World) {

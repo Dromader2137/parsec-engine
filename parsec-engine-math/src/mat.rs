@@ -2,10 +2,12 @@
 
 use std::ops::Mul;
 
+use serde::{Deserialize, Serialize};
+
 use crate::vec::{Vec2f, Vec3f};
 
 /// 4x4 matrix of floats.
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Matrix4f(pub [[f32; 4]; 4]);
 

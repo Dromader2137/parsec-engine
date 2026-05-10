@@ -2,14 +2,14 @@ use std::{
     collections::HashMap,
     ffi::OsStr,
     fs::{self, File},
-    io::{BufReader, BufWriter, Read, Write},
+    io::{BufReader, BufWriter, Write},
     path::{Path, PathBuf},
     str::FromStr,
     time::SystemTime,
 };
 
 use clap::Parser;
-use parsec_engine_assets::{Asset,assets::mesh::Mesh};
+use parsec_engine_assets::{Asset, assets::mesh::Mesh};
 use parsec_engine_error::{OptionNoneErr, ParsecError};
 
 /// parsec-engine-cli add <name> <path> // adds an asset
@@ -106,7 +106,7 @@ fn write_manifest(manifest: &Manifest) -> Result<(), ManifestWriteError> {
 }
 
 fn get_cook_dir() -> PathBuf {
-    fs::create_dir("./assets/");
+    fs::create_dir_all("./assets/").unwrap();
     PathBuf::from_str("./assets/").unwrap()
 }
 
@@ -117,22 +117,21 @@ fn cook(
 ) -> Result<(), ParsecError> {
     let in_path = manifest.assets.iter().find(|a| a.0 == name).none_err()?;
     let out_path = get_cook_dir().join(name).with_extension("asset");
-    println!("{:?}", out_path);
     cooker.cook(&in_path.1.path, &out_path);
     Ok(())
 }
 
 pub struct CookerAssetRegistation {
     extensions: &'static [&'static str],
-    cook_fn: Box<fn(File) -> Vec<u8>>,
+    cook_fn: Box<fn(&[u8], &str) -> Vec<u8>>,
 }
 
 pub struct Cooker {
     handlers: HashMap<&'static str, CookerAssetRegistation>,
 }
 
-fn cook_type_erased<T: Asset>(file: File) -> Vec<u8> {
-    let out = T::cook(file);
+fn cook_type_erased<T: Asset>(data: &[u8], extension: &str) -> Vec<u8> {
+    let out = T::cook(data, extension);
     let out_bytes = postcard::to_stdvec(&out).unwrap();
     out_bytes
 }
@@ -163,8 +162,11 @@ impl Cooker {
             .iter()
             .find(|(_, v)| v.extensions.contains(&ext))
             .unwrap();
-        let input_file = File::open(input).unwrap();
-        let out_bytes = (handler.cook_fn)(input_file);
+        let bytes = std::fs::read(input).unwrap();
+        let out_bytes = (handler.cook_fn)(
+            &bytes,
+            input.extension().unwrap().to_str().unwrap(),
+        );
         let mut out_file = File::options()
             .create(true)
             .write(true)

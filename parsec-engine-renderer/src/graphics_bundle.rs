@@ -1,5 +1,5 @@
 use parsec_engine_ecs::{
-    system::{System, SystemBundle, SystemTrigger},
+    system::{SystemBundle, SystemTrigger},
     world::World,
 };
 use parsec_engine_error::{OptionNoneErr, ParsecError};
@@ -20,22 +20,21 @@ use crate::{
 pub struct GraphicsBundle;
 impl SystemBundle for GraphicsBundle {
     fn insert(self, systems: &mut parsec_engine_ecs::system::Systems) {
-        
-            systems.add( SystemTrigger::LateStart,  init_window as fn(&mut World) -> Result<(), ParsecError>);
-            systems.add( SystemTrigger::LateStart,  init_vulkan as fn(&mut World) -> Result<(), ParsecError>);
-            systems.add( SystemTrigger::LateStart, crate::init_renderer as fn(&mut World));
-            systems.add( SystemTrigger::Render, update_camera_data as fn(&World));
-            systems.add( SystemTrigger::Render, update_transform_data as fn(&World));
-            systems.add( SystemTrigger::Render, update_light_data as fn(&World));
-            systems.add( SystemTrigger::Render, auto_enqueue as fn(&World) -> Result<(), ParsecError>);
-            systems.add( SystemTrigger::Render, render as fn(&World));
-            systems.add( SystemTrigger::Render, queue_clear as fn(&World));
-            systems.add( SystemTrigger::Update, request_redraw as fn(&World));
-            systems.add( SystemTrigger::Update, add_camera_data as fn(&World));
-            systems.add( SystemTrigger::Update, add_mesh_data as fn(&World));
-            systems.add( SystemTrigger::Update, add_transform_data as fn(&World));
-            systems.add( SystemTrigger::End, end_wait_idle as fn(&World));
-            systems.add( SystemTrigger::WindowResized, mark_resize as fn(&World));
+        systems.add(SystemTrigger::LateStart, init_window);
+        systems.add(SystemTrigger::LateStart, init_vulkan);
+        systems.add(SystemTrigger::LateStart, crate::init_renderer);
+        systems.add(SystemTrigger::Render, update_camera_data);
+        systems.add(SystemTrigger::Render, update_transform_data);
+        systems.add(SystemTrigger::Render, update_light_data);
+        systems.add(SystemTrigger::Render, auto_enqueue);
+        systems.add(SystemTrigger::Render, render);
+        systems.add(SystemTrigger::Render, queue_clear);
+        systems.add(SystemTrigger::Update, request_redraw);
+        systems.add(SystemTrigger::Update, add_camera_data);
+        systems.add(SystemTrigger::Update, add_mesh_data);
+        systems.add(SystemTrigger::Update, add_transform_data);
+        systems.add(SystemTrigger::End, end_wait_idle);
+        systems.add(SystemTrigger::WindowResized, mark_resize);
     }
 }
 

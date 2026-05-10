@@ -1,4 +1,4 @@
-use std::{fs::File, marker::PhantomData};
+use std::marker::PhantomData;
 
 use parsec_engine_ecs::world::World;
 
@@ -12,11 +12,11 @@ pub struct AssetHandle<T: Asset> {
 pub struct AssetLibrary {}
 
 pub trait Asset {
-    type Cooked: serde::Serialize + 'static;
+    type Cooked: serde::Serialize + serde::de::DeserializeOwned + 'static;
 
     const ASSET_TYPE: &'static str;
     const EXTENSIONS: &'static [&'static str];
 
-    fn cook(file: File) -> Self::Cooked;
+    fn cook(data: &[u8], extension: &str) -> Self::Cooked;
     fn load(cooked: Self::Cooked, world: &World) -> Self;
 }

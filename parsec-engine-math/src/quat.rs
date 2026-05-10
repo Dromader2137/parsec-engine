@@ -2,9 +2,11 @@
 
 use std::ops::{Mul, MulAssign};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{mat::Matrix4f, vec::Vec3f};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Quat {
     i: f32,
     j: f32,

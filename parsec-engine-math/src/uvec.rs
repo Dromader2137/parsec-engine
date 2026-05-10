@@ -4,16 +4,18 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::ivec::{Vec2i, Vec3i};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Vec2u {
     pub x: u32,
     pub y: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Vec3u {
     pub x: u32,

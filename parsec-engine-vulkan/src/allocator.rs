@@ -85,6 +85,8 @@ impl VulkanAllocator {
         memory_type: VulkanMemoryProperties,
         memory_requirements: VulkanMemoryRequirements,
     ) -> Result<(VulkanMemory, u64, u64, u32), VulkanAllocationError> {
+        assert_ne!(memory_requirements.size, 0);
+
         let memory_ids =
             find_memorytype_indices(&memory_requirements, &memory_type, device);
 
