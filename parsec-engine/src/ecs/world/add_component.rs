@@ -20,12 +20,3 @@ impl<T: Spawn> AddComponent for T {
         Spawn::spawn(self, archetype)
     }
 }
-
-impl AddComponent for Box<dyn AddComponent> {
-    fn archetype_id(&self) -> Result<ArchetypeId, ArchetypeError> {
-        (**self).archetype_id()
-    }
-    fn add_to(&self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
-        (**self).add_to(archetype)
-    }
-}

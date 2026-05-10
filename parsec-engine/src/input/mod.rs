@@ -42,62 +42,62 @@ impl Input {
 fn input_start(world: &mut World) { world.resources.add(Input::new()); }
 
 fn input_clear(world: &World) -> Result<(), ParsecError> {
-    let mut input = world.resource::<Input>();
+    let mut input = world.resources.get::<Input>();
     input.keys.clear();
     input.mouse.clear();
     Ok(())
 }
 
 fn input_clear_all(world: &World) {
-    let mut input = world.resource::<Input>();
+    let mut input = world.resources.get::<Input>();
     input.keys.clear_all();
     input.mouse.clear();
 }
 
 fn input_keyboard_event(world: &World) {
-    let window = world.resource::<Window>();
+    let window = world.resources.get::<Window>();
     if !window.focused() {
         return;
     }
-    let input_event = world.resource::<KeyboardInputEvent>();
+    let input_event = world.resources.get::<KeyboardInputEvent>();
     world
-        .resource::<Input>()
+        .resources.get::<Input>()
         .keys
         .process_input_event((*input_event).clone());
 }
 
 fn input_mouse_movement(world: &World) {
-    let window = world.resource::<Window>();
+    let window = world.resources.get::<Window>();
     if !window.focused() {
         return;
     }
-    let movement_event = world.resource::<MouseMovementEvent>();
+    let movement_event = world.resources.get::<MouseMovementEvent>();
     world
-        .resource::<Input>()
+        .resources.get::<Input>()
         .mouse
         .process_movement(*movement_event);
 }
 
 fn input_mouse_button(world: &World) {
-    let window = world.resource::<Window>();
+    let window = world.resources.get::<Window>();
     if !window.focused() {
         return;
     }
-    let button_event = world.resource::<MouseButtonEvent>();
+    let button_event = world.resources.get::<MouseButtonEvent>();
     world
-        .resource::<Input>()
+        .resources.get::<Input>()
         .mouse
         .process_button_event(*button_event);
 }
 
 fn input_mouse_wheel(world: &World) {
-    let window = world.resource::<Window>();
+    let window = world.resources.get::<Window>();
     if !window.focused() {
         return;
     }
-    let wheel_event = world.resource::<MouseWheelEvent>();
+    let wheel_event = world.resources.get::<MouseWheelEvent>();
     world
-        .resource::<Input>()
+        .resources.get::<Input>()
         .mouse
         .process_wheel_event(*wheel_event);
 }

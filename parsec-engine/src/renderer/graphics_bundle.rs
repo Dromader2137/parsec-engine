@@ -45,7 +45,7 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
     fn insert(self, systems: &mut Systems) {
         systems.add(SystemTrigger::LateStart, init_window);
         systems.add(SystemTrigger::LateStart, |world: &mut World| {
-            let window = world.resource::<Window>();
+            let window = world.resources.get::<Window>();
             world
                 .resources
                 .add(ActiveGraphicsBackend::with_backend::<B>(&window)?);
@@ -71,19 +71,19 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
     }
 }
 
-fn mark_resize(world: &World) { world.resource::<ResizeFlag>().0 = true; }
+fn mark_resize(world: &World) { world.resources.get::<ResizeFlag>().0 = true; }
 
 fn request_redraw(world: &World) {
-    world.resource::<Window>().request_redraw();
+    world.resources.get::<Window>().request_redraw();
 }
 
 fn end_wait_idle(world: &World) {
-    world.resource::<ActiveGraphicsBackend>().wait_idle();
+    world.resources.get::<ActiveGraphicsBackend>().wait_idle();
 }
 
 fn init_window(world: &mut World) -> Result<(), ParsecError> {
     let window = {
-        let event_loop = world.resource::<ActiveEventLoop>();
+        let event_loop = world.resources.get::<ActiveEventLoop>();
         let event_loop = event_loop.raw_active_event_loop()?;
         Window::new(event_loop, "Oxide Engine test")?
     };
@@ -92,10 +92,10 @@ fn init_window(world: &mut World) -> Result<(), ParsecError> {
 }
 
 fn auto_enqueue(world: &World) -> Result<(), ParsecError> {
-    let mut draw_queue = world.resource::<Vec<Draw>>();
-    let meshes = world.resource::<IdStore<Mesh>>();
-    let camera_data_manager = world.resource::<CameraDataManager>();
-    let transform_data_manager = world.resource::<TransformDataManager>();
+    let mut draw_queue = world.resources.get::<Vec<Draw>>();
+    let meshes = world.resources.get::<IdStore<Mesh>>();
+    let camera_data_manager = world.resources.get::<CameraDataManager>();
+    let transform_data_manager = world.resources.get::<TransformDataManager>();
     let mut cameras = world.query::<(Transform, Camera)>();
     let mut mesh_renderers = world.query::<(Transform, MeshRenderer)>();
 

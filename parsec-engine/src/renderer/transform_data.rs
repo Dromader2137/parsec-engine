@@ -179,9 +179,9 @@ impl Identifiable for TransformData {
 }
 
 pub fn add_transform_data(world: &World) {
-    let mut backend = world.resource::<ActiveGraphicsBackend>();
-    let mut transforms_data = world.resource::<IdStore<TransformData>>();
-    let mut transforms_data_manager = world.resource::<TransformDataManager>();
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
+    let mut transforms_data = world.resources.get::<IdStore<TransformData>>();
+    let mut transforms_data_manager = world.resources.get::<TransformDataManager>();
     let mut transforms = world.query::<Mut<Transform>>();
 
     for (_, transform) in transforms.iter() {
@@ -203,9 +203,9 @@ pub fn add_transform_data(world: &World) {
 }
 
 pub fn update_transform_data(world: &World) {
-    let mut backend = world.resource::<ActiveGraphicsBackend>();
-    let mut transforms_data = world.resource::<IdStore<TransformData>>();
-    let transforms_data_manager = world.resource::<TransformDataManager>();
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
+    let mut transforms_data = world.resources.get::<IdStore<TransformData>>();
+    let transforms_data_manager = world.resources.get::<TransformDataManager>();
     let mut transforms = world.query::<Transform>();
 
     for (_, transform) in transforms.iter() {

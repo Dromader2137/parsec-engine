@@ -37,11 +37,11 @@ use parsec_engine::{
 use parsec_engine_vulkan::VulkanBackend;
 
 fn test_system(world: &mut World) -> Result<(), ParsecError> {
-    let mut backend = world.resource::<ActiveGraphicsBackend>();
-    let mut materials = world.resource::<IdStore<MaterialData>>();
-    let mut material_bases = world.resource::<IdStore<MaterialBase>>();
-    let mut meshes = world.resource::<IdStore<Mesh>>();
-    let renderpass = world.resource::<RendererMainRenderpass>();
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
+    let mut materials = world.resources.get::<IdStore<MaterialData>>();
+    let mut material_bases = world.resources.get::<IdStore<MaterialBase>>();
+    let mut meshes = world.resources.get::<IdStore<Mesh>>();
+    let renderpass = world.resources.get::<RendererMainRenderpass>();
 
     let vertex = ShaderBuilder::new()
         .code(&read_shader_code("shaders/simple.spv")?)
@@ -197,9 +197,9 @@ struct CameraController {
 fn controller(world: &World) {
     let mut cameras =
         world.query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
-    let mut window = world.resource::<Window>();
-    let input = world.resource::<Input>();
-    let time = world.resource::<Time>();
+    let mut window = world.resources.get::<Window>();
+    let input = world.resources.get::<Input>();
+    let time = world.resources.get::<Time>();
 
     for (_, (transform, camera, camera_controller)) in cameras.iter() {
         let delta = input.mouse.positon_delta();

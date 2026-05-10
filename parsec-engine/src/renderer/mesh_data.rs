@@ -111,9 +111,9 @@ impl<V: Vertex> Identifiable for MeshData<V> {
 }
 
 pub fn add_mesh_data(world: &World) {
-    let mut backend = world.resource::<ActiveGraphicsBackend>();
-    let mut meshes_data = world.resource::<IdStore<MeshData<DefaultVertex>>>();
-    let mut meshes = world.resource::<IdStore<Mesh>>();
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
+    let mut meshes_data = world.resources.get::<IdStore<MeshData<DefaultVertex>>>();
+    let mut meshes = world.resources.get::<IdStore<Mesh>>();
 
     for mesh in meshes.iter_mut() {
         if mesh.data_id.is_none() {

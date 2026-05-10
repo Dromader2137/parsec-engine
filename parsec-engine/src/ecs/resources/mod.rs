@@ -1,7 +1,6 @@
 //! Module responsible for storing and getting global state.
 
 mod data;
-pub mod dependency;
 
 use std::{
     any::{Any, TypeId, type_name},
@@ -12,9 +11,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use crate::ecs::resources::{
-    data::ResourceData, dependency::ResourceDependencyData,
-};
+use crate::ecs::resources::data::ResourceData;
 
 /// Marks a type as a resource that can be stored in a global storage.
 pub trait ResourceMarker: Send + Sync + 'static {
@@ -25,18 +22,6 @@ pub trait ResourceMarker: Send + Sync + 'static {
 impl<T: Send + Sync + 'static> ResourceMarker for T {
     fn resource_id(&self) -> TypeId { self.type_id() }
     fn as_any(self: Box<Self>) -> Box<dyn Any + Send + Sync + 'static> { self }
-}
-
-pub struct ResourceRemoveData {
-    pub type_id: TypeId,
-}
-
-impl ResourceRemoveData {
-    pub fn id<R: ResourceMarker>() -> ResourceRemoveData {
-        ResourceRemoveData {
-            type_id: TypeId::of::<R>(),
-        }
-    }
 }
 
 /// Stores the information necessary to use a global resource.
@@ -68,7 +53,7 @@ impl<R: ResourceMarker> Resource<R> {
     pub fn from_resources(
         resources: &Resources,
     ) -> Result<Self, ResourceError> {
-        let arc = resources.get::<R>()?;
+        let arc = resources.get_raw::<R>()?;
         let locked = arc.lock().expect("Mutex poisoned");
         let guard = unsafe {
             std::mem::transmute::<
@@ -134,31 +119,21 @@ impl Resources {
     pub fn add_dependency<R: ResourceMarker, D: ResourceMarker>(
         &mut self,
     ) -> Result<(), ResourceError> {
-        let dependency_data = ResourceDependencyData::new::<R, D>();
-        self.add_dependency_using_data(dependency_data)
-    }
-
-    pub fn add_dependency_using_data(
-        &mut self,
-        dependency_data: ResourceDependencyData,
-    ) -> Result<(), ResourceError> {
-        if check_circularity(
-            dependency_data.dependency,
-            dependency_data.resource,
-            &self.resources,
-        ) {
+        let dependency_id = TypeId::of::<D>();
+        let resource_id = TypeId::of::<R>();
+        if check_circularity(dependency_id, resource_id, &self.resources) {
             return Err(ResourceError::CircularityNotAllowed);
         }
         let resource = self
             .resources
-            .get_mut(&dependency_data.resource)
+            .get_mut(&resource_id)
             .ok_or(ResourceError::ResourceNotFound("UNKNOWN NAME"))?;
-        resource.dependencies.insert(dependency_data.dependency);
+        resource.dependencies.insert(dependency_id);
         let dependency = self
             .resources
-            .get_mut(&dependency_data.dependency)
+            .get_mut(&dependency_id)
             .ok_or(ResourceError::ResourceNotFound("UNKNOWN NAME"))?;
-        dependency.depended_on.insert(dependency_data.resource);
+        dependency.depended_on.insert(resource_id);
         Ok(())
     }
 
@@ -167,7 +142,13 @@ impl Resources {
     /// # Errors
     ///
     /// - If there is no resource of type `R`.
-    pub fn get<R: ResourceMarker>(
+    pub fn get<R: ResourceMarker>(&self) -> Resource<R> {
+        Resource::<R>::from_resources(self).unwrap_or_else(|_| {
+            panic!("resource {} not found", std::any::type_name::<R>())
+        })
+    }
+
+    fn get_raw<R: ResourceMarker>(
         &self,
     ) -> Result<Arc<Mutex<Box<dyn Any + Send + Sync>>>, ResourceError> {
         let type_id = TypeId::of::<R>();
@@ -184,15 +165,7 @@ impl Resources {
     ///
     /// - If there is no resource of type `R`.
     pub fn remove<R: ResourceMarker>(&mut self) -> Result<(), ResourceError> {
-        let remove_data = ResourceRemoveData::id::<R>();
-        self.remove_using_data(remove_data)
-    }
-
-    pub fn remove_using_data(
-        &mut self,
-        data: ResourceRemoveData,
-    ) -> Result<(), ResourceError> {
-        let type_id = data.type_id;
+        let type_id = TypeId::of::<R>();
         let resource = self
             .resources
             .get(&type_id)

@@ -132,8 +132,8 @@ impl RendererLights {
 }
 
 pub fn update_light_data(world: &World) {
-    let mut backend = world.resource::<ActiveGraphicsBackend>();
-    let mut light_data = world.resource::<RendererLights>();
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
+    let mut light_data = world.resources.get::<RendererLights>();
     let mut lights = world.query::<(Light, Transform)>();
 
     light_data.clear_data();

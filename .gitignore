@@ -1,11 +1,10 @@
-target/
+/target/
 Cargo.lock
-shaders/*.spv
-renderdoc/
+/shaders/*.spv
 *.obj
 *.png
 log
 *.log
-.claude
-./assets/
-assets.json
+/.claude
+/assets/
+/assets.json

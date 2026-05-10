@@ -43,6 +43,7 @@ impl AssetLibrary {
             assets: HashMap::new(),
         }
     }
+
     pub fn load<T: Asset>(
         &mut self,
         name: &'static str,
@@ -68,6 +69,7 @@ impl AssetLibrary {
         asset_vec.push((name, Box::new(asset) as Box<dyn Any>));
         Ok(AssetHandle::new(name))
     }
+
     pub fn get<T: Asset>(&self, handle: AssetHandle<T>) -> &T {
         let name = handle.name;
         let asset_vec = self.assets.get(&TypeId::of::<T>()).unwrap();

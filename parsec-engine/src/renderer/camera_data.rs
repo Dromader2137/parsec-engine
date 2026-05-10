@@ -83,10 +83,10 @@ impl Identifiable for CameraData {
 }
 
 pub fn add_camera_data(world: &World) {
-    let window = world.resource::<Window>();
-    let mut backend = world.resource::<ActiveGraphicsBackend>();
-    let mut cameras_data = world.resource::<IdStore<CameraData>>();
-    let mut camera_data_manager = world.resource::<CameraDataManager>();
+    let window = world.resources.get::<Window>();
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
+    let mut cameras_data = world.resources.get::<IdStore<CameraData>>();
+    let mut camera_data_manager = world.resources.get::<CameraDataManager>();
     let mut cameras = world.query::<Mut<Camera>>();
 
     for (_, camera) in cameras.iter() {
@@ -109,10 +109,10 @@ pub fn add_camera_data(world: &World) {
 }
 
 pub fn update_camera_data(world: &World) {
-    let window = world.resource::<Window>();
-    let mut backend = world.resource::<ActiveGraphicsBackend>();
-    let mut cameras_data = world.resource::<IdStore<CameraData>>();
-    let camera_data_manager = world.resource::<CameraDataManager>();
+    let window = world.resources.get::<Window>();
+    let mut backend = world.resources.get::<ActiveGraphicsBackend>();
+    let mut cameras_data = world.resources.get::<IdStore<CameraData>>();
+    let camera_data_manager = world.resources.get::<CameraDataManager>();
     let mut cameras = world.query::<Camera>();
 
     let aspect_ratio = window.aspect_ratio();

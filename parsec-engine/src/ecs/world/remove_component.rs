@@ -9,22 +9,3 @@ pub trait RemoveComponent: Send + Sync + 'static {
     where
         Self: Sized;
 }
-
-impl RemoveComponent for RemoveComponentData {
-    fn archetype_id() -> Result<ArchetypeId, ArchetypeError> {
-        ArchetypeId::new(vec![std::any::TypeId::of::<Self>()])
-    }
-}
-
-pub struct RemoveComponentData {
-    pub archetype_id: ArchetypeId,
-}
-
-impl RemoveComponentData {
-    pub fn components<T: RemoveComponent>()
-    -> Result<RemoveComponentData, ArchetypeError> {
-        Ok(RemoveComponentData {
-            archetype_id: T::archetype_id()?,
-        })
-    }
-}

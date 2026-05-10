@@ -8,14 +8,13 @@ use thiserror::Error;
 
 use crate::{
     assets::AssetLibrary,
+    create_counter,
     ecs::{
         entity::Entity,
-        resources::{Resource, ResourceMarker, Resources},
+        resources::Resources,
         world::{
-            add_component::AddComponent,
-            fetch::Fetch,
-            query::Query,
-            remove_component::{RemoveComponent, RemoveComponentData},
+            add_component::AddComponent, fetch::Fetch, query::Query,
+            remove_component::RemoveComponent,
         },
     },
 };
@@ -45,8 +44,6 @@ pub enum WorldError {
 pub struct World {
     /// Contains all archetypes indexed by their id.
     archetypes: HashMap<ArchetypeId, Archetype>,
-    /// New entity id counter.
-    entity_id_counter: u32,
     /// Global resource storage.
     pub resources: Resources,
     /// Global assets storage.
@@ -57,21 +54,14 @@ impl Default for World {
     fn default() -> Self { Self::new() }
 }
 
+create_counter! {ENTITY_ID_COUNTER}
 impl World {
     pub fn new() -> Self {
         Self {
             archetypes: HashMap::new(),
-            entity_id_counter: 0,
             resources: Resources::new(),
             assets: AssetLibrary::new(),
         }
-    }
-
-    /// Borrows the resource of type `R`. Panics if not found.
-    pub fn resource<R: ResourceMarker>(&self) -> Resource<R> {
-        Resource::<R>::from_resources(&self.resources).unwrap_or_else(|_| {
-            panic!("resource {} not found", std::any::type_name::<R>())
-        })
     }
 
     /// Creates a query for all entities matching `T`. Panics on archetype errors.
@@ -104,7 +94,7 @@ impl World {
         let archetype_id = bundle
             .archetype_id()
             .map_err(|e| WorldError::SpawnError { kind: e })?;
-        let entity_id = self.entity_id_counter;
+        let entity_id = ENTITY_ID_COUNTER.next();
         let archetype = self.get_archetype_mut(&archetype_id);
         let entity = archetype
             .new_entity(entity_id)
@@ -113,35 +103,7 @@ impl World {
             .spawn(archetype)
             .map_err(|e| WorldError::SpawnError { kind: e })?;
         archetype.bundle_count += 1;
-        self.entity_id_counter += 1;
         Ok(entity)
-    }
-
-    /// Spawns a new entity.
-    ///
-    /// # Errors
-    ///
-    /// - If `T` can't produce a valid [`ArchetypeId`].
-    /// - If the [archetype][Archetype] is already borrowed in some way.
-    pub fn spawn_with_id<T: Spawn>(
-        &mut self,
-        entity: Entity,
-        bundle: T,
-    ) -> Result<(), WorldError> {
-        let archetype_id = bundle
-            .archetype_id()
-            .map_err(|e| WorldError::SpawnError { kind: e })?;
-        let entity_id = entity.id();
-        let archetype = self.get_archetype_mut(&archetype_id);
-        archetype
-            .new_entity(entity_id)
-            .map_err(|e| WorldError::SpawnError { kind: e })?;
-        bundle
-            .spawn(archetype)
-            .map_err(|e| WorldError::SpawnError { kind: e })?;
-        archetype.bundle_count += 1;
-        self.entity_id_counter = entity_id + 1;
-        Ok(())
     }
 
     /// Deletes the given entity.
@@ -254,17 +216,6 @@ impl World {
     ) -> Result<(), WorldError> {
         let t_archetype_id = T::archetype_id()
             .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
-        let data = RemoveComponentData {
-            archetype_id: t_archetype_id,
-        };
-        self.remove_components_using_data(entity, data)
-    }
-
-    pub fn remove_components_using_data(
-        &mut self,
-        entity: Entity,
-        data: RemoveComponentData,
-    ) -> Result<(), WorldError> {
         let (archetype_id, old_archetype) = match self
             .archetypes
             .iter_mut()
@@ -277,7 +228,6 @@ impl World {
                 });
             },
         };
-        let t_archetype_id = data.archetype_id;
         let new_archetype_id = archetype_id
             .remove_from(t_archetype_id)
             .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
@@ -319,6 +269,4 @@ impl World {
 
         Ok(())
     }
-
-    pub fn entity_id_counter(&self) -> u32 { self.entity_id_counter }
 }
