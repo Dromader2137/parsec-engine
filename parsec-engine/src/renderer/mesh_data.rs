@@ -8,10 +8,7 @@ use crate::{
         command_list::{Command, CommandList},
         pipeline::Vertex,
     },
-    utils::{
-        IdType,
-        identifiable::Identifiable,
-    },
+    utils::{IdType, identifiable::Identifiable},
 };
 
 pub struct MeshBuffer<V: Vertex> {

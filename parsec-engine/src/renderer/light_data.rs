@@ -4,7 +4,7 @@ use parsec_engine_math::{
 };
 
 use crate::{
-    ecs::world::World,
+    ctx::Ctx,
     error::{OptionNoneErr, ParsecError},
     graphics::{
         ActiveGraphicsBackend,
@@ -132,10 +132,11 @@ impl RendererLights {
     }
 }
 
-pub fn update_light_data(world: &World) -> Result<(), ParsecError> {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
-    let mut light_data = world.resources.get::<RendererLights>().none_err()?;
-    let mut lights = world.query::<(Light, Transform)>();
+pub fn update_light_data(ctx: Ctx) -> Result<(), ParsecError> {
+    let mut backend =
+        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut light_data = ctx.resources.get::<RendererLights>().none_err()?;
+    let mut lights = ctx.world.query::<(Light, Transform)>();
 
     light_data.clear_data();
     for (_, (light, transfrom)) in lights.iter() {

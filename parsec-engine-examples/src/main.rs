@@ -1,10 +1,11 @@
 use image::EncodableLayout;
 use parsec_engine::{
     app::App,
-    assets::assets::mesh::{Mesh, obj::cook_obj},
+    assets::assets::mesh::Mesh,
+    ctx::Ctx,
     ecs::{
         system::SystemTrigger,
-        world::{World, component::Component, fetch::Mut},
+        world::{component::Component, fetch::Mut},
     },
     error::{OptionNoneErr, ParsecError},
     graphics::{
@@ -36,11 +37,15 @@ use parsec_engine::{
 };
 use parsec_engine_vulkan::VulkanBackend;
 
-fn test_system(world: &mut World) -> Result<(), ParsecError> {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
-    let mut materials = world.resources.get::<IdStore<MaterialData>>().none_err()?;
-    let mut material_bases = world.resources.get::<IdStore<MaterialBase>>().none_err()?;
-    let renderpass = world.resources.get::<RendererMainRenderpass>().none_err()?;
+fn test_system(ctx: Ctx) -> Result<(), ParsecError> {
+    let mut backend =
+        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut materials =
+        ctx.resources.get::<IdStore<MaterialData>>().none_err()?;
+    let mut material_bases =
+        ctx.resources.get::<IdStore<MaterialBase>>().none_err()?;
+    let renderpass =
+        ctx.resources.get::<RendererMainRenderpass>().none_err()?;
 
     let vertex = ShaderBuilder::new()
         .code(&read_shader_code("shaders/simple.spv")?)
@@ -153,10 +158,11 @@ fn test_system(world: &mut World) -> Result<(), ParsecError> {
 
     material_bases.push(material_base);
     let material_id = materials.push(material);
-    let mesh_handle = world.assets.load::<Mesh>("testmesh", world).unwrap();
-    let mesh = world.assets.get::<Mesh>(mesh_handle).unwrap();
+    let mesh_handle =
+        ctx.assets.load::<Mesh>("testmesh", ctx.resources).unwrap();
+    let mesh = ctx.assets.get::<Mesh>(mesh_handle).unwrap();
 
-    world.spawn((
+    ctx.world.spawn((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
         Transform::new(Vec3f::BACK, Vec3f::ZERO, Quat::IDENTITY),
         CameraController {
@@ -167,11 +173,11 @@ fn test_system(world: &mut World) -> Result<(), ParsecError> {
             fov: 40.0,
         },
     ))?;
-    world.spawn((
+    ctx.world.spawn((
         Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
         MeshRenderer::new(mesh.id(), material_id),
     ))?;
-    world.spawn((
+    ctx.world.spawn((
         Transform::new(Vec3f::ONE * 20.0, Vec3f::ONE, Quat::IDENTITY),
         Light::new(
             (Vec3f::ONE * -1.0).normalize(),
@@ -192,12 +198,13 @@ struct CameraController {
     fov: f32,
 }
 
-fn controller(world: &World) -> Result<(), ParsecError> {
+fn controller(ctx: Ctx) -> Result<(), ParsecError> {
     let mut cameras =
-        world.query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
-    let mut window = world.resources.get::<Window>().none_err()?;
-    let input = world.resources.get::<Input>().none_err()?;
-    let time = world.resources.get::<Time>().none_err()?;
+        ctx.world
+            .query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
+    let mut window = ctx.resources.get::<Window>().none_err()?;
+    let input = ctx.resources.get::<Input>().none_err()?;
+    let time = ctx.resources.get::<Time>().none_err()?;
 
     for (_, (transform, camera, camera_controller)) in cameras.iter() {
         let delta = input.mouse.positon_delta();

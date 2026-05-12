@@ -4,7 +4,8 @@ use parsec_engine_math::mat::Matrix4f;
 
 use crate::{
     create_counter,
-    ecs::world::{World, fetch::Mut},
+    ctx::Ctx,
+    ecs::world::fetch::Mut,
     error::{OptionNoneErr, ParsecError},
     graphics::{
         ActiveGraphicsBackend,
@@ -83,15 +84,15 @@ impl Identifiable for CameraData {
     fn id(&self) -> IdType { self.camera_data_id }
 }
 
-pub fn add_camera_data(world: &World) -> Result<(), ParsecError> {
-    let window = world.resources.get::<Window>().none_err()?;
+pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
+    let window = ctx.resources.get::<Window>().none_err()?;
     let mut backend =
-        world.resources.get::<ActiveGraphicsBackend>().none_err()?;
+        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
     let mut cameras_data =
-        world.resources.get::<IdStore<CameraData>>().none_err()?;
+        ctx.resources.get::<IdStore<CameraData>>().none_err()?;
     let mut camera_data_manager =
-        world.resources.get::<CameraDataManager>().none_err()?;
-    let mut cameras = world.query::<Mut<Camera>>();
+        ctx.resources.get::<CameraDataManager>().none_err()?;
+    let mut cameras = ctx.world.query::<Mut<Camera>>();
 
     for (_, camera) in cameras.iter() {
         if let std::collections::hash_map::Entry::Vacant(e) =
@@ -110,16 +111,19 @@ pub fn add_camera_data(world: &World) -> Result<(), ParsecError> {
             e.insert(data_id);
         }
     }
-    
+
     Ok(())
 }
 
-pub fn update_camera_data(world: &World) -> Result<(), ParsecError> {
-    let window = world.resources.get::<Window>().none_err()?;
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
-    let mut cameras_data = world.resources.get::<IdStore<CameraData>>().none_err()?;
-    let camera_data_manager = world.resources.get::<CameraDataManager>().none_err()?;
-    let mut cameras = world.query::<Camera>();
+pub fn update_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
+    let window = ctx.resources.get::<Window>().none_err()?;
+    let mut backend =
+        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut cameras_data =
+        ctx.resources.get::<IdStore<CameraData>>().none_err()?;
+    let camera_data_manager =
+        ctx.resources.get::<CameraDataManager>().none_err()?;
+    let mut cameras = ctx.world.query::<Camera>();
 
     let aspect_ratio = window.aspect_ratio();
     for (_, camera) in cameras.iter() {
@@ -142,6 +146,6 @@ pub fn update_camera_data(world: &World) -> Result<(), ParsecError> {
                 .unwrap();
         }
     }
-    
+
     Ok(())
 }

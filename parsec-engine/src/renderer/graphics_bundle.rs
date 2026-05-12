@@ -2,10 +2,8 @@ use std::marker::PhantomData;
 
 use crate::{
     assets::{AssetHandle, assets::mesh::Mesh},
-    ecs::{
-        system::{SystemBundle, SystemTrigger, Systems},
-        world::World,
-    },
+    ctx::Ctx,
+    ecs::system::{SystemBundle, SystemTrigger, Systems},
     error::{OptionNoneErr, ParsecError},
     graphics::{
         ActiveEventLoop, ActiveGraphicsBackend, backend::GraphicsBackend,
@@ -42,13 +40,11 @@ impl<B: GraphicsBackend> Default for GraphicsBundle<B> {
 impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
     fn insert(self, systems: &mut Systems) {
         systems.add(SystemTrigger::LateStart, init_window);
-        systems.add(SystemTrigger::LateStart, |world: &mut World| {
-            let window = world.resources.get::<Window>().none_err()?;
-            world
-                .resources
+        systems.add(SystemTrigger::LateStart, |ctx: Ctx| {
+            let window = ctx.resources.get::<Window>().none_err()?;
+            ctx.resources
                 .add(ActiveGraphicsBackend::with_backend::<B>(&window)?);
-            world
-                .resources
+            ctx.resources
                 .add_dependency::<ActiveGraphicsBackend, Window>()
                 .unwrap();
             Ok(())
@@ -69,47 +65,46 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
     }
 }
 
-fn mark_resize(world: &World) -> Result<(), ParsecError> {
-    world.resources.get::<ResizeFlag>().none_err()?.0 = true;
+fn mark_resize(ctx: Ctx) -> Result<(), ParsecError> {
+    ctx.resources.get::<ResizeFlag>().none_err()?.0 = true;
     Ok(())
 }
 
-fn request_redraw(world: &World) -> Result<(), ParsecError> {
-    world.resources.get::<Window>().none_err()?.request_redraw();
+fn request_redraw(ctx: Ctx) -> Result<(), ParsecError> {
+    ctx.resources.get::<Window>().none_err()?.request_redraw();
     Ok(())
 }
 
-fn end_wait_idle(world: &World) -> Result<(), ParsecError> {
-    world
-        .resources
+fn end_wait_idle(ctx: Ctx) -> Result<(), ParsecError> {
+    ctx.resources
         .get::<ActiveGraphicsBackend>()
         .none_err()?
         .wait_idle();
     Ok(())
 }
 
-fn init_window(world: &mut World) -> Result<(), ParsecError> {
+fn init_window(ctx: Ctx) -> Result<(), ParsecError> {
     let window = {
-        let event_loop = world.resources.get::<ActiveEventLoop>().none_err()?;
+        let event_loop = ctx.resources.get::<ActiveEventLoop>().none_err()?;
         let event_loop = event_loop.raw_active_event_loop()?;
         Window::new(event_loop, "Oxide Engine test")?
     };
-    world.resources.add(window);
+    ctx.resources.add(window);
     Ok(())
 }
 
-fn auto_enqueue(world: &World) -> Result<(), ParsecError> {
-    let mut draw_queue = world.resources.get::<Vec<Draw>>().none_err()?;
+fn auto_enqueue(ctx: Ctx) -> Result<(), ParsecError> {
+    let mut draw_queue = ctx.resources.get::<Vec<Draw>>().none_err()?;
     let camera_data_manager =
-        world.resources.get::<CameraDataManager>().none_err()?;
+        ctx.resources.get::<CameraDataManager>().none_err()?;
     let transform_data_manager =
-        world.resources.get::<TransformDataManager>().none_err()?;
-    let mut cameras = world.query::<(Transform, Camera)>();
-    let mut mesh_renderers = world.query::<(Transform, MeshRenderer)>();
+        ctx.resources.get::<TransformDataManager>().none_err()?;
+    let mut cameras = ctx.world.query::<(Transform, Camera)>();
+    let mut mesh_renderers = ctx.world.query::<(Transform, MeshRenderer)>();
 
     for (_, (camera_transform, camera)) in cameras.iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
-            let mesh_asset = world
+            let mesh_asset = ctx
                 .assets
                 .get::<Mesh>(AssetHandle::new("testmesh"))
                 .none_err()?;

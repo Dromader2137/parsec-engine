@@ -4,7 +4,8 @@ use parsec_engine_math::{mat::Matrix4f, quat::Quat, vec::Vec3f};
 
 use crate::{
     create_counter,
-    ecs::world::{World, fetch::Mut},
+    ctx::Ctx,
+    ecs::world::fetch::Mut,
     error::{OptionNoneErr, ParsecError},
     graphics::{
         ActiveGraphicsBackend,
@@ -179,11 +180,14 @@ impl Identifiable for TransformData {
     fn id(&self) -> IdType { self.transform_data_id }
 }
 
-pub fn add_transform_data(world: &World) -> Result<(), ParsecError> {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
-    let mut transforms_data = world.resources.get::<IdStore<TransformData>>().none_err()?;
-    let mut transforms_data_manager = world.resources.get::<TransformDataManager>().none_err()?;
-    let mut transforms = world.query::<Mut<Transform>>();
+pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
+    let mut backend =
+        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut transforms_data =
+        ctx.resources.get::<IdStore<TransformData>>().none_err()?;
+    let mut transforms_data_manager =
+        ctx.resources.get::<TransformDataManager>().none_err()?;
+    let mut transforms = ctx.world.query::<Mut<Transform>>();
 
     for (_, transform) in transforms.iter() {
         if let std::collections::hash_map::Entry::Vacant(e) =
@@ -204,11 +208,14 @@ pub fn add_transform_data(world: &World) -> Result<(), ParsecError> {
     Ok(())
 }
 
-pub fn update_transform_data(world: &World) -> Result<(), ParsecError> {
-    let mut backend = world.resources.get::<ActiveGraphicsBackend>().none_err()?;
-    let mut transforms_data = world.resources.get::<IdStore<TransformData>>().none_err()?;
-    let transforms_data_manager = world.resources.get::<TransformDataManager>().none_err()?;
-    let mut transforms = world.query::<Transform>();
+pub fn update_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
+    let mut backend =
+        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+    let mut transforms_data =
+        ctx.resources.get::<IdStore<TransformData>>().none_err()?;
+    let transforms_data_manager =
+        ctx.resources.get::<TransformDataManager>().none_err()?;
+    let mut transforms = ctx.world.query::<Transform>();
 
     for (_, transform) in transforms.iter() {
         if let Some(data_id) = transforms_data_manager

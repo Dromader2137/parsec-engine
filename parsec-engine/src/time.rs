@@ -3,10 +3,8 @@
 use std::time::{SystemTime, SystemTimeError};
 
 use crate::{
-    ecs::{
-        system::{SystemBundle, SystemTrigger, Systems},
-        world::World,
-    },
+    ctx::Ctx,
+    ecs::system::{SystemBundle, SystemTrigger, Systems},
     error::{OptionNoneErr, ParsecError},
 };
 
@@ -56,10 +54,10 @@ impl Time {
     }
 }
 
-fn time_init(world: &mut World) { world.resources.add(Time::new()); }
+fn time_init(ctx: Ctx) { ctx.resources.add(Time::new()); }
 
-fn time_update(world: &World) -> Result<(), ParsecError> {
-    world.resources.get::<Time>().none_err()?.update_time();
+fn time_update(ctx: Ctx) -> Result<(), ParsecError> {
+    ctx.resources.get::<Time>().none_err()?.update_time();
     Ok(())
 }
 

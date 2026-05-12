@@ -7,11 +7,9 @@ use spawn::Spawn;
 use thiserror::Error;
 
 use crate::{
-    assets::AssetLibrary,
     create_counter,
     ecs::{
         entity::Entity,
-        resources::Resources,
         world::{
             add_component::AddComponent, fetch::Fetch, query::Query,
             remove_component::RemoveComponent,
@@ -39,15 +37,11 @@ pub enum WorldError {
     DeleteComponentError { kind: ArchetypeError },
 }
 
-/// Stores all data about components, entities, and global resources.
+/// Stores all data about components and entities.
 #[derive(Debug)]
 pub struct World {
     /// Contains all archetypes indexed by their id.
     archetypes: HashMap<ArchetypeId, Archetype>,
-    /// Global resource storage.
-    pub resources: Resources,
-    /// Global assets storage.
-    pub assets: AssetLibrary,
 }
 
 impl Default for World {
@@ -59,8 +53,6 @@ impl World {
     pub fn new() -> Self {
         Self {
             archetypes: HashMap::new(),
-            resources: Resources::new(),
-            assets: AssetLibrary::new(),
         }
     }
 

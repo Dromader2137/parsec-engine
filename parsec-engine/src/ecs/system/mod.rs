@@ -2,7 +2,12 @@
 
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
-use crate::{ecs::world::World, error::ParsecError};
+use crate::{
+    assets::AssetLibrary,
+    ctx::Ctx,
+    ecs::{resources::Resources, world::World},
+    error::ParsecError,
+};
 
 /// List of possible actions a system can run on.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -76,10 +81,16 @@ impl Systems {
         &mut self,
         system_type: SystemTrigger,
         world: &mut World,
+        resources: &mut Resources,
+        assets: &mut AssetLibrary,
     ) -> Result<(), ParsecError> {
         if let Some(systems) = self.systems.get_mut(&system_type) {
             for system in systems.iter_mut() {
-                system.run(world)?;
+                system.run(Ctx {
+                    world: &mut *world,
+                    resources: &mut *resources,
+                    assets: &mut *assets,
+                })?;
             }
         }
         Ok(())
@@ -92,7 +103,7 @@ impl Default for Systems {
 
 /// Marks a type that is a system.
 pub trait System: Send + Sync + 'static {
-    fn run(&mut self, world: &mut World) -> Result<(), ParsecError>;
+    fn run<'a>(&mut self, ctx: Ctx<'a>) -> Result<(), ParsecError>;
 }
 
 pub trait IntoSystem<Marker> {
@@ -105,16 +116,14 @@ pub struct FunctionSystem<F, Marker> {
     _marker: PhantomData<Marker>,
 }
 
-pub struct WorldMutMarker;
-pub struct WorldMutResultMarker;
-pub struct WorldRefMarker;
-pub struct WorldRefResultMarker;
+pub struct CtxMarker;
+pub struct CtxResultMarker;
 
-impl<F> IntoSystem<WorldMutMarker> for F
+impl<F> IntoSystem<CtxMarker> for F
 where
-    F: FnMut(&mut World) + Send + Sync + 'static,
+    F: for<'a> FnMut(Ctx<'a>) + Send + Sync + 'static,
 {
-    type ResultingSystem = FunctionSystem<F, WorldMutMarker>;
+    type ResultingSystem = FunctionSystem<F, CtxMarker>;
     fn into_system(self) -> Self::ResultingSystem {
         FunctionSystem {
             function: self,
@@ -122,21 +131,24 @@ where
         }
     }
 }
-impl<F> System for FunctionSystem<F, WorldMutMarker>
+impl<F> System for FunctionSystem<F, CtxMarker>
 where
-    F: FnMut(&mut World) + Send + Sync + 'static,
+    F: for<'a> FnMut(Ctx<'a>) + Send + Sync + 'static,
 {
-    fn run(&mut self, world: &mut World) -> Result<(), ParsecError> {
-        (self.function)(world);
+    fn run<'a>(&mut self, ctx: Ctx<'a>) -> Result<(), ParsecError> {
+        (self.function)(ctx);
         Ok(())
     }
 }
 
-impl<F> IntoSystem<WorldMutResultMarker> for F
+impl<F> IntoSystem<CtxResultMarker> for F
 where
-    F: FnMut(&mut World) -> Result<(), ParsecError> + Send + Sync + 'static,
+    F: for<'a> FnMut(Ctx<'a>) -> Result<(), ParsecError>
+        + Send
+        + Sync
+        + 'static,
 {
-    type ResultingSystem = FunctionSystem<F, WorldMutResultMarker>;
+    type ResultingSystem = FunctionSystem<F, CtxResultMarker>;
     fn into_system(self) -> Self::ResultingSystem {
         FunctionSystem {
             function: self,
@@ -144,55 +156,15 @@ where
         }
     }
 }
-impl<F> System for FunctionSystem<F, WorldMutResultMarker>
+impl<F> System for FunctionSystem<F, CtxResultMarker>
 where
-    F: FnMut(&mut World) -> Result<(), ParsecError> + Send + Sync + 'static,
+    F: for<'a> FnMut(Ctx<'a>) -> Result<(), ParsecError>
+        + Send
+        + Sync
+        + 'static,
 {
-    fn run(&mut self, world: &mut World) -> Result<(), ParsecError> {
-        (self.function)(world)
-    }
-}
-
-impl<F> IntoSystem<WorldRefMarker> for F
-where
-    F: FnMut(&World) + Send + Sync + 'static,
-{
-    type ResultingSystem = FunctionSystem<F, WorldRefMarker>;
-    fn into_system(self) -> Self::ResultingSystem {
-        FunctionSystem {
-            function: self,
-            _marker: PhantomData,
-        }
-    }
-}
-impl<F> System for FunctionSystem<F, WorldRefMarker>
-where
-    F: FnMut(&World) + Send + Sync + 'static,
-{
-    fn run(&mut self, world: &mut World) -> Result<(), ParsecError> {
-        (self.function)(world);
-        Ok(())
-    }
-}
-
-impl<F> IntoSystem<WorldRefResultMarker> for F
-where
-    F: FnMut(&World) -> Result<(), ParsecError> + Send + Sync + 'static,
-{
-    type ResultingSystem = FunctionSystem<F, WorldRefResultMarker>;
-    fn into_system(self) -> Self::ResultingSystem {
-        FunctionSystem {
-            function: self,
-            _marker: PhantomData,
-        }
-    }
-}
-impl<F> System for FunctionSystem<F, WorldRefResultMarker>
-where
-    F: FnMut(&World) -> Result<(), ParsecError> + Send + Sync + 'static,
-{
-    fn run(&mut self, world: &mut World) -> Result<(), ParsecError> {
-        (self.function)(world)
+    fn run<'a>(&mut self, ctx: Ctx<'a>) -> Result<(), ParsecError> {
+        (self.function)(ctx)
     }
 }
 

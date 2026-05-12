@@ -3,10 +3,8 @@
 use keys::Keys;
 
 use crate::{
-    ecs::{
-        system::{SystemBundle, SystemTrigger, Systems},
-        world::World,
-    },
+    ctx::Ctx,
+    ecs::system::{SystemBundle, SystemTrigger, Systems},
     error::{OptionNoneErr, ParsecError},
     graphics::window::Window,
     input::{
@@ -39,30 +37,29 @@ impl Input {
     }
 }
 
-fn input_start(world: &mut World) { world.resources.add(Input::new()); }
+fn input_start(ctx: Ctx) { ctx.resources.add(Input::new()); }
 
-fn input_clear(world: &World) -> Result<(), ParsecError> {
-    let mut input = world.resources.get::<Input>().none_err()?;
+fn input_clear(ctx: Ctx) -> Result<(), ParsecError> {
+    let mut input = ctx.resources.get::<Input>().none_err()?;
     input.keys.clear();
     input.mouse.clear();
     Ok(())
 }
 
-fn input_clear_all(world: &World) -> Result<(), ParsecError> {
-    let mut input = world.resources.get::<Input>().none_err()?;
+fn input_clear_all(ctx: Ctx) -> Result<(), ParsecError> {
+    let mut input = ctx.resources.get::<Input>().none_err()?;
     input.keys.clear_all();
     input.mouse.clear();
     Ok(())
 }
 
-fn input_keyboard_event(world: &World) -> Result<(), ParsecError> {
-    let window = world.resources.get::<Window>().none_err()?;
+fn input_keyboard_event(ctx: Ctx) -> Result<(), ParsecError> {
+    let window = ctx.resources.get::<Window>().none_err()?;
     if !window.focused() {
         return Ok(());
     }
-    let input_event = world.resources.get::<KeyboardInputEvent>().none_err()?;
-    world
-        .resources
+    let input_event = ctx.resources.get::<KeyboardInputEvent>().none_err()?;
+    ctx.resources
         .get::<Input>()
         .none_err()?
         .keys
@@ -70,15 +67,14 @@ fn input_keyboard_event(world: &World) -> Result<(), ParsecError> {
     Ok(())
 }
 
-fn input_mouse_movement(world: &World) -> Result<(), ParsecError> {
-    let window = world.resources.get::<Window>().none_err()?;
+fn input_mouse_movement(ctx: Ctx) -> Result<(), ParsecError> {
+    let window = ctx.resources.get::<Window>().none_err()?;
     if !window.focused() {
         return Ok(());
     }
     let movement_event =
-        world.resources.get::<MouseMovementEvent>().none_err()?;
-    world
-        .resources
+        ctx.resources.get::<MouseMovementEvent>().none_err()?;
+    ctx.resources
         .get::<Input>()
         .none_err()?
         .mouse
@@ -86,14 +82,13 @@ fn input_mouse_movement(world: &World) -> Result<(), ParsecError> {
     Ok(())
 }
 
-fn input_mouse_button(world: &World) -> Result<(), ParsecError> {
-    let window = world.resources.get::<Window>().none_err()?;
+fn input_mouse_button(ctx: Ctx) -> Result<(), ParsecError> {
+    let window = ctx.resources.get::<Window>().none_err()?;
     if !window.focused() {
         return Ok(());
     }
-    let button_event = world.resources.get::<MouseButtonEvent>().none_err()?;
-    world
-        .resources
+    let button_event = ctx.resources.get::<MouseButtonEvent>().none_err()?;
+    ctx.resources
         .get::<Input>()
         .none_err()?
         .mouse
@@ -101,14 +96,13 @@ fn input_mouse_button(world: &World) -> Result<(), ParsecError> {
     Ok(())
 }
 
-fn input_mouse_wheel(world: &World) -> Result<(), ParsecError> {
-    let window = world.resources.get::<Window>().none_err()?;
+fn input_mouse_wheel(ctx: Ctx) -> Result<(), ParsecError> {
+    let window = ctx.resources.get::<Window>().none_err()?;
     if !window.focused() {
         return Ok(());
     }
-    let wheel_event = world.resources.get::<MouseWheelEvent>().none_err()?;
-    world
-        .resources
+    let wheel_event = ctx.resources.get::<MouseWheelEvent>().none_err()?;
+    ctx.resources
         .get::<Input>()
         .none_err()?
         .mouse

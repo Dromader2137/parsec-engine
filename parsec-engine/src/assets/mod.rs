@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    ecs::world::World,
+    ecs::resources::Resources,
     error::{ParsecError, StrError},
 };
 
@@ -47,7 +47,7 @@ impl AssetLibrary {
     pub fn load<T: Asset>(
         &mut self,
         name: &'static str,
-        world: &mut World,
+        resources: &mut Resources,
     ) -> Result<AssetHandle<T>, ParsecError> {
         if !self.manifest.assets.contains_key(name) {
             return Err(
@@ -63,7 +63,7 @@ impl AssetLibrary {
         )?;
         let cooked = postcard::from_bytes::<T::Cooked>(&bytes)?;
 
-        let asset = T::load(cooked, world);
+        let asset = T::load(cooked, resources);
         let asset_vec =
             self.assets.entry(TypeId::of::<T>()).or_insert(Vec::new());
         asset_vec.push((name, Box::new(asset) as Box<dyn Any>));
@@ -85,7 +85,7 @@ pub trait Asset: 'static {
     const EXTENSIONS: &'static [&'static str];
 
     fn cook(data: &[u8], extension: &str) -> Self::Cooked;
-    fn load(cooked: Self::Cooked, world: &mut World) -> Self;
+    fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self;
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

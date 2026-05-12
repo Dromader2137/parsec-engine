@@ -3,7 +3,7 @@ use parsec_engine_math::vec::{Vec2f, Vec3f};
 use crate::{
     assets::{Asset, assets::mesh::obj::cook_obj},
     create_counter,
-    ecs::world::World,
+    ecs::resources::Resources,
     error::OptionNoneErr,
     graphics::{ActiveGraphicsBackend, pipeline::DefaultVertex},
     renderer::mesh_data::MeshData,
@@ -90,24 +90,18 @@ impl Asset for Mesh {
         CookedMesh::default()
     }
 
-    fn load(cooked: Self::Cooked, world: &mut World) -> Self {
-        let mut backend = world
-            .resources
-            .get::<ActiveGraphicsBackend>()
-            .none_err()
-            .unwrap();
+    fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {
+        let mut backend =
+            resources.get::<ActiveGraphicsBackend>().none_err().unwrap();
         let mut mesh = Mesh::from(cooked);
         let mesh_data =
             MeshData::new(&mut backend, &mesh.vertices, &mesh.indices);
         let mut mesh_data_store =
-            world.resources.get::<IdStore<MeshData<DefaultVertex>>>();
+            resources.get::<IdStore<MeshData<DefaultVertex>>>();
         if mesh_data_store.is_none() {
-            world
-                .resources
-                .add(IdStore::<MeshData<DefaultVertex>>::new());
-            mesh_data_store = world
-                .resources
-                .get::<IdStore<MeshData<DefaultVertex>>>();
+            resources.add(IdStore::<MeshData<DefaultVertex>>::new());
+            mesh_data_store =
+                resources.get::<IdStore<MeshData<DefaultVertex>>>();
         }
         let mut mesh_data_store = mesh_data_store.unwrap();
         let id = mesh_data_store.push(mesh_data);

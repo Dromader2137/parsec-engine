@@ -1,6 +1,7 @@
 pub mod app;
 pub mod assets;
 pub mod cli;
+pub mod ctx;
 pub mod ecs;
 pub mod error;
 pub mod graphics;
