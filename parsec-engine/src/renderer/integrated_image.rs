@@ -12,21 +12,21 @@ use crate::{
     },
 };
 
-pub struct Texture {
+pub struct IntegratedImage {
     image: Image,
     view: ImageView,
     sampler: Sampler,
 }
 
 #[derive(Debug, Default)]
-pub struct TextureBuilder<'a> {
+pub struct IntegratedImageBuilder<'a> {
     size: ImageSize,
     format: ImageFormat,
     aspect: ImageAspect,
     usage: &'a [ImageUsage],
 }
 
-impl<'a> TextureBuilder<'a> {
+impl<'a> IntegratedImageBuilder<'a> {
     pub fn size(mut self, size: ImageSize) -> Self {
         self.size = size;
         self
@@ -50,7 +50,7 @@ impl<'a> TextureBuilder<'a> {
     pub fn build(
         self,
         backend: &mut ActiveGraphicsBackend,
-    ) -> Result<Texture, ParsecError> {
+    ) -> Result<IntegratedImage, ParsecError> {
         let image = ImageBuilder::new()
             .size(self.size)
             .format(self.format)
@@ -61,7 +61,7 @@ impl<'a> TextureBuilder<'a> {
             .image(image.handle())
             .build(backend)?;
         let sampler = SamplerBuilder::new().build(backend)?;
-        Ok(Texture {
+        Ok(IntegratedImage {
             image,
             view,
             sampler,
@@ -69,7 +69,7 @@ impl<'a> TextureBuilder<'a> {
     }
 }
 
-impl Texture {
+impl IntegratedImage {
     pub fn new(image: Image, view: ImageView, sampler: Sampler) -> Self {
         Self {
             image,

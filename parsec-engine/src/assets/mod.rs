@@ -13,14 +13,20 @@ use crate::{
     error::{ParsecError, StrError},
 };
 
-pub mod assets;
+pub mod core;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct AssetHandle<T: Asset> {
     name: &'static str,
     _marker: PhantomData<T>,
 }
 
+impl<T: Asset> Clone for AssetHandle<T> {
+    fn clone(&self) -> Self {
+        Self { name: self.name, _marker: PhantomData }
+    }
+}
+impl<T: Asset> Copy for AssetHandle<T> {}
 impl<T: Asset> AssetHandle<T> {
     pub fn new(name: &'static str) -> Self {
         Self {

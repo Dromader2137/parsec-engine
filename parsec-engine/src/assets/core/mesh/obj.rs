@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use parsec_engine_math::vec::{Vec2f, Vec3f};
 use thiserror::Error;
 
-use crate::assets::assets::mesh::CookedMesh;
+use crate::assets::core::mesh::CookedMesh;
 
 #[derive(Error, Debug)]
 pub enum LoadOBJError {

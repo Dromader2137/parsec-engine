@@ -1,7 +1,7 @@
 use image::EncodableLayout;
 use parsec_engine::{
     app::App,
-    assets::assets::mesh::Mesh,
+    assets::core::{mesh::Mesh, shader::Shader},
     ctx::Ctx,
     ecs::{
         system::SystemTrigger,
@@ -18,7 +18,6 @@ use parsec_engine::{
             PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         sampler::SamplerBuilder,
-        shader::{ShaderBuilder, ShaderType, read_shader_code},
         window::Window,
     },
     input::{Input, InputBundle},
@@ -33,11 +32,18 @@ use parsec_engine::{
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
     },
     time::{Time, TimeBundle},
-    utils::identifiable::{IdStore, Identifiable},
+    utils::identifiable::IdStore,
 };
 use parsec_engine_vulkan::VulkanBackend;
 
 fn test_system(ctx: Ctx) -> Result<(), ParsecError> {
+    let vertex_shader_handle =
+        ctx.assets.load::<Shader>("shaderv", ctx.resources)?;
+    let fragment_shader_handle =
+        ctx.assets.load::<Shader>("shaderf", ctx.resources)?;
+    let mesh_handle =
+        ctx.assets.load::<Mesh>("testmesh", ctx.resources).unwrap();
+    
     let mut backend =
         ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
     let mut materials =
@@ -47,21 +53,10 @@ fn test_system(ctx: Ctx) -> Result<(), ParsecError> {
     let renderpass =
         ctx.resources.get::<RendererMainRenderpass>().none_err()?;
 
-    let vertex = ShaderBuilder::new()
-        .code(&read_shader_code("shaders/simple.spv")?)
-        .shader_type(ShaderType::Vertex)
-        .build(&mut backend)
-        .unwrap();
-    let fragment = ShaderBuilder::new()
-        .code(&read_shader_code("shaders/multilight.spv")?)
-        .shader_type(ShaderType::Fragment)
-        .build(&mut backend)
-        .unwrap();
-
     let material_base = MaterialBase::new(
         &mut backend,
-        vertex.handle(),
-        fragment.handle(),
+        ctx.assets.get(vertex_shader_handle).none_err()?.module.handle(),
+        ctx.assets.get(fragment_shader_handle).none_err()?.module.handle(),
         renderpass.0.handle(),
         vec![
             vec![
@@ -158,9 +153,7 @@ fn test_system(ctx: Ctx) -> Result<(), ParsecError> {
 
     material_bases.push(material_base);
     let material_id = materials.push(material);
-    let mesh_handle =
-        ctx.assets.load::<Mesh>("testmesh", ctx.resources).unwrap();
-    let mesh = ctx.assets.get::<Mesh>(mesh_handle).unwrap();
+    println!("{:#?}", ctx.assets);
 
     ctx.world.spawn((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
@@ -175,7 +168,7 @@ fn test_system(ctx: Ctx) -> Result<(), ParsecError> {
     ))?;
     ctx.world.spawn((
         Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
-        MeshRenderer::new(mesh.id(), material_id),
+        MeshRenderer::new(mesh_handle, material_id),
     ))?;
     ctx.world.spawn((
         Transform::new(Vec3f::ONE * 20.0, Vec3f::ONE, Quat::IDENTITY),

@@ -9,7 +9,7 @@ use crate::{
             PipelineResourceLayout, PipelineResourceLayoutBuilder,
         },
         renderpass::RenderpassHandle,
-        shader::ShaderHandle,
+        shader_module::ShaderHandle,
     },
     renderer::{
         camera_data::CameraData, light_data::RendererLights,

@@ -30,7 +30,7 @@ use parsec_engine::{
             Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
         },
         sampler::{Sampler, SamplerError, SamplerHandle},
-        shader::{Shader, ShaderError, ShaderHandle, ShaderType},
+        shader_module::{ShaderModule, ShaderError, ShaderHandle, ShaderType},
         window::Window,
     },
 };
@@ -439,7 +439,7 @@ impl GraphicsBackend for VulkanBackend {
         Ok(ShaderHandle::new(shader_id))
     }
 
-    fn delete_shader(&mut self, shader: Shader) -> Result<(), ShaderError> {
+    fn delete_shader(&mut self, shader: ShaderModule) -> Result<(), ShaderError> {
         let shader = self
             .shaders
             .remove(&shader.handle().id())

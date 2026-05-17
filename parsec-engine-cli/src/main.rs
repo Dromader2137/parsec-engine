@@ -1,5 +1,5 @@
 use parsec_engine::{
-    assets::assets::mesh::Mesh,
+    assets::core::mesh::Mesh,
     cli::{Cooker, run_cli},
 };
 

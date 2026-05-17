@@ -42,7 +42,7 @@ pub mod image;
 pub mod pipeline;
 pub mod renderpass;
 pub mod sampler;
-pub mod shader;
+pub mod shader_module;
 pub mod window;
 
 pub struct ActiveGraphicsBackend(Box<dyn GraphicsBackend>);

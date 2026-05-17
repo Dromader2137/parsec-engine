@@ -13,23 +13,23 @@ use crate::{
             RenderpassAttachmentStoreOp, RenderpassAttachmentType,
             RenderpassBuilder, RenderpassClearValue,
         },
-        shader::{Shader, ShaderBuilder, ShaderType, read_shader_code},
+        shader_module::{ShaderModule, ShaderModuleBuilder, ShaderType, read_shader_code},
     },
     math::uvec::Vec2u,
     renderer::{
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
-        texture::{Texture, TextureBuilder},
+        integrated_image::{IntegratedImage, IntegratedImageBuilder},
     },
 };
 
 pub struct RendererShadows {
-    vertex_shader: Shader,
-    fragment_shader: Shader,
+    vertex_shader: ShaderModule,
+    fragment_shader: ShaderModule,
     pub material_base: MaterialBase,
     pub material: MaterialData,
     pub renderpass: Renderpass,
     pub framebuffer: Framebuffer,
-    shadow_texture: Texture,
+    shadow_texture: IntegratedImage,
     texture_resource_layout: PipelineResourceLayout,
     pub texture_resource: PipelineResource,
 }
@@ -46,12 +46,12 @@ impl RendererShadows {
             })
             .build(backend)
             .unwrap();
-        let vertex_shader = ShaderBuilder::new()
+        let vertex_shader = ShaderModuleBuilder::new()
             .code(&read_shader_code("shaders/shadow_vert.spv").unwrap())
             .shader_type(ShaderType::Vertex)
             .build(backend)
             .unwrap();
-        let fragment_shader = ShaderBuilder::new()
+        let fragment_shader = ShaderModuleBuilder::new()
             .code(&read_shader_code("shaders/shadow_frag.spv").unwrap())
             .shader_type(ShaderType::Fragment)
             .build(backend)
@@ -94,7 +94,7 @@ impl RendererShadows {
             MaterialPipelineBinding::Light,
         ]);
 
-        let shadow_texture = TextureBuilder::default()
+        let shadow_texture = IntegratedImageBuilder::default()
             .size(
                 ImageSize::new(Vec2u::new(texture_size << 1, texture_size))
                     .unwrap(),

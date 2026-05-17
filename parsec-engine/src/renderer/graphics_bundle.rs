@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    assets::{AssetHandle, assets::mesh::Mesh},
+    assets::core::mesh::Mesh,
     ctx::Ctx,
     ecs::system::{SystemBundle, SystemTrigger, Systems},
     error::{OptionNoneErr, ParsecError},
@@ -58,7 +58,6 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
         systems.add(SystemTrigger::Render, queue_clear);
         systems.add(SystemTrigger::Update, request_redraw);
         systems.add(SystemTrigger::Update, add_camera_data);
-        // systems.add(SystemTrigger::Update, add_mesh_data);
         systems.add(SystemTrigger::Update, add_transform_data);
         systems.add(SystemTrigger::End, end_wait_idle);
         systems.add(SystemTrigger::WindowResized, mark_resize);
@@ -104,10 +103,8 @@ fn auto_enqueue(ctx: Ctx) -> Result<(), ParsecError> {
 
     for (_, (camera_transform, camera)) in cameras.iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
-            let mesh_asset = ctx
-                .assets
-                .get::<Mesh>(AssetHandle::new("testmesh"))
-                .none_err()?;
+            let mesh_asset =
+                ctx.assets.get::<Mesh>(mesh_renderer.mesh).none_err()?;
             if mesh_asset.data_id.is_none()
                 || !camera_data_manager
                     .component_to_data

@@ -13,8 +13,8 @@ pub mod mesh_data;
 pub mod present_image;
 pub mod shadow;
 pub mod sync;
-pub mod texture;
-pub mod texture_atlas;
+pub mod integrated_image;
+pub mod image_atlas;
 pub mod transform_data;
 
 use sync::{RendererFrameSync, RendererImageSync};

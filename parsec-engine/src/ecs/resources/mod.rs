@@ -24,49 +24,6 @@ impl<T: Send + Sync + 'static> ResourceMarker for T {
     fn as_any(self: Box<Self>) -> Box<dyn Any + Send + Sync + 'static> { self }
 }
 
-/// Stores the information necessary to use a global resource.
-pub struct Resource<R: ResourceMarker> {
-    guard:
-        ManuallyDrop<MutexGuard<'static, Box<dyn Any + Send + Sync + 'static>>>,
-    _arc: Arc<Mutex<Box<dyn Any + Send + Sync + 'static>>>,
-    _marker: PhantomData<R>,
-}
-
-impl<R: ResourceMarker> Deref for Resource<R> {
-    type Target = R;
-    fn deref(&self) -> &Self::Target {
-        (*self.guard).downcast_ref::<R>().unwrap()
-    }
-}
-
-impl<R: ResourceMarker> DerefMut for Resource<R> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        (*self.guard).downcast_mut::<R>().unwrap()
-    }
-}
-
-impl<R: ResourceMarker> Drop for Resource<R> {
-    fn drop(&mut self) { unsafe { ManuallyDrop::drop(&mut self.guard) }; }
-}
-
-impl<R: ResourceMarker> Resource<R> {
-    fn from_resources(resources: &Resources) -> Option<Self> {
-        let arc = resources.resources.get(&TypeId::of::<R>())?.data.clone();
-        let locked = arc.lock().expect("Mutex poisoned");
-        let guard = unsafe {
-            std::mem::transmute::<
-                MutexGuard<'_, Box<dyn Any + Send + Sync + 'static>>,
-                MutexGuard<'static, Box<dyn Any + Send + Sync + 'static>>,
-            >(locked)
-        };
-        Some(Resource {
-            guard: ManuallyDrop::new(guard),
-            _arc: arc,
-            _marker: PhantomData,
-        })
-    }
-}
-
 #[derive(Debug)]
 pub struct Resources {
     resources: HashMap<TypeId, ResourceData>,
@@ -108,7 +65,7 @@ impl Resources {
     }
 
     /// Adds a box containing `resource` to global storage.
-    pub fn add_boxed(&mut self, resource: Box<dyn ResourceMarker>) {
+    fn add_boxed(&mut self, resource: Box<dyn ResourceMarker>) {
         let type_id = (*resource).resource_id();
         self.resources
             .insert(type_id, ResourceData::new_any(resource));
@@ -136,8 +93,27 @@ impl Resources {
     }
 
     /// Gets the resource of type `R`.
-    pub fn get<R: ResourceMarker>(&self) -> Option<Resource<R>> {
-        Resource::<R>::from_resources(self)
+    pub fn get<R: ResourceMarker>(&self) -> Option<&R> {
+        let resource_id = TypeId::of::<R>();
+        let resource_any = &self.resources.get(&resource_id)?.data;
+        resource_any.downcast_ref()
+    }
+    
+    /// Gets the resource of type `R` mutably.
+    pub fn get_mut<R: ResourceMarker>(&mut self) -> Option<&mut R> {
+        let resource_id = TypeId::of::<R>();
+        let resource_any = &mut self.resources.get_mut(&resource_id)?.data;
+        resource_any.downcast_mut()
+    }
+
+    pub fn get_add<R: ResourceMarker>(&mut self, res: R) -> &mut R {
+        let resource_id = TypeId::of::<R>();
+        if !self.resources.contains_key(&resource_id) {
+            self.add(res);
+        }
+        // UNWRAP: can't fail, because the line above adds a  resource
+        // of type R.
+        self.get_mut().unwrap()
     }
 
     /// Removes the resource of type `R`.
@@ -151,11 +127,6 @@ impl Resources {
             .resources
             .get(&type_id)
             .ok_or(ResourceError::ResourceNotFound("UNKNOWN"))?;
-        if Arc::weak_count(&resource.data) + Arc::strong_count(&resource.data)
-            > 1
-        {
-            return Err(ResourceError::ResourceNotUnique);
-        }
         if !resource.depended_on.is_empty() {
             return Err(ResourceError::ResourceDependedOn);
         }

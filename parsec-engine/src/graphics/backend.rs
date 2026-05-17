@@ -24,7 +24,7 @@ use crate::{
             Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
         },
         sampler::{Sampler, SamplerError, SamplerHandle},
-        shader::{Shader, ShaderError, ShaderHandle, ShaderType},
+        shader_module::{ShaderModule, ShaderError, ShaderHandle, ShaderType},
         window::Window,
     },
 };
@@ -62,7 +62,7 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         code: &[u32],
         shader_type: ShaderType,
     ) -> Result<ShaderHandle, ShaderError>;
-    fn delete_shader(&mut self, shader: Shader) -> Result<(), ShaderError>;
+    fn delete_shader(&mut self, shader: ShaderModule) -> Result<(), ShaderError>;
 
     fn create_renderpass(
         &mut self,

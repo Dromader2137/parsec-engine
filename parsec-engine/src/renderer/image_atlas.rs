@@ -12,29 +12,29 @@ use crate::{
         },
         sampler::SamplerBuilder,
     },
-    renderer::integrated_image::Texture,
+    renderer::integrated_image::IntegratedImage,
 };
 
-pub struct TextureAtlasRegion {
+pub struct ImageAtlasRegion {
     offset: Vec2u,
     size: Vec2u,
 }
 
-pub struct TextureAtlas {
+pub struct ImageAtlas {
     size: Vec2u,
-    texture: Texture,
-    elements: Vec<TextureAtlasRegion>,
+    image: IntegratedImage,
+    elements: Vec<ImageAtlasRegion>,
 }
 
 #[derive(Debug, Default)]
-pub struct TextureAtlasBuilder<'a> {
+pub struct ImageAtlasBuilder<'a> {
     size: ImageSize,
     format: ImageFormat,
     aspect: ImageAspect,
     usage: &'a [ImageUsage],
 }
 
-impl<'a> TextureAtlasBuilder<'a> {
+impl<'a> ImageAtlasBuilder<'a> {
     pub fn size(mut self, size: ImageSize) -> Self {
         self.size = size;
         self
@@ -58,7 +58,7 @@ impl<'a> TextureAtlasBuilder<'a> {
     pub fn build(
         self,
         backend: &mut ActiveGraphicsBackend,
-    ) -> Result<TextureAtlas, ParsecError> {
+    ) -> Result<ImageAtlas, ParsecError> {
         let image = ImageBuilder::new()
             .size(self.size)
             .format(self.format)
@@ -69,26 +69,26 @@ impl<'a> TextureAtlasBuilder<'a> {
             .image(image.handle())
             .build(backend)?;
         let sampler = SamplerBuilder::new().build(backend)?;
-        let texture = Texture::new(image, view, sampler);
+        let image = IntegratedImage::new(image, view, sampler);
 
-        Ok(TextureAtlas {
+        Ok(ImageAtlas {
             size: self.size.get_size(),
-            texture,
+            image,
             elements: Vec::new(),
         })
     }
 }
 
-impl TextureAtlas {
+impl ImageAtlas {
     pub fn copy_to_region(
         &self,
         backend: &mut ActiveGraphicsBackend,
         buffer: BufferHandle,
-        region: TextureAtlasRegion,
+        region: ImageAtlasRegion,
     ) -> Result<(), ParsecError> {
         backend.load_image_from_buffer(
             buffer,
-            self.texture.image().handle(),
+            self.image.image().handle(),
             region.size,
             region.offset,
         )?;
@@ -97,7 +97,7 @@ impl TextureAtlas {
 
     pub fn set_rendering_region(
         mut command_list: CommandList,
-        region: TextureAtlasRegion,
+        region: ImageAtlasRegion,
     ) -> Result<(), ParsecError> {
         command_list
             .cmd(Command::SetScissor(region.offset, region.size.signed()));
@@ -109,12 +109,12 @@ impl TextureAtlas {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), ParsecError> {
-        self.texture.destroy(backend)
+        self.image.destroy(backend)
     }
 
     pub fn size(&self) -> Vec2u { self.size }
 
-    pub fn texture(&self) -> &Texture { &self.texture }
+    pub fn image(&self) -> &IntegratedImage { &self.image }
 
-    pub fn elements(&self) -> &[TextureAtlasRegion] { &self.elements }
+    pub fn elements(&self) -> &[ImageAtlasRegion] { &self.elements }
 }

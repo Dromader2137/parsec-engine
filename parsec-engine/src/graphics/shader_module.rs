@@ -16,12 +16,12 @@ impl ShaderHandle {
 }
 
 #[derive(Debug)]
-pub struct Shader {
+pub struct ShaderModule {
     handle: ShaderHandle,
     shader_type: ShaderType,
 }
 
-impl Shader {
+impl ShaderModule {
     fn new(handle: ShaderHandle, shader_type: ShaderType) -> Self {
         Self {
             handle,
@@ -41,16 +41,16 @@ impl Shader {
     }
 }
 
-pub struct ShaderBuilder<'a> {
+pub struct ShaderModuleBuilder<'a> {
     code: Option<&'a [u32]>,
     shader_type: ShaderType,
 }
 
-impl<'a> Default for ShaderBuilder<'a> {
+impl<'a> Default for ShaderModuleBuilder<'a> {
     fn default() -> Self { Self::new() }
 }
 
-impl<'a> ShaderBuilder<'a> {
+impl<'a> ShaderModuleBuilder<'a> {
     pub fn new() -> Self {
         Self {
             code: None,
@@ -71,10 +71,10 @@ impl<'a> ShaderBuilder<'a> {
     pub fn build(
         self,
         backend: &mut ActiveGraphicsBackend,
-    ) -> Result<Shader, ShaderError> {
+    ) -> Result<ShaderModule, ShaderError> {
         let code = self.code.ok_or(ShaderError::MissingCode)?;
         let handle = backend.create_shader(code, self.shader_type)?;
-        Ok(Shader::new(handle, self.shader_type))
+        Ok(ShaderModule::new(handle, self.shader_type))
     }
 }
 
@@ -92,9 +92,10 @@ pub enum ShaderError {
     ShaderFileError(#[from] std::io::Error),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
 pub enum ShaderType {
-    // TODO maybe cleanup shadow material
     Vertex,
     Fragment,
 }
@@ -118,6 +119,24 @@ pub fn read_shader_code(path: &str) -> Result<Vec<u32>, ShaderError> {
     const MAGIC_NUMBER: u32 = 0x0723_0203;
     if !result.is_empty() && result[0] == MAGIC_NUMBER.swap_bytes() {
         for word in &mut result {
+            *word = word.swap_bytes();
+        }
+    }
+    Ok(result)
+}
+
+pub fn reinterpret_shader_code(bytes: &[u8]) -> Result<Vec<u32>, ShaderError> {
+    let size = bytes.len();
+    let words = size / 4;
+    let mut result = unsafe {
+        std::slice::from_raw_parts(
+            bytes.as_ptr().cast::<u32>(),
+            words 
+        )
+    }.to_vec();
+    const MAGIC_NUMBER: u32 = 0x0723_0203;
+    if !result.is_empty() && result[0] == MAGIC_NUMBER.swap_bytes() {
+        for word in result.iter_mut() {
             *word = word.swap_bytes();
         }
     }

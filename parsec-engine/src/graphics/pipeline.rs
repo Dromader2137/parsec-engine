@@ -5,7 +5,7 @@ use crate::{
     graphics::{
         ActiveGraphicsBackend, buffer::BufferHandle, image::ImageViewHandle,
         renderpass::RenderpassHandle, sampler::SamplerHandle,
-        shader::ShaderHandle,
+        shader_module::ShaderHandle,
     },
 };
 

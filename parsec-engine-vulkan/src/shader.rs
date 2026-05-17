@@ -1,4 +1,4 @@
-use parsec_engine::graphics::shader::ShaderType;
+use parsec_engine::graphics::shader_module::ShaderType;
 
 use crate::{create_counter, device::VulkanDevice};
 

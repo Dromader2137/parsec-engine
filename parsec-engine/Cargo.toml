@@ -4,8 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-ash.workspace = true
-ash-window.workspace = true
 once_cell.workspace = true
 thiserror.workspace = true
 winit.workspace = true
@@ -15,3 +13,4 @@ serde.workspace = true
 serde_json.workspace = true
 postcard.workspace = true
 clap.workspace = true
+shaderc.workspace = true

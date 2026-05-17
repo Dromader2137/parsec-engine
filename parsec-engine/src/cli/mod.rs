@@ -10,7 +10,7 @@ use std::{
 use clap::Parser;
 
 use crate::{
-    assets::{Asset, AssetDescription, Manifest, assets::mesh::Mesh},
+    assets::{Asset, AssetDescription, Manifest, core::{mesh::Mesh, shader::Shader}},
     error::{OptionNoneErr, ParsecError},
 };
 
@@ -146,6 +146,7 @@ pub fn run_cli(mut cooker: Cooker) {
 
     let mut manifest = Manifest::load();
     cooker.register::<Mesh>();
+    cooker.register::<Shader>();
 
     match args.command {
         Commands::Add { name, path } => {
