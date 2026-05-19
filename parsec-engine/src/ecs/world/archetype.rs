@@ -157,7 +157,7 @@ impl ArchetypeId {
 ///
 /// - [ReadWrite][`ArchetypeColumnAccess::ReadWrite`] when the column is not borrowed at all.
 /// - [Read][`ArchetypeColumnAccess::Read`] when the column is borrowed immutably.
-/// - [None][`ArchetypeColumnAccess::Read`] when the column is borrowed mutably.
+/// - [None][`ArchetypeColumnAccess::None`] when the column is borrowed mutably.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ArchetypeColumnAccess {
     ReadWrite,
