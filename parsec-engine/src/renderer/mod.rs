@@ -99,7 +99,7 @@ pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
 pub fn init_renderer(ctx: Ctx) -> Result<(), ParsecError> {
     let mut backend =
-        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let window = ctx.resources.get::<Window>().none_err()?;
 
     let surface_format = backend.get_surface_format();
@@ -142,11 +142,11 @@ pub fn init_renderer(ctx: Ctx) -> Result<(), ParsecError> {
         })
         .collect::<Vec<_>>();
     let frames_in_flight = 1;
-    let frame_sync = create_frame_sync(backend.deref_mut(), frames_in_flight);
+    let frame_sync = create_frame_sync(&mut backend, frames_in_flight);
     let image_sync =
-        create_image_sync(backend.deref_mut(), swapchain_images.len());
+        create_image_sync(&mut backend, swapchain_images.len());
     let command_lists =
-        create_commad_lists(backend.deref_mut(), frames_in_flight);
+        create_commad_lists(&mut backend, frames_in_flight);
 
     let shadow_data = RendererShadows::new(&mut backend);
     let light_data = RendererLights::new(&mut backend);
@@ -228,27 +228,27 @@ fn recreate_size_dependent_components(
 
 pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
     let mut backend =
-        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let mut current_frame =
-        ctx.resources.get::<RendererCurrentFrame>().none_err()?;
-    let mut resize = ctx.resources.get::<ResizeFlag>().none_err()?;
+        ctx.resources.get_mut::<RendererCurrentFrame>().none_err()?;
+    let mut resize = ctx.resources.get_mut::<ResizeFlag>().none_err()?;
     let frames_in_flight =
-        ctx.resources.get::<RendererFramesInFlight>().none_err()?;
+        ctx.resources.get_mut::<RendererFramesInFlight>().none_err()?;
     let window = ctx.resources.get::<Window>().none_err()?;
     let frame_sync =
         ctx.resources.get::<Vec<RendererFrameSync>>().none_err()?;
     let image_sync =
         ctx.resources.get::<Vec<RendererImageSync>>().none_err()?;
     let mut present_images =
-        ctx.resources.get::<RendererPresentImages>().none_err()?;
+        ctx.resources.get_mut::<RendererPresentImages>().none_err()?;
     let mut depth_image =
-        ctx.resources.get::<RendererDepthImage>().none_err()?;
+        ctx.resources.get_mut::<RendererDepthImage>().none_err()?;
     let renderpass =
-        ctx.resources.get::<RendererMainRenderpass>().none_err()?;
+        ctx.resources.get_mut::<RendererMainRenderpass>().none_err()?;
     let mut framebuffers =
-        ctx.resources.get::<RendererFramebuffers>().none_err()?;
+        ctx.resources.get_mut::<RendererFramebuffers>().none_err()?;
     let mut command_lists =
-        ctx.resources.get::<Vec<CommandList>>().none_err()?;
+        ctx.resources.get_mut::<Vec<CommandList>>().none_err()?;
     let draw_queue = ctx.resources.get::<Vec<Draw>>().none_err()?;
     let meshes_data = ctx
         .resources
@@ -402,7 +402,7 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
 }
 
 pub fn queue_clear(ctx: Ctx) -> Result<(), ParsecError> {
-    ctx.resources.get::<Vec<Draw>>().none_err()?.clear();
+    ctx.resources.get_mut::<Vec<Draw>>().none_err()?.clear();
     Ok(())
 }
 

@@ -65,7 +65,7 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
 }
 
 fn mark_resize(ctx: Ctx) -> Result<(), ParsecError> {
-    ctx.resources.get::<ResizeFlag>().none_err()?.0 = true;
+    ctx.resources.get_mut::<ResizeFlag>().none_err()?.0 = true;
     Ok(())
 }
 
@@ -93,7 +93,7 @@ fn init_window(ctx: Ctx) -> Result<(), ParsecError> {
 }
 
 fn auto_enqueue(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut draw_queue = ctx.resources.get::<Vec<Draw>>().none_err()?;
+    let mut draw_queue = ctx.resources.get_mut::<Vec<Draw>>().none_err()?;
     let camera_data_manager =
         ctx.resources.get::<CameraDataManager>().none_err()?;
     let transform_data_manager =

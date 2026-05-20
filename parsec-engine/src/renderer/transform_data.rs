@@ -182,11 +182,11 @@ impl Identifiable for TransformData {
 
 pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
     let mut backend =
-        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let mut transforms_data =
-        ctx.resources.get::<IdStore<TransformData>>().none_err()?;
+        ctx.resources.get_mut::<IdStore<TransformData>>().none_err()?;
     let mut transforms_data_manager =
-        ctx.resources.get::<TransformDataManager>().none_err()?;
+        ctx.resources.get_mut::<TransformDataManager>().none_err()?;
     let mut transforms = ctx.world.query::<Mut<Transform>>();
 
     for (_, transform) in transforms.iter() {
@@ -210,9 +210,9 @@ pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
 
 pub fn update_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
     let mut backend =
-        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let mut transforms_data =
-        ctx.resources.get::<IdStore<TransformData>>().none_err()?;
+        ctx.resources.get_mut::<IdStore<TransformData>>().none_err()?;
     let transforms_data_manager =
         ctx.resources.get::<TransformDataManager>().none_err()?;
     let mut transforms = ctx.world.query::<Transform>();

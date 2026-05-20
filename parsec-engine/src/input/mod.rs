@@ -40,14 +40,14 @@ impl Input {
 fn input_start(ctx: Ctx) { ctx.resources.add(Input::new()); }
 
 fn input_clear(ctx: Ctx) -> Result<(), ParsecError> {
-    let input = ctx.resources.get_mut::<Input>().none_err()?;
+    let mut input = ctx.resources.get_mut::<Input>().none_err()?;
     input.keys.clear();
     input.mouse.clear();
     Ok(())
 }
 
 fn input_clear_all(ctx: Ctx) -> Result<(), ParsecError> {
-    let input = ctx.resources.get_mut::<Input>().none_err()?;
+    let mut input = ctx.resources.get_mut::<Input>().none_err()?;
     input.keys.clear_all();
     input.mouse.clear();
     Ok(())

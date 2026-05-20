@@ -134,8 +134,8 @@ impl RendererLights {
 
 pub fn update_light_data(ctx: Ctx) -> Result<(), ParsecError> {
     let mut backend =
-        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
-    let mut light_data = ctx.resources.get::<RendererLights>().none_err()?;
+        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
+    let mut light_data = ctx.resources.get_mut::<RendererLights>().none_err()?;
     let mut lights = ctx.world.query::<(Light, Transform)>();
 
     light_data.clear_data();

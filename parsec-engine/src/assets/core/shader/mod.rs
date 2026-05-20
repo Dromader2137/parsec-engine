@@ -56,12 +56,12 @@ impl Asset for Shader {
     }
 
     fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {
-        let backend =
+        let mut backend =
             resources.get_mut::<ActiveGraphicsBackend>().none_err().unwrap();
         let shader_module = ShaderModuleBuilder::default()
             .shader_type(cooked.shader_type)
             .code(&cooked.code)
-            .build(backend)
+            .build(&mut backend)
             .unwrap();
         Shader {
             shader_type: cooked.shader_type,

@@ -45,11 +45,11 @@ fn test_system(ctx: Ctx) -> Result<(), ParsecError> {
         ctx.assets.load::<Mesh>("testmesh", ctx.resources).unwrap();
     
     let mut backend =
-        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let mut materials =
-        ctx.resources.get::<IdStore<MaterialData>>().none_err()?;
+        ctx.resources.get_mut::<IdStore<MaterialData>>().none_err()?;
     let mut material_bases =
-        ctx.resources.get::<IdStore<MaterialBase>>().none_err()?;
+        ctx.resources.get_mut::<IdStore<MaterialBase>>().none_err()?;
     let renderpass =
         ctx.resources.get::<RendererMainRenderpass>().none_err()?;
 
@@ -153,7 +153,6 @@ fn test_system(ctx: Ctx) -> Result<(), ParsecError> {
 
     material_bases.push(material_base);
     let material_id = materials.push(material);
-    println!("{:#?}", ctx.assets);
 
     ctx.world.spawn((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
@@ -195,7 +194,7 @@ fn controller(ctx: Ctx) -> Result<(), ParsecError> {
     let mut cameras =
         ctx.world
             .query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
-    let mut window = ctx.resources.get::<Window>().none_err()?;
+    let mut window = ctx.resources.get_mut::<Window>().none_err()?;
     let input = ctx.resources.get::<Input>().none_err()?;
     let time = ctx.resources.get::<Time>().none_err()?;
 

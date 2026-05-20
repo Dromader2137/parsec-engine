@@ -87,10 +87,10 @@ impl Identifiable for CameraData {
 pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
     let window = ctx.resources.get::<Window>().none_err()?;
     let mut backend =
-        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
-    let cameras_data =
+        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
+    let mut cameras_data =
         ctx.resources.get_mut::<IdStore<CameraData>>().none_err()?;
-    let camera_data_manager =
+    let mut camera_data_manager =
         ctx.resources.get_mut::<CameraDataManager>().none_err()?;
     let mut cameras = ctx.world.query::<Mut<Camera>>();
 
@@ -118,9 +118,9 @@ pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
 pub fn update_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
     let window = ctx.resources.get::<Window>().none_err()?;
     let mut backend =
-        ctx.resources.get::<ActiveGraphicsBackend>().none_err()?;
+        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let mut cameras_data =
-        ctx.resources.get::<IdStore<CameraData>>().none_err()?;
+        ctx.resources.get_mut::<IdStore<CameraData>>().none_err()?;
     let camera_data_manager =
         ctx.resources.get::<CameraDataManager>().none_err()?;
     let mut cameras = ctx.world.query::<Camera>();

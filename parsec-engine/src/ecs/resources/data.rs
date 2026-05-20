@@ -1,13 +1,15 @@
 use std::{
     any::{Any, TypeId},
     collections::HashSet,
+    sync::Arc,
 };
 
-use crate::ecs::resources::ResourceMarker;
+use crate::{ecs::resources::ResourceMarker, utils::borrowing::BorrowingStats};
 
 #[derive(Debug)]
-pub struct ResourceData {
+pub(super) struct ResourceData {
     pub data: Box<dyn Any + Send + Sync + 'static>,
+    pub borrowing_stats: Arc<BorrowingStats>,
     pub dependencies: HashSet<TypeId>,
     pub depended_on: HashSet<TypeId>,
 }
@@ -17,8 +19,14 @@ impl ResourceData {
         let any_resource = resource.as_any();
         ResourceData {
             data: any_resource,
+            borrowing_stats: Arc::new(BorrowingStats::default()),
             dependencies: HashSet::new(),
             depended_on: HashSet::new(),
         }
     }
+}
+
+pub enum ResourceAccessError {
+    AlreadyBorrowed,
+    AlreadyBorrowedMut,
 }

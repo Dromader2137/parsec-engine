@@ -57,7 +57,7 @@ impl Time {
 fn time_init(ctx: Ctx) { ctx.resources.add(Time::new()); }
 
 fn time_update(ctx: Ctx) -> Result<(), ParsecError> {
-    ctx.resources.get::<Time>().none_err()?.update_time();
+    ctx.resources.get_mut::<Time>().none_err()?.update_time();
     Ok(())
 }
 

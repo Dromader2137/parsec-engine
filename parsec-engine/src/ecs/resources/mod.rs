@@ -1,6 +1,7 @@
 //! Module responsible for storing and getting global state.
 
 mod data;
+pub mod resource;
 
 use std::{
     any::{Any, TypeId},
@@ -11,7 +12,10 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use crate::ecs::resources::data::ResourceData;
+use crate::ecs::resources::{
+    data::ResourceData,
+    resource::{Resource, ResourceMut},
+};
 
 /// Marks a type as a resource that can be stored in a global storage.
 pub trait ResourceMarker: Send + Sync + 'static {
@@ -93,20 +97,39 @@ impl Resources {
     }
 
     /// Gets the resource of type `R`.
-    pub fn get<R: ResourceMarker>(&self) -> Option<&R> {
+    pub fn get<R: ResourceMarker>(&self) -> Option<Resource<R>> {
         let resource_id = TypeId::of::<R>();
-        let resource_any = &self.resources.get(&resource_id)?.data;
-        resource_any.downcast_ref()
-    }
-    
-    /// Gets the resource of type `R` mutably.
-    pub fn get_mut<R: ResourceMarker>(&mut self) -> Option<&mut R> {
-        let resource_id = TypeId::of::<R>();
-        let resource_any = &mut self.resources.get_mut(&resource_id)?.data;
-        resource_any.downcast_mut()
+        let ResourceData {
+            data,
+            borrowing_stats,
+            ..
+        } = &self.resources.get(&resource_id)?;
+        borrowing_stats.borrow().ok()?;
+        let value = data.downcast_ref()?;
+        Some(Resource {
+            value,
+            borrowing: borrowing_stats.clone(),
+        })
     }
 
-    pub fn get_add<R: ResourceMarker>(&mut self, res: R) -> &mut R {
+    /// Gets the resource of type `R` mutably.
+    pub fn get_mut<R: ResourceMarker>(&self) -> Option<ResourceMut<R>> {
+        let resource_id = TypeId::of::<R>();
+        let ResourceData {
+            data,
+            borrowing_stats,
+            ..
+        } = &self.resources.get(&resource_id)?;
+        borrowing_stats.borrow_mut().ok()?;
+        let value = data.downcast_ref()? as *const R as *mut R;
+        // SAFETY: We check if we are the only ones with the mutable access.
+        Some(ResourceMut {
+            value,
+            borrowing: borrowing_stats.clone(),
+        })
+    }
+
+    pub fn get_add<R: ResourceMarker>(&mut self, res: R) -> ResourceMut<R> {
         let resource_id = TypeId::of::<R>();
         if !self.resources.contains_key(&resource_id) {
             self.add(res);
