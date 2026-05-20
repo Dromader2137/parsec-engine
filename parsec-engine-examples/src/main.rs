@@ -36,7 +36,7 @@ use parsec_engine::{
 };
 use parsec_engine_vulkan::VulkanBackend;
 
-fn test_system(ctx: Ctx) -> Result<(), ParsecError> {
+fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
     let vertex_shader_handle =
         ctx.assets.load::<Shader>("shaderv", ctx.resources)?;
     let fragment_shader_handle =
@@ -190,7 +190,7 @@ struct CameraController {
     fov: f32,
 }
 
-fn controller(ctx: Ctx) -> Result<(), ParsecError> {
+fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
     let mut cameras =
         ctx.world
             .query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
@@ -258,7 +258,7 @@ fn main() {
         .add_bundle(GraphicsBundle::<VulkanBackend>::default());
     app.systems.add_bundle(InputBundle);
     app.systems.add_bundle(TimeBundle);
-    app.systems.add(SystemTrigger::LateStart, test_system);
-    app.systems.add(SystemTrigger::Update, controller);
+    app.systems.add(SystemTrigger::LateStart, game_startup);
+    app.systems.add(SystemTrigger::Update, camera_controller);
     app.run();
 }
