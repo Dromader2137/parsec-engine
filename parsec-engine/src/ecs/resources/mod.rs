@@ -6,10 +6,6 @@ pub mod resource;
 use std::{
     any::{Any, TypeId},
     collections::{HashMap, HashSet},
-    marker::PhantomData,
-    mem::ManuallyDrop,
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, MutexGuard},
 };
 
 use crate::ecs::resources::{
@@ -97,39 +93,35 @@ impl Resources {
     }
 
     /// Gets the resource of type `R`.
-    pub fn get<R: ResourceMarker>(&self) -> Option<Resource<R>> {
+    pub fn get<'a, R: ResourceMarker>(&'a self) -> Option<Resource<'a, R>> {
         let resource_id = TypeId::of::<R>();
         let ResourceData {
             data,
             borrowing_stats,
             ..
         } = &self.resources.get(&resource_id)?;
-        borrowing_stats.borrow().ok()?;
         let value = data.downcast_ref()?;
-        Some(Resource {
-            value,
-            borrowing: borrowing_stats.clone(),
-        })
+        Resource::new(value, borrowing_stats.clone()).ok()
     }
 
     /// Gets the resource of type `R` mutably.
-    pub fn get_mut<R: ResourceMarker>(&self) -> Option<ResourceMut<R>> {
+    pub fn get_mut<'a, R: ResourceMarker>(
+        &'a self,
+    ) -> Option<ResourceMut<'a, R>> {
         let resource_id = TypeId::of::<R>();
         let ResourceData {
             data,
             borrowing_stats,
             ..
         } = &self.resources.get(&resource_id)?;
-        borrowing_stats.borrow_mut().ok()?;
-        let value = data.downcast_ref()? as *const R as *mut R;
-        // SAFETY: We check if we are the only ones with the mutable access.
-        Some(ResourceMut {
-            value,
-            borrowing: borrowing_stats.clone(),
-        })
+        let value = data.downcast_ref()?;
+        ResourceMut::new(value, borrowing_stats.clone()).ok()
     }
 
-    pub fn get_add<R: ResourceMarker>(&mut self, res: R) -> ResourceMut<R> {
+    pub fn get_add<'a, R: ResourceMarker>(
+        &'a mut self,
+        res: R,
+    ) -> ResourceMut<'a, R> {
         let resource_id = TypeId::of::<R>();
         if !self.resources.contains_key(&resource_id) {
             self.add(res);

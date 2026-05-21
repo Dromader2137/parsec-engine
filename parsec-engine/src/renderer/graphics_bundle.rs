@@ -41,9 +41,12 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
     fn insert(self, systems: &mut Systems) {
         systems.add(SystemTrigger::LateStart, init_window);
         systems.add(SystemTrigger::LateStart, |ctx: Ctx| {
-            let window = ctx.resources.get::<Window>().none_err()?;
+            let backend = {
+                let window = ctx.resources.get::<Window>().none_err()?;
+                ActiveGraphicsBackend::with_backend::<B>(&window)?
+            };
             ctx.resources
-                .add(ActiveGraphicsBackend::with_backend::<B>(&window)?);
+                .add(backend);
             ctx.resources
                 .add_dependency::<ActiveGraphicsBackend, Window>()
                 .unwrap();

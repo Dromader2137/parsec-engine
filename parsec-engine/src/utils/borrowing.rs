@@ -1,4 +1,4 @@
-use std::sync::{Mutex, RwLock};
+use std::sync::Mutex;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum Access {

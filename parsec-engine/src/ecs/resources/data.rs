@@ -25,8 +25,3 @@ impl ResourceData {
         }
     }
 }
-
-pub enum ResourceAccessError {
-    AlreadyBorrowed,
-    AlreadyBorrowedMut,
-}

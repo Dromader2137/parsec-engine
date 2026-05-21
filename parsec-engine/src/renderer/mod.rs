@@ -1,6 +1,6 @@
 //! The built-in renderer.
 
-use std::{collections::HashMap, ops::DerefMut};
+use std::collections::HashMap;
 
 pub mod camera_data;
 pub mod components;

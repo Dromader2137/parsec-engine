@@ -91,13 +91,16 @@ impl Asset for Mesh {
     }
 
     fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {
+        let mut mesh = Mesh::from(cooked);
+        let mesh_data = {
+            let mut backend = resources
+                .get_mut::<ActiveGraphicsBackend>()
+                .none_err()
+                .unwrap();
+            MeshData::new(&mut backend, &mesh.vertices, &mesh.indices)
+        };
         let mut mesh_data_store = resources
             .get_add::<IdStore<MeshData<DefaultVertex>>>(IdStore::new());
-        let mut backend =
-            resources.get_mut::<ActiveGraphicsBackend>().none_err().unwrap();
-        let mut mesh = Mesh::from(cooked);
-        let mesh_data =
-            MeshData::new(&mut backend, &mesh.vertices, &mesh.indices);
         let id = mesh_data_store.push(mesh_data);
         mesh.data_id = Some(id);
         mesh
