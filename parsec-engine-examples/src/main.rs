@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use image::EncodableLayout;
 use parsec_engine::{
     app::App,
@@ -249,6 +251,14 @@ fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
             window.toggle_cursor_visibility();
         }
     }
+    
+    let mut boxes =
+        ctx.world
+            .query::<(Mut<Transform>, MeshRenderer)>();
+    for (_, (transform, _)) in boxes.iter() {
+        transform.position.y = time.elapsed_time().unwrap().mul(5.0).sin() as f32 / 1.5;
+    }
+
     Ok(())
 }
 

@@ -267,6 +267,10 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
     if window.minimized() {
         return Ok(());
     }
+    
+    let command_buffer_fence =
+        frame_sync[current_frame.0 as usize].command_buffer_fence;
+    backend.wait_gpu_to_cpu_fence(command_buffer_fence).unwrap();
 
     if resize.0 {
         recreate_size_dependent_components(
@@ -392,10 +396,6 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
         Ok(_) => (),
         _ => panic!("Shouldn't be here"),
     };
-
-    let command_buffer_fence =
-        frame_sync[current_frame.0 as usize].command_buffer_fence;
-    backend.wait_gpu_to_cpu_fence(command_buffer_fence).unwrap();
 
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;
     Ok(())

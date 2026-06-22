@@ -89,13 +89,14 @@ impl RendererLights {
         light_color: Vec3f,
         light_size: f32,
     ) {
+        let atlas_size = 2 as f32;
         let light_idx = self.data.light_count as usize;
-        let y = light_idx / 8;
-        let x = light_idx % 8;
+        let y = light_idx / atlas_size as usize;
+        let x = light_idx % atlas_size as usize;
         let shadow_texture_from =
-            Vec2f::new(x as f32, y as f32) / Vec2f::new(8.0, 4.0);
+            Vec2f::new(x as f32, y as f32) / Vec2f::new(atlas_size, atlas_size / 2.0);
         let shadow_texture_to =
-            Vec2f::new((x + 1) as f32, (y + 1) as f32) / Vec2f::new(8.0, 4.0);
+            Vec2f::new((x + 1) as f32, (y + 1) as f32) / Vec2f::new(atlas_size, atlas_size / 2.0);
         let world_to_light =
             Matrix4f::orthographic(0.0, 100.0, light_size, light_size)
                 * Matrix4f::look_at(light_pos, light_dir, light_up);

@@ -64,6 +64,7 @@ impl<'buffer, 'a> VulkanBufferMemoryBarrier<'buffer, 'a> {
             dst_access_mask: VulkanAccess::raw_combined_access_flag(
                 self.dst_access,
             ),
+            size: self.buffer.size(),
             buffer: *self.buffer.get_buffer_raw(),
             ..Default::default()
         }

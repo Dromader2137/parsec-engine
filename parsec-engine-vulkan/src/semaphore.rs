@@ -39,7 +39,7 @@ impl VulkanSemaphore {
         }
     }
 
-    pub fn destroy(self, device: &VulkanDevice) {
+    pub fn destroy(&self, device: &VulkanDevice) {
         unsafe {
             device
                 .raw_device()

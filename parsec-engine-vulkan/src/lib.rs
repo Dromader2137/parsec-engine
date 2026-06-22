@@ -30,7 +30,7 @@ use parsec_engine::{
             Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
         },
         sampler::{Sampler, SamplerError, SamplerHandle},
-        shader_module::{ShaderModule, ShaderError, ShaderHandle, ShaderType},
+        shader_module::{ShaderError, ShaderHandle, ShaderModule, ShaderType},
         window::Window,
     },
 };
@@ -118,6 +118,7 @@ pub struct VulkanBackend {
     device: VulkanDevice,
     command_pool: VulkanCommandPool,
     present_queue: VulkanQueue,
+    present_queue_semaphore: Option<VulkanSemaphore>,
     descriptor_pool: VulkanDescriptorPool,
     allocator: VulkanAllocator,
     swapchain: VulkanSwapchain,
@@ -135,6 +136,21 @@ pub struct VulkanBackend {
     renderpasses: HashMap<u32, VulkanRenderpass>,
     descriptor_sets: HashMap<u32, VulkanDescriptorSet>,
     descriptor_set_layouts: HashMap<u32, VulkanDescriptorSetLayout>,
+}
+
+impl VulkanBackend {
+    fn get_present_semaphore(
+        &mut self,
+    ) -> (Option<VulkanSemaphore>, VulkanSemaphore) {
+        match &self.present_queue_semaphore {
+            Some(sem) => (Some(sem.clone()), sem.clone()),
+            None => {
+                self.present_queue_semaphore =
+                    Some(VulkanSemaphore::new(&self.device).unwrap());
+                (None, self.present_queue_semaphore.as_ref().unwrap().clone())
+            },
+        }
+    }
 }
 
 impl Drop for VulkanBackend {
@@ -173,6 +189,9 @@ impl Drop for VulkanBackend {
         for (_, fence) in self.fences.drain() {
             fence.destroy(&self.device);
         }
+        self.present_queue_semaphore
+            .take()
+            .map(|x| x.destroy(&self.device));
         for (_, semaphore) in self.semaphores.drain() {
             semaphore.destroy(&self.device);
         }
@@ -240,9 +259,10 @@ impl GraphicsBackend for VulkanBackend {
             instance,
             physical_device,
             surface,
-            device,
             command_pool,
             present_queue,
+            present_queue_semaphore: None,
+            device,
             descriptor_pool,
             allocator,
             swapchain,
@@ -281,7 +301,7 @@ impl GraphicsBackend for VulkanBackend {
 
         let size = data.data.len();
 
-        let buffer = if size <= 256 {
+        let buffer = if size <= 0 {
             VulkanBuffer::from_vec(
                 &self.device,
                 &mut self.allocator,
@@ -316,8 +336,11 @@ impl GraphicsBackend for VulkanBackend {
                     .map_err(|err| {
                         BufferError::BufferCreationError(err.into())
                     })?;
-            let mut builder = VulkanCommandBufferBuilder::new(&self.images)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            let mut builder =
+                VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
             builder
                 .begin()
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
@@ -330,18 +353,37 @@ impl GraphicsBackend for VulkanBackend {
             builder
                 .build(&self.device, &mut cmd)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
-            self.present_queue
-                .submit(
-                    &self.device,
-                    &[],
-                    &[],
-                    &[&cmd],
-                    &VulkanFence::null(),
-                    VulkanPipelineStage::Transfer,
-                    &mut self.images,
-                )
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
-
+            let (wait_semaphore, signal_semaphore) =
+                self.get_present_semaphore();
+            if let Some(wait_sem) = wait_semaphore {
+                self.present_queue
+                    .submit(
+                        &self.device,
+                        &[&wait_sem],
+                        &[&signal_semaphore],
+                        &[&cmd],
+                        &VulkanFence::null(),
+                        VulkanPipelineStage::Transfer,
+                        &mut self.images,
+                    )
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
+            } else {
+                self.present_queue
+                    .submit(
+                        &self.device,
+                        &[],
+                        &[&signal_semaphore],
+                        &[&cmd],
+                        &VulkanFence::null(),
+                        VulkanPipelineStage::Transfer,
+                        &mut self.images,
+                    )
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
+            }
             self.staging_buffers.insert(device_local.id(), staging.id());
             self.buffers.insert(staging.id(), staging);
 
@@ -377,8 +419,11 @@ impl GraphicsBackend for VulkanBackend {
                     .map_err(|err| {
                         BufferError::BufferCreationError(err.into())
                     })?;
-            let mut builder = VulkanCommandBufferBuilder::new(&self.images)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            let mut builder =
+                VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
             builder
                 .begin()
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
@@ -391,17 +436,37 @@ impl GraphicsBackend for VulkanBackend {
             builder
                 .build(&self.device, &mut cmd)
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
-            self.present_queue
-                .submit(
-                    &self.device,
-                    &[],
-                    &[],
-                    &[&cmd],
-                    &VulkanFence::null(),
-                    VulkanPipelineStage::Transfer,
-                    &mut self.images,
-                )
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            let (wait_semaphore, signal_semaphore) =
+                self.get_present_semaphore();
+            if let Some(wait_sem) = wait_semaphore {
+                self.present_queue
+                    .submit(
+                        &self.device,
+                        &[&wait_sem],
+                        &[&signal_semaphore],
+                        &[&cmd],
+                        &VulkanFence::null(),
+                        VulkanPipelineStage::Transfer,
+                        &mut self.images,
+                    )
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
+            } else {
+                self.present_queue
+                    .submit(
+                        &self.device,
+                        &[],
+                        &[&signal_semaphore],
+                        &[&cmd],
+                        &VulkanFence::null(),
+                        VulkanPipelineStage::Transfer,
+                        &mut self.images,
+                    )
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
+            }
         } else {
             buffer
                 .update(&self.device, data)
@@ -439,7 +504,10 @@ impl GraphicsBackend for VulkanBackend {
         Ok(ShaderHandle::new(shader_id))
     }
 
-    fn delete_shader(&mut self, shader: ShaderModule) -> Result<(), ShaderError> {
+    fn delete_shader(
+        &mut self,
+        shader: ShaderModule,
+    ) -> Result<(), ShaderError> {
         let shader = self
             .shaders
             .remove(&shader.handle().id())
@@ -676,30 +744,37 @@ impl GraphicsBackend for VulkanBackend {
         signal_semaphores: &[GpuToGpuFence],
         signal_fence: GpuToCpuFence,
     ) -> Result<(), CommandListError> {
+        let (wait_semaphore, signal_semaphore) =
+            &self.get_present_semaphore().clone();
+        let mut ws = wait_semaphores
+            .iter()
+            .map(|x| {
+                self.semaphores
+                    .get(&x.id())
+                    .ok_or(CommandListError::SemaphoreNotFound)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if let Some(wait_sem) = wait_semaphore {
+            ws.push(wait_sem);
+        }
+        let mut ss = signal_semaphores
+            .iter()
+            .map(|x| {
+                self.semaphores
+                    .get(&x.id())
+                    .ok_or(CommandListError::SemaphoreNotFound)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        ss.push(signal_semaphore);
         let command_buffer = self
             .command_buffers
             .get_mut(&command_list.id())
             .ok_or(CommandListError::CommandListNotFound)?;
-        let mut builder = VulkanCommandBufferBuilder::new(&self.images)
-            .map_err(|err| {
-                CommandListError::CommandListCreationError(err.into())
-            })?;
-        let ws = wait_semaphores
-            .iter()
-            .map(|x| {
-                self.semaphores
-                    .get(&x.id())
-                    .ok_or(CommandListError::SemaphoreNotFound)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let ss = signal_semaphores
-            .iter()
-            .map(|x| {
-                self.semaphores
-                    .get(&x.id())
-                    .ok_or(CommandListError::SemaphoreNotFound)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut builder =
+            VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
+                .map_err(|err| {
+                    CommandListError::CommandListCreationError(err.into())
+                })?;
         let fen = self
             .fences
             .get(&signal_fence.id())
@@ -953,8 +1028,9 @@ impl GraphicsBackend for VulkanBackend {
         let mut cmd =
             VulkanCommandBuffer::new(&self.device, &self.command_pool)
                 .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        let mut builder = VulkanCommandBufferBuilder::new(&self.images)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        let mut builder =
+            VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
+                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         let img = self
             .images
             .get(&image.id())
@@ -971,23 +1047,32 @@ impl GraphicsBackend for VulkanBackend {
         builder
             .build(&self.device, &mut cmd)
             .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        let fence = VulkanFence::new(&self.device, false)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        self.present_queue
-            .submit(
-                &self.device,
-                &[],
-                &[],
-                &[&cmd],
-                &fence,
-                VulkanPipelineStage::Transfer,
-                &mut self.images,
-            )
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        fence
-            .wait(&self.device)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        fence.destroy(&self.device);
+        let (wait_semaphore, signal_semaphore) = self.get_present_semaphore();
+        if let Some(wait_sem) = wait_semaphore {
+            self.present_queue
+                .submit(
+                    &self.device,
+                    &[&wait_sem],
+                    &[&signal_semaphore],
+                    &[&cmd],
+                    &VulkanFence::null(),
+                    VulkanPipelineStage::Transfer,
+                    &mut self.images,
+                )
+                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        } else {
+            self.present_queue
+                .submit(
+                    &self.device,
+                    &[],
+                    &[&signal_semaphore],
+                    &[&cmd],
+                    &VulkanFence::null(),
+                    VulkanPipelineStage::Transfer,
+                    &mut self.images,
+                )
+                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        }
         Ok(())
     }
 
