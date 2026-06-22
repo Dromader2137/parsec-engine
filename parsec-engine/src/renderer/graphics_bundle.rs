@@ -107,7 +107,7 @@ fn auto_enqueue(ctx: Ctx) -> Result<(), ParsecError> {
     for (_, (camera_transform, camera)) in cameras.iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
             let mesh_asset =
-                ctx.assets.get::<Mesh>(mesh_renderer.mesh).none_err()?;
+                ctx.assets.get_data::<Mesh>(mesh_renderer.mesh);
             if mesh_asset.data_id.is_none()
                 || !camera_data_manager
                     .component_to_data

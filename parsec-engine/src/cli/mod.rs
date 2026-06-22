@@ -10,7 +10,7 @@ use std::{
 use clap::Parser;
 
 use crate::{
-    assets::{Asset, AssetDescription, Manifest, core::{mesh::Mesh, shader::Shader}},
+    assets::{Asset, AssetDescription, AssetsManifest, core::{mesh::Mesh, shader::Shader}},
     error::{OptionNoneErr, ParsecError},
 };
 
@@ -50,7 +50,7 @@ pub enum ManifestWriteError {
     FailedToSwapFiles(std::io::Error),
 }
 
-fn write_manifest(manifest: &Manifest) -> Result<(), ManifestWriteError> {
+fn write_manifest(manifest: &AssetsManifest) -> Result<(), ManifestWriteError> {
     let write_file = File::options()
         .write(true)
         .truncate(true)
@@ -76,7 +76,7 @@ fn get_cook_dir() -> PathBuf {
 
 fn cook(
     name: &str,
-    manifest: &Manifest,
+    manifest: &AssetsManifest,
     cooker: &Cooker,
 ) -> Result<(), ParsecError> {
     let in_path = manifest.assets.iter().find(|a| a.0 == name).none_err()?;
@@ -144,7 +144,7 @@ impl Cooker {
 pub fn run_cli(mut cooker: Cooker) {
     let args = Args::parse();
 
-    let mut manifest = Manifest::load();
+    let mut manifest = AssetsManifest::load();
     cooker.register::<Mesh>();
     cooker.register::<Shader>();
 

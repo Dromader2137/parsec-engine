@@ -23,7 +23,10 @@ pub struct AssetHandle<T: Asset> {
 
 impl<T: Asset> Clone for AssetHandle<T> {
     fn clone(&self) -> Self {
-        Self { name: self.name, _marker: PhantomData }
+        Self {
+            name: self.name,
+            _marker: PhantomData,
+        }
     }
 }
 impl<T: Asset> Copy for AssetHandle<T> {}
@@ -38,19 +41,19 @@ impl<T: Asset> AssetHandle<T> {
 
 #[derive(Debug)]
 pub struct AssetLibrary {
-    manifest: Manifest,
+    manifest: AssetsManifest,
     assets: HashMap<TypeId, Vec<(&'static str, Box<dyn Any>)>>,
 }
 
 impl AssetLibrary {
     pub fn new() -> AssetLibrary {
         AssetLibrary {
-            manifest: Manifest::load(),
+            manifest: AssetsManifest::load(),
             assets: HashMap::new(),
         }
     }
 
-    pub fn load<T: Asset>(
+    pub fn get_handle<T: Asset>(
         &mut self,
         name: &'static str,
         resources: &mut Resources,
@@ -76,15 +79,23 @@ impl AssetLibrary {
         Ok(AssetHandle::new(name))
     }
 
-    pub fn get<T: Asset>(&self, handle: AssetHandle<T>) -> Option<&T> {
+    pub fn get_data<T: Asset>(&self, handle: AssetHandle<T>) -> &T {
         let name = handle.name;
-        let asset_vec = self.assets.get(&TypeId::of::<T>())?;
-        let (_, asset_any) = asset_vec.iter().find(|(n, _)| *n == name)?;
-        asset_any.downcast_ref::<T>()
+        let asset_vec = self
+            .assets
+            .get(&TypeId::of::<T>())
+            .expect("Asset handles are always valid");
+        let (_, asset_any) = asset_vec
+            .iter()
+            .find(|(n, _)| *n == name)
+            .expect("Asset handles are always valid");
+        asset_any
+            .downcast_ref::<T>()
+            .expect("Asset handles are always valid")
     }
 }
 
-pub trait Asset: 'static {
+pub trait Asset: Send + Sync + 'static {
     type Cooked: serde::Serialize + serde::de::DeserializeOwned + 'static;
 
     const ASSET_TYPE: &'static str;
@@ -102,12 +113,12 @@ pub struct AssetDescription {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Manifest {
+pub struct AssetsManifest {
     pub verison: u8,
     pub assets: HashMap<String, AssetDescription>,
 }
 
-impl Manifest {
+impl AssetsManifest {
     pub fn new() -> Self {
         Self {
             verison: 0,
@@ -115,13 +126,13 @@ impl Manifest {
         }
     }
 
-    pub fn load() -> Manifest {
+    pub fn load() -> AssetsManifest {
         let try_file = File::options().read(true).open("./assets.json");
         if matches!(
             try_file.as_ref().map_err(|err| err.kind()),
             Err(std::io::ErrorKind::NotFound)
         ) {
-            Manifest::new()
+            AssetsManifest::new()
         } else {
             let file = try_file.expect("Failed to open assets.json");
             let reader = BufReader::new(file);

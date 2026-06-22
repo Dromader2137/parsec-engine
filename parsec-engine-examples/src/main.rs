@@ -38,11 +38,11 @@ use parsec_engine_vulkan::VulkanBackend;
 
 fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
     let vertex_shader_handle =
-        ctx.assets.load::<Shader>("shaderv", ctx.resources)?;
+        ctx.assets.get_handle::<Shader>("shaderv", ctx.resources)?;
     let fragment_shader_handle =
-        ctx.assets.load::<Shader>("shaderf", ctx.resources)?;
+        ctx.assets.get_handle::<Shader>("shaderf", ctx.resources)?;
     let mesh_handle =
-        ctx.assets.load::<Mesh>("testmesh", ctx.resources).unwrap();
+        ctx.assets.get_handle::<Mesh>("testmesh", ctx.resources).unwrap();
     
     let mut backend =
         ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
@@ -55,8 +55,8 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
 
     let material_base = MaterialBase::new(
         &mut backend,
-        ctx.assets.get(vertex_shader_handle).none_err()?.module.handle(),
-        ctx.assets.get(fragment_shader_handle).none_err()?.module.handle(),
+        ctx.assets.get_data(vertex_shader_handle).module.handle(),
+        ctx.assets.get_data(fragment_shader_handle).module.handle(),
         renderpass.0.handle(),
         vec![
             vec![

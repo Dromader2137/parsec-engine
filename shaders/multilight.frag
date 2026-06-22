@@ -22,7 +22,7 @@ layout(set = 4, binding = 0) uniform sampler2D albedo;
 layout(set = 5, binding = 0) uniform sampler2D shadow;
 
 void main() {
-    vec3 finalColor = vec3(0.0, 0.0, 0.01);
+    vec3 finalColor = vec3(0.0, 0.0, 0.0);
     for (int lightIdx = 0; lightIdx < lightData.light_count; ++lightIdx) {
         float light_angle = dot(-normalize(lightData.data[lightIdx].direction), inNormal);
         float light_intensity = clamp(light_angle, 0.0, 1.0);
@@ -39,5 +39,6 @@ void main() {
             finalColor += texture(albedo, inUV).rgb * lightData.data[lightIdx].color * light_intensity;
         }
     }
+	finalColor.b = clamp(finalColor.b, 0.01, 1.0);
     outColor = vec4(finalColor, 1.0);
 }
