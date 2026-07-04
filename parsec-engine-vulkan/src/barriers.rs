@@ -65,6 +65,7 @@ impl<'buffer, 'a> VulkanBufferMemoryBarrier<'buffer, 'a> {
                 self.dst_access,
             ),
             buffer: *self.buffer.get_buffer_raw(),
+            size: self.buffer.size(),
             ..Default::default()
         }
     }

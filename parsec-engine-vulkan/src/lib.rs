@@ -30,7 +30,7 @@ use parsec_engine::{
             Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
         },
         sampler::{Sampler, SamplerError, SamplerHandle},
-        shader_module::{ShaderModule, ShaderError, ShaderHandle, ShaderType},
+        shader_module::{ShaderError, ShaderHandle, ShaderModule, ShaderType},
         window::Window,
     },
 };
@@ -182,6 +182,7 @@ impl Drop for VulkanBackend {
 
         self.command_buffers.clear();
         self.command_pool.destroy(&self.device);
+        self.present_queue.destroy(&self.device);
 
         self.surface.destroy();
         self.device.destroy();
@@ -316,8 +317,11 @@ impl GraphicsBackend for VulkanBackend {
                     .map_err(|err| {
                         BufferError::BufferCreationError(err.into())
                     })?;
-            let mut builder = VulkanCommandBufferBuilder::new(&self.images)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            let mut builder =
+                VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
             builder
                 .begin()
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
@@ -377,8 +381,11 @@ impl GraphicsBackend for VulkanBackend {
                     .map_err(|err| {
                         BufferError::BufferCreationError(err.into())
                     })?;
-            let mut builder = VulkanCommandBufferBuilder::new(&self.images)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            let mut builder =
+                VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
+                    .map_err(|err| {
+                        BufferError::BufferCreationError(err.into())
+                    })?;
             builder
                 .begin()
                 .map_err(|err| BufferError::BufferCreationError(err.into()))?;
@@ -439,7 +446,10 @@ impl GraphicsBackend for VulkanBackend {
         Ok(ShaderHandle::new(shader_id))
     }
 
-    fn delete_shader(&mut self, shader: ShaderModule) -> Result<(), ShaderError> {
+    fn delete_shader(
+        &mut self,
+        shader: ShaderModule,
+    ) -> Result<(), ShaderError> {
         let shader = self
             .shaders
             .remove(&shader.handle().id())
@@ -680,10 +690,11 @@ impl GraphicsBackend for VulkanBackend {
             .command_buffers
             .get_mut(&command_list.id())
             .ok_or(CommandListError::CommandListNotFound)?;
-        let mut builder = VulkanCommandBufferBuilder::new(&self.images)
-            .map_err(|err| {
-                CommandListError::CommandListCreationError(err.into())
-            })?;
+        let mut builder =
+            VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
+                .map_err(|err| {
+                    CommandListError::CommandListCreationError(err.into())
+                })?;
         let ws = wait_semaphores
             .iter()
             .map(|x| {
@@ -953,8 +964,9 @@ impl GraphicsBackend for VulkanBackend {
         let mut cmd =
             VulkanCommandBuffer::new(&self.device, &self.command_pool)
                 .map_err(|err| ImageError::ImageLoadError(err.into()))?;
-        let mut builder = VulkanCommandBufferBuilder::new(&self.images)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+        let mut builder =
+            VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
+                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
         let img = self
             .images
             .get(&image.id())

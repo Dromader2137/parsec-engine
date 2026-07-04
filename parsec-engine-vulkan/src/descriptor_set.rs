@@ -372,6 +372,19 @@ impl VulkanDescriptorSet {
             })
             .collect::<Vec<_>>()
     }
+    
+    pub fn bound_buffer_ids(&self) -> Vec<u32> {
+        self.bindings_state
+            .iter()
+            .filter_map(|x| {
+                match x {
+                    DescriptorSetBinding::UniformBuffer(buf) => *buf,
+                    DescriptorSetBinding::StorageBuffer(buf) => *buf,
+                    _ => None
+                }
+            })
+            .collect::<Vec<_>>()
+    }
 
     pub fn free(
         self,
