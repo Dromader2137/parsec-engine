@@ -1,7 +1,7 @@
 # TODO
 
 ## Bugfixes
-- Vulkan buffer barrier system
+- Vulkan buffer barrier system (DONE)
 
 ## Features
 - Asset lazy loading
