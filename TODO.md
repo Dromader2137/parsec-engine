@@ -1,15 +1,21 @@
 # TODO
 
 ## Bugfixes
-- Vulkan buffer barrier system (DONE)
+- Vulkan buffer automatic barrier and synchronization (DONE)
 
 ## Features
-- Asset lazy loading
+- Asset lazy loading (may require some lifetime shenannigans)
+- Decouple fetch from filters inside the ECS
+- UI
 
 ## Optimization
-- BorrowingStats atomics instead of mutexes
+- Switch mutex in BorrowingStats to atomic int
 
 ## Other
-- Resources docs
-- World docs
-- Graphics docs
+- Document Resources
+- Document World
+- Document Graphics
+- Vulkan tests
+- World tests
+- Deny unwrap
+- Derive error for all error traits
