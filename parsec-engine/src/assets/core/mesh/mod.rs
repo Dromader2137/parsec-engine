@@ -64,7 +64,10 @@ impl Identifiable for Mesh {
 }
 
 impl From<CookedMesh> for Mesh {
-    fn from(value: CookedMesh) -> Self {
+    fn from(mut value: CookedMesh) -> Self {
+        let pos_len = value.positions.len();
+        value.uvs.resize(pos_len, Vec2f::ZERO);
+        value.normals.resize(pos_len, Vec3f::UP);
         let vertices = value
             .positions
             .iter()

@@ -2,6 +2,7 @@
 
 ## Bugfixes
 - Vulkan buffer automatic barrier and synchronization (DONE)
+- OBJ loader support
 
 ## Features
 - Asset lazy loading (may require some lifetime shenannigans)
