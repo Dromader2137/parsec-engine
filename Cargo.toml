@@ -6,6 +6,7 @@ members = ["parsec-engine", "parsec-engine-cli", "parsec-engine-examples",
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [workspace.dependencies]
 anyhow = "1.0.102"

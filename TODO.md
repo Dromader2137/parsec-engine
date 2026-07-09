@@ -8,6 +8,7 @@
 - Asset lazy loading (may require some lifetime shenannigans)
 - Decouple fetch from filters inside the ECS
 - UI
+- Create an easy way to bake in some default shaders into the engine
 
 ## Optimization
 - Switch mutex in BorrowingStats to atomic int

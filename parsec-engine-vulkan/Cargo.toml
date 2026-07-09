@@ -2,6 +2,7 @@
 name = "parsec-engine-vulkan"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 ash.workspace = true
