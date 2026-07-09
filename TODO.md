@@ -6,9 +6,10 @@
 
 ## Features
 - Asset lazy loading (may require some lifetime shenannigans)
-- Decouple fetch from filters inside the ECS
 - UI
 - Create an easy way to bake in some default shaders into the engine
+- Decouple fetch from filters inside the ECS
+- CI/CD on pull request to main that uploads to crates.io
 
 ## Optimization
 - Switch mutex in BorrowingStats to atomic int
