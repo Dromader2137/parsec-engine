@@ -1,7 +1,7 @@
 use parsec_engine_math::vec::{Vec2f, Vec3f};
 
 use crate::{
-    assets::{Asset, AssetDescription},
+    assets::Asset,
     create_counter,
     ecs::resources::Resources,
     error::OptionNoneErr,
@@ -13,6 +13,14 @@ use crate::{
     },
 };
 
+#[derive(Debug, Default)]
+pub struct InputMesh {
+    pub positions: Vec<Vec3f>,
+    pub normals: Vec<Vec3f>,
+    pub uvs: Vec<Vec2f>,
+    pub indices: Vec<u32>,
+}
+
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct CookedMesh {
     positions: Vec<Vec3f>,
@@ -22,6 +30,15 @@ pub struct CookedMesh {
 }
 
 impl CookedMesh {
+    pub fn from_input(input_mesh: InputMesh) -> Self {
+        Self {
+            positions: input_mesh.positions,
+            normals: input_mesh.normals,
+            uvs: input_mesh.uvs,
+            indices: input_mesh.indices,
+        }
+    }
+
     pub fn new(
         positions: Vec<Vec3f>,
         normals: Vec<Vec3f>,
@@ -55,43 +72,35 @@ impl Mesh {
             data_id: None,
         }
     }
+
+    fn from_cooked(cooked: CookedMesh) -> Self {
+        let vertices = cooked
+            .positions
+            .iter()
+            .zip(cooked.uvs.iter())
+            .zip(cooked.normals.iter())
+            .map(|((pos, uv), norm)| DefaultVertex::new(*pos, *norm, *uv))
+            .collect();
+        Self::new(vertices, cooked.indices)
+    }
 }
 
 impl Identifiable for Mesh {
     fn id(&self) -> IdType { self.mesh_id }
 }
 
-impl From<CookedMesh> for Mesh {
-    fn from(mut value: CookedMesh) -> Self {
-        let pos_len = value.positions.len();
-        value.uvs.resize(pos_len, Vec2f::ZERO);
-        value.normals.resize(pos_len, Vec3f::UP);
-        let vertices = value
-            .positions
-            .iter()
-            .zip(value.uvs.iter())
-            .zip(value.normals.iter())
-            .map(|((pos, uv), norm)| DefaultVertex::new(*pos, *norm, *uv))
-            .collect();
-        Self::new(vertices, value.indices)
-    }
-}
-
 impl Asset for Mesh {
+    type Input = InputMesh;
     type Cooked = CookedMesh;
 
     const ASSET_TYPE: &'static str = "mesh";
-    const EXTENSIONS: &'static [&'static str] = &[];
 
-    fn cook(
-        _data: &[u8],
-        _asset_description: &AssetDescription,
-    ) -> Self::Cooked {
-        CookedMesh::default()
+    fn cook(input_data: Self::Input) -> Self::Cooked {
+        CookedMesh::from_input(input_data)
     }
 
     fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {
-        let mut mesh = Mesh::from(cooked);
+        let mut mesh = Mesh::from_cooked(cooked);
         let mesh_data = {
             let mut backend = resources
                 .get_mut::<ActiveGraphicsBackend>()

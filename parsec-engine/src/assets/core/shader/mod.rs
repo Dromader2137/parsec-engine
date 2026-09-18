@@ -1,5 +1,5 @@
 use crate::{
-    assets::{Asset, AssetDescription},
+    assets::Asset,
     ecs::resources::Resources,
     error::OptionNoneErr,
     graphics::{
@@ -11,10 +11,16 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
+pub struct InputShader {
+    pub shader_extension: String,
+    pub shader_code: String
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct CookedShader {
     shader_type: ShaderType,
-    code: Vec<u32>,
+    spirv_compiled_code: Vec<u32>,
 }
 
 #[derive(Debug)]
@@ -24,25 +30,17 @@ pub struct Shader {
 }
 
 impl Asset for Shader {
+    type Input = InputShader;
     type Cooked = CookedShader;
 
     const ASSET_TYPE: &'static str = "shader";
-    const EXTENSIONS: &'static [&'static str] = &["vert", "frag"];
 
-    fn cook(data: &[u8], asset_description: &AssetDescription) -> Self::Cooked {
-        let extension = asset_description
-            .path
-            .extension()
-            .expect("shader has to have an extension")
-            .to_str()
-            .expect("shader has to have a valid utf-8 extension");
-        // Compile GLSL -> SPV
-        let text = String::from_utf8_lossy(data);
+    fn cook(input_data: Self::Input) -> Self::Cooked {
         let compiler = shaderc::Compiler::new().unwrap();
         let spv = compiler
             .compile_into_spirv(
-                &text,
-                match extension {
+                &input_data.shader_code,
+                match input_data.shader_extension.as_str() {
                     "vert" => shaderc::ShaderKind::DefaultVertex,
                     "frag" => shaderc::ShaderKind::DefaultFragment,
                     _ => panic!("invalid shader extension"),
@@ -52,13 +50,13 @@ impl Asset for Shader {
                 None,
             )
             .unwrap();
-        let shader_type = match extension {
+        let shader_type = match input_data.shader_extension.as_str() {
             "vert" => ShaderType::Vertex,
             "frag" => ShaderType::Fragment,
             _ => panic!("invalid shader extension"),
         };
         let code = reinterpret_shader_code(spv.as_binary_u8()).unwrap();
-        return CookedShader { shader_type, code };
+        return CookedShader { shader_type, spirv_compiled_code: code };
     }
 
     fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {
@@ -68,7 +66,7 @@ impl Asset for Shader {
             .unwrap();
         let shader_module = ShaderModuleBuilder::default()
             .shader_type(cooked.shader_type)
-            .code(&cooked.code)
+            .code(&cooked.spirv_compiled_code)
             .build(&mut backend)
             .unwrap();
         Shader {

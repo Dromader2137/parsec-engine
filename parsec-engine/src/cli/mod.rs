@@ -97,10 +97,12 @@ fn cook_type_erased<T: Asset>(
     out_bytes
 }
 
+#[derive(Debug)]
 pub struct CookerAssetRegistation {
     cook_fn: Box<fn(&AssetDescription, &AssetSourceFile) -> Vec<u8>>,
 }
 
+#[derive(Debug)]
 pub struct CookerSourceFileRegistration {
     extract_fn: Box<fn(&Path) -> Vec<InitialAssetDescription>>,
 }

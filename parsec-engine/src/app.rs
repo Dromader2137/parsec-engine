@@ -3,18 +3,15 @@
 use parsec_engine_math::vec::Vec2f;
 
 use crate::{
-    assets::AssetLibrary,
-    ecs::{
+    assets::library::AssetLibrary, ecs::{
         resources::Resources,
         system::{SystemTrigger, Systems},
         world::World,
-    },
-    graphics::ActiveEventLoop,
-    input::{
+    }, graphics::ActiveEventLoop, input::{
         key::StorageKeyCode,
         keys::KeyboardInputEvent,
         mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
-    },
+    }
 };
 
 #[allow(unused)]

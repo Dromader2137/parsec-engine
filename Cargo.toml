@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["parsec-engine", "parsec-engine-cli", "parsec-engine-examples", 
-	"parsec-engine-macros", "parsec-engine-math", "parsec-engine-vulkan"]
+members = ["parsec-engine", "parsec-engine-examples", "parsec-engine-macros", 
+	"parsec-engine-math", "parsec-engine-vulkan"]
 
 [workspace.package]
 version = "0.1.0"
