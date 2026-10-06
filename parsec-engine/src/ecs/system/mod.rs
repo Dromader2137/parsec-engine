@@ -3,10 +3,7 @@
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
 use crate::{
-    assets::AssetLibrary,
-    ctx::Ctx,
-    ecs::{resources::Resources, world::World},
-    error::ParsecError,
+    assets::library::AssetLibrary, ctx::Ctx, ecs::{resources::Resources, world::World}, error::ParsecError
 };
 
 /// List of possible actions a system can run on.

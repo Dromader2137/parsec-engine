@@ -28,13 +28,8 @@ where
 }
 
 #[derive(Debug, thiserror::Error)]
-pub struct StrError(pub &'static str);
-
-impl Display for StrError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0)
-    }
-}
+#[error("option is none")]
+pub struct OptionIsNone;
 
 pub trait OptionNoneErr<T> {
     fn none_err(self) -> Result<T, ParsecError>;
@@ -42,6 +37,6 @@ pub trait OptionNoneErr<T> {
 
 impl<T> OptionNoneErr<T> for Option<T> {
     fn none_err(self) -> Result<T, ParsecError> {
-        self.ok_or(StrError("failed to unwrap None").into())
+        self.ok_or_else(|| OptionIsNone.into())
     }
 }

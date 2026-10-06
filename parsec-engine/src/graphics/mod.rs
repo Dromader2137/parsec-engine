@@ -28,7 +28,7 @@ use std::{
 };
 
 use crate::{
-    error::{ParsecError, StrError},
+    error::ParsecError,
     graphics::{backend::GraphicsBackend, window::Window},
 };
 
@@ -73,6 +73,10 @@ pub struct ActiveEventLoop {
 unsafe impl Send for ActiveEventLoop {}
 unsafe impl Sync for ActiveEventLoop {}
 
+#[derive(Debug, thiserror::Error)]
+#[error("Event loop can only be accessed from the main thread")]
+pub struct EventLoopAccessError;
+
 impl ActiveEventLoop {
     pub fn new(
         raw_active_event_loop: &winit::event_loop::ActiveEventLoop,
@@ -87,11 +91,7 @@ impl ActiveEventLoop {
         &self,
     ) -> Result<&winit::event_loop::ActiveEventLoop, ParsecError> {
         if self.thread_id != thread::current().id() {
-            return Err(StrError(
-                "Active event loop can only be accessed from the creating \
-                 thread",
-            )
-            .into());
+            return Err(EventLoopAccessError.into());
         }
         Ok(unsafe { self.raw_active_event_loop.as_ref() })
     }

@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 
 use parsec_engine::{
-    error::StrError,
     graphics::{
         backend::{BackendError, GraphicsBackend},
         buffer::{
@@ -884,7 +883,7 @@ impl GraphicsBackend for VulkanBackend {
         signal_semaphore: GpuToGpuFence,
     ) -> Result<u32, BackendError> {
         let ss = self.semaphores.get(&signal_semaphore.id()).ok_or(
-            BackendError::FrameError(StrError("semaphore not found").into()),
+            BackendError::FrameError(),
         )?;
 
         self.swapchain

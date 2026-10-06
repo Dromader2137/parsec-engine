@@ -1,7 +1,7 @@
 use image::EncodableLayout;
 use parsec_engine::{
     app::App,
-    assets::core::{mesh::Mesh, shader::Shader},
+    assets::{core::{mesh::Mesh, shader::Shader}, manifest::AssetDescription},
     ctx::Ctx,
     ecs::{
         system::SystemTrigger,
@@ -38,11 +38,11 @@ use parsec_engine_vulkan::VulkanBackend;
 
 fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
     let vertex_shader_handle =
-        ctx.assets.load::<Shader>("shaderv", ctx.resources)?;
+        ctx.assets.load::<Shader>("main@simple.shader", ctx.resources)?;
     let fragment_shader_handle =
-        ctx.assets.load::<Shader>("shaderf", ctx.resources)?;
+        ctx.assets.load::<Shader>("main@multilight.shader", ctx.resources)?;
     let mesh_handle =
-        ctx.assets.load::<Mesh>("testmesh", ctx.resources).unwrap();
+        ctx.assets.load::<Mesh>("Cube@test.mesh", ctx.resources).unwrap();
     
     let mut backend =
         ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
@@ -252,13 +252,18 @@ fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
     Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), ParsecError> {
     let mut app = App::new();
+    app.assets.add_asset(AssetDescription::new("main", "shaders/simple.vert", "shader"))?;
+    app.assets.add_asset(AssetDescription::new("main", "shaders/multilight.frag", "shader"))?;
+    app.assets.add_asset(AssetDescription::new("main", "shaders/flat.frag", "shader"))?;
+    app.assets.add_asset(AssetDescription::new("Cube", "test.obj", "mesh"))?;
+    app.assets.add_asset(AssetDescription::new("", "test.png", "texture"))?;
     app.systems
         .add_bundle(GraphicsBundle::<VulkanBackend>::default());
     app.systems.add_bundle(InputBundle);
     app.systems.add_bundle(TimeBundle);
     app.systems.add(SystemTrigger::LateStart, game_startup);
     app.systems.add(SystemTrigger::Update, camera_controller);
-    app.run();
+    app.run()
 }

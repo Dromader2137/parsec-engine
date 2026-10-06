@@ -7,7 +7,7 @@ use crate::{
         resources::Resources,
         system::{SystemTrigger, Systems},
         world::World,
-    }, graphics::ActiveEventLoop, input::{
+    }, error::ParsecError, graphics::ActiveEventLoop, input::{
         key::StorageKeyCode,
         keys::KeyboardInputEvent,
         mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
@@ -17,13 +17,9 @@ use crate::{
 #[allow(unused)]
 pub struct App {
     pub systems: Systems,
+    pub assets: AssetLibrary,
     world: World,
     resources: Resources,
-    assets: AssetLibrary,
-}
-
-impl Default for App {
-    fn default() -> Self { Self::new() }
 }
 
 impl App {
@@ -36,13 +32,14 @@ impl App {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), ParsecError> {
         self.execute_system(SystemTrigger::Start);
 
         let event_loop =
             winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
         event_loop.run_app(self).unwrap();
+        Ok(())
     }
 
     pub fn execute_system(&mut self, system_trigger: SystemTrigger) {

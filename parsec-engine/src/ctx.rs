@@ -1,6 +1,5 @@
 use crate::{
-    assets::AssetLibrary,
-    ecs::{resources::Resources, world::World},
+    assets::library::AssetLibrary, ecs::{resources::Resources, world::World}
 };
 
 pub struct Ctx<'a> {

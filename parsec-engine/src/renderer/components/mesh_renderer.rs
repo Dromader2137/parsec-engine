@@ -1,4 +1,4 @@
-use crate::{assets::{AssetHandle, core::mesh::Mesh}, ecs::world::component::Component};
+use crate::{assets::{core::mesh::Mesh, library::AssetHandle}, ecs::world::component::Component};
 
 #[derive(Debug, Component)]
 pub struct MeshRenderer {

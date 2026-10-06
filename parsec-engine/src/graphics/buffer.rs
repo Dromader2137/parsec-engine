@@ -1,7 +1,4 @@
-use crate::{
-    error::{ParsecError, StrError},
-    graphics::ActiveGraphicsBackend,
-};
+use crate::{error::ParsecError, graphics::ActiveGraphicsBackend};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BufferHandle {
@@ -79,9 +76,7 @@ impl<'a> BufferBuilder<'a> {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<Buffer, BufferError> {
-        let data = self.data.ok_or(BufferError::BufferCreationError(
-            StrError("no buffer data provided").into(),
-        ))?;
+        let data = self.data.ok_or(BufferError::NoBufferData)?;
         let handle = backend.create_buffer(data, self.usage)?;
         Ok(Buffer::new(handle, self.usage.to_vec()))
     }
@@ -110,6 +105,7 @@ impl<'a> BufferContent<'a> {
 #[derive(Debug)]
 pub enum BufferError {
     BufferCreationError(ParsecError),
+    NoBufferData,
     BufferUpdateError(ParsecError),
     BufferDeletionError(ParsecError),
     BufferBindError(ParsecError),
