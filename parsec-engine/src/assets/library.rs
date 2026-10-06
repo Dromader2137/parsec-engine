@@ -168,6 +168,7 @@ impl AssetLibrary {
         asset_name: &str,
         resources: &mut Resources,
     ) -> Result<AssetHandle<T>, ParsecError> {
+
         let asset_id = *self
             .names
             .get(asset_name)

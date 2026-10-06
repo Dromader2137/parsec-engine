@@ -1,9 +1,8 @@
 use parsec_engine_math::uvec::Vec2u;
 
 use crate::{
-    error::ParsecError,
     graphics::{
-        ActiveGraphicsBackend, image::ImageViewHandle,
+        ActiveGraphicsBackend, backend::BackendError, image::ImageViewHandle,
         renderpass::RenderpassHandle,
     },
 };
@@ -51,7 +50,7 @@ impl Framebuffer {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), FramebufferError> {
-        backend.delete_framebuffer(self)
+        Ok(backend.delete_framebuffer(self)?)
     }
 }
 
@@ -102,13 +101,12 @@ impl FramebufferBuilder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum FramebufferError {
-    FramebufferCreationError(ParsecError),
-    FramebufferDeletionError(ParsecError),
-    ImageViewNotFound,
-    RenderpassNotSet,
-    FramebufferNotFound,
-    ImageNotFound,
+    #[error(transparent)]
+    Backend(#[from] BackendError),
+    #[error("framebuffer size not set")]
     RenderpassSizeNotSet,
+    #[error("renderpass not set")]
+    RenderpassNotSet,
 }

@@ -1,4 +1,4 @@
-use crate::{error::ParsecError, graphics::ActiveGraphicsBackend};
+use crate::graphics::{ActiveGraphicsBackend, backend::BackendError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SamplerHandle {
@@ -25,7 +25,7 @@ impl Sampler {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), SamplerError> {
-        backend.delete_image_sampler(self)
+        Ok(backend.delete_image_sampler(self)?)
     }
 }
 
@@ -49,18 +49,6 @@ impl SamplerBuilder {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SamplerError {
-    #[error("failed to create sampler: {0}")]
-    SamplerCreationError(ParsecError),
-    #[error("failed to delete sampler: {0}")]
-    SamplerDeletionError(ParsecError),
-    #[error("failed to bind sampler: {0}")]
-    SamplerBindError(ParsecError),
-    #[error("pipeline resource does not exist")]
-    PipelineResourceNotFound,
-    #[error("pipeline resource layout does not exist")]
-    PipelineResourceLayoutNotFound,
-    #[error("sampler does not exist")]
-    SamplerNotFound,
-    #[error("image view does not exist")]
-    ImageViewNotFound,
+    #[error(transparent)]
+    Backend(#[from] BackendError),
 }

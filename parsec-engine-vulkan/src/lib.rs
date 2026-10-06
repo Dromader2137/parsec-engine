@@ -8,28 +8,23 @@ use std::collections::HashMap;
 use parsec_engine::{
     graphics::{
         backend::{BackendError, GraphicsBackend},
-        buffer::{
-            Buffer, BufferContent, BufferError, BufferHandle, BufferUsage,
-        },
-        command_list::{Command, CommandList, CommandListError},
-        framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
-        gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
-        gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
+        buffer::{Buffer, BufferContent, BufferHandle, BufferUsage},
+        command_list::{Command, CommandList},
+        framebuffer::{Framebuffer, FramebufferHandle},
+        gpu_cpu_fence::GpuToCpuFence,
+        gpu_gpu_fence::GpuToGpuFence,
         image::{
-            Image, ImageAspect, ImageError, ImageFormat, ImageHandle,
-            ImageUsage, ImageView, ImageViewHandle,
+            Image, ImageAspect, ImageFormat, ImageHandle, ImageUsage, ImageView,
+            ImageViewHandle,
         },
         pipeline::{
-            Pipeline, PipelineError, PipelineHandle, PipelineOptions,
-            PipelineResource, PipelineResourceBindingLayout,
-            PipelineResourceHandle, PipelineResourceLayout,
-            PipelineResourceLayoutHandle,
+            Pipeline, PipelineHandle, PipelineOptions, PipelineResource,
+            PipelineResourceBindingLayout, PipelineResourceHandle,
+            PipelineResourceLayout, PipelineResourceLayoutHandle,
         },
-        renderpass::{
-            Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
-        },
-        sampler::{Sampler, SamplerError, SamplerHandle},
-        shader_module::{ShaderError, ShaderHandle, ShaderModule, ShaderType},
+        renderpass::{Renderpass, RenderpassAttachment, RenderpassHandle},
+        sampler::{Sampler, SamplerHandle},
+        shader_module::{ShaderHandle, ShaderModule, ShaderType},
         window::Window,
     },
 };
@@ -68,8 +63,20 @@ use crate::{
     semaphore::VulkanSemaphore,
     shader::VulkanShaderModule,
     surface::{VulkanInitialSurface, VulkanSurface},
-    swapchain::{VulkanSwapchain, VulkanSwapchainError},
+    swapchain::VulkanSwapchain,
 };
+
+#[derive(Debug, thiserror::Error)]
+enum VulkanBackendError {
+    #[error("{0} not found")]
+    NotFound(&'static str),
+    #[error("invalid image size")]
+    InvalidImageSize,
+}
+
+impl From<VulkanBackendError> for BackendError {
+    fn from(err: VulkanBackendError) -> Self { BackendError::new(err) }
+}
 
 mod access;
 mod allocation;
@@ -191,21 +198,21 @@ impl Drop for VulkanBackend {
 impl GraphicsBackend for VulkanBackend {
     fn init(window: &Window) -> Result<Self, BackendError> {
         let instance = VulkanInstance::new(window)
-            .map_err(|err| BackendError::InitError(err.into()))?;
+            .map_err(BackendError::new)?;
         let initial_surface = VulkanInitialSurface::new(&instance, window)
-            .map_err(|err| BackendError::InitError(err.into()))?;
+            .map_err(BackendError::new)?;
         let physical_device =
             VulkanPhysicalDevice::new(&instance, &initial_surface)
-                .map_err(|err| BackendError::InitError(err.into()))?;
+                .map_err(BackendError::new)?;
         let surface = VulkanSurface::from_initial_surface(
             initial_surface,
             &physical_device,
         )
-        .map_err(|err| BackendError::InitError(err.into()))?;
+        .map_err(BackendError::new)?;
         let device = VulkanDevice::new(&instance, &physical_device)
-            .map_err(|err| BackendError::InitError(err.into()))?;
+            .map_err(BackendError::new)?;
         let command_pool = VulkanCommandPool::new(&physical_device, &device)
-            .map_err(|err| BackendError::InitError(err.into()))?;
+            .map_err(BackendError::new)?;
         let present_queue =
             VulkanQueue::present(&device, physical_device.queue_family_index());
         let descriptor_pool = VulkanDescriptorPool::new(&device, 4096, &[
@@ -222,11 +229,11 @@ impl GraphicsBackend for VulkanBackend {
                 VulkanDescriptorType::CombinedImageSampler,
             ),
         ])
-        .map_err(|err| BackendError::InitError(err.into()))?;
+        .map_err(BackendError::new)?;
         let allocator = VulkanAllocator::new();
         let (swapchain, swapchain_images) =
             VulkanSwapchain::new(&instance, window, &surface, &device, None)
-                .map_err(|err| BackendError::InitError(err.into()))?;
+                .map_err(BackendError::new)?;
         let mut images = HashMap::new();
         for swapchain_image in swapchain_images.iter() {
             let swapchain_image_id = swapchain_image.id();
@@ -273,7 +280,7 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         data: BufferContent<'_>,
         buffer_usage: &[BufferUsage],
-    ) -> Result<BufferHandle, BufferError> {
+    ) -> Result<BufferHandle, BackendError> {
         let usage: Vec<_> = buffer_usage
             .iter()
             .map(|x| VulkanBufferUsage::new(*x))
@@ -289,7 +296,7 @@ impl GraphicsBackend for VulkanBackend {
                 &usage,
                 VulkanMemoryProperties::Host,
             )
-            .map_err(|err| BufferError::BufferCreationError(err.into()))?
+            .map_err(BackendError::new)?
         } else {
             let staging = VulkanBuffer::from_vec(
                 &self.device,
@@ -298,7 +305,7 @@ impl GraphicsBackend for VulkanBackend {
                 &[VulkanBufferUsage::TransferSrc],
                 VulkanMemoryProperties::Host,
             )
-            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            .map_err(BackendError::new)?;
 
             let mut usage = usage.to_vec();
             usage.push(VulkanBufferUsage::TransferDst);
@@ -309,30 +316,26 @@ impl GraphicsBackend for VulkanBackend {
                 usage.as_slice(),
                 VulkanMemoryProperties::Device,
             )
-            .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+            .map_err(BackendError::new)?;
 
             let mut cmd =
                 VulkanCommandBuffer::new(&self.device, &self.command_pool)
-                    .map_err(|err| {
-                        BufferError::BufferCreationError(err.into())
-                    })?;
+                    .map_err(BackendError::new)?;
             let mut builder =
                 VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
-                    .map_err(|err| {
-                        BufferError::BufferCreationError(err.into())
-                    })?;
+                    .map_err(BackendError::new)?;
             builder
                 .begin()
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
             builder
                 .copy_buffer_to_buffer(&staging, &device_local)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
             builder
                 .end()
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
             builder
                 .build(&self.device, &mut cmd)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
             self.present_queue
                 .submit(
                     &self.device,
@@ -343,7 +346,7 @@ impl GraphicsBackend for VulkanBackend {
                     VulkanPipelineStage::Transfer,
                     &mut self.images,
                 )
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
 
             self.staging_buffers.insert(device_local.id(), staging.id());
             self.buffers.insert(staging.id(), staging);
@@ -359,44 +362,40 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         buffer: BufferHandle,
         data: BufferContent<'_>,
-    ) -> Result<(), BufferError> {
+    ) -> Result<(), BackendError> {
         let buffer_id = buffer.id();
         let buffer = self
             .buffers
             .get(&buffer_id)
-            .ok_or(BufferError::BufferNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("buffer"))?;
         if let Some(staging_id) = self.staging_buffers.get(&buffer_id) {
             let staging = self
                 .buffers
                 .get(staging_id)
-                .ok_or(BufferError::BufferNotFound)?;
+                .ok_or(VulkanBackendError::NotFound("buffer"))?;
 
             staging
                 .update(&self.device, data)
-                .map_err(|err| BufferError::BufferUpdateError(err.into()))?;
+                .map_err(BackendError::new)?;
 
             let mut cmd =
                 VulkanCommandBuffer::new(&self.device, &self.command_pool)
-                    .map_err(|err| {
-                        BufferError::BufferCreationError(err.into())
-                    })?;
+                    .map_err(BackendError::new)?;
             let mut builder =
                 VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
-                    .map_err(|err| {
-                        BufferError::BufferCreationError(err.into())
-                    })?;
+                    .map_err(BackendError::new)?;
             builder
                 .begin()
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
             builder
                 .copy_buffer_to_buffer(staging, buffer)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
             builder
                 .end()
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
             builder
                 .build(&self.device, &mut cmd)
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
             self.present_queue
                 .submit(
                     &self.device,
@@ -407,27 +406,27 @@ impl GraphicsBackend for VulkanBackend {
                     VulkanPipelineStage::Transfer,
                     &mut self.images,
                 )
-                .map_err(|err| BufferError::BufferCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
         } else {
             buffer
                 .update(&self.device, data)
-                .map_err(|err| BufferError::BufferUpdateError(err.into()))?;
+                .map_err(BackendError::new)?;
         }
         Ok(())
     }
 
-    fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BufferError> {
+    fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BackendError> {
         if let Some(staging_id) = self.staging_buffers.get(&buffer.id()) {
             let staging = self
                 .buffers
                 .remove(staging_id)
-                .ok_or(BufferError::BufferNotFound)?;
+                .ok_or(VulkanBackendError::NotFound("buffer"))?;
             staging.destroy(&self.device, &mut self.allocator);
         }
         let buffer = self
             .buffers
             .remove(&buffer.id())
-            .ok_or(BufferError::BufferNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("buffer"))?;
         buffer.destroy(&self.device, &mut self.allocator);
         Ok(())
     }
@@ -436,10 +435,10 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         code: &[u32],
         shader_type: ShaderType,
-    ) -> Result<ShaderHandle, ShaderError> {
+    ) -> Result<ShaderHandle, BackendError> {
         let shader =
             VulkanShaderModule::new(&self.device, code, shader_type)
-                .map_err(|err| ShaderError::ShaderCreationError(err.into()))?;
+                .map_err(BackendError::new)?;
         let shader_id = shader.id();
         self.shaders.insert(shader_id, shader);
         Ok(ShaderHandle::new(shader_id))
@@ -448,11 +447,11 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_shader(
         &mut self,
         shader: ShaderModule,
-    ) -> Result<(), ShaderError> {
+    ) -> Result<(), BackendError> {
         let shader = self
             .shaders
             .remove(&shader.handle().id())
-            .ok_or(ShaderError::ShaderNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("shader"))?;
         shader.destroy(&self.device);
         Ok(())
     }
@@ -460,7 +459,7 @@ impl GraphicsBackend for VulkanBackend {
     fn create_renderpass(
         &mut self,
         attachments: &[RenderpassAttachment],
-    ) -> Result<RenderpassHandle, RenderpassError> {
+    ) -> Result<RenderpassHandle, BackendError> {
         let renderpass = VulkanRenderpass::new(
             &self.device,
             &attachments
@@ -473,7 +472,7 @@ impl GraphicsBackend for VulkanBackend {
                 })
                 .collect::<Vec<_>>(),
         )
-        .map_err(|err| RenderpassError::RenderpassCreationError(err.into()))?;
+        .map_err(BackendError::new)?;
         let rendrepass_id = renderpass.id();
         self.renderpasses.insert(rendrepass_id, renderpass);
         Ok(RenderpassHandle::new(rendrepass_id))
@@ -482,11 +481,11 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_renderpass(
         &mut self,
         renderpass: Renderpass,
-    ) -> Result<(), RenderpassError> {
+    ) -> Result<(), BackendError> {
         let renderpass = self
             .renderpasses
             .remove(&renderpass.id())
-            .ok_or(RenderpassError::RenderpassNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("renderpass"))?;
         renderpass.destroy(&self.device);
         Ok(())
     }
@@ -498,25 +497,25 @@ impl GraphicsBackend for VulkanBackend {
         renderpass: RenderpassHandle,
         binding_layouts: &[PipelineResourceLayoutHandle],
         options: PipelineOptions,
-    ) -> Result<PipelineHandle, PipelineError> {
+    ) -> Result<PipelineHandle, BackendError> {
         let vsm = self
             .shaders
             .get(&vertex_shader.id())
-            .ok_or(PipelineError::ShaderNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("shader"))?;
         let fsm = self
             .shaders
             .get(&fragment_shader.id())
-            .ok_or(PipelineError::ShaderNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("shader"))?;
         let ren = self
             .renderpasses
             .get(&renderpass.id())
-            .ok_or(PipelineError::RenderpassNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("renderpass"))?;
         let dsl = binding_layouts
             .iter()
             .map(|x| {
                 self.descriptor_set_layouts
                     .get(&x.id())
-                    .ok_or(PipelineError::LayoutNotFound)
+                    .ok_or(VulkanBackendError::NotFound("pipeline resource layout"))
                     .cloned()
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -528,7 +527,7 @@ impl GraphicsBackend for VulkanBackend {
             &dsl,
             VulkanPipelineOptions::new(options),
         )
-        .map_err(|err| PipelineError::PipelineCreationError(err.into()))?;
+        .map_err(BackendError::new)?;
         let pipeline_id = pipeline.id();
         self.pipelines.insert(pipeline_id, pipeline);
         Ok(PipelineHandle::new(pipeline_id))
@@ -537,11 +536,11 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_pipeline(
         &mut self,
         pipeline: Pipeline,
-    ) -> Result<(), PipelineError> {
+    ) -> Result<(), BackendError> {
         let pip = self
             .pipelines
             .remove(&pipeline.id())
-            .ok_or(PipelineError::PipelineNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("pipeline"))?;
         pip.destroy(&self.device);
         Ok(())
     }
@@ -549,7 +548,7 @@ impl GraphicsBackend for VulkanBackend {
     fn create_pipeline_resource_layout(
         &mut self,
         subbindings: &[PipelineResourceBindingLayout],
-    ) -> Result<PipelineResourceLayoutHandle, PipelineError> {
+    ) -> Result<PipelineResourceLayoutHandle, BackendError> {
         let set_bindings = subbindings
             .iter()
             .enumerate()
@@ -566,7 +565,7 @@ impl GraphicsBackend for VulkanBackend {
             })
             .collect::<Vec<_>>();
         let dsl = VulkanDescriptorSetLayout::new(&self.device, set_bindings)
-            .map_err(|err| PipelineError::LayoutCreationError(err.into()))?;
+            .map_err(BackendError::new)?;
         let dsl_id = dsl.id();
         self.descriptor_set_layouts.insert(dsl_id, dsl);
         Ok(PipelineResourceLayoutHandle::new(dsl_id))
@@ -575,11 +574,11 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_pipeline_resource_layout(
         &mut self,
         layout: PipelineResourceLayout,
-    ) -> Result<(), PipelineError> {
+    ) -> Result<(), BackendError> {
         let dsl = self
             .descriptor_set_layouts
             .remove(&layout.id())
-            .ok_or(PipelineError::ResourceLayoutNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("pipeline resource layout"))?;
         dsl.destroy(&self.device);
         Ok(())
     }
@@ -587,16 +586,14 @@ impl GraphicsBackend for VulkanBackend {
     fn create_pipeline_resource(
         &mut self,
         pipeline_layout: PipelineResourceLayoutHandle,
-    ) -> Result<PipelineResourceHandle, PipelineError> {
+    ) -> Result<PipelineResourceHandle, BackendError> {
         let dsl = self
             .descriptor_set_layouts
             .get(&pipeline_layout.id())
-            .ok_or(PipelineError::BindingLayoutNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("pipeline resource layout"))?;
         let ds =
             VulkanDescriptorSet::new(&self.device, dsl, &self.descriptor_pool)
-                .map_err(|err| {
-                    PipelineError::BindingCreationError(err.into())
-                })?;
+                .map_err(BackendError::new)?;
         let ds_id = ds.id();
         self.descriptor_sets.insert(ds_id, ds);
         Ok(PipelineResourceHandle::new(ds_id))
@@ -605,15 +602,13 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_pipeline_resource(
         &mut self,
         resrouce: PipelineResource,
-    ) -> Result<(), PipelineError> {
+    ) -> Result<(), BackendError> {
         let ds = self
             .descriptor_sets
             .remove(&resrouce.id())
-            .ok_or(PipelineError::ResourceNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("pipeline resource"))?;
         ds.free(&self.device, &self.descriptor_pool)
-            .map_err(|err| {
-                PipelineError::PipelineResourceDestructionError(err.into())
-            })?;
+            .map_err(BackendError::new)?;
         Ok(())
     }
 
@@ -622,21 +617,21 @@ impl GraphicsBackend for VulkanBackend {
         pipeline_binding: PipelineResourceHandle,
         buffer: BufferHandle,
         index: u32,
-    ) -> Result<(), PipelineError> {
+    ) -> Result<(), BackendError> {
         let ds = self
             .descriptor_sets
             .get_mut(&pipeline_binding.id())
-            .ok_or(PipelineError::ResourceNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("pipeline resource"))?;
         let dsl = self
             .descriptor_set_layouts
             .get(&ds.descriptor_layout_id())
-            .ok_or(PipelineError::ResourceLayoutNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("pipeline resource layout"))?;
         let buf = self
             .buffers
             .get(&buffer.id())
-            .ok_or(PipelineError::BufferNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("buffer"))?;
         ds.bind_buffer(buf, &self.device, dsl, index)
-            .map_err(|err| PipelineError::BufferBindError(err.into()))
+            .map_err(BackendError::new)
     }
 
     fn bind_sampler(
@@ -645,33 +640,31 @@ impl GraphicsBackend for VulkanBackend {
         sampler: SamplerHandle,
         image_view: ImageViewHandle,
         index: u32,
-    ) -> Result<(), PipelineError> {
+    ) -> Result<(), BackendError> {
         let ds = self
             .descriptor_sets
             .get_mut(&pipeline_binding.id())
-            .ok_or(PipelineError::ResourceNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("pipeline resource"))?;
         let dsl = self
             .descriptor_set_layouts
             .get(&ds.descriptor_layout_id())
-            .ok_or(PipelineError::ResourceLayoutNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("pipeline resource layout"))?;
         let sam = self
             .samplers
             .get(&sampler.id())
-            .ok_or(PipelineError::SamplerNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("sampler"))?;
         let imv = self
             .image_views
             .get(&image_view.id())
-            .ok_or(PipelineError::ImageViewNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("image view"))?;
         ds.bind_image_view(imv, sam, &self.device, dsl, index)
-            .map_err(|err| PipelineError::SamplerBindError(err.into()))
+            .map_err(BackendError::new)
     }
 
-    fn create_command_list(&mut self) -> Result<CommandList, CommandListError> {
+    fn create_command_list(&mut self) -> Result<CommandList, BackendError> {
         let comman_buffer =
             VulkanCommandBuffer::new(&self.device, &self.command_pool)
-                .map_err(|err| {
-                    CommandListError::CommandListCreationError(err.into())
-                })?;
+                .map_err(BackendError::new)?;
         let command_buffer_id = comman_buffer.id();
         self.command_buffers
             .insert(command_buffer_id, comman_buffer);
@@ -684,22 +677,20 @@ impl GraphicsBackend for VulkanBackend {
         wait_semaphores: &[GpuToGpuFence],
         signal_semaphores: &[GpuToGpuFence],
         signal_fence: GpuToCpuFence,
-    ) -> Result<(), CommandListError> {
+    ) -> Result<(), BackendError> {
         let command_buffer = self
             .command_buffers
             .get_mut(&command_list.id())
-            .ok_or(CommandListError::CommandListNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("command list"))?;
         let mut builder =
             VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
-                .map_err(|err| {
-                    CommandListError::CommandListCreationError(err.into())
-                })?;
+                .map_err(BackendError::new)?;
         let ws = wait_semaphores
             .iter()
             .map(|x| {
                 self.semaphores
                     .get(&x.id())
-                    .ok_or(CommandListError::SemaphoreNotFound)
+                    .ok_or(VulkanBackendError::NotFound("semaphore"))
             })
             .collect::<Result<Vec<_>, _>>()?;
         let ss = signal_semaphores
@@ -707,104 +698,60 @@ impl GraphicsBackend for VulkanBackend {
             .map(|x| {
                 self.semaphores
                     .get(&x.id())
-                    .ok_or(CommandListError::SemaphoreNotFound)
+                    .ok_or(VulkanBackendError::NotFound("semaphore"))
             })
             .collect::<Result<Vec<_>, _>>()?;
         let fen = self
             .fences
             .get(&signal_fence.id())
-            .ok_or(CommandListError::FenceNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("fence"))?;
 
         for command in command_list.commands().iter() {
             match command {
-                Command::Begin => builder.begin().map_err(|err| {
-                    CommandListError::CommandListBeginError(err.into())
-                })?,
-                Command::End => builder.end().map_err(|err| {
-                    CommandListError::CommandListEndError(err.into())
-                })?,
+                Command::Begin => builder.begin().map_err(BackendError::new)?,
+                Command::End => builder.end().map_err(BackendError::new)?,
                 Command::BeginRenderpass(renderpass, framebuffer) => {
                     let r = self.renderpasses.get(&renderpass.id()).unwrap();
                     let f = self.framebuffers.get(&framebuffer.id()).unwrap();
-                    builder.begin_renderpass(r, f).map_err(|err| {
-                        CommandListError::CommandListRenderpassBeginError(
-                            err.into(),
-                        )
-                    })?;
-                    builder.set_viewports(f.dimensions()).map_err(|err| {
-                        CommandListError::CommandListRenderpassBeginError(
-                            err.into(),
-                        )
-                    })?;
-                    builder.set_scissor(f.dimensions(), Vec2i::ZERO).map_err(
-                        |err| {
-                            CommandListError::CommandListRenderpassBeginError(
-                                err.into(),
-                            )
-                        },
-                    )?
+                    builder.begin_renderpass(r, f).map_err(BackendError::new)?;
+                    builder.set_viewports(f.dimensions()).map_err(BackendError::new)?;
+                    builder.set_scissor(f.dimensions(), Vec2i::ZERO).map_err(BackendError::new)?
                 },
                 Command::SetViewport(dimension) => {
-                    builder.set_viewports(*dimension).map_err(|err| {
-                        CommandListError::CommandListRenderpassBeginError(
-                            err.into(),
-                        )
-                    })?
+                    builder.set_viewports(*dimension).map_err(BackendError::new)?
                 },
                 Command::SetScissor(dimension, offest) => {
-                    builder.set_scissor(*dimension, *offest).map_err(|err| {
-                        CommandListError::CommandListRenderpassBeginError(
-                            err.into(),
-                        )
-                    })?
+                    builder.set_scissor(*dimension, *offest).map_err(BackendError::new)?
                 },
                 Command::EndRenderpass => {
-                    builder.end_renderpass().map_err(|err| {
-                        CommandListError::CommandListRenderpassEndError(
-                            err.into(),
-                        )
-                    })?
+                    builder.end_renderpass().map_err(BackendError::new)?
                 },
                 Command::BindGraphicsPipeline(pipeline) => {
                     let p = self.pipelines.get(&pipeline.id()).unwrap();
-                    builder.bind_graphics_pipeline(p).map_err(|err| {
-                        CommandListError::CommandListBindError(err.into())
-                    })?
+                    builder.bind_graphics_pipeline(p).map_err(BackendError::new)?
                 },
                 Command::BindPipelineBinding(pipeline_binding, idx) => {
                     let ds = self
                         .descriptor_sets
                         .get(&pipeline_binding.id())
                         .unwrap();
-                    builder.bind_descriptor_set(ds, *idx).map_err(|err| {
-                        CommandListError::CommandListBindError(err.into())
-                    })?
+                    builder.bind_descriptor_set(ds, *idx).map_err(BackendError::new)?
                 },
                 Command::BindVertexBuffer(buffer) => {
                     let b = self.buffers.get(&buffer.id()).unwrap();
 
-                    builder.bind_vertex_buffer(b).map_err(|err| {
-                        CommandListError::CommandListBindError(err.into())
-                    })?
+                    builder.bind_vertex_buffer(b).map_err(BackendError::new)?
                 },
                 Command::BindIndexBuffer(buffer) => {
                     let b = self.buffers.get(&buffer.id()).unwrap();
 
-                    builder.bind_index_buffer(b).map_err(|err| {
-                        CommandListError::CommandListBindError(err.into())
-                    })?
+                    builder.bind_index_buffer(b).map_err(BackendError::new)?
                 },
                 Command::Draw(vc, ic, fv, fi) => {
-                    builder.draw(*vc, *ic, *fv, *fi).map_err(|err| {
-                        CommandListError::CommandListDrawError(err.into())
-                    })?;
+                    builder.draw(*vc, *ic, *fv, *fi).map_err(BackendError::new)?;
                 },
                 Command::DrawIndexed(idc, inc, fid, vo, fin) => {
-                    builder.draw_indexed(*idc, *inc, *fid, *vo, *fin).map_err(
-                        |err| {
-                            CommandListError::CommandListDrawError(err.into())
-                        },
-                    )?;
+                    builder.draw_indexed(*idc, *inc, *fid, *vo, *fin).map_err(BackendError::new)?;
                 },
                 Command::CopyBufferToImage(
                     buffer,
@@ -816,27 +763,17 @@ impl GraphicsBackend for VulkanBackend {
                     let i = self.images.get(&image.id()).unwrap();
                     builder
                         .copy_buffer_to_image(b, i, *image_size, *image_offset)
-                        .map_err(|err| {
-                            CommandListError::CommandListCopyToImageError(
-                                err.into(),
-                            )
-                        })?
+                        .map_err(BackendError::new)?
                 },
                 Command::CopyBufferToBuffer(src, dst) => {
                     let s = self.buffers.get(&src.id()).unwrap();
                     let d = self.buffers.get(&dst.id()).unwrap();
-                    builder.copy_buffer_to_buffer(s, d).map_err(|err| {
-                        CommandListError::CommandListCopyToBufferError(
-                            err.into(),
-                        )
-                    })?
+                    builder.copy_buffer_to_buffer(s, d).map_err(BackendError::new)?
                 },
             };
         }
 
-        builder.build(&self.device, command_buffer).map_err(|err| {
-            CommandListError::CommandListSubmitError(err.into())
-        })?;
+        builder.build(&self.device, command_buffer).map_err(BackendError::new)?;
 
         self.present_queue
             .submit(
@@ -848,7 +785,7 @@ impl GraphicsBackend for VulkanBackend {
                 VulkanPipelineStage::ColorAttachmentOutput,
                 &mut self.images,
             )
-            .map_err(|err| CommandListError::CommandListSubmitError(err.into()))
+            .map_err(BackendError::new)
     }
 
     fn handle_resize(&mut self, window: &Window) -> Result<(), BackendError> {
@@ -859,7 +796,7 @@ impl GraphicsBackend for VulkanBackend {
             &self.device,
             Some(&self.swapchain),
         )
-        .map_err(|err| BackendError::FrameError(err.into()))?;
+        .map_err(BackendError::new)?;
         self.swapchain.destroy();
         self.swapchain = swapchain;
         for swapchain_image in swapchain_images.iter() {
@@ -882,18 +819,14 @@ impl GraphicsBackend for VulkanBackend {
         &mut self,
         signal_semaphore: GpuToGpuFence,
     ) -> Result<u32, BackendError> {
-        let ss = self.semaphores.get(&signal_semaphore.id()).ok_or(
-            BackendError::FrameError(),
-        )?;
+        let ss = self
+            .semaphores
+            .get(&signal_semaphore.id())
+            .ok_or(VulkanBackendError::NotFound("semaphore"))?;
 
         self.swapchain
             .acquire_next_image(ss, &VulkanFence::null())
-            .map_err(|err| match err {
-                VulkanSwapchainError::OutOfDate => BackendError::FrameError(
-                    VulkanSwapchainError::OutOfDate.into(),
-                ),
-                val => panic!("{:?}", val),
-            })
+            .map_err(BackendError::new)
             .map(|val| val.0)
     }
 
@@ -905,21 +838,14 @@ impl GraphicsBackend for VulkanBackend {
         let ws = wait_semaphores
             .iter()
             .map(|x| {
-                self.semaphores.get(&x.id()).ok_or(BackendError::FrameError(
-                    StrError("semaphore not found").into(),
-                ))
+                self.semaphores
+                    .get(&x.id())
+                    .ok_or(VulkanBackendError::NotFound("semaphore"))
             })
             .collect::<Result<Vec<_>, _>>()?;
         self.swapchain
             .present(&self.present_queue, &ws, present_image_index)
-            .map_err(|err| match err {
-                VulkanSwapchainError::OutOfDate => BackendError::FrameError(
-                    StrError("semaphore not found").into(),
-                ),
-                _ => {
-                    BackendError::FrameError(StrError("undefined error").into())
-                },
-            })
+            .map_err(BackendError::new)
     }
 
     fn create_image(
@@ -928,12 +854,12 @@ impl GraphicsBackend for VulkanBackend {
         format: ImageFormat,
         aspect: ImageAspect,
         usage: &[ImageUsage],
-    ) -> Result<ImageHandle, ImageError> {
+    ) -> Result<ImageHandle, BackendError> {
         let usage: Vec<_> =
             usage.iter().map(|x| VulkanImageUsage::new(*x)).collect();
         let aspect = VulkanImageAspect::new(aspect);
         let size =
-            VulkanImageSize::new(size).ok_or(ImageError::InvalidImageSize)?;
+            VulkanImageSize::new(size).ok_or(VulkanBackendError::InvalidImageSize)?;
         let image = VulkanOwnedImage::new(
             &self.device,
             &mut self.allocator,
@@ -943,7 +869,7 @@ impl GraphicsBackend for VulkanBackend {
             aspect,
             VulkanMemoryProperties::Device,
         )
-        .map_err(|err| ImageError::ImageCreationError(err.into()))?;
+        .map_err(BackendError::new)?;
         let image_id = image.id();
         self.images.insert(image_id, Box::new(image));
         Ok(ImageHandle::new(image_id))
@@ -955,35 +881,35 @@ impl GraphicsBackend for VulkanBackend {
         image: ImageHandle,
         image_size: Vec2u,
         image_offset: Vec2u,
-    ) -> Result<(), ImageError> {
+    ) -> Result<(), BackendError> {
         let buf = self
             .buffers
             .get(&buffer.id())
-            .ok_or(ImageError::BufferNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("buffer"))?;
         let mut cmd =
             VulkanCommandBuffer::new(&self.device, &self.command_pool)
-                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+                .map_err(BackendError::new)?;
         let mut builder =
             VulkanCommandBufferBuilder::new(&self.images, &self.buffers)
-                .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+                .map_err(BackendError::new)?;
         let img = self
             .images
             .get(&image.id())
-            .ok_or(ImageError::ImageNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("image"))?;
         builder
             .begin()
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+            .map_err(BackendError::new)?;
         builder
             .copy_buffer_to_image(buf, img, image_size, image_offset)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+            .map_err(BackendError::new)?;
         builder
             .end()
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+            .map_err(BackendError::new)?;
         builder
             .build(&self.device, &mut cmd)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+            .map_err(BackendError::new)?;
         let fence = VulkanFence::new(&self.device, false)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+            .map_err(BackendError::new)?;
         self.present_queue
             .submit(
                 &self.device,
@@ -994,19 +920,19 @@ impl GraphicsBackend for VulkanBackend {
                 VulkanPipelineStage::Transfer,
                 &mut self.images,
             )
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+            .map_err(BackendError::new)?;
         fence
             .wait(&self.device)
-            .map_err(|err| ImageError::ImageLoadError(err.into()))?;
+            .map_err(BackendError::new)?;
         fence.destroy(&self.device);
         Ok(())
     }
 
-    fn delete_image(&mut self, image: Image) -> Result<(), ImageError> {
+    fn delete_image(&mut self, image: Image) -> Result<(), BackendError> {
         let result = self
             .images
             .remove(&image.id())
-            .ok_or(ImageError::ImageNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("image"))?;
         result.destroy(&self.device, &mut self.allocator);
         Ok(())
     }
@@ -1014,13 +940,13 @@ impl GraphicsBackend for VulkanBackend {
     fn create_image_view(
         &mut self,
         image: ImageHandle,
-    ) -> Result<ImageViewHandle, ImageError> {
+    ) -> Result<ImageViewHandle, BackendError> {
         let im = self
             .images
             .get(&image.id())
-            .ok_or(ImageError::ImageNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("image"))?;
         let iv = VulkanImageView::from_image(&self.device, im)
-            .map_err(|err| ImageError::ImageViewCreationError(err.into()))?;
+            .map_err(BackendError::new)?;
         let iv_id = iv.id();
         self.image_views.insert(iv_id, iv);
         Ok(ImageViewHandle::new(iv_id))
@@ -1029,18 +955,18 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_image_view(
         &mut self,
         image_view: ImageView,
-    ) -> Result<(), ImageError> {
+    ) -> Result<(), BackendError> {
         let image_view = self
             .image_views
             .remove(&image_view.id())
-            .ok_or(ImageError::ImageViewNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("image view"))?;
         image_view.destroy(&self.device);
         Ok(())
     }
 
-    fn create_image_sampler(&mut self) -> Result<SamplerHandle, SamplerError> {
+    fn create_image_sampler(&mut self) -> Result<SamplerHandle, BackendError> {
         let sampler = VulkanSampler::new(&self.device)
-            .map_err(|err| SamplerError::SamplerCreationError(err.into()))?;
+            .map_err(BackendError::new)?;
         let sampler_id = sampler.id();
         self.samplers.insert(sampler_id, sampler);
         Ok(SamplerHandle::new(sampler_id))
@@ -1049,11 +975,11 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_image_sampler(
         &mut self,
         sampler: Sampler,
-    ) -> Result<(), SamplerError> {
+    ) -> Result<(), BackendError> {
         let sampler = self
             .samplers
             .remove(&sampler.id())
-            .ok_or(SamplerError::SamplerNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("sampler"))?;
         sampler.destroy(&self.device);
         Ok(())
     }
@@ -1063,29 +989,27 @@ impl GraphicsBackend for VulkanBackend {
         size: Vec2u,
         attachments: &[ImageViewHandle],
         renderpass: RenderpassHandle,
-    ) -> Result<FramebufferHandle, FramebufferError> {
+    ) -> Result<FramebufferHandle, BackendError> {
         let att = attachments
             .iter()
             .map(|attachment| {
                 self.image_views
                     .get(&attachment.id())
-                    .ok_or(FramebufferError::ImageViewNotFound)
+                    .ok_or(VulkanBackendError::NotFound("image view"))
                     .map(|image_view| {
                         self.images
                             .get(&image_view.image_id())
                             .map(|img| (image_view, img))
-                            .ok_or(FramebufferError::ImageNotFound)
+                            .ok_or(VulkanBackendError::NotFound("image"))
                     })
             })
             .collect::<Result<Result<Vec<_>, _>, _>>()??;
         let ren = self
             .renderpasses
             .get(&renderpass.id())
-            .ok_or(FramebufferError::RenderpassNotSet)?;
+            .ok_or(VulkanBackendError::NotFound("renderpass"))?;
         let framebuffer = VulkanFramebuffer::new(&self.device, &att, ren, size)
-            .map_err(|err| {
-                FramebufferError::FramebufferCreationError(err.into())
-            })?;
+            .map_err(BackendError::new)?;
         let framebuffer_id = framebuffer.id();
         self.framebuffers.insert(framebuffer_id, framebuffer);
         Ok(FramebufferHandle::new(framebuffer_id))
@@ -1094,11 +1018,11 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_framebuffer(
         &mut self,
         framebuffer: Framebuffer,
-    ) -> Result<(), FramebufferError> {
+    ) -> Result<(), BackendError> {
         let framebuffer = self
             .framebuffers
             .remove(&framebuffer.id())
-            .ok_or(FramebufferError::FramebufferNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("framebuffer"))?;
         framebuffer.destroy(&self.device);
         Ok(())
     }
@@ -1106,11 +1030,9 @@ impl GraphicsBackend for VulkanBackend {
     fn create_gpu_to_cpu_fence(
         &mut self,
         signaled: bool,
-    ) -> Result<GpuToCpuFence, GpuToCpuFenceError> {
+    ) -> Result<GpuToCpuFence, BackendError> {
         let fence =
-            VulkanFence::new(&self.device, signaled).map_err(|err| {
-                GpuToCpuFenceError::GpuToCpuFenneCreationError(err.into())
-            })?;
+            VulkanFence::new(&self.device, signaled).map_err(BackendError::new)?;
         let fence_id = fence.id();
         self.fences.insert(fence_id, fence);
         Ok(GpuToCpuFence::new(fence_id))
@@ -1119,47 +1041,41 @@ impl GraphicsBackend for VulkanBackend {
     fn wait_gpu_to_cpu_fence(
         &mut self,
         fence: GpuToCpuFence,
-    ) -> Result<(), GpuToCpuFenceError> {
+    ) -> Result<(), BackendError> {
         let fence = self
             .fences
             .get(&fence.id())
-            .ok_or(GpuToCpuFenceError::GpuToCpuFenceNotFound)?;
-        fence.wait(&self.device).map_err(|err| {
-            GpuToCpuFenceError::GpuToCpuFenceWaitError(err.into())
-        })
+            .ok_or(VulkanBackendError::NotFound("fence"))?;
+        fence.wait(&self.device).map_err(BackendError::new)
     }
 
     fn reset_gpu_to_cpu_fence(
         &mut self,
         fence: GpuToCpuFence,
-    ) -> Result<(), GpuToCpuFenceError> {
+    ) -> Result<(), BackendError> {
         let fence = self
             .fences
             .get(&fence.id())
-            .ok_or(GpuToCpuFenceError::GpuToCpuFenceNotFound)?;
-        fence.reset(&self.device).map_err(|err| {
-            GpuToCpuFenceError::GpuToCpuFenceWaitError(err.into())
-        })
+            .ok_or(VulkanBackendError::NotFound("fence"))?;
+        fence.reset(&self.device).map_err(BackendError::new)
     }
 
     fn delete_gpu_to_cpu_fence(
         &mut self,
         fence: GpuToCpuFence,
-    ) -> Result<(), GpuToCpuFenceError> {
+    ) -> Result<(), BackendError> {
         let fence = self
             .fences
             .remove(&fence.id())
-            .ok_or(GpuToCpuFenceError::GpuToCpuFenceNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("fence"))?;
         fence.destroy(&self.device);
         Ok(())
     }
 
     fn create_gpu_to_gpu_fence(
         &mut self,
-    ) -> Result<GpuToGpuFence, GpuToGpuFenceError> {
-        let semaphore = VulkanSemaphore::new(&self.device).map_err(|err| {
-            GpuToGpuFenceError::GpuToGpuFenceCreationError(err.into())
-        })?;
+    ) -> Result<GpuToGpuFence, BackendError> {
+        let semaphore = VulkanSemaphore::new(&self.device).map_err(BackendError::new)?;
         let semaphore_id = semaphore.id();
         self.semaphores.insert(semaphore_id, semaphore);
         Ok(GpuToGpuFence::new(semaphore_id))
@@ -1168,11 +1084,11 @@ impl GraphicsBackend for VulkanBackend {
     fn delete_gpu_to_gpu_fence(
         &mut self,
         semaphore: GpuToGpuFence,
-    ) -> Result<(), GpuToGpuFenceError> {
+    ) -> Result<(), BackendError> {
         let semaphore = self
             .semaphores
             .remove(&semaphore.id())
-            .ok_or(GpuToGpuFenceError::GpuToGpuFenceNotFound)?;
+            .ok_or(VulkanBackendError::NotFound("semaphore"))?;
         semaphore.destroy(&self.device);
         Ok(())
     }

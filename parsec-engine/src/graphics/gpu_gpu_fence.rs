@@ -1,15 +1,14 @@
-use crate::error::ParsecError;
+use crate::graphics::backend::BackendError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GpuToGpuFence {
     id: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum GpuToGpuFenceError {
-    GpuToGpuFenceCreationError(ParsecError),
-    GpuToGpuFenceDeletionError(ParsecError),
-    GpuToGpuFenceNotFound,
+    #[error(transparent)]
+    Backend(#[from] BackendError),
 }
 
 impl GpuToGpuFence {

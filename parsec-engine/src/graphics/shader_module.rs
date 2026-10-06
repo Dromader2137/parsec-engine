@@ -3,7 +3,7 @@ use std::{
     io::{Read, Seek},
 };
 
-use crate::{error::ParsecError, graphics::ActiveGraphicsBackend};
+use crate::graphics::{ActiveGraphicsBackend, backend::BackendError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ShaderHandle {
@@ -37,7 +37,7 @@ impl ShaderModule {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), ShaderError> {
-        backend.delete_shader(self)
+        Ok(backend.delete_shader(self)?)
     }
 }
 
@@ -80,12 +80,8 @@ impl<'a> ShaderModuleBuilder<'a> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ShaderError {
-    #[error("failed to create shader: {0}")]
-    ShaderCreationError(ParsecError),
-    #[error("failed to delete shader: {0}")]
-    ShaderDeletionError(ParsecError),
-    #[error("shader does not exist")]
-    ShaderNotFound,
+    #[error(transparent)]
+    Backend(#[from] BackendError),
     #[error("shader code not provided")]
     MissingCode,
     #[error("shader file parsing error")]

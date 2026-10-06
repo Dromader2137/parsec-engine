@@ -1,8 +1,8 @@
 use parsec_engine_math::{ivec::Vec2i, uvec::Vec2u};
 
 use crate::{
-    error::ParsecError,
     graphics::{
+        backend::BackendError,
         buffer::BufferHandle,
         framebuffer::FramebufferHandle,
         image::ImageHandle,
@@ -17,29 +17,10 @@ pub struct CommandList {
     commands: Vec<Command>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum CommandListError {
-    CommandListCreationError(ParsecError),
-    CommandListBeginError(ParsecError),
-    CommandListEndError(ParsecError),
-    CommandListRenderpassBeginError(ParsecError),
-    CommandListRenderpassEndError(ParsecError),
-    CommandListDrawError(ParsecError),
-    CommandListResetError(ParsecError),
-    CommandListBindError(ParsecError),
-    CommandListSubmitError(ParsecError),
-    CommandListCopyToImageError(ParsecError),
-    CommandListCopyToBufferError(ParsecError),
-    CommandListBarrier(ParsecError),
-    CommandListNotFound,
-    FramebufferNotFound,
-    RenderpassNotFound,
-    PipelineNotFound,
-    PipelineLayoutNotFound,
-    BufferNotFound,
-    SemaphoreNotFound,
-    FenceNotFound,
-    ImageNotFound,
+    #[error(transparent)]
+    Backend(#[from] BackendError),
 }
 
 #[derive(Debug)]

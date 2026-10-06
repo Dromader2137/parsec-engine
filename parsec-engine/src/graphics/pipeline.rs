@@ -1,9 +1,8 @@
 use parsec_engine_math::vec::{Vec2f, Vec3f};
 
 use crate::{
-    error::ParsecError,
     graphics::{
-        ActiveGraphicsBackend, buffer::BufferHandle, image::ImageViewHandle,
+        ActiveGraphicsBackend, backend::BackendError, buffer::BufferHandle, image::ImageViewHandle,
         renderpass::RenderpassHandle, sampler::SamplerHandle,
         shader_module::ShaderHandle,
     },
@@ -54,7 +53,7 @@ impl Pipeline {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), PipelineError> {
-        backend.delete_pipeline(self)
+        Ok(backend.delete_pipeline(self)?)
     }
 
     pub fn layouts(&self) -> &[PipelineResourceLayoutHandle] {
@@ -193,7 +192,7 @@ impl PipelineResourceLayout {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), PipelineError> {
-        backend.delete_pipeline_resource_layout(self)
+        Ok(backend.delete_pipeline_resource_layout(self)?)
     }
 
     pub fn bindings(&self) -> &[PipelineResourceBindingLayout] {
@@ -275,7 +274,7 @@ impl PipelineResource {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), PipelineError> {
-        backend.delete_pipeline_resource(self)
+        Ok(backend.delete_pipeline_resource(self)?)
     }
 
     pub fn bind_buffer(
@@ -284,7 +283,7 @@ impl PipelineResource {
         buffer: BufferHandle,
         binding_idx: u32,
     ) -> Result<(), PipelineError> {
-        backend.bind_buffer(self.handle, buffer, binding_idx)
+        Ok(backend.bind_buffer(self.handle, buffer, binding_idx)?)
     }
 
     pub fn bind_sampler(
@@ -294,7 +293,7 @@ impl PipelineResource {
         image_view: ImageViewHandle,
         binding_idx: u32,
     ) -> Result<(), PipelineError> {
-        backend.bind_sampler(self.handle, sampler, image_view, binding_idx)
+        Ok(backend.bind_sampler(self.handle, sampler, image_view, binding_idx)?)
     }
 }
 
@@ -425,27 +424,14 @@ impl PipelineOptions {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
-    LayoutCreationError(ParsecError),
-    PipelineCreationError(ParsecError),
-    BindingCreationError(ParsecError),
-    LayoutNotFound,
-    ShaderNotFound,
-    RenderpassNotFound,
-    FramebufferNotFound,
-    BindingLayoutNotFound,
-    BindingNotFound,
-    FragmentShaderNotSet,
+    #[error(transparent)]
+    Backend(#[from] BackendError),
+    #[error("vertex shader not set")]
     VertexShaderNotSet,
+    #[error("fragment shader not set")]
+    FragmentShaderNotSet,
+    #[error("renderpass not set")]
     RenderpassNotSet,
-    ResourceLayoutNotFound,
-    BufferNotFound,
-    BufferBindError(ParsecError),
-    ResourceNotFound,
-    SamplerNotFound,
-    ImageViewNotFound,
-    SamplerBindError(ParsecError),
-    PipelineNotFound,
-    PipelineResourceDestructionError(ParsecError),
 }

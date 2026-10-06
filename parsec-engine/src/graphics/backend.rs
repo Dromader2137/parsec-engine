@@ -1,40 +1,34 @@
 use parsec_engine_math::uvec::Vec2u;
 
-use crate::{
-    error::ParsecError,
-    graphics::{
-        buffer::{
-            Buffer, BufferContent, BufferError, BufferHandle, BufferUsage,
-        },
-        command_list::{CommandList, CommandListError},
-        framebuffer::{Framebuffer, FramebufferError, FramebufferHandle},
-        gpu_cpu_fence::{GpuToCpuFence, GpuToCpuFenceError},
-        gpu_gpu_fence::{GpuToGpuFence, GpuToGpuFenceError},
-        image::{
-            Image, ImageAspect, ImageError, ImageFormat, ImageHandle,
-            ImageUsage, ImageView, ImageViewHandle,
-        },
-        pipeline::{
-            Pipeline, PipelineError, PipelineHandle, PipelineOptions,
-            PipelineResource, PipelineResourceBindingLayout,
-            PipelineResourceHandle, PipelineResourceLayout,
-            PipelineResourceLayoutHandle,
-        },
-        renderpass::{
-            Renderpass, RenderpassAttachment, RenderpassError, RenderpassHandle,
-        },
-        sampler::{Sampler, SamplerError, SamplerHandle},
-        shader_module::{ShaderModule, ShaderError, ShaderHandle, ShaderType},
-        window::Window,
+use crate::graphics::{
+    buffer::{Buffer, BufferContent, BufferHandle, BufferUsage},
+    command_list::CommandList,
+    framebuffer::{Framebuffer, FramebufferHandle},
+    gpu_cpu_fence::GpuToCpuFence,
+    gpu_gpu_fence::GpuToGpuFence,
+    image::{
+        Image, ImageAspect, ImageFormat, ImageHandle, ImageUsage, ImageView,
+        ImageViewHandle,
     },
+    pipeline::{
+        Pipeline, PipelineHandle, PipelineOptions, PipelineResource,
+        PipelineResourceBindingLayout, PipelineResourceHandle,
+        PipelineResourceLayout, PipelineResourceLayoutHandle,
+    },
+    renderpass::{Renderpass, RenderpassAttachment, RenderpassHandle},
+    sampler::{Sampler, SamplerHandle},
+    shader_module::{ShaderHandle, ShaderModule, ShaderType},
+    window::Window,
 };
 
 #[derive(Debug, thiserror::Error)]
-pub enum BackendError {
-    #[error("failed to initialize graphics backend: {0}")]
-    InitError(ParsecError),
-    #[error("failed to start frame: {0}")]
-    FrameError(ParsecError),
+#[error("{0}")]
+pub struct BackendError(Box<dyn std::error::Error + Send + Sync>);
+
+impl BackendError {
+    pub fn new(err: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self(Box::new(err))
+    }
 }
 
 pub trait GraphicsBackend: Send + Sync + 'static {
@@ -49,29 +43,29 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         &mut self,
         data: BufferContent<'_>,
         buffer_usage: &[BufferUsage],
-    ) -> Result<BufferHandle, BufferError>;
+    ) -> Result<BufferHandle, BackendError>;
     fn update_buffer(
         &mut self,
         buffer: BufferHandle,
         data: BufferContent<'_>,
-    ) -> Result<(), BufferError>;
-    fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BufferError>;
+    ) -> Result<(), BackendError>;
+    fn delete_buffer(&mut self, buffer: Buffer) -> Result<(), BackendError>;
 
     fn create_shader(
         &mut self,
         code: &[u32],
         shader_type: ShaderType,
-    ) -> Result<ShaderHandle, ShaderError>;
-    fn delete_shader(&mut self, shader: ShaderModule) -> Result<(), ShaderError>;
+    ) -> Result<ShaderHandle, BackendError>;
+    fn delete_shader(&mut self, shader: ShaderModule) -> Result<(), BackendError>;
 
     fn create_renderpass(
         &mut self,
         attachments: &[RenderpassAttachment],
-    ) -> Result<RenderpassHandle, RenderpassError>;
+    ) -> Result<RenderpassHandle, BackendError>;
     fn delete_renderpass(
         &mut self,
         renderpass: Renderpass,
-    ) -> Result<(), RenderpassError>;
+    ) -> Result<(), BackendError>;
 
     // Pipeline
 
@@ -82,57 +76,57 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         renderpass: RenderpassHandle,
         binding_layouts: &[PipelineResourceLayoutHandle],
         options: PipelineOptions,
-    ) -> Result<PipelineHandle, PipelineError>;
+    ) -> Result<PipelineHandle, BackendError>;
     fn delete_pipeline(
         &mut self,
         pipeline: Pipeline,
-    ) -> Result<(), PipelineError>;
+    ) -> Result<(), BackendError>;
 
     // Pipeline resource layout
 
     fn create_pipeline_resource_layout(
         &mut self,
         subbindings: &[PipelineResourceBindingLayout],
-    ) -> Result<PipelineResourceLayoutHandle, PipelineError>;
+    ) -> Result<PipelineResourceLayoutHandle, BackendError>;
     fn delete_pipeline_resource_layout(
         &mut self,
         layout: PipelineResourceLayout,
-    ) -> Result<(), PipelineError>;
+    ) -> Result<(), BackendError>;
 
     // Pipeline resource
 
     fn create_pipeline_resource(
         &mut self,
         pipeline_layout: PipelineResourceLayoutHandle,
-    ) -> Result<PipelineResourceHandle, PipelineError>;
+    ) -> Result<PipelineResourceHandle, BackendError>;
     fn delete_pipeline_resource(
         &mut self,
         resrouce: PipelineResource,
-    ) -> Result<(), PipelineError>;
+    ) -> Result<(), BackendError>;
     fn bind_buffer(
         &mut self,
         pipeline_resource: PipelineResourceHandle,
         buffer: BufferHandle,
         index: u32,
-    ) -> Result<(), PipelineError>;
+    ) -> Result<(), BackendError>;
     fn bind_sampler(
         &mut self,
         pipeline_binding: PipelineResourceHandle,
         sampler: SamplerHandle,
         image_view: ImageViewHandle,
         index: u32,
-    ) -> Result<(), PipelineError>;
+    ) -> Result<(), BackendError>;
 
     // Commands
 
-    fn create_command_list(&mut self) -> Result<CommandList, CommandListError>;
+    fn create_command_list(&mut self) -> Result<CommandList, BackendError>;
     fn submit_commands(
         &mut self,
         command_list: &CommandList,
         wait_fence: &[GpuToGpuFence],
         signal_fence: &[GpuToGpuFence],
         signal_fence: GpuToCpuFence,
-    ) -> Result<(), CommandListError>;
+    ) -> Result<(), BackendError>;
 
     // Frame handling
 
@@ -156,34 +150,34 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         format: ImageFormat,
         aspect: ImageAspect,
         usage: &[ImageUsage],
-    ) -> Result<ImageHandle, ImageError>;
+    ) -> Result<ImageHandle, BackendError>;
     fn load_image_from_buffer(
         &mut self,
         buffer: BufferHandle,
         image: ImageHandle,
         image_size: Vec2u,
         image_offset: Vec2u,
-    ) -> Result<(), ImageError>;
-    fn delete_image(&mut self, image: Image) -> Result<(), ImageError>;
+    ) -> Result<(), BackendError>;
+    fn delete_image(&mut self, image: Image) -> Result<(), BackendError>;
 
     // Image view
 
     fn create_image_view(
         &mut self,
         image: ImageHandle,
-    ) -> Result<ImageViewHandle, ImageError>;
+    ) -> Result<ImageViewHandle, BackendError>;
     fn delete_image_view(
         &mut self,
         image_view: ImageView,
-    ) -> Result<(), ImageError>;
+    ) -> Result<(), BackendError>;
 
     // Sampler
 
-    fn create_image_sampler(&mut self) -> Result<SamplerHandle, SamplerError>;
+    fn create_image_sampler(&mut self) -> Result<SamplerHandle, BackendError>;
     fn delete_image_sampler(
         &mut self,
         sampler: Sampler,
-    ) -> Result<(), SamplerError>;
+    ) -> Result<(), BackendError>;
 
     // Framebuffer
 
@@ -192,36 +186,36 @@ pub trait GraphicsBackend: Send + Sync + 'static {
         size: Vec2u,
         attachments: &[ImageViewHandle],
         renderpass: RenderpassHandle,
-    ) -> Result<FramebufferHandle, FramebufferError>;
+    ) -> Result<FramebufferHandle, BackendError>;
     fn delete_framebuffer(
         &mut self,
         framebuffer: Framebuffer,
-    ) -> Result<(), FramebufferError>;
+    ) -> Result<(), BackendError>;
 
     // Sync
 
     fn create_gpu_to_cpu_fence(
         &mut self,
         signaled: bool,
-    ) -> Result<GpuToCpuFence, GpuToCpuFenceError>;
+    ) -> Result<GpuToCpuFence, BackendError>;
     fn wait_gpu_to_cpu_fence(
         &mut self,
         fence: GpuToCpuFence,
-    ) -> Result<(), GpuToCpuFenceError>;
+    ) -> Result<(), BackendError>;
     fn reset_gpu_to_cpu_fence(
         &mut self,
         fence: GpuToCpuFence,
-    ) -> Result<(), GpuToCpuFenceError>;
+    ) -> Result<(), BackendError>;
     fn delete_gpu_to_cpu_fence(
         &mut self,
         fence: GpuToCpuFence,
-    ) -> Result<(), GpuToCpuFenceError>;
+    ) -> Result<(), BackendError>;
 
     fn create_gpu_to_gpu_fence(
         &mut self,
-    ) -> Result<GpuToGpuFence, GpuToGpuFenceError>;
+    ) -> Result<GpuToGpuFence, BackendError>;
     fn delete_gpu_to_gpu_fence(
         &mut self,
         fence: GpuToGpuFence,
-    ) -> Result<(), GpuToGpuFenceError>;
+    ) -> Result<(), BackendError>;
 }

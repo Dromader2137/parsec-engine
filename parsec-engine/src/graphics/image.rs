@@ -1,8 +1,9 @@
 use parsec_engine_math::uvec::Vec2u;
 
 use crate::{
-    error::ParsecError,
-    graphics::{ActiveGraphicsBackend, buffer::BufferHandle},
+    graphics::{
+        ActiveGraphicsBackend, backend::BackendError, buffer::BufferHandle,
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -73,19 +74,19 @@ impl Image {
         image_size: Vec2u,
         image_offset: Vec2u,
     ) -> Result<(), ImageError> {
-        backend.load_image_from_buffer(
+        Ok(backend.load_image_from_buffer(
             buffer,
             self.handle,
             image_size,
             image_offset,
-        )
+        )?)
     }
 
     pub fn destroy(
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), ImageError> {
-        backend.delete_image(self)
+        Ok(backend.delete_image(self)?)
     }
 }
 
@@ -104,7 +105,7 @@ impl ImageView {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), ImageError> {
-        backend.delete_image_view(self)
+        Ok(backend.delete_image_view(self)?)
     }
 }
 
@@ -239,24 +240,10 @@ impl ImageViewBuilder {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImageError {
-    #[error("failed to create image: {0}")]
-    ImageCreationError(ParsecError),
-    #[error("failed to load image: {0}")]
-    ImageLoadError(ParsecError),
-    #[error("failed to delete image: {0}")]
-    ImageDeletionError(ParsecError),
-    #[error("failed to create image view: {0}")]
-    ImageViewCreationError(ParsecError),
-    #[error("failed to delete image view: {0}")]
-    ImageViewDeletionError(ParsecError),
-    #[error("image does not exist")]
+    #[error(transparent)]
+    Backend(#[from] BackendError),
+    #[error("image not set")]
     ImageNotFound,
-    #[error("present image does not exist")]
-    SwapchainImageNotFound,
-    #[error("image view does not exist")]
-    ImageViewNotFound,
-    #[error("buffer does not exist")]
-    BufferNotFound,
     #[error("invalid image size (expected width > 0 and height > 0)")]
     InvalidImageSize,
 }

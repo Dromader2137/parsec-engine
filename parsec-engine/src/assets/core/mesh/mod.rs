@@ -13,6 +13,8 @@ use crate::{
     },
 };
 
+pub mod obj;
+
 #[derive(Debug, Default)]
 pub struct InputMesh {
     pub positions: Vec<Vec3f>,

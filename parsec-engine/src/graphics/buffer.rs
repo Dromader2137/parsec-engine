@@ -1,4 +1,4 @@
-use crate::{error::ParsecError, graphics::ActiveGraphicsBackend};
+use crate::graphics::{ActiveGraphicsBackend, backend::BackendError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BufferHandle {
@@ -31,7 +31,7 @@ impl Buffer {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), BufferError> {
-        backend.delete_buffer(self)
+        Ok(backend.delete_buffer(self)?)
     }
 }
 
@@ -102,13 +102,10 @@ impl<'a> BufferContent<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum BufferError {
-    BufferCreationError(ParsecError),
+    #[error(transparent)]
+    Backend(#[from] BackendError),
+    #[error("no buffer data provided")]
     NoBufferData,
-    BufferUpdateError(ParsecError),
-    BufferDeletionError(ParsecError),
-    BufferBindError(ParsecError),
-    BufferNotFound,
-    PipelineBindingNotFound,
 }

@@ -24,7 +24,7 @@ pub(super) fn asset_name(
     asset_type: &str,
 ) -> String {
     let filename = source_file.file_name().unwrap_or_default().to_string_lossy();
-    format!("{subresource}@{filename}.{asset_type}")
+    format!("{subresource}@{filename}#{asset_type}")
 }
 
 pub(super) fn cooked_path(name: &str) -> PathBuf {

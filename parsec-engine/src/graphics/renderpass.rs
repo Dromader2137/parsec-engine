@@ -1,6 +1,5 @@
 use crate::{
-    error::ParsecError,
-    graphics::{ActiveGraphicsBackend, image::ImageFormat},
+    graphics::{ActiveGraphicsBackend, backend::BackendError, image::ImageFormat},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -38,7 +37,7 @@ impl Renderpass {
         self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), RenderpassError> {
-        backend.delete_renderpass(self)
+        Ok(backend.delete_renderpass(self)?)
     }
 }
 
@@ -105,9 +104,8 @@ pub struct RenderpassAttachment {
     pub clear_value: RenderpassClearValue,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum RenderpassError {
-    RenderpassCreationError(ParsecError),
-    RenderpassDeletionError(ParsecError),
-    RenderpassNotFound,
+    #[error(transparent)]
+    Backend(#[from] BackendError),
 }

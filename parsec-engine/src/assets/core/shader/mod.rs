@@ -11,6 +11,8 @@ use crate::{
     },
 };
 
+pub mod file_handler;
+
 #[derive(Debug)]
 pub struct InputShader {
     pub shader_extension: String,
