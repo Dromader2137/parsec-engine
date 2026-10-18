@@ -1,7 +1,15 @@
 use image::EncodableLayout;
 use parsec_engine::{
     app::App,
-    assets::{core::{mesh::{Mesh, obj::ObjFileHandler}, shader::{Shader, file_handler::{FragmentShaderFileHandler, VertexShaderFileHandler}}}, manifest::AssetDescription},
+    assets::core::{
+        mesh::{Mesh, obj::ObjFileHandler},
+        shader::{
+            Shader,
+            file_handler::{
+                FragmentShaderFileHandler, VertexShaderFileHandler,
+            },
+        },
+    },
     ctx::Ctx,
     ecs::{
         system::SystemTrigger,
@@ -37,26 +45,44 @@ use parsec_engine::{
 use parsec_engine_vulkan::VulkanBackend;
 
 fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
-    let vertex_shader_handle =
-        ctx.assets.load::<Shader>("main@simple.vert#shader", ctx.resources)?;
-    let fragment_shader_handle =
-        ctx.assets.load::<Shader>("main@multilight.frag#shader", ctx.resources)?;
-    let mesh_handle =
-        ctx.assets.load::<Mesh>("Cube@test.obj#mesh", ctx.resources).unwrap();
-    
-    let mut backend =
-        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut materials =
-        ctx.resources.get_mut::<IdStore<MaterialData>>().none_err()?;
-    let mut material_bases =
-        ctx.resources.get_mut::<IdStore<MaterialBase>>().none_err()?;
+    let vertex_shader_handle = ctx
+        .assets
+        .load::<Shader>("main@shaders/simple.vert#shader", ctx.resources)?;
+    let fragment_shader_handle = ctx
+        .assets
+        .load::<Shader>("main@shaders/multilight.frag#shader", ctx.resources)?;
+    let mesh_handle = ctx
+        .assets
+        .load::<Mesh>("Cube@test.obj#mesh", ctx.resources)
+        .unwrap();
+
+    let mut backend = ctx
+        .resources
+        .get_mut::<ActiveGraphicsBackend>()
+        .none_err()?;
+    let mut materials = ctx
+        .resources
+        .get_mut::<IdStore<MaterialData>>()
+        .none_err()?;
+    let mut material_bases = ctx
+        .resources
+        .get_mut::<IdStore<MaterialBase>>()
+        .none_err()?;
     let renderpass =
         ctx.resources.get::<RendererMainRenderpass>().none_err()?;
 
     let material_base = MaterialBase::new(
         &mut backend,
-        ctx.assets.get(vertex_shader_handle).none_err()?.module.handle(),
-        ctx.assets.get(fragment_shader_handle).none_err()?.module.handle(),
+        ctx.assets
+            .get(vertex_shader_handle)
+            .none_err()?
+            .module
+            .handle(),
+        ctx.assets
+            .get(fragment_shader_handle)
+            .none_err()?
+            .module
+            .handle(),
         renderpass.0.handle(),
         vec![
             vec![
@@ -254,13 +280,16 @@ fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
 
 fn main() -> Result<(), ParsecError> {
     let mut app = App::new();
-    app.assets.register_source_file_handler::<VertexShaderFileHandler>();
-    app.assets.register_source_file_handler::<FragmentShaderFileHandler>();
-    app.assets.register_source_file_handler::<ObjFileHandler>();
-    app.assets.add_asset(AssetDescription::new("main", "shaders/simple.vert", "shader"))?;
-    app.assets.add_asset(AssetDescription::new("main", "shaders/multilight.frag", "shader"))?;
-    app.assets.add_asset(AssetDescription::new("main", "shaders/flat.frag", "shader"))?;
-    app.assets.add_asset(AssetDescription::new("Cube", "test.obj", "mesh"))?;
+    app.assets
+        .add_source_file_handler::<VertexShaderFileHandler>();
+    app.assets
+        .add_source_file_handler::<FragmentShaderFileHandler>();
+    app.assets.add_source_file_handler::<ObjFileHandler>();
+    app.assets.add_asset("main@shaders/simple.vert#shader")?;
+    app.assets.add_asset("main@shaders/flat.frag#shader")?;
+    app.assets
+        .add_asset("main@shaders/multilight.frag#shader")?;
+    app.assets.add_asset("Cube@test.obj#mesh")?;
     // app.assets.add_asset(AssetDescription::new("", "test.png", "texture"))?;
     app.systems
         .add_bundle(GraphicsBundle::<VulkanBackend>::default());

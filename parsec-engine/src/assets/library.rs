@@ -1,9 +1,4 @@
-use std::{
-    any::Any,
-    collections::{BTreeSet, HashMap},
-    marker::PhantomData,
-    path::{Path, PathBuf},
-};
+use std::{any::Any, collections::HashMap, marker::PhantomData, path::Path};
 
 use crate::{
     assets::{
@@ -15,7 +10,7 @@ use crate::{
         },
     },
     ecs::resources::Resources,
-    error::ParsecError
+    error::ParsecError,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -48,25 +43,27 @@ enum AssetSlot {
     Unloaded,
     Loading,
     Loaded(Box<dyn Any>),
-    Failed(ParsecError),
+    Failed(AssetTrackingError),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum AssetTrackingError {
     #[error("asset source file {0:?} has no valid extension")]
-    InvalidExtension(PathBuf),
+    InvalidExtension(&'static Path),
     #[error("no asset source file handler registered for extension {0:?}")]
-    HandlerNotFound(String),
+    HandlerNotFound(&'static str),
     #[error("asset source file {0:?} doesn't exist")]
-    FileNotFound(PathBuf),
+    FileNotFound(&'static Path),
     #[error("asset name {0:?} is already used by a different asset")]
-    DuplicateName(String),
+    DuplicateName(&'static str),
     #[error("asset library doesn't contain asset {0:?}")]
-    AssetNotFound(String),
+    AssetNotFound(&'static str),
     #[error("asset {0:?} has a different type than requested")]
-    TypeMismatch(String),
+    TypeMismatch(&'static str),
     #[error("failed to load asset {0:?}")]
-    LoadFailed(String),
+    LoadFailed(&'static str),
+    #[error("invalid asset name {0:?}")]
+    InvalidAssetName(&'static str),
 }
 
 type SourceFileHandlerFn =
@@ -75,7 +72,7 @@ type SourceFileHandlerFn =
 #[derive(Debug)]
 pub struct AssetLibrary {
     assets: HashMap<AssetId, (AssetDescription, AssetSlot)>,
-    names: HashMap<String, AssetId>,
+    names: HashMap<&'static str, AssetId>,
     files: HashMap<AssetSourceId, AssetSourceFile>,
     source_file_handlers: HashMap<&'static str, SourceFileHandlerFn>,
 }
@@ -92,31 +89,21 @@ impl AssetLibrary {
 
     pub fn add_asset(
         &mut self,
-        asset_desc: AssetDescription,
+        asset_name: &'static str,
     ) -> Result<(), AssetTrackingError> {
-        let asset_id = AssetId(self.assets.len() as u64);
-        let name = asset_desc.name();
-        if self.names.contains_key(&name) {
-            return Err(AssetTrackingError::DuplicateName(name));
+        if self.names.contains_key(asset_name) {
+            return Err(AssetTrackingError::DuplicateName(asset_name));
         }
-        self.names.insert(name, asset_id);
-        let source_id = self
-            .source_file_by_path(&asset_desc.source_file)
-            .unwrap_or(AssetSourceId(self.files.len() as u64));
-        self.files
-            .entry(source_id)
-            .or_insert_with(|| AssetSourceFile {
-                filepath: asset_desc.source_file.clone(),
-                asset_ids: BTreeSet::new(),
-            })
-            .asset_ids
-            .insert(asset_id);
-        self.assets
-            .insert(asset_id, (asset_desc, AssetSlot::Unloaded));
+        let description = AssetDescription::from_name(asset_name)
+            .ok_or(AssetTrackingError::InvalidAssetName(asset_name))?;
+        let id = AssetId(self.assets.len() as u64);
+        let slot = AssetSlot::Unloaded;
+        self.assets.insert(id, (description, slot));
+        self.names.insert(asset_name, id);
         Ok(())
     }
 
-    pub fn register_source_file_handler<H: AssetSourceFileHandler>(&mut self) {
+    pub fn add_source_file_handler<H: AssetSourceFileHandler>(&mut self) {
         self.source_file_handlers.insert(H::EXTENSION, H::cook);
     }
 
@@ -147,48 +134,47 @@ impl AssetLibrary {
         self.assets.get(&asset_id).map(|(desc, _)| desc)
     }
 
-    fn cook_source_file(&self, path: &Path) -> Result<(), ParsecError> {
+    pub fn asset_descriptions(
+        &self,
+    ) -> impl Iterator<Item = (AssetId, &AssetDescription)> {
+        self.assets.iter().map(|(&id, (desc, _))| (id, desc))
+    }
+
+    fn cook_source_file(&self, path: &'static Path) -> Result<(), ParsecError> {
         let extension = path
             .extension()
             .and_then(|x| x.to_str())
-            .ok_or(AssetTrackingError::InvalidExtension(path.to_path_buf()))?;
-        let handler = self.source_file_handlers.get(extension).ok_or(
-            AssetTrackingError::HandlerNotFound(extension.to_string()),
-        )?;
+            .ok_or(AssetTrackingError::InvalidExtension(path))?;
+        let handler = self
+            .source_file_handlers
+            .get(extension)
+            .ok_or(AssetTrackingError::HandlerNotFound(extension))?;
         if !path.is_file() {
-            return Err(
-                AssetTrackingError::FileNotFound(path.to_path_buf()).into()
-            );
+            return Err(AssetTrackingError::FileNotFound(path).into());
         }
         handler(path, AssetCookContext::new(path))
     }
 
     pub fn load<T: Asset>(
         &mut self,
-        asset_name: &str,
+        asset_name: &'static str,
         resources: &mut Resources,
     ) -> Result<AssetHandle<T>, ParsecError> {
-
         let asset_id = *self
             .names
             .get(asset_name)
-            .ok_or_else(|| {
-                AssetTrackingError::AssetNotFound(asset_name.to_string())
-            })?;
+            .ok_or_else(|| AssetTrackingError::AssetNotFound(asset_name))?;
 
         let source_file = {
             let (desc, slot) = self.assets.get_mut(&asset_id).unwrap();
             if desc.asset_type != T::ASSET_TYPE {
-                return Err(AssetTrackingError::TypeMismatch(
-                    asset_name.to_string(),
-                )
-                .into());
+                return Err(AssetTrackingError::TypeMismatch(asset_name).into());
             }
             if matches!(slot, AssetSlot::Loaded(_)) {
                 return Ok(AssetHandle::new(asset_id));
             }
             *slot = AssetSlot::Loading;
-            desc.source_file.clone()
+            desc.source_file
         };
 
         let cooked_path = cooked_path(asset_name);
@@ -201,6 +187,7 @@ impl AssetLibrary {
         .and_then(|bytes| {
             postcard::from_bytes::<T::Cooked>(&bytes).map_err(ParsecError::from)
         });
+
         let (_, slot) = self.assets.get_mut(&asset_id).unwrap();
         match cooked {
             Ok(cooked) => {
@@ -208,10 +195,9 @@ impl AssetLibrary {
                 Ok(AssetHandle::new(asset_id))
             },
             Err(err) => {
-                *slot = AssetSlot::Failed(
-                    AssetTrackingError::LoadFailed(asset_name.to_string())
-                        .into(),
-                );
+                *slot = AssetSlot::Failed(AssetTrackingError::LoadFailed(
+                    asset_name,
+                ));
                 Err(err)
             },
         }
@@ -220,6 +206,10 @@ impl AssetLibrary {
     pub fn get<T: Asset>(&self, handle: AssetHandle<T>) -> Option<&T> {
         match self.assets.get(&handle.asset_id)? {
             (_, AssetSlot::Loaded(asset_any)) => asset_any.downcast_ref::<T>(),
+            (_, AssetSlot::Failed(err)) => {
+                println!("ERROR: {}", err);
+                None
+            },
             _ => None,
         }
     }

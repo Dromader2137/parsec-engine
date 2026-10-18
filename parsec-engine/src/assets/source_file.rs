@@ -6,7 +6,7 @@ use std::{
 use crate::{
     assets::{
         Asset, AssetId,
-        manifest::{asset_name, cooked_path},
+        manifest::{combine_into_asset_name, cooked_path},
     },
     error::ParsecError,
 };
@@ -23,7 +23,7 @@ impl<'a> AssetCookContext<'a> {
         subresource: &str,
         input: T::Input,
     ) -> Result<(), ParsecError> {
-        let path = cooked_path(&asset_name(
+        let path = cooked_path(&combine_into_asset_name(
             subresource,
             self.source_file,
             T::ASSET_TYPE,
