@@ -213,4 +213,11 @@ impl AssetLibrary {
             _ => None,
         }
     }
+
+    pub fn cook_all(&self) -> Result<(), ParsecError> {
+        for (_, source_file) in self.source_files() {
+            self.cook_source_file(&source_file.filepath)?;
+        }
+        Ok(())
+    }
 }

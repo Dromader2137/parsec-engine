@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeSet,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use crate::{
@@ -51,6 +51,6 @@ pub struct AssetSourceId(pub(super) u64);
 
 #[derive(Debug)]
 pub struct AssetSourceFile {
-    pub filepath: PathBuf,
+    pub filepath: &'static Path,
     pub asset_ids: BTreeSet<AssetId>,
 }

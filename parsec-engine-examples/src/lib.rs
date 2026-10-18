@@ -278,7 +278,7 @@ fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
     Ok(())
 }
 
-fn main() -> Result<(), ParsecError> {
+pub fn prepare_app() -> Result<App, ParsecError> {
     let mut app = App::new();
     app.assets
         .add_source_file_handler::<VertexShaderFileHandler>();
@@ -290,12 +290,12 @@ fn main() -> Result<(), ParsecError> {
     app.assets
         .add_asset("main@shaders/multilight.frag#shader")?;
     app.assets.add_asset("Cube@test.obj#mesh")?;
-    // app.assets.add_asset(AssetDescription::new("", "test.png", "texture"))?;
+    // app.assets.add_asset(AssetDescription::new("@test.png#texture")?;
     app.systems
         .add_bundle(GraphicsBundle::<VulkanBackend>::default());
     app.systems.add_bundle(InputBundle);
     app.systems.add_bundle(TimeBundle);
     app.systems.add(SystemTrigger::LateStart, game_startup);
     app.systems.add(SystemTrigger::Update, camera_controller);
-    app.run()
+    Ok(app)
 }

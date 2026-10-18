@@ -32,7 +32,11 @@ impl App {
         }
     }
 
-    pub fn run(&mut self) -> Result<(), ParsecError> {
+    pub fn execute(&mut self) -> Result<(), ParsecError> {
+        if option_env!("PARSEC_COOK_ASSETS").is_some() {
+            return self.assets.cook_all()
+        }
+
         self.execute_system(SystemTrigger::Start);
 
         let event_loop =

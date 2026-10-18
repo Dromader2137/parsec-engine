@@ -11,7 +11,5 @@ winit.workspace = true
 parsec-engine-macros.workspace = true
 parsec-engine-math.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 postcard.workspace = true
-clap.workspace = true
 shaderc.workspace = true
