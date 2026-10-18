@@ -5,6 +5,16 @@ Simple, ergonomic and high-performance game engine made specifically for space s
 > [!CAUTION]
 > I am not acceping any pull requests for the time being!
 
+To run the example:
+```
+cargo run --bin run
+```
+
+To precook the assets:
+```
+cargo run --bin cook
+```
+
 ## Features
 
 - High performance ECS
