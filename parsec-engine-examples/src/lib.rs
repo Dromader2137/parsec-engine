@@ -19,13 +19,12 @@ use parsec_engine::{
     graphics::{
         ActiveGraphicsBackend,
         buffer::{BufferBuilder, BufferContent, BufferUsage},
-        image::{ImageAspect, ImageFormat, ImageUsage},
+        image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode,
             PipelineOptions, PipelineResourceBindingLayout,
             PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
-        sampler::SamplerBuilder,
         window::Window,
     },
     input::{Input, InputBundle},
@@ -37,6 +36,7 @@ use parsec_engine::{
             transform::Transform,
         },
         graphics_bundle::GraphicsBundle,
+        integrated_image::IntegratedImageBuilder,
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
     },
     time::{Time, TimeBundle},
@@ -132,18 +132,17 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         .data(BufferContent::from_slice(image_data))
         .build(&mut backend)
         .unwrap();
-    let texture_image = backend
-        .create_image(
-            Vec2u::new(width, height),
-            ImageFormat::RGBA8SRGB,
-            ImageAspect::Color,
-            &[ImageUsage::Sampled, ImageUsage::TransferDst],
-        )
+    let texture = IntegratedImageBuilder::default()
+        .size(ImageSize::new(Vec2u::new(width, height)).unwrap())
+        .format(ImageFormat::RGBA8SRGB)
+        .aspect(ImageAspect::Color)
+        .usage(&[ImageUsage::Sampled, ImageUsage::TransferDst])
+        .build(&mut backend)
         .unwrap();
     backend
         .load_image_from_buffer(
             texture_buffer.handle(),
-            texture_image,
+            texture.image().handle(),
             Vec2u::new(width, height),
             Vec2u::ZERO,
         )
@@ -157,13 +156,11 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         .unwrap()
         .create_resource(&mut backend)
         .unwrap();
-    let texture_sampler = SamplerBuilder::new().build(&mut backend).unwrap();
-    let texture_image_view = backend.create_image_view(texture_image).unwrap();
     backend
         .bind_sampler(
             texture_binding.handle(),
-            texture_sampler.handle(),
-            texture_image_view,
+            texture.sampler().handle(),
+            texture.view().handle(),
             0,
         )
         .unwrap();
