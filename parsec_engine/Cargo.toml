@@ -1,5 +1,5 @@
 [package]
-name = "parsec-engine"
+name = "parsec_engine"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,8 +8,8 @@ license.workspace = true
 once_cell.workspace = true
 thiserror.workspace = true
 winit.workspace = true
-parsec-engine-macros.workspace = true
-parsec-engine-math.workspace = true
+parsec_engine_macros.workspace = true
+parsec_engine_math.workspace = true
 serde.workspace = true
 postcard.workspace = true
 shaderc.workspace = true

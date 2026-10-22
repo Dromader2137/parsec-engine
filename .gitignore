@@ -1,11 +1,6 @@
 /target/
+/assets/
 Cargo.lock
-/shaders/*.spv
 *.obj
 *.png
-log
 *.log
-/.claude
-/assets/
-/assets.json
-.aider*

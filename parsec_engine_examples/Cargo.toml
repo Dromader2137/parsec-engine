@@ -1,10 +1,10 @@
 [package]
-name = "parsec-engine-examples"
+name = "parsec_engine_examples"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 image.workspace = true
-parsec-engine.workspace = true
-parsec-engine-vulkan.workspace = true
+parsec_engine.workspace = true
+parsec_engine_vulkan.workspace = true

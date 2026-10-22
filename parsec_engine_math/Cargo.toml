@@ -1,12 +1,8 @@
 [package]
-name = "parsec-engine-macros"
+name = "parsec_engine_math"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-[lib]
-proc-macro = true
-
 [dependencies]
-quote.workspace = true
-syn.workspace = true
+serde.workspace = true
