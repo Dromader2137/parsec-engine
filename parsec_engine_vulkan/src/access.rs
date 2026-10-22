@@ -24,25 +24,15 @@ pub enum VulkanAccess {
 impl VulkanAccess {
     pub fn raw_access_flag(&self) -> ash::vk::AccessFlags {
         match self {
-            VulkanAccess::IndirectCommandRead => {
-                ash::vk::AccessFlags::INDIRECT_COMMAND_READ
-            },
+            VulkanAccess::IndirectCommandRead => ash::vk::AccessFlags::INDIRECT_COMMAND_READ,
             VulkanAccess::IndexRead => ash::vk::AccessFlags::INDEX_READ,
-            VulkanAccess::VertexAttributeRead => {
-                ash::vk::AccessFlags::VERTEX_ATTRIBUTE_READ
-            },
+            VulkanAccess::VertexAttributeRead => ash::vk::AccessFlags::VERTEX_ATTRIBUTE_READ,
             VulkanAccess::UniformRead => ash::vk::AccessFlags::UNIFORM_READ,
-            VulkanAccess::InputAttachmentRead => {
-                ash::vk::AccessFlags::INPUT_ATTACHMENT_READ
-            },
+            VulkanAccess::InputAttachmentRead => ash::vk::AccessFlags::INPUT_ATTACHMENT_READ,
             VulkanAccess::ShaderRead => ash::vk::AccessFlags::SHADER_READ,
             VulkanAccess::ShaderWrite => ash::vk::AccessFlags::SHADER_WRITE,
-            VulkanAccess::ColorAttachmentRead => {
-                ash::vk::AccessFlags::COLOR_ATTACHMENT_READ
-            },
-            VulkanAccess::ColorAttachmentWrite => {
-                ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE
-            },
+            VulkanAccess::ColorAttachmentRead => ash::vk::AccessFlags::COLOR_ATTACHMENT_READ,
+            VulkanAccess::ColorAttachmentWrite => ash::vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             VulkanAccess::DepthAttachmentRead => {
                 ash::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
             },

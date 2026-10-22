@@ -69,9 +69,7 @@ impl Window {
         self.width() as f32 / self.height() as f32
     }
 
-    pub fn physical_size(&self) -> winit::dpi::PhysicalSize<u32> {
-        self.window.inner_size()
-    }
+    pub fn physical_size(&self) -> winit::dpi::PhysicalSize<u32> { self.window.inner_size() }
 
     pub fn toggle_cursor_visibility(&mut self) {
         let new_visibility = !self.cursor_visibility;
@@ -83,9 +81,7 @@ impl Window {
 
     pub fn toggle_cursor_lock(&mut self) -> Result<(), WindowError> {
         let new_mode = match self.cursor_mode {
-            winit::window::CursorGrabMode::None => {
-                winit::window::CursorGrabMode::Locked
-            },
+            winit::window::CursorGrabMode::None => winit::window::CursorGrabMode::Locked,
             _ => winit::window::CursorGrabMode::None,
         };
 
@@ -97,32 +93,23 @@ impl Window {
         Ok(())
     }
 
-    pub fn set_cursor_position(
-        &self,
-        position: Vec2f,
-    ) -> Result<(), WindowError> {
+    pub fn set_cursor_position(&self, position: Vec2f) -> Result<(), WindowError> {
         self.window
-            .set_cursor_position(winit::dpi::LogicalPosition::new(
-                position.x, position.y,
-            ))
+            .set_cursor_position(winit::dpi::LogicalPosition::new(position.x, position.y))
             .map_err(WindowError::SetCursorPositionError)
     }
 
     pub fn raw_display_handle(
         &self,
-    ) -> Result<
-        winit::raw_window_handle::DisplayHandle<'_>,
-        winit::raw_window_handle::HandleError,
-    > {
+    ) -> Result<winit::raw_window_handle::DisplayHandle<'_>, winit::raw_window_handle::HandleError>
+    {
         self.window.display_handle()
     }
 
     pub fn raw_window_handle(
         &self,
-    ) -> Result<
-        winit::raw_window_handle::WindowHandle<'_>,
-        winit::raw_window_handle::HandleError,
-    > {
+    ) -> Result<winit::raw_window_handle::WindowHandle<'_>, winit::raw_window_handle::HandleError>
+    {
         self.window.window_handle()
     }
 

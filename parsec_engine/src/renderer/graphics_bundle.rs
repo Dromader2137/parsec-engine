@@ -5,23 +5,16 @@ use crate::{
     ctx::Ctx,
     ecs::system::{SystemBundle, SystemTrigger, Systems},
     error::{OptionNoneErr, ParsecError},
-    graphics::{
-        ActiveEventLoop, ActiveGraphicsBackend, backend::GraphicsBackend,
-        window::Window,
-    },
+    graphics::{ActiveEventLoop, ActiveGraphicsBackend, backend::GraphicsBackend, window::Window},
     renderer::{
         ResizeFlag,
         camera_data::{CameraDataManager, add_camera_data, update_camera_data},
-        components::{
-            camera::Camera, mesh_renderer::MeshRenderer, transform::Transform,
-        },
+        components::{camera::Camera, mesh_renderer::MeshRenderer, transform::Transform},
         draw_queue::{Draw, MeshAndMaterial},
         init_renderer,
         light_data::update_light_data,
         queue_clear, render,
-        transform_data::{
-            TransformDataManager, add_transform_data, update_transform_data,
-        },
+        transform_data::{TransformDataManager, add_transform_data, update_transform_data},
     },
 };
 
@@ -45,8 +38,7 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
                 let window = ctx.resources.get::<Window>().none_err()?;
                 ActiveGraphicsBackend::with_backend::<B>(&window)?
             };
-            ctx.resources
-                .add(backend);
+            ctx.resources.add(backend);
             ctx.resources
                 .add_dependency::<ActiveGraphicsBackend, Window>()
                 .unwrap();
@@ -97,17 +89,14 @@ fn init_window(ctx: Ctx) -> Result<(), ParsecError> {
 
 fn auto_enqueue(ctx: Ctx) -> Result<(), ParsecError> {
     let mut draw_queue = ctx.resources.get_mut::<Vec<Draw>>().none_err()?;
-    let camera_data_manager =
-        ctx.resources.get::<CameraDataManager>().none_err()?;
-    let transform_data_manager =
-        ctx.resources.get::<TransformDataManager>().none_err()?;
+    let camera_data_manager = ctx.resources.get::<CameraDataManager>().none_err()?;
+    let transform_data_manager = ctx.resources.get::<TransformDataManager>().none_err()?;
     let mut cameras = ctx.world.query::<(Transform, Camera)>();
     let mut mesh_renderers = ctx.world.query::<(Transform, MeshRenderer)>();
 
     for (_, (camera_transform, camera)) in cameras.iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
-            let mesh_asset =
-                ctx.assets.get::<Mesh>(mesh_renderer.mesh).none_err()?;
+            let mesh_asset = ctx.assets.get::<Mesh>(mesh_renderer.mesh).none_err()?;
             if mesh_asset.data_id.is_none()
                 || !camera_data_manager
                     .component_to_data

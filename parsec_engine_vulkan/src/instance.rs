@@ -28,8 +28,8 @@ impl VulkanInstance {
             Err(err) => return Err(VulkanInstanceError::EntryError(err)),
         };
 
-        let app_info = ash::vk::ApplicationInfo::default()
-            .api_version(ash::vk::make_api_version(0, 1, 0, 0));
+        let app_info =
+            ash::vk::ApplicationInfo::default().api_version(ash::vk::make_api_version(0, 1, 0, 0));
 
         let display_handle = match window.raw_display_handle() {
             Ok(val) => val,
@@ -38,17 +38,14 @@ impl VulkanInstance {
             },
         };
 
-        let extension_names = match ash_window::enumerate_required_extensions(
-            display_handle.as_raw(),
-        ) {
-            Ok(val) => val,
-            Err(err) => {
-                return Err(VulkanInstanceError::ExtensionEnumerationError(
-                    err,
-                ));
-            },
-        }
-        .to_vec();
+        let extension_names =
+            match ash_window::enumerate_required_extensions(display_handle.as_raw()) {
+                Ok(val) => val,
+                Err(err) => {
+                    return Err(VulkanInstanceError::ExtensionEnumerationError(err));
+                },
+            }
+            .to_vec();
 
         let layer_names_raw = [];
 
@@ -57,9 +54,7 @@ impl VulkanInstance {
             .enabled_layer_names(&layer_names_raw)
             .enabled_extension_names(&extension_names);
 
-        let instance = match unsafe {
-            entry.create_instance(&create_info, None)
-        } {
+        let instance = match unsafe { entry.create_instance(&create_info, None) } {
             Ok(val) => val,
             Err(err) => {
                 return Err(VulkanInstanceError::InstanceCreationError(err));

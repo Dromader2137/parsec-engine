@@ -13,8 +13,7 @@ struct ImplSpawnInput {
 
 impl Parse for ImplSpawnInput {
     fn parse(input: ParseStream) -> Result<Self> {
-        let types: Punctuated<Ident, Token![,]> =
-            Punctuated::parse_terminated(input)?;
+        let types: Punctuated<Ident, Token![,]> = Punctuated::parse_terminated(input)?;
         Ok(ImplSpawnInput { types })
     }
 }
@@ -67,8 +66,7 @@ struct ImplFetchInput {
 
 impl Parse for ImplFetchInput {
     fn parse(input: ParseStream) -> Result<Self> {
-        let types: Punctuated<Ident, Token![,]> =
-            Punctuated::parse_terminated(input)?;
+        let types: Punctuated<Ident, Token![,]> = Punctuated::parse_terminated(input)?;
         Ok(ImplFetchInput { types })
     }
 }
@@ -151,8 +149,7 @@ impl Parse for MultipleTuplesInput {
 
 #[proc_macro]
 pub fn multiple_tuples(input: TokenStream) -> TokenStream {
-    let MultipleTuplesInput { mac, size } =
-        parse_macro_input!(input as MultipleTuplesInput);
+    let MultipleTuplesInput { mac, size } = parse_macro_input!(input as MultipleTuplesInput);
     let size = size.base10_parse::<u8>().unwrap();
 
     let mut names = Vec::new();

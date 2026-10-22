@@ -4,21 +4,20 @@ use crate::{
         framebuffer::{Framebuffer, FramebufferBuilder},
         image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
         pipeline::{
-            PipelineBindingType, PipelineOptions, PipelineResource,
-            PipelineResourceBindingLayout, PipelineResourceLayout,
-            PipelineResourceLayoutBuilder, PipelineShaderStage,
+            PipelineBindingType, PipelineOptions, PipelineResource, PipelineResourceBindingLayout,
+            PipelineResourceLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         renderpass::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
-            RenderpassAttachmentStoreOp, RenderpassAttachmentType,
-            RenderpassBuilder, RenderpassClearValue,
+            RenderpassAttachmentStoreOp, RenderpassAttachmentType, RenderpassBuilder,
+            RenderpassClearValue,
         },
         shader_module::{ShaderModule, ShaderModuleBuilder, ShaderType, read_shader_code},
     },
     math::uvec::Vec2u,
     renderer::{
-        material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
         integrated_image::{IntegratedImage, IntegratedImageBuilder},
+        material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
     },
 };
 
@@ -63,25 +62,19 @@ impl RendererShadows {
             renderpass.handle(),
             vec![
                 vec![
-                    PipelineResourceBindingLayout::new(
-                        PipelineBindingType::UniformBuffer,
-                        &[PipelineShaderStage::Vertex],
-                    ),
-                    PipelineResourceBindingLayout::new(
-                        PipelineBindingType::UniformBuffer,
-                        &[PipelineShaderStage::Vertex],
-                    ),
-                    PipelineResourceBindingLayout::new(
-                        PipelineBindingType::UniformBuffer,
-                        &[PipelineShaderStage::Vertex],
-                    ),
+                    PipelineResourceBindingLayout::new(PipelineBindingType::UniformBuffer, &[
+                        PipelineShaderStage::Vertex,
+                    ]),
+                    PipelineResourceBindingLayout::new(PipelineBindingType::UniformBuffer, &[
+                        PipelineShaderStage::Vertex,
+                    ]),
+                    PipelineResourceBindingLayout::new(PipelineBindingType::UniformBuffer, &[
+                        PipelineShaderStage::Vertex,
+                    ]),
                 ],
                 vec![PipelineResourceBindingLayout::new(
                     PipelineBindingType::StorageBuffer,
-                    &[
-                        PipelineShaderStage::Vertex,
-                        PipelineShaderStage::Fragment,
-                    ],
+                    &[PipelineShaderStage::Vertex, PipelineShaderStage::Fragment],
                 )],
             ],
             PipelineOptions::default(),
@@ -95,10 +88,7 @@ impl RendererShadows {
         ]);
 
         let shadow_texture = IntegratedImageBuilder::default()
-            .size(
-                ImageSize::new(Vec2u::new(texture_size << 1, texture_size))
-                    .unwrap(),
-            )
+            .size(ImageSize::new(Vec2u::new(texture_size << 1, texture_size)).unwrap())
             .format(ImageFormat::D32)
             .aspect(ImageAspect::Depth)
             .usage(&[ImageUsage::DepthAttachment, ImageUsage::Sampled])
@@ -113,8 +103,7 @@ impl RendererShadows {
             .build(backend)
             .unwrap();
 
-        let texture_resource =
-            texture_resource_layout.create_resource(backend).unwrap();
+        let texture_resource = texture_resource_layout.create_resource(backend).unwrap();
 
         texture_resource
             .bind_sampler(

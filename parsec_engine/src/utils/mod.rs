@@ -2,7 +2,7 @@
 
 pub type IdType = u32;
 
+pub mod borrowing;
 pub mod id_counter;
 pub mod identifiable;
 pub mod small_vec;
-pub mod borrowing;

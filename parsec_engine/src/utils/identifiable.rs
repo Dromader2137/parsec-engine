@@ -32,13 +32,9 @@ impl<T: Identifiable> IdStore<T> {
 
     pub fn get(&self, id: IdType) -> Option<&T> { self.elements.get(&id) }
 
-    pub fn get_mut(&mut self, id: IdType) -> Option<&mut T> {
-        self.elements.get_mut(&id)
-    }
+    pub fn get_mut(&mut self, id: IdType) -> Option<&mut T> { self.elements.get_mut(&id) }
 
     pub fn iter(&mut self) -> Values<'_, u32, T> { self.elements.values() }
 
-    pub fn iter_mut(&mut self) -> ValuesMut<'_, u32, T> {
-        self.elements.values_mut()
-    }
+    pub fn iter_mut(&mut self) -> ValuesMut<'_, u32, T> { self.elements.values_mut() }
 }

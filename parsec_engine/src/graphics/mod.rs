@@ -57,9 +57,7 @@ impl DerefMut for ActiveGraphicsBackend {
 }
 
 impl ActiveGraphicsBackend {
-    pub fn with_backend<T: GraphicsBackend>(
-        window: &Window,
-    ) -> Result<Self, ParsecError> {
+    pub fn with_backend<T: GraphicsBackend>(window: &Window) -> Result<Self, ParsecError> {
         let backend = T::init(window)?;
         Ok(Self(Box::new(backend)))
     }
@@ -78,9 +76,7 @@ unsafe impl Sync for ActiveEventLoop {}
 pub struct EventLoopAccessError;
 
 impl ActiveEventLoop {
-    pub fn new(
-        raw_active_event_loop: &winit::event_loop::ActiveEventLoop,
-    ) -> Self {
+    pub fn new(raw_active_event_loop: &winit::event_loop::ActiveEventLoop) -> Self {
         ActiveEventLoop {
             raw_active_event_loop: NonNull::from_ref(raw_active_event_loop),
             thread_id: thread::current().id(),

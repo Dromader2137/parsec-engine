@@ -36,7 +36,5 @@ pub trait OptionNoneErr<T> {
 }
 
 impl<T> OptionNoneErr<T> for Option<T> {
-    fn none_err(self) -> Result<T, ParsecError> {
-        self.ok_or_else(|| OptionIsNone.into())
-    }
+    fn none_err(self) -> Result<T, ParsecError> { self.ok_or_else(|| OptionIsNone.into()) }
 }

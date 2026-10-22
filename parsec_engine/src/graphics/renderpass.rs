@@ -1,6 +1,4 @@
-use crate::{
-    graphics::{ActiveGraphicsBackend, backend::BackendError, image::ImageFormat},
-};
+use crate::graphics::{ActiveGraphicsBackend, backend::BackendError, image::ImageFormat};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RenderpassHandle {
@@ -19,10 +17,7 @@ pub struct Renderpass {
 }
 
 impl Renderpass {
-    fn new(
-        handle: RenderpassHandle,
-        attachments: Vec<RenderpassAttachment>,
-    ) -> Self {
+    fn new(handle: RenderpassHandle, attachments: Vec<RenderpassAttachment>) -> Self {
         Self {
             handle,
             attachments,
@@ -33,10 +28,7 @@ impl Renderpass {
     pub fn id(&self) -> u32 { self.handle.id }
     pub fn attachments(&self) -> &[RenderpassAttachment] { &self.attachments }
 
-    pub fn destroy(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), RenderpassError> {
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), RenderpassError> {
         Ok(backend.delete_renderpass(self)?)
     }
 }
@@ -61,10 +53,7 @@ impl RenderpassBuilder {
         self
     }
 
-    pub fn build(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<Renderpass, RenderpassError> {
+    pub fn build(self, backend: &mut ActiveGraphicsBackend) -> Result<Renderpass, RenderpassError> {
         let handle = backend.create_renderpass(&self.attachments)?;
         Ok(Renderpass::new(handle, self.attachments))
     }

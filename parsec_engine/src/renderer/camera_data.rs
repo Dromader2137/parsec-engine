@@ -11,9 +11,8 @@ use crate::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         pipeline::{
-            PipelineBindingType, PipelineResource,
-            PipelineResourceBindingLayout, PipelineResourceLayout,
-            PipelineResourceLayoutBuilder, PipelineShaderStage,
+            PipelineBindingType, PipelineResource, PipelineResourceBindingLayout,
+            PipelineResourceLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         window::Window,
     },
@@ -45,8 +44,7 @@ impl CameraData {
         near: f32,
         far: f32,
     ) -> CameraData {
-        let projection_matrix =
-            Matrix4f::perspective(vfov, window.aspect_ratio(), near, far);
+        let projection_matrix = Matrix4f::perspective(vfov, window.aspect_ratio(), near, far);
         let projection_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Uniform])
             .data(BufferContent::from_slice(&[projection_matrix]))
@@ -59,8 +57,7 @@ impl CameraData {
             })
             .build(backend)
             .unwrap();
-        let projection_binding =
-            projection_layout.create_resource(backend).unwrap();
+        let projection_binding = projection_layout.create_resource(backend).unwrap();
         projection_binding
             .bind_buffer(backend, projection_buffer.handle(), 0)
             .unwrap();
@@ -86,19 +83,18 @@ impl Identifiable for CameraData {
 
 pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
     let window = ctx.resources.get::<Window>().none_err()?;
-    let mut backend =
-        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut cameras_data =
-        ctx.resources.get_mut::<IdStore<CameraData>>().none_err()?;
-    let mut camera_data_manager =
-        ctx.resources.get_mut::<CameraDataManager>().none_err()?;
+    let mut backend = ctx
+        .resources
+        .get_mut::<ActiveGraphicsBackend>()
+        .none_err()?;
+    let mut cameras_data = ctx.resources.get_mut::<IdStore<CameraData>>().none_err()?;
+    let mut camera_data_manager = ctx.resources.get_mut::<CameraDataManager>().none_err()?;
     let mut cameras = ctx.world.query::<Mut<Camera>>();
 
     for (_, camera) in cameras.iter() {
-        if let std::collections::hash_map::Entry::Vacant(e) =
-            camera_data_manager
-                .component_to_data
-                .entry(camera.camera_id())
+        if let std::collections::hash_map::Entry::Vacant(e) = camera_data_manager
+            .component_to_data
+            .entry(camera.camera_id())
         {
             let camera_data = CameraData::new(
                 &mut backend,
@@ -117,12 +113,12 @@ pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
 
 pub fn update_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
     let window = ctx.resources.get::<Window>().none_err()?;
-    let mut backend =
-        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut cameras_data =
-        ctx.resources.get_mut::<IdStore<CameraData>>().none_err()?;
-    let camera_data_manager =
-        ctx.resources.get::<CameraDataManager>().none_err()?;
+    let mut backend = ctx
+        .resources
+        .get_mut::<ActiveGraphicsBackend>()
+        .none_err()?;
+    let mut cameras_data = ctx.resources.get_mut::<IdStore<CameraData>>().none_err()?;
+    let camera_data_manager = ctx.resources.get::<CameraDataManager>().none_err()?;
     let mut cameras = ctx.world.query::<Camera>();
 
     let aspect_ratio = window.aspect_ratio();

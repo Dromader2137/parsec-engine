@@ -1,43 +1,19 @@
 //! Unsigned integer vector types.
 
-use std::ops::{
-    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
-};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 use serde::{Deserialize, Serialize};
 
 use crate::ivec::{Vec2i, Vec3i};
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Default,
-    Serialize,
-    Deserialize,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Vec2u {
     pub x: u32,
     pub y: u32,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Default,
-    Serialize,
-    Deserialize,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Vec3u {
     pub x: u32,
@@ -47,9 +23,7 @@ pub struct Vec3u {
 
 impl Add for Vec2u {
     type Output = Vec2u;
-    fn add(self, rhs: Self) -> Self::Output {
-        Vec2u::new(self.x + rhs.x, self.y + rhs.y)
-    }
+    fn add(self, rhs: Self) -> Self::Output { Vec2u::new(self.x + rhs.x, self.y + rhs.y) }
 }
 
 impl AddAssign for Vec2u {
@@ -76,16 +50,12 @@ impl AddAssign for Vec3u {
 
 impl Div for Vec2u {
     type Output = Vec2u;
-    fn div(self, rhs: Self) -> Self::Output {
-        Vec2u::new(self.x / rhs.x, self.y / rhs.y)
-    }
+    fn div(self, rhs: Self) -> Self::Output { Vec2u::new(self.x / rhs.x, self.y / rhs.y) }
 }
 
 impl Div<u32> for Vec2u {
     type Output = Vec2u;
-    fn div(self, rhs: u32) -> Self::Output {
-        Vec2u::new(self.x / rhs, self.y / rhs)
-    }
+    fn div(self, rhs: u32) -> Self::Output { Vec2u::new(self.x / rhs, self.y / rhs) }
 }
 
 impl DivAssign for Vec2u {
@@ -111,9 +81,7 @@ impl Div for Vec3u {
 
 impl Div<u32> for Vec3u {
     type Output = Vec3u;
-    fn div(self, rhs: u32) -> Self::Output {
-        Vec3u::new(self.x / rhs, self.y / rhs, self.z / rhs)
-    }
+    fn div(self, rhs: u32) -> Self::Output { Vec3u::new(self.x / rhs, self.y / rhs, self.z / rhs) }
 }
 
 impl DivAssign for Vec3u {
@@ -134,9 +102,7 @@ impl DivAssign<u32> for Vec3u {
 
 impl Mul<u32> for Vec2u {
     type Output = Vec2u;
-    fn mul(self, rhs: u32) -> Self::Output {
-        Vec2u::new(self.x * rhs, self.y * rhs)
-    }
+    fn mul(self, rhs: u32) -> Self::Output { Vec2u::new(self.x * rhs, self.y * rhs) }
 }
 
 impl MulAssign for Vec2u {
@@ -162,9 +128,7 @@ impl Mul for Vec3u {
 
 impl Mul<u32> for Vec3u {
     type Output = Vec3u;
-    fn mul(self, rhs: u32) -> Self::Output {
-        Vec3u::new(self.x * rhs, self.y * rhs, self.z * rhs)
-    }
+    fn mul(self, rhs: u32) -> Self::Output { Vec3u::new(self.x * rhs, self.y * rhs, self.z * rhs) }
 }
 
 impl MulAssign for Vec3u {
@@ -185,9 +149,7 @@ impl MulAssign<u32> for Vec3u {
 
 impl Sub for Vec2u {
     type Output = Vec2u;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Vec2u::new(self.x - rhs.x, self.y - rhs.y)
-    }
+    fn sub(self, rhs: Self) -> Self::Output { Vec2u::new(self.x - rhs.x, self.y - rhs.y) }
 }
 
 impl SubAssign for Vec2u {
@@ -222,9 +184,7 @@ impl Vec2u {
 
     pub fn dot(&mut self, vec: Vec2u) -> u32 { self.x * vec.x + self.y * vec.y }
 
-    pub fn cross(&mut self, vec: Vec2u) -> u32 {
-        (self.x * vec.y) - (self.y * vec.x)
-    }
+    pub fn cross(&mut self, vec: Vec2u) -> u32 { (self.x * vec.y) - (self.y * vec.x) }
 
     pub fn length_sqr(&mut self) -> u32 { self.x * self.x + self.y * self.y }
 
@@ -240,9 +200,7 @@ impl Vec3u {
 
     pub fn new(x: u32, y: u32, z: u32) -> Vec3u { Vec3u { x, y, z } }
 
-    pub fn dot(&mut self, vec: Vec3u) -> u32 {
-        self.x * vec.x + self.y * vec.y + self.z * vec.z
-    }
+    pub fn dot(&mut self, vec: Vec3u) -> u32 { self.x * vec.x + self.y * vec.y + self.z * vec.z }
 
     pub fn cross(&mut self, vec: Vec3u) -> Vec3u {
         Vec3u {
@@ -252,11 +210,7 @@ impl Vec3u {
         }
     }
 
-    pub fn length_sqr(&mut self) -> u32 {
-        self.x * self.x + self.y * self.y + self.z * self.z
-    }
+    pub fn length_sqr(&mut self) -> u32 { self.x * self.x + self.y * self.y + self.z * self.z }
 
-    pub fn signed(&self) -> Vec3i {
-        Vec3i::new(self.x as i32, self.y as i32, self.z as i32)
-    }
+    pub fn signed(&self) -> Vec3i { Vec3i::new(self.x as i32, self.y as i32, self.z as i32) }
 }

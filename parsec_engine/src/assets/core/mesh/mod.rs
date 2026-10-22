@@ -97,9 +97,7 @@ impl Asset for Mesh {
 
     const ASSET_TYPE: &'static str = "mesh";
 
-    fn cook(input_data: Self::Input) -> Self::Cooked {
-        CookedMesh::from_input(input_data)
-    }
+    fn cook(input_data: Self::Input) -> Self::Cooked { CookedMesh::from_input(input_data) }
 
     fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {
         let mut mesh = Mesh::from_cooked(cooked);
@@ -110,8 +108,8 @@ impl Asset for Mesh {
                 .unwrap();
             MeshData::new(&mut backend, &mesh.vertices, &mesh.indices)
         };
-        let mut mesh_data_store = resources
-            .get_add::<IdStore<MeshData<DefaultVertex>>>(IdStore::new());
+        let mut mesh_data_store =
+            resources.get_add::<IdStore<MeshData<DefaultVertex>>>(IdStore::new());
         let id = mesh_data_store.push(mesh_data);
         mesh.data_id = Some(id);
         mesh

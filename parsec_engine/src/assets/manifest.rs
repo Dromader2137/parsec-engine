@@ -26,11 +26,7 @@ impl AssetDescription {
     }
 
     pub fn into_name(self) -> String {
-        combine_into_asset_name(
-            self.subresource,
-            self.source_file,
-            self.asset_type,
-        )
+        combine_into_asset_name(self.subresource, self.source_file, self.asset_type)
     }
 }
 
@@ -47,9 +43,7 @@ pub(super) fn combine_into_asset_name(
     )
 }
 
-fn extract_from_asset_name(
-    asset_name: &'static str,
-) -> Option<AssetDescription> {
+fn extract_from_asset_name(asset_name: &'static str) -> Option<AssetDescription> {
     let (subresource, other) = asset_name.split_once("@")?;
     let (filename, asset_type) = other.split_once("#")?;
     let source_file = Path::new(filename);

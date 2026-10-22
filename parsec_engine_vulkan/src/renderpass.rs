@@ -1,13 +1,12 @@
 use parsec_engine::graphics::renderpass::{
-    RenderpassAttachment, RenderpassAttachmentLoadOp,
-    RenderpassAttachmentStoreOp, RenderpassAttachmentType,
-    RenderpassClearValue,
+    RenderpassAttachment, RenderpassAttachmentLoadOp, RenderpassAttachmentStoreOp,
+    RenderpassAttachmentType, RenderpassClearValue,
 };
 use parsec_engine_math::vec::Vec4f;
 
 use crate::{
-    access::VulkanAccess, create_counter, device::VulkanDevice,
-    image::VulkanImageFormat, pipeline_stage::VulkanPipelineStage,
+    access::VulkanAccess, create_counter, device::VulkanDevice, image::VulkanImageFormat,
+    pipeline_stage::VulkanPipelineStage,
 };
 
 pub struct VulkanRenderpass {
@@ -34,9 +33,7 @@ pub enum VulkanClearValue {
 impl VulkanClearValue {
     pub fn new(value: RenderpassClearValue) -> Self {
         match value {
-            RenderpassClearValue::Color(r, g, b, a) => {
-                Self::Color(Vec4f::new(r, g, b, a))
-            },
+            RenderpassClearValue::Color(r, g, b, a) => Self::Color(Vec4f::new(r, g, b, a)),
             RenderpassClearValue::Depth(d) => Self::Depth(d),
         }
     }
@@ -131,9 +128,7 @@ pub struct VulkanRenderpassAttachment {
 impl VulkanRenderpassAttachment {
     pub fn new(value: RenderpassAttachment) -> Self {
         VulkanRenderpassAttachment {
-            attachment_type: VulkanRenderpassAttachmentType::new(
-                value.attachment_type,
-            ),
+            attachment_type: VulkanRenderpassAttachmentType::new(value.attachment_type),
             load_op: VulkanLoadOp::new(value.load_op),
             store_op: VulkanStoreOp::new(value.store_op),
             image_format: VulkanImageFormat::new(value.image_format),
@@ -147,9 +142,7 @@ impl VulkanRenderpassAttachment {
             load_op: self.load_op.raw_load_op(),
             store_op: self.store_op.raw_store_op(),
             final_layout: match self.attachment_type {
-                VulkanRenderpassAttachmentType::Color => {
-                    ash::vk::ImageLayout::PRESENT_SRC_KHR
-                },
+                VulkanRenderpassAttachmentType::Color => ash::vk::ImageLayout::PRESENT_SRC_KHR,
                 VulkanRenderpassAttachmentType::Depth => {
                     ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
                 },
@@ -178,12 +171,10 @@ impl VulkanRenderpass {
                     });
                 },
                 VulkanRenderpassAttachmentType::Depth => {
-                    depth_attachment_refs.push(
-                        ash::vk::AttachmentReference {
-                            attachment: id as u32,
-                            layout: ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                        }
-                    );
+                    depth_attachment_refs.push(ash::vk::AttachmentReference {
+                        attachment: id as u32,
+                        layout: ash::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                    });
                 },
             };
             renderpass_attachments.push(attachment.raw_renderpass_attachment());
@@ -207,33 +198,17 @@ impl VulkanRenderpass {
             ash::vk::SubpassDependency::default()
                 .src_subpass(ash::vk::SUBPASS_EXTERNAL)
                 .dst_subpass(0)
-                .src_stage_mask(
-                    VulkanPipelineStage::ColorAttachmentOutput
-                        .raw_pipeline_stage(),
-                )
+                .src_stage_mask(VulkanPipelineStage::ColorAttachmentOutput.raw_pipeline_stage())
                 .src_access_mask(VulkanAccess::None.raw_access_flag())
-                .dst_stage_mask(
-                    VulkanPipelineStage::ColorAttachmentOutput
-                        .raw_pipeline_stage(),
-                )
-                .dst_access_mask(
-                    VulkanAccess::ColorAttachmentWrite.raw_access_flag(),
-                ),
+                .dst_stage_mask(VulkanPipelineStage::ColorAttachmentOutput.raw_pipeline_stage())
+                .dst_access_mask(VulkanAccess::ColorAttachmentWrite.raw_access_flag()),
             ash::vk::SubpassDependency::default()
                 .src_subpass(ash::vk::SUBPASS_EXTERNAL)
                 .dst_subpass(0)
-                .src_stage_mask(
-                    VulkanPipelineStage::EarlyFragmentTests
-                        .raw_pipeline_stage(),
-                )
+                .src_stage_mask(VulkanPipelineStage::EarlyFragmentTests.raw_pipeline_stage())
                 .src_access_mask(VulkanAccess::None.raw_access_flag())
-                .dst_stage_mask(
-                    VulkanPipelineStage::EarlyFragmentTests
-                        .raw_pipeline_stage(),
-                )
-                .dst_access_mask(
-                    VulkanAccess::DepthAttachmentWrite.raw_access_flag(),
-                ),
+                .dst_stage_mask(VulkanPipelineStage::EarlyFragmentTests.raw_pipeline_stage())
+                .dst_access_mask(VulkanAccess::DepthAttachmentWrite.raw_access_flag()),
         ];
 
         let renderpass_create_info = ash::vk::RenderPassCreateInfo::default()
@@ -273,18 +248,14 @@ impl VulkanRenderpass {
     pub fn color_attachment_count(&self) -> u32 {
         self.attachments
             .iter()
-            .filter(|x| {
-                x.attachment_type == VulkanRenderpassAttachmentType::Color
-            })
+            .filter(|x| x.attachment_type == VulkanRenderpassAttachmentType::Color)
             .count() as u32
     }
 
     pub fn has_depth_attachment(&self) -> bool {
         self.attachments
             .iter()
-            .find(|x| {
-                x.attachment_type == VulkanRenderpassAttachmentType::Depth
-            })
+            .find(|x| x.attachment_type == VulkanRenderpassAttachmentType::Depth)
             .is_some()
     }
 
@@ -294,13 +265,9 @@ impl VulkanRenderpass {
         self.attachments
             .iter()
             .enumerate()
-            .find(|(_, x)| {
-                x.attachment_type == VulkanRenderpassAttachmentType::Depth
-            })
+            .find(|(_, x)| x.attachment_type == VulkanRenderpassAttachmentType::Depth)
             .map(|x| x.0 as u32)
     }
 
-    pub fn _attachments(&self) -> &[VulkanRenderpassAttachment] {
-        &self.attachments
-    }
+    pub fn _attachments(&self) -> &[VulkanRenderpassAttachment] { &self.attachments }
 }

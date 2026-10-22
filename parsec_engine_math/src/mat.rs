@@ -7,9 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::vec::{Vec2f, Vec3f};
 
 /// 4x4 matrix of floats.
-#[derive(
-    Clone, Copy, Debug, PartialEq, PartialOrd, Default, Serialize, Deserialize,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Matrix4f(pub [[f32; 4]; 4]);
 
@@ -101,12 +99,7 @@ impl Matrix4f {
     }
 
     /// Perspective matrix.
-    pub fn perspective(
-        fovy: f32,
-        aspect: f32,
-        near: f32,
-        far: f32,
-    ) -> Matrix4f {
+    pub fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> Matrix4f {
         let f = 1.0 / (fovy / 2.0).tan();
         let a = far / (far - near);
         Matrix4f::new([
@@ -118,12 +111,7 @@ impl Matrix4f {
     }
 
     /// Orthographic matrix.
-    pub fn orthographic(
-        near: f32,
-        far: f32,
-        height: f32,
-        width: f32,
-    ) -> Matrix4f {
+    pub fn orthographic(near: f32, far: f32, height: f32, width: f32) -> Matrix4f {
         Matrix4f::new([
             [1.0 / width, 0.0, 0.0, 0.0],
             [0.0, -1.0 / height, 0.0, 0.0],

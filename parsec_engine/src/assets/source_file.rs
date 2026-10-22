@@ -1,7 +1,4 @@
-use std::{
-    collections::BTreeSet,
-    path::Path,
-};
+use std::{collections::BTreeSet, path::Path};
 
 use crate::{
     assets::{
@@ -40,10 +37,7 @@ impl<'a> AssetCookContext<'a> {
 pub trait AssetSourceFileHandler {
     const EXTENSION: &'static str;
 
-    fn cook(
-        asset_source_path: &Path,
-        ctx: AssetCookContext,
-    ) -> Result<(), ParsecError>;
+    fn cook(asset_source_path: &Path, ctx: AssetCookContext) -> Result<(), ParsecError>;
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

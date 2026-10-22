@@ -1,8 +1,7 @@
 use parsec_engine::graphics::window::Window;
 
 use crate::{
-    image::VulkanImageFormat, instance::VulkanInstance,
-    physical_device::VulkanPhysicalDevice,
+    image::VulkanImageFormat, instance::VulkanInstance, physical_device::VulkanPhysicalDevice,
 };
 
 pub struct VulkanInitialSurface {
@@ -58,10 +57,8 @@ impl VulkanInitialSurface {
             .map_err(VulkanSurfaceError::CreationError)?
         };
 
-        let surface_loader = ash::khr::surface::Instance::new(
-            instance.raw_entry(),
-            instance.raw_handle(),
-        );
+        let surface_loader =
+            ash::khr::surface::Instance::new(instance.raw_entry(), instance.raw_handle());
 
         Ok(VulkanInitialSurface {
             surface,
@@ -85,9 +82,7 @@ impl VulkanInitialSurface {
         }
     }
 
-    pub fn surface_loader_raw(&self) -> &ash::khr::surface::Instance {
-        &self.surface_loader
-    }
+    pub fn surface_loader_raw(&self) -> &ash::khr::surface::Instance { &self.surface_loader }
 
     pub fn surface_raw(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 }
@@ -104,10 +99,7 @@ impl VulkanSurface {
 
         let surface_formats = unsafe {
             surface_loader
-                .get_physical_device_surface_formats(
-                    *physical_device.raw_handle(),
-                    surface,
-                )
+                .get_physical_device_surface_formats(*physical_device.raw_handle(), surface)
                 .map_err(VulkanSurfaceError::FormatsError)?
         };
 
@@ -117,22 +109,18 @@ impl VulkanSurface {
 
         let surface_capabilities = unsafe {
             surface_loader
-                .get_physical_device_surface_capabilities(
-                    *physical_device.raw_handle(),
-                    surface,
-                )
+                .get_physical_device_surface_capabilities(*physical_device.raw_handle(), surface)
                 .map_err(VulkanSurfaceError::CapabilitiesError)?
         };
 
-        let preferred_formats =
-            [VulkanImageFormat::RGBA8SRGB, VulkanImageFormat::BGRA8SRGB];
+        let preferred_formats = [VulkanImageFormat::RGBA8SRGB, VulkanImageFormat::BGRA8SRGB];
 
         let surface_format = *preferred_formats
             .iter()
             .find_map(|preffered_format| {
-                let found = surface_formats.iter().find(|format| {
-                    format.format == preffered_format.raw_image_format()
-                });
+                let found = surface_formats
+                    .iter()
+                    .find(|format| format.format == preffered_format.raw_image_format());
                 if found.is_some() {
                     Some(preffered_format)
                 } else {
@@ -149,23 +137,15 @@ impl VulkanSurface {
         })
     }
 
-    pub fn destroy(&self) {
-        unsafe { self.surface_loader.destroy_surface(self.surface, None) }
-    }
+    pub fn destroy(&self) { unsafe { self.surface_loader.destroy_surface(self.surface, None) } }
 
     pub fn raw_handle(&self) -> &ash::vk::SurfaceKHR { &self.surface }
 
-    pub fn min_image_count(&self) -> u32 {
-        self.surface_capabilities.min_image_count
-    }
+    pub fn min_image_count(&self) -> u32 { self.surface_capabilities.min_image_count }
 
-    pub fn max_image_count(&self) -> u32 {
-        self.surface_capabilities.max_image_count
-    }
+    pub fn max_image_count(&self) -> u32 { self.surface_capabilities.max_image_count }
 
-    pub fn raw_supported_transforms(
-        &self,
-    ) -> ash::vk::SurfaceTransformFlagsKHR {
+    pub fn raw_supported_transforms(&self) -> ash::vk::SurfaceTransformFlagsKHR {
         self.surface_capabilities.supported_transforms
     }
 

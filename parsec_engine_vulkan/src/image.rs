@@ -3,9 +3,7 @@ use parsec_engine_math::uvec::Vec2u;
 
 use crate::{
     allocation::VulkanAllocationError,
-    allocator::{
-        VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements,
-    },
+    allocator::{VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements},
     create_counter,
     device::VulkanDevice,
     format_size::format_size,
@@ -57,16 +55,10 @@ impl VulkanImageUsage {
 
     fn raw_image_usage(&self) -> ash::vk::ImageUsageFlags {
         match self {
-            VulkanImageUsage::TransferSrc => {
-                ash::vk::ImageUsageFlags::TRANSFER_SRC
-            },
-            VulkanImageUsage::TransferDst => {
-                ash::vk::ImageUsageFlags::TRANSFER_DST
-            },
+            VulkanImageUsage::TransferSrc => ash::vk::ImageUsageFlags::TRANSFER_SRC,
+            VulkanImageUsage::TransferDst => ash::vk::ImageUsageFlags::TRANSFER_DST,
             VulkanImageUsage::Sampled => ash::vk::ImageUsageFlags::SAMPLED,
-            VulkanImageUsage::ColorAttachment => {
-                ash::vk::ImageUsageFlags::COLOR_ATTACHMENT
-            },
+            VulkanImageUsage::ColorAttachment => ash::vk::ImageUsageFlags::COLOR_ATTACHMENT,
             VulkanImageUsage::DepthStencilAttachment => {
                 ash::vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT
             },
@@ -146,15 +138,11 @@ impl VulkanImageFormat {
             VulkanImageFormat::R16UNORM => ash::vk::Format::R16_UNORM,
             VulkanImageFormat::RG16UNORM => ash::vk::Format::R16G16_UNORM,
             VulkanImageFormat::RGB16UNORM => ash::vk::Format::R16G16B16_UNORM,
-            VulkanImageFormat::RGBA16UNORM => {
-                ash::vk::Format::R16G16B16A16_UNORM
-            },
+            VulkanImageFormat::RGBA16UNORM => ash::vk::Format::R16G16B16A16_UNORM,
             VulkanImageFormat::R16SNORM => ash::vk::Format::R16_SNORM,
             VulkanImageFormat::RG16SNORM => ash::vk::Format::R16G16_SNORM,
             VulkanImageFormat::RGB16SNORM => ash::vk::Format::R16G16B16_SNORM,
-            VulkanImageFormat::RGBA16SNORM => {
-                ash::vk::Format::R16G16B16A16_SNORM
-            },
+            VulkanImageFormat::RGBA16SNORM => ash::vk::Format::R16G16B16A16_SNORM,
         }
     }
 
@@ -215,18 +203,10 @@ impl VulkanImageLayout {
             VulkanImageLayout::ShaderReadOnlyOptimal => {
                 ash::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
             },
-            VulkanImageLayout::TransferSrcOptimal => {
-                ash::vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-            },
-            VulkanImageLayout::TransferDstOptimal => {
-                ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL
-            },
-            VulkanImageLayout::PresentSrcKHR => {
-                ash::vk::ImageLayout::PRESENT_SRC_KHR
-            },
-            VulkanImageLayout::Preinitialized => {
-                ash::vk::ImageLayout::PREINITIALIZED
-            },
+            VulkanImageLayout::TransferSrcOptimal => ash::vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+            VulkanImageLayout::TransferDstOptimal => ash::vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            VulkanImageLayout::PresentSrcKHR => ash::vk::ImageLayout::PRESENT_SRC_KHR,
+            VulkanImageLayout::Preinitialized => ash::vk::ImageLayout::PREINITIALIZED,
         }
     }
 }
@@ -297,14 +277,10 @@ impl VulkanImage for VulkanSwapchainImage {
     fn id(&self) -> u32 { self.id }
     fn raw_image(&self) -> &ash::vk::Image { &self.image }
     fn format(&self) -> VulkanImageFormat { self.format }
-    fn usage(&self) -> &[VulkanImageUsage] {
-        &[VulkanImageUsage::ColorAttachment]
-    }
+    fn usage(&self) -> &[VulkanImageUsage] { &[VulkanImageUsage::ColorAttachment] }
     fn extent(&self) -> VulkanImageSize { self.extent }
     fn get_layout(&self) -> VulkanImageLayout { self.last_known_layout }
-    fn set_layout(&mut self, layout: VulkanImageLayout) {
-        self.last_known_layout = layout;
-    }
+    fn set_layout(&mut self, layout: VulkanImageLayout) { self.last_known_layout = layout; }
     fn aspect(&self) -> VulkanImageAspect { VulkanImageAspect::Color }
     fn destroy(&self, _: &VulkanDevice, _: &mut VulkanAllocator) {}
 }
@@ -316,9 +292,7 @@ impl VulkanImage for VulkanOwnedImage {
     fn aspect(&self) -> VulkanImageAspect { self.aspect }
     fn extent(&self) -> VulkanImageSize { self.extent }
     fn get_layout(&self) -> VulkanImageLayout { self.last_known_layout }
-    fn set_layout(&mut self, layout: VulkanImageLayout) {
-        self.last_known_layout = layout;
-    }
+    fn set_layout(&mut self, layout: VulkanImageLayout) { self.last_known_layout = layout; }
     fn raw_image(&self) -> &ash::vk::Image { &self.image }
     fn destroy(&self, device: &VulkanDevice, allocator: &mut VulkanAllocator) {
         unsafe { device.raw_device().destroy_image(*self.raw_image(), None) }
@@ -345,9 +319,7 @@ pub enum VulkanImageError {
     FormatNotSupported,
 }
 
-fn get_image_view_create_info(
-    image: &Box<dyn VulkanImage>,
-) -> ash::vk::ImageViewCreateInfo<'_> {
+fn get_image_view_create_info(image: &Box<dyn VulkanImage>) -> ash::vk::ImageViewCreateInfo<'_> {
     ash::vk::ImageViewCreateInfo::default()
         .view_type(ash::vk::ImageViewType::TYPE_2D)
         .format(image.format().raw_image_format())
@@ -408,27 +380,22 @@ impl VulkanOwnedImage {
     ) -> Result<VulkanOwnedImage, VulkanImageError> {
         let create_info = get_image_create_info(format, size, usage);
 
-        let image = match unsafe {
-            device.raw_device().create_image(&create_info, None)
-        } {
+        let image = match unsafe { device.raw_device().create_image(&create_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(VulkanImageError::CreationError(err)),
         };
-        let memory_requirements =
-            VulkanMemoryRequirements::from_raw_requirements(unsafe {
-                device.raw_device().get_image_memory_requirements(image)
-            });
+        let memory_requirements = VulkanMemoryRequirements::from_raw_requirements(unsafe {
+            device.raw_device().get_image_memory_requirements(image)
+        });
 
         let (memory, memory_offset, memory_size, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
             .map_err(VulkanImageError::AllocationError)?;
 
         if let Err(err) = unsafe {
-            device.raw_device().bind_image_memory(
-                image,
-                memory.raw_memory(),
-                memory_offset,
-            )
+            device
+                .raw_device()
+                .bind_image_memory(image, memory.raw_memory(), memory_offset)
         } {
             return Err(VulkanImageError::BindError(err));
         };
@@ -450,9 +417,7 @@ impl VulkanOwnedImage {
             memory,
             memory_offset,
             memory_size,
-            size: format_size
-                * size.raw_size().x as u64
-                * size.raw_size().y as u64,
+            size: format_size * size.raw_size().x as u64 * size.raw_size().y as u64,
         })
     }
 }
@@ -465,9 +430,7 @@ impl VulkanImageView {
     ) -> Result<VulkanImageView, VulkanImageError> {
         let create_info = get_image_view_create_info(image);
 
-        match unsafe {
-            device.raw_device().create_image_view(&create_info, None)
-        } {
+        match unsafe { device.raw_device().create_image_view(&create_info, None) } {
             Ok(val) => Ok(VulkanImageView {
                 id: ID_COUNTER_VIEW.next(),
                 image_id: image.id(),

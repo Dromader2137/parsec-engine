@@ -1,14 +1,12 @@
 use parsec_engine_math::{ivec::Vec2i, uvec::Vec2u};
 
-use crate::{
-    graphics::{
-        backend::BackendError,
-        buffer::BufferHandle,
-        framebuffer::FramebufferHandle,
-        image::ImageHandle,
-        pipeline::{PipelineHandle, PipelineResourceHandle},
-        renderpass::RenderpassHandle,
-    },
+use crate::graphics::{
+    backend::BackendError,
+    buffer::BufferHandle,
+    framebuffer::FramebufferHandle,
+    image::ImageHandle,
+    pipeline::{PipelineHandle, PipelineResourceHandle},
+    renderpass::RenderpassHandle,
 };
 
 #[derive(Debug)]

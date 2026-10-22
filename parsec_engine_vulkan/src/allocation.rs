@@ -28,12 +28,7 @@ impl VulkanAllocation {
         memory_index: u32,
         memory_size: u64,
     ) -> Result<VulkanAllocation, VulkanAllocationError> {
-        let memory = VulkanMemory::new(
-            device,
-            memory_properties,
-            memory_index,
-            memory_size,
-        )?;
+        let memory = VulkanMemory::new(device, memory_properties, memory_index, memory_size)?;
 
         Ok(VulkanAllocation {
             id: ALLOCATION_ID_COUNTER.next(),
@@ -75,8 +70,7 @@ impl VulkanAllocation {
         &mut self,
         req: VulkanMemoryRequirements,
     ) -> Option<(VulkanMemory, u64, u64, u32)> {
-        let (mut cursor, start, end) =
-            self.find_block_with_size(req.size, req.alignment)?;
+        let (mut cursor, start, end) = self.find_block_with_size(req.size, req.alignment)?;
         let block = cursor.remove_current()?;
         if block.end != end {
             cursor.insert_before(VulkanMemoryBlock {
@@ -93,10 +87,7 @@ impl VulkanAllocation {
         Some((self.memory.clone(), start, end - start + 1, self.id))
     }
 
-    fn find_offset_block(
-        &mut self,
-        offset: u64,
-    ) -> Option<CursorMut<'_, VulkanMemoryBlock>> {
+    fn find_offset_block(&mut self, offset: u64) -> Option<CursorMut<'_, VulkanMemoryBlock>> {
         let mut list_cursor = self.free_memory_blocks.cursor_front_mut();
         while let Some(block) = list_cursor.current() {
             if block.start >= offset {
@@ -110,8 +101,7 @@ impl VulkanAllocation {
     pub fn is_empty(&self) -> bool {
         self.free_memory_blocks.len() == 1
             && self.free_memory_blocks.front().map(|x| x.start) == Some(0)
-            && self.free_memory_blocks.front().map(|x| x.end + 1)
-                == Some(self.memory.size())
+            && self.free_memory_blocks.front().map(|x| x.end + 1) == Some(self.memory.size())
     }
 
     pub fn free_part(&mut self, offset: u64, size: u64) -> Option<()> {

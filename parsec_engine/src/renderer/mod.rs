@@ -7,13 +7,13 @@ pub mod components;
 pub mod depth_image;
 pub mod draw_queue;
 pub mod graphics_bundle;
+pub mod integrated_image;
 pub mod light_data;
 pub mod material_data;
 pub mod mesh_data;
 pub mod present_image;
 pub mod shadow;
 pub mod sync;
-pub mod integrated_image;
 pub mod transform_data;
 
 use sync::{RendererFrameSync, RendererImageSync};
@@ -29,8 +29,8 @@ use crate::{
         pipeline::DefaultVertex,
         renderpass::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
-            RenderpassAttachmentStoreOp, RenderpassAttachmentType,
-            RenderpassBuilder, RenderpassClearValue, RenderpassHandle,
+            RenderpassAttachmentStoreOp, RenderpassAttachmentType, RenderpassBuilder,
+            RenderpassClearValue, RenderpassHandle,
         },
         window::Window,
     },
@@ -97,8 +97,10 @@ pub struct RendererDepthImage(pub DepthImage);
 pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
 pub fn init_renderer(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend =
-        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
+    let mut backend = ctx
+        .resources
+        .get_mut::<ActiveGraphicsBackend>()
+        .none_err()?;
     let window = ctx.resources.get::<Window>().none_err()?;
 
     let surface_format = backend.get_surface_format();
@@ -126,8 +128,7 @@ pub fn init_renderer(ctx: Ctx) -> Result<(), ParsecError> {
         .map(|img| PresentImage::new(&mut backend, img).unwrap())
         .collect::<Vec<_>>();
     let depth_image =
-        DepthImage::new(&mut backend, ImageSize::new(window.size()).unwrap())
-            .unwrap();
+        DepthImage::new(&mut backend, ImageSize::new(window.size()).unwrap()).unwrap();
     let framebuffers = swapchain_images
         .iter()
         .map(|present_image| {
@@ -142,10 +143,8 @@ pub fn init_renderer(ctx: Ctx) -> Result<(), ParsecError> {
         .collect::<Vec<_>>();
     let frames_in_flight = 1;
     let frame_sync = create_frame_sync(&mut backend, frames_in_flight);
-    let image_sync =
-        create_image_sync(&mut backend, swapchain_images.len());
-    let command_lists =
-        create_commad_lists(&mut backend, frames_in_flight);
+    let image_sync = create_image_sync(&mut backend, swapchain_images.len());
+    let command_lists = create_commad_lists(&mut backend, frames_in_flight);
 
     let shadow_data = RendererShadows::new(&mut backend);
     let light_data = RendererLights::new(&mut backend);
@@ -226,39 +225,38 @@ fn recreate_size_dependent_components(
 }
 
 pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend =
-        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut current_frame =
-        ctx.resources.get_mut::<RendererCurrentFrame>().none_err()?;
+    let mut backend = ctx
+        .resources
+        .get_mut::<ActiveGraphicsBackend>()
+        .none_err()?;
+    let mut current_frame = ctx.resources.get_mut::<RendererCurrentFrame>().none_err()?;
     let mut resize = ctx.resources.get_mut::<ResizeFlag>().none_err()?;
-    let frames_in_flight =
-        ctx.resources.get_mut::<RendererFramesInFlight>().none_err()?;
+    let frames_in_flight = ctx
+        .resources
+        .get_mut::<RendererFramesInFlight>()
+        .none_err()?;
     let window = ctx.resources.get::<Window>().none_err()?;
-    let frame_sync =
-        ctx.resources.get::<Vec<RendererFrameSync>>().none_err()?;
-    let image_sync =
-        ctx.resources.get::<Vec<RendererImageSync>>().none_err()?;
-    let mut present_images =
-        ctx.resources.get_mut::<RendererPresentImages>().none_err()?;
-    let mut depth_image =
-        ctx.resources.get_mut::<RendererDepthImage>().none_err()?;
-    let renderpass =
-        ctx.resources.get_mut::<RendererMainRenderpass>().none_err()?;
-    let mut framebuffers =
-        ctx.resources.get_mut::<RendererFramebuffers>().none_err()?;
-    let mut command_lists =
-        ctx.resources.get_mut::<Vec<CommandList>>().none_err()?;
+    let frame_sync = ctx.resources.get::<Vec<RendererFrameSync>>().none_err()?;
+    let image_sync = ctx.resources.get::<Vec<RendererImageSync>>().none_err()?;
+    let mut present_images = ctx
+        .resources
+        .get_mut::<RendererPresentImages>()
+        .none_err()?;
+    let mut depth_image = ctx.resources.get_mut::<RendererDepthImage>().none_err()?;
+    let renderpass = ctx
+        .resources
+        .get_mut::<RendererMainRenderpass>()
+        .none_err()?;
+    let mut framebuffers = ctx.resources.get_mut::<RendererFramebuffers>().none_err()?;
+    let mut command_lists = ctx.resources.get_mut::<Vec<CommandList>>().none_err()?;
     let draw_queue = ctx.resources.get::<Vec<Draw>>().none_err()?;
     let meshes_data = ctx
         .resources
         .get::<IdStore<MeshData<DefaultVertex>>>()
         .none_err()?;
-    let materials_data =
-        ctx.resources.get::<IdStore<MaterialData>>().none_err()?;
-    let material_bases =
-        ctx.resources.get::<IdStore<MaterialBase>>().none_err()?;
-    let transforms_data =
-        ctx.resources.get::<IdStore<TransformData>>().none_err()?;
+    let materials_data = ctx.resources.get::<IdStore<MaterialData>>().none_err()?;
+    let material_bases = ctx.resources.get::<IdStore<MaterialBase>>().none_err()?;
+    let transforms_data = ctx.resources.get::<IdStore<TransformData>>().none_err()?;
     let cameras_data = ctx.resources.get::<IdStore<CameraData>>().none_err()?;
     let shadows = ctx.resources.get::<RendererShadows>().none_err()?;
     let lights = ctx.resources.get::<RendererLights>().none_err()?;
@@ -280,16 +278,13 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
         return Ok(());
     }
 
-    let present_index = match backend.start_frame(
-        frame_sync[current_frame.0 as usize].image_available_semaphore,
-    ) {
-        Ok(val) => val,
-        Err(err) => panic!("{:?}", err),
-    };
+    let present_index =
+        match backend.start_frame(frame_sync[current_frame.0 as usize].image_available_semaphore) {
+            Ok(val) => val,
+            Err(err) => panic!("{:?}", err),
+        };
     backend
-        .reset_gpu_to_cpu_fence(
-            frame_sync[current_frame.0 as usize].command_buffer_fence,
-        )
+        .reset_gpu_to_cpu_fence(frame_sync[current_frame.0 as usize].command_buffer_fence)
         .unwrap();
 
     let command_list = &mut command_lists[current_frame.0 as usize];
@@ -315,8 +310,7 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
                 let material_base = &shadows.material_base;
                 let mesh = meshes_data.get(*mesh).unwrap();
                 let camera = cameras_data.get(*camera).unwrap();
-                let camera_transform =
-                    transforms_data.get(*camera_transform).unwrap();
+                let camera_transform = transforms_data.get(*camera_transform).unwrap();
                 let transform = transforms_data.get(*transform).unwrap();
                 material.bind(
                     command_list,
@@ -327,10 +321,7 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
                     &lights,
                     &shadows,
                 );
-                mesh.record_commands_instanced(
-                    command_list,
-                    lights.data.light_count,
-                );
+                mesh.record_commands_instanced(command_list, lights.data.light_count);
             },
         }
     }
@@ -351,12 +342,10 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
                 transform,
             }) => {
                 let material = materials_data.get(*material).unwrap();
-                let material_base =
-                    material_bases.get(material.material_base_id()).unwrap();
+                let material_base = material_bases.get(material.material_base_id()).unwrap();
                 let mesh = meshes_data.get(*mesh).unwrap();
                 let camera = cameras_data.get(*camera).unwrap();
-                let camera_transform =
-                    transforms_data.get(*camera_transform).unwrap();
+                let camera_transform = transforms_data.get(*camera_transform).unwrap();
                 let transform = transforms_data.get(*transform).unwrap();
                 material.bind(
                     command_list,
@@ -392,8 +381,7 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
         _ => panic!("Shouldn't be here"),
     };
 
-    let command_buffer_fence =
-        frame_sync[current_frame.0 as usize].command_buffer_fence;
+    let command_buffer_fence = frame_sync[current_frame.0 as usize].command_buffer_fence;
     backend.wait_gpu_to_cpu_fence(command_buffer_fence).unwrap();
 
     current_frame.0 = (current_frame.0 + 1) % frames_in_flight.0;

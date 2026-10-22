@@ -14,14 +14,10 @@ pub enum VulkanSemaphoreError {
 
 create_counter! {ID_COUNTER}
 impl VulkanSemaphore {
-    pub fn new(
-        device: &VulkanDevice,
-    ) -> Result<VulkanSemaphore, VulkanSemaphoreError> {
+    pub fn new(device: &VulkanDevice) -> Result<VulkanSemaphore, VulkanSemaphoreError> {
         let create_info = ash::vk::SemaphoreCreateInfo::default();
 
-        let semaphore = match unsafe {
-            device.raw_device().create_semaphore(&create_info, None)
-        } {
+        let semaphore = match unsafe { device.raw_device().create_semaphore(&create_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(VulkanSemaphoreError::CreationError(err)),
         };

@@ -12,10 +12,7 @@ pub struct VulkanMemoryBarrier<'a> {
 }
 
 impl<'a> VulkanMemoryBarrier<'a> {
-    pub fn new(
-        src_access: &'a [VulkanAccess],
-        dst_access: &'a [VulkanAccess],
-    ) -> Self {
+    pub fn new(src_access: &'a [VulkanAccess], dst_access: &'a [VulkanAccess]) -> Self {
         Self {
             src_access,
             dst_access,
@@ -24,12 +21,8 @@ impl<'a> VulkanMemoryBarrier<'a> {
 
     pub fn raw_memory_barrier(&self) -> ash::vk::MemoryBarrier<'_> {
         ash::vk::MemoryBarrier {
-            src_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.src_access,
-            ),
-            dst_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.dst_access,
-            ),
+            src_access_mask: VulkanAccess::raw_combined_access_flag(self.src_access),
+            dst_access_mask: VulkanAccess::raw_combined_access_flag(self.dst_access),
             ..Default::default()
         }
     }
@@ -54,16 +47,10 @@ impl<'buffer, 'a> VulkanBufferMemoryBarrier<'buffer, 'a> {
         }
     }
 
-    pub fn raw_buffer_memory_barrier(
-        &self,
-    ) -> ash::vk::BufferMemoryBarrier<'_> {
+    pub fn raw_buffer_memory_barrier(&self) -> ash::vk::BufferMemoryBarrier<'_> {
         ash::vk::BufferMemoryBarrier {
-            src_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.src_access,
-            ),
-            dst_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.dst_access,
-            ),
+            src_access_mask: VulkanAccess::raw_combined_access_flag(self.src_access),
+            dst_access_mask: VulkanAccess::raw_combined_access_flag(self.dst_access),
             buffer: *self.buffer.get_buffer_raw(),
             size: self.buffer.size(),
             ..Default::default()
@@ -104,12 +91,8 @@ impl<'image, 'a> VulkanImageMemoryBarrier<'image, 'a> {
                 layer_count: 1,
                 ..Default::default()
             },
-            src_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.src_access,
-            ),
-            dst_access_mask: VulkanAccess::raw_combined_access_flag(
-                self.dst_access,
-            ),
+            src_access_mask: VulkanAccess::raw_combined_access_flag(self.src_access),
+            dst_access_mask: VulkanAccess::raw_combined_access_flag(self.dst_access),
             old_layout: self.src_layout.raw_image_layout(),
             new_layout: self.dst_layout.raw_image_layout(),
             image: *self.image.raw_image(),

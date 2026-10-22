@@ -4,10 +4,7 @@ use crate::{
     assets::{
         Asset, AssetId,
         manifest::{AssetDescription, cooked_path},
-        source_file::{
-            AssetCookContext, AssetSourceFile, AssetSourceFileHandler,
-            AssetSourceId,
-        },
+        source_file::{AssetCookContext, AssetSourceFile, AssetSourceFileHandler, AssetSourceId},
     },
     ecs::resources::Resources,
     error::ParsecError,
@@ -66,8 +63,7 @@ pub enum AssetTrackingError {
     InvalidAssetName(&'static str),
 }
 
-type SourceFileHandlerFn =
-    fn(&Path, AssetCookContext) -> Result<(), ParsecError>;
+type SourceFileHandlerFn = fn(&Path, AssetCookContext) -> Result<(), ParsecError>;
 
 #[derive(Debug)]
 pub struct AssetLibrary {
@@ -87,10 +83,7 @@ impl AssetLibrary {
         }
     }
 
-    pub fn add_asset(
-        &mut self,
-        asset_name: &'static str,
-    ) -> Result<(), AssetTrackingError> {
+    pub fn add_asset(&mut self, asset_name: &'static str) -> Result<(), AssetTrackingError> {
         if self.names.contains_key(asset_name) {
             return Err(AssetTrackingError::DuplicateName(asset_name));
         }
@@ -114,29 +107,19 @@ impl AssetLibrary {
             .map(|(&id, _)| id)
     }
 
-    pub fn source_file(
-        &self,
-        source_id: AssetSourceId,
-    ) -> Option<&AssetSourceFile> {
+    pub fn source_file(&self, source_id: AssetSourceId) -> Option<&AssetSourceFile> {
         self.files.get(&source_id)
     }
 
-    pub fn source_files(
-        &self,
-    ) -> impl Iterator<Item = (AssetSourceId, &AssetSourceFile)> {
+    pub fn source_files(&self) -> impl Iterator<Item = (AssetSourceId, &AssetSourceFile)> {
         self.files.iter().map(|(&id, file)| (id, file))
     }
 
-    pub fn asset_description(
-        &self,
-        asset_id: AssetId,
-    ) -> Option<&AssetDescription> {
+    pub fn asset_description(&self, asset_id: AssetId) -> Option<&AssetDescription> {
         self.assets.get(&asset_id).map(|(desc, _)| desc)
     }
 
-    pub fn asset_descriptions(
-        &self,
-    ) -> impl Iterator<Item = (AssetId, &AssetDescription)> {
+    pub fn asset_descriptions(&self) -> impl Iterator<Item = (AssetId, &AssetDescription)> {
         self.assets.iter().map(|(&id, (desc, _))| (id, desc))
     }
 
@@ -184,9 +167,7 @@ impl AssetLibrary {
             self.cook_source_file(&source_file)
         }
         .and_then(|()| std::fs::read(&cooked_path).map_err(ParsecError::from))
-        .and_then(|bytes| {
-            postcard::from_bytes::<T::Cooked>(&bytes).map_err(ParsecError::from)
-        });
+        .and_then(|bytes| postcard::from_bytes::<T::Cooked>(&bytes).map_err(ParsecError::from));
 
         let (_, slot) = self.assets.get_mut(&asset_id).unwrap();
         match cooked {
@@ -195,9 +176,7 @@ impl AssetLibrary {
                 Ok(AssetHandle::new(asset_id))
             },
             Err(err) => {
-                *slot = AssetSlot::Failed(AssetTrackingError::LoadFailed(
-                    asset_name,
-                ));
+                *slot = AssetSlot::Failed(AssetTrackingError::LoadFailed(asset_name));
                 Err(err)
             },
         }

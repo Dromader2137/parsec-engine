@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    command_buffer::VulkanCommandBuffer, device::VulkanDevice,
-    fence::VulkanFence, image::VulkanImage,
-    pipeline_stage::VulkanPipelineStage, semaphore::VulkanSemaphore,
+    command_buffer::VulkanCommandBuffer, device::VulkanDevice, fence::VulkanFence,
+    image::VulkanImage, pipeline_stage::VulkanPipelineStage, semaphore::VulkanSemaphore,
 };
 
 pub struct VulkanQueue {
@@ -19,8 +18,7 @@ pub enum VulkanQueueError {
 
 impl VulkanQueue {
     pub fn present(device: &VulkanDevice, family_index: u32) -> VulkanQueue {
-        let raw_queue =
-            unsafe { device.raw_device().get_device_queue(family_index, 0) };
+        let raw_queue = unsafe { device.raw_device().get_device_queue(family_index, 0) };
         VulkanQueue {
             queue: raw_queue,
             internal_semaphore: None,
@@ -51,10 +49,7 @@ impl VulkanQueue {
             .collect::<Vec<_>>();
         match self.internal_semaphore.clone() {
             Some(sem) => wait_semaphores.push(*sem.get_semaphore_raw()),
-            None => {
-                self.internal_semaphore =
-                    Some(VulkanSemaphore::new(device).unwrap())
-            },
+            None => self.internal_semaphore = Some(VulkanSemaphore::new(device).unwrap()),
         }
         signal_semaphores.push(
             *self
@@ -74,16 +69,11 @@ impl VulkanQueue {
         unsafe {
             device
                 .raw_device()
-                .queue_submit(
-                    self.queue,
-                    &[submit_info],
-                    *submit_fence.get_fence_raw(),
-                )
+                .queue_submit(self.queue, &[submit_info], *submit_fence.get_fence_raw())
                 .map_err(VulkanQueueError::SubmitError)?;
         }
 
-        for image_state in command_buffers.iter().flat_map(|x| x.image_state())
-        {
+        for image_state in command_buffers.iter().flat_map(|x| x.image_state()) {
             if let Some(image) = image_map.get_mut(&image_state.0) {
                 image.set_layout(image_state.1.last_layout);
             }

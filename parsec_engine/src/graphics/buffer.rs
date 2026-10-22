@@ -17,9 +17,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    fn new(handle: BufferHandle, usage: Vec<BufferUsage>) -> Buffer {
-        Buffer { handle, usage }
-    }
+    fn new(handle: BufferHandle, usage: Vec<BufferUsage>) -> Buffer { Buffer { handle, usage } }
 
     pub fn handle(&self) -> BufferHandle { self.handle }
 
@@ -27,10 +25,7 @@ impl Buffer {
 
     pub fn usage(&self) -> &[BufferUsage] { &self.usage }
 
-    pub fn destroy(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), BufferError> {
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), BufferError> {
         Ok(backend.delete_buffer(self)?)
     }
 }
@@ -72,10 +67,7 @@ impl<'a> BufferBuilder<'a> {
         self
     }
 
-    pub fn build(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<Buffer, BufferError> {
+    pub fn build(self, backend: &mut ActiveGraphicsBackend) -> Result<Buffer, BufferError> {
         let data = self.data.ok_or(BufferError::NoBufferData)?;
         let handle = backend.create_buffer(data, self.usage)?;
         Ok(Buffer::new(handle, self.usage.to_vec()))
@@ -92,8 +84,7 @@ impl<'a> BufferContent<'a> {
     pub fn from_slice<T: Copy>(data: &'a [T]) -> Self {
         let ptr = data.as_ptr();
         let len = size_of::<T>().next_multiple_of(align_of::<T>()) * data.len();
-        let bytes =
-            unsafe { std::slice::from_raw_parts(ptr as *const u8, len) };
+        let bytes = unsafe { std::slice::from_raw_parts(ptr as *const u8, len) };
         BufferContent {
             data: bytes,
             align: std::mem::align_of::<T>() as u32,

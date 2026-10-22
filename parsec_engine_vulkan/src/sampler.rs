@@ -14,11 +14,9 @@ pub enum VulkanSamplerError {
 
 create_counter! {ID_COUNTER}
 impl VulkanSampler {
-    pub fn new(
-        device: &VulkanDevice,
-    ) -> Result<VulkanSampler, VulkanSamplerError> {
-        let sampler_info = ash::vk::SamplerCreateInfo::default()
-            .mag_filter(ash::vk::Filter::NEAREST);
+    pub fn new(device: &VulkanDevice) -> Result<VulkanSampler, VulkanSamplerError> {
+        let sampler_info =
+            ash::vk::SamplerCreateInfo::default().mag_filter(ash::vk::Filter::NEAREST);
 
         let sampler = unsafe {
             device

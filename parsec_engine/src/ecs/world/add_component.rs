@@ -13,9 +13,7 @@ pub trait AddComponent: Send + Sync + 'static {
 }
 
 impl<T: Spawn> AddComponent for T {
-    fn archetype_id(&self) -> Result<ArchetypeId, ArchetypeError> {
-        self.archetype_id()
-    }
+    fn archetype_id(&self) -> Result<ArchetypeId, ArchetypeError> { self.archetype_id() }
     fn add_to(&self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
         Spawn::spawn(self, archetype)
     }

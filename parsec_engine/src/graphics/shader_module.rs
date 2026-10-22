@@ -33,10 +33,7 @@ impl ShaderModule {
     pub fn id(&self) -> u32 { self.handle.id }
     pub fn shader_type(&self) -> ShaderType { self.shader_type }
 
-    pub fn destroy(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), ShaderError> {
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), ShaderError> {
         Ok(backend.delete_shader(self)?)
     }
 }
@@ -68,10 +65,7 @@ impl<'a> ShaderModuleBuilder<'a> {
         self
     }
 
-    pub fn build(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<ShaderModule, ShaderError> {
+    pub fn build(self, backend: &mut ActiveGraphicsBackend) -> Result<ShaderModule, ShaderError> {
         let code = self.code.ok_or(ShaderError::MissingCode)?;
         let handle = backend.create_shader(code, self.shader_type)?;
         Ok(ShaderModule::new(handle, self.shader_type))
@@ -88,9 +82,7 @@ pub enum ShaderError {
     ShaderFileError(#[from] std::io::Error),
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ShaderType {
     Vertex,
     Fragment,
@@ -107,10 +99,7 @@ pub fn read_shader_code(path: &str) -> Result<Vec<u32>, ShaderError> {
     let words = size / 4;
     let mut result = vec![0u32; words as usize];
     file.read_exact(unsafe {
-        std::slice::from_raw_parts_mut(
-            result.as_mut_ptr().cast::<u8>(),
-            words as usize * 4,
-        )
+        std::slice::from_raw_parts_mut(result.as_mut_ptr().cast::<u8>(), words as usize * 4)
     })?;
     const MAGIC_NUMBER: u32 = 0x0723_0203;
     if !result.is_empty() && result[0] == MAGIC_NUMBER.swap_bytes() {
@@ -124,12 +113,8 @@ pub fn read_shader_code(path: &str) -> Result<Vec<u32>, ShaderError> {
 pub fn reinterpret_shader_code(bytes: &[u8]) -> Result<Vec<u32>, ShaderError> {
     let size = bytes.len();
     let words = size / 4;
-    let mut result = unsafe {
-        std::slice::from_raw_parts(
-            bytes.as_ptr().cast::<u32>(),
-            words 
-        )
-    }.to_vec();
+    let mut result =
+        unsafe { std::slice::from_raw_parts(bytes.as_ptr().cast::<u32>(), words) }.to_vec();
     const MAGIC_NUMBER: u32 = 0x0723_0203;
     if !result.is_empty() && result[0] == MAGIC_NUMBER.swap_bytes() {
         for word in result.iter_mut() {

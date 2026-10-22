@@ -4,10 +4,7 @@ use crate::{
     error::OptionNoneErr,
     graphics::{
         ActiveGraphicsBackend,
-        shader_module::{
-            ShaderModule, ShaderModuleBuilder, ShaderType,
-            reinterpret_shader_code,
-        },
+        shader_module::{ShaderModule, ShaderModuleBuilder, ShaderType, reinterpret_shader_code},
     },
 };
 
@@ -16,7 +13,7 @@ pub mod file_handler;
 #[derive(Debug)]
 pub struct InputShader {
     pub shader_extension: String,
-    pub shader_code: String
+    pub shader_code: String,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -58,7 +55,10 @@ impl Asset for Shader {
             _ => panic!("invalid shader extension"),
         };
         let code = reinterpret_shader_code(spv.as_binary_u8()).unwrap();
-        return CookedShader { shader_type, spirv_compiled_code: code };
+        return CookedShader {
+            shader_type,
+            spirv_compiled_code: code,
+        };
     }
 
     fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {

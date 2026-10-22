@@ -26,31 +26,28 @@ impl VulkanPhysicalDevice {
                 .map_err(VulkanPhysicalDeviceError::CreationError)?
         };
 
-        let (physical_device, queue_family_index) = match physical_devices
+        let (physical_device, queue_family_index) = match physical_devices.iter().find_map(|p| {
+            unsafe {
+                instance
+                    .raw_handle()
+                    .get_physical_device_queue_family_properties(*p)
+            }
             .iter()
-            .find_map(|p| {
-                unsafe {
-                    instance
-                        .raw_handle()
-                        .get_physical_device_queue_family_properties(*p)
-                }
-                .iter()
-                .enumerate()
-                .find_map(|(index, info)| {
-                    let supports_graphic_and_surface = info
-                        .queue_flags
-                        .contains(ash::vk::QueueFlags::GRAPHICS)
+            .enumerate()
+            .find_map(|(index, info)| {
+                let supports_graphic_and_surface =
+                    info.queue_flags.contains(ash::vk::QueueFlags::GRAPHICS)
                         && initial_surface
                             .check_surface_support(*p, index as u32)
                             .unwrap_or(false);
 
-                    if supports_graphic_and_surface {
-                        Some((*p, index as u32))
-                    } else {
-                        None
-                    }
-                })
-            }) {
+                if supports_graphic_and_surface {
+                    Some((*p, index as u32))
+                } else {
+                    None
+                }
+            })
+        }) {
             Some(val) => val,
             None => {
                 return Err(VulkanPhysicalDeviceError::SuitableDeviceNotFound);
@@ -70,15 +67,11 @@ impl VulkanPhysicalDevice {
         })
     }
 
-    pub fn raw_handle(&self) -> &ash::vk::PhysicalDevice {
-        &self.physical_device
-    }
+    pub fn raw_handle(&self) -> &ash::vk::PhysicalDevice { &self.physical_device }
 
     pub fn queue_family_index(&self) -> u32 { self.queue_family_index }
 
-    pub fn raw_physical_memory_properties(
-        &self,
-    ) -> ash::vk::PhysicalDeviceMemoryProperties {
+    pub fn raw_physical_memory_properties(&self) -> ash::vk::PhysicalDeviceMemoryProperties {
         self.physical_memory_properties
     }
 }

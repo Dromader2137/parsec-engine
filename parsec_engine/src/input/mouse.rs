@@ -19,9 +19,7 @@ impl MouseMovementEvent {
         MouseMovementEvent::Position(position)
     }
 
-    pub fn delta(delta: Vec2f) -> MouseMovementEvent {
-        MouseMovementEvent::Delta(delta)
-    }
+    pub fn delta(delta: Vec2f) -> MouseMovementEvent { MouseMovementEvent::Delta(delta) }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,10 +29,7 @@ pub struct MouseButtonEvent {
 }
 
 impl MouseButtonEvent {
-    pub fn new(
-        button: MouseButton,
-        state: MouseButtonState,
-    ) -> MouseButtonEvent {
+    pub fn new(button: MouseButton, state: MouseButtonState) -> MouseButtonEvent {
         MouseButtonEvent { button, state }
     }
 }
@@ -81,9 +76,7 @@ impl Mouse {
 
     pub fn position(&self) -> Vec2f { self.position }
 
-    fn set_position(&mut self, new_position: Vec2f) {
-        self.position = new_position;
-    }
+    fn set_position(&mut self, new_position: Vec2f) { self.position = new_position; }
 
     fn set_delta(&mut self, delta: Vec2f) { self.position_delta += delta; }
 
@@ -105,9 +98,7 @@ impl Mouse {
 
     pub fn process_movement(&mut self, event: MouseMovementEvent) {
         match event {
-            MouseMovementEvent::Position(position) => {
-                self.set_position(position)
-            },
+            MouseMovementEvent::Position(position) => self.set_position(position),
             MouseMovementEvent::Delta(delta) => self.set_delta(delta),
         }
     }
@@ -137,17 +128,11 @@ impl Mouse {
     }
 
     /// Checks if the `button` is pressed.
-    pub fn is_pressed(&self, button: MouseButton) -> bool {
-        self.pressed.contains(&button)
-    }
+    pub fn is_pressed(&self, button: MouseButton) -> bool { self.pressed.contains(&button) }
 
     /// Checks if the `button` is down.
-    pub fn is_down(&self, button: MouseButton) -> bool {
-        self.down.contains(&button)
-    }
+    pub fn is_down(&self, button: MouseButton) -> bool { self.down.contains(&button) }
 
     /// Checks if the `button` is up.
-    pub fn is_up(&self, button: MouseButton) -> bool {
-        self.up.contains(&button)
-    }
+    pub fn is_up(&self, button: MouseButton) -> bool { self.up.contains(&button) }
 }

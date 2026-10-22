@@ -1,10 +1,8 @@
 use parsec_engine_math::uvec::Vec2u;
 
-use crate::{
-    graphics::{
-        ActiveGraphicsBackend, backend::BackendError, image::ImageViewHandle,
-        renderpass::RenderpassHandle,
-    },
+use crate::graphics::{
+    ActiveGraphicsBackend, backend::BackendError, image::ImageViewHandle,
+    renderpass::RenderpassHandle,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -46,10 +44,7 @@ impl Framebuffer {
     pub fn size(&self) -> Vec2u { self.size }
     pub fn renderpass(&self) -> RenderpassHandle { self.renderpass }
 
-    pub fn destroy(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), FramebufferError> {
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), FramebufferError> {
         Ok(backend.delete_framebuffer(self)?)
     }
 }
@@ -93,10 +88,8 @@ impl FramebufferBuilder {
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<Framebuffer, FramebufferError> {
         let size = self.size.ok_or(FramebufferError::RenderpassSizeNotSet)?;
-        let renderpass =
-            self.renderpass.ok_or(FramebufferError::RenderpassNotSet)?;
-        let handle =
-            backend.create_framebuffer(size, &self.attachments, renderpass)?;
+        let renderpass = self.renderpass.ok_or(FramebufferError::RenderpassNotSet)?;
+        let handle = backend.create_framebuffer(size, &self.attachments, renderpass)?;
         Ok(Framebuffer::new(handle, self.attachments, renderpass, size))
     }
 }

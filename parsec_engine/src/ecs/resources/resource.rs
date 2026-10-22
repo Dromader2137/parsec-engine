@@ -16,10 +16,7 @@ pub struct Resource<'a, R: ResourceMarker> {
 }
 
 impl<'a, R: ResourceMarker> Resource<'a, R> {
-    pub fn new(
-        value: &R,
-        borrowing: Arc<BorrowingStats>,
-    ) -> Result<Self, AccessError> {
+    pub fn new(value: &R, borrowing: Arc<BorrowingStats>) -> Result<Self, AccessError> {
         borrowing.borrow()?;
         Ok(Self {
             value: value as *const R,

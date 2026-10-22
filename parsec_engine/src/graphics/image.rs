@@ -1,10 +1,6 @@
 use parsec_engine_math::uvec::Vec2u;
 
-use crate::{
-    graphics::{
-        ActiveGraphicsBackend, backend::BackendError, buffer::BufferHandle,
-    },
-};
+use crate::graphics::{ActiveGraphicsBackend, backend::BackendError, buffer::BufferHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ImageHandle {
@@ -74,18 +70,10 @@ impl Image {
         image_size: Vec2u,
         image_offset: Vec2u,
     ) -> Result<(), ImageError> {
-        Ok(backend.load_image_from_buffer(
-            buffer,
-            self.handle,
-            image_size,
-            image_offset,
-        )?)
+        Ok(backend.load_image_from_buffer(buffer, self.handle, image_size, image_offset)?)
     }
 
-    pub fn destroy(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), ImageError> {
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), ImageError> {
         Ok(backend.delete_image(self)?)
     }
 }
@@ -101,10 +89,7 @@ impl ImageView {
     pub fn handle(&self) -> ImageViewHandle { self.handle }
     pub fn id(&self) -> u32 { self.handle.id }
 
-    pub fn destroy(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), ImageError> {
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), ImageError> {
         Ok(backend.delete_image_view(self)?)
     }
 }
@@ -191,17 +176,9 @@ impl<'a> ImageBuilder<'a> {
         self
     }
 
-    pub fn build(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<Image, ImageError> {
+    pub fn build(self, backend: &mut ActiveGraphicsBackend) -> Result<Image, ImageError> {
         let size = self.size.ok_or(ImageError::InvalidImageSize)?;
-        let handle = backend.create_image(
-            size.get_size(),
-            self.format,
-            self.aspect,
-            self.usage,
-        )?;
+        let handle = backend.create_image(size.get_size(), self.format, self.aspect, self.usage)?;
         Ok(Image::new(
             handle,
             size.get_size(),
@@ -228,10 +205,7 @@ impl ImageViewBuilder {
         self
     }
 
-    pub fn build(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<ImageView, ImageError> {
+    pub fn build(self, backend: &mut ActiveGraphicsBackend) -> Result<ImageView, ImageError> {
         let image = self.image.ok_or(ImageError::ImageNotFound)?;
         let handle = backend.create_image_view(image)?;
         Ok(ImageView::new(handle))

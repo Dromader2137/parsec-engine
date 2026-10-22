@@ -60,9 +60,7 @@ impl Resources {
 
     /// Adds `resource` to global storage. If a resource of type `R` already exists it is
     /// replaced.
-    pub fn add<R: ResourceMarker>(&mut self, resource: R) {
-        self.add_boxed(Box::new(resource));
-    }
+    pub fn add<R: ResourceMarker>(&mut self, resource: R) { self.add_boxed(Box::new(resource)); }
 
     /// Adds a box containing `resource` to global storage.
     fn add_boxed(&mut self, resource: Box<dyn ResourceMarker>) {
@@ -105,9 +103,7 @@ impl Resources {
     }
 
     /// Gets the resource of type `R` mutably.
-    pub fn get_mut<'a, R: ResourceMarker>(
-        &'a self,
-    ) -> Option<ResourceMut<'a, R>> {
+    pub fn get_mut<'a, R: ResourceMarker>(&'a self) -> Option<ResourceMut<'a, R>> {
         let resource_id = TypeId::of::<R>();
         let ResourceData {
             data,
@@ -118,10 +114,7 @@ impl Resources {
         ResourceMut::new(value, borrowing_stats.clone()).ok()
     }
 
-    pub fn get_add<'a, R: ResourceMarker>(
-        &'a mut self,
-        res: R,
-    ) -> ResourceMut<'a, R> {
+    pub fn get_add<'a, R: ResourceMarker>(&'a mut self, res: R) -> ResourceMut<'a, R> {
         let resource_id = TypeId::of::<R>();
         if !self.resources.contains_key(&resource_id) {
             self.add(res);
@@ -194,12 +187,7 @@ impl Drop for Resources {
             if visited.contains(key) {
                 continue;
             }
-            resource_toposort(
-                *key,
-                &self.resources,
-                &mut deletion_order,
-                &mut visited,
-            );
+            resource_toposort(*key, &self.resources, &mut deletion_order, &mut visited);
         }
 
         for key in deletion_order {

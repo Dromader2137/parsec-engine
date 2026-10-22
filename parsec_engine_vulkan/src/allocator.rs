@@ -19,9 +19,7 @@ impl VulkanMemoryProperties {
                 ash::vk::MemoryPropertyFlags::HOST_VISIBLE
                     | ash::vk::MemoryPropertyFlags::HOST_COHERENT
             },
-            VulkanMemoryProperties::Device => {
-                ash::vk::MemoryPropertyFlags::DEVICE_LOCAL
-            },
+            VulkanMemoryProperties::Device => ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
             VulkanMemoryProperties::DeviceHostVisible => {
                 ash::vk::MemoryPropertyFlags::DEVICE_LOCAL
                     | ash::vk::MemoryPropertyFlags::HOST_VISIBLE
@@ -32,9 +30,7 @@ impl VulkanMemoryProperties {
 
     pub fn excluded_memory_properties(&self) -> ash::vk::MemoryPropertyFlags {
         match self {
-            VulkanMemoryProperties::Device => {
-                ash::vk::MemoryPropertyFlags::HOST_VISIBLE
-            },
+            VulkanMemoryProperties::Device => ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
             _ => ash::vk::MemoryPropertyFlags::empty(),
         }
     }
@@ -48,9 +44,7 @@ pub struct VulkanMemoryRequirements {
 }
 
 impl VulkanMemoryRequirements {
-    pub fn from_raw_requirements(
-        req: ash::vk::MemoryRequirements,
-    ) -> VulkanMemoryRequirements {
+    pub fn from_raw_requirements(req: ash::vk::MemoryRequirements) -> VulkanMemoryRequirements {
         VulkanMemoryRequirements {
             size: req.size,
             alignment: req.alignment,
@@ -87,8 +81,7 @@ impl VulkanAllocator {
     ) -> Result<(VulkanMemory, u64, u64, u32), VulkanAllocationError> {
         assert_ne!(memory_requirements.size, 0);
 
-        let memory_ids =
-            find_memorytype_indices(&memory_requirements, &memory_type, device);
+        let memory_ids = find_memorytype_indices(&memory_requirements, &memory_type, device);
 
         if memory_ids.is_empty() {
             return Err(VulkanAllocationError::UnableToFindSuitableMemory);
@@ -102,9 +95,7 @@ impl VulkanAllocator {
         let allocations = &mut self.allocations_by_type[memory_id as usize];
 
         for allocation in allocations.iter_mut() {
-            if let Some(offset_mem) =
-                allocation.try_get_free_memory(memory_requirements)
-            {
+            if let Some(offset_mem) = allocation.try_get_free_memory(memory_requirements) {
                 return Ok(offset_mem);
             }
         }
@@ -121,19 +112,11 @@ impl VulkanAllocator {
             .expect("There always is an allocation at this point!");
 
         allocation.try_get_free_memory(memory_requirements).ok_or(
-            VulkanAllocationError::UnableToAllocateThisSize(
-                memory_requirements.size,
-            ),
+            VulkanAllocationError::UnableToAllocateThisSize(memory_requirements.size),
         )
     }
 
-    pub fn free(
-        &mut self,
-        device: &VulkanDevice,
-        allocation_id: u32,
-        offset: u64,
-        size: u64,
-    ) {
+    pub fn free(&mut self, device: &VulkanDevice, allocation_id: u32, offset: u64, size: u64) {
         for allocations in self.allocations_by_type.iter_mut() {
             for (idx, allocation) in allocations.iter_mut().enumerate() {
                 if allocation_id != allocation.id() {

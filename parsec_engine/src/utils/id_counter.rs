@@ -27,11 +27,8 @@ impl Default for IdCounter {
 #[macro_export]
 macro_rules! create_counter {
     ($name:ident) => {
-        static $name: ::std::sync::LazyLock<
-            crate::utils::id_counter::IdCounter,
-        > = ::std::sync::LazyLock::new(|| {
-            crate::utils::id_counter::IdCounter::default()
-        });
+        static $name: ::std::sync::LazyLock<crate::utils::id_counter::IdCounter> =
+            ::std::sync::LazyLock::new(|| crate::utils::id_counter::IdCounter::default());
     };
 }
 

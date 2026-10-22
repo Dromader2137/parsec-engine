@@ -18,19 +18,13 @@ pub enum VulkanFenceError {
 
 create_counter! {ID_COUNTER}
 impl VulkanFence {
-    pub fn new(
-        device: &VulkanDevice,
-        signaled: bool,
-    ) -> Result<VulkanFence, VulkanFenceError> {
+    pub fn new(device: &VulkanDevice, signaled: bool) -> Result<VulkanFence, VulkanFenceError> {
         let mut create_info = ash::vk::FenceCreateInfo::default();
         if signaled {
-            create_info =
-                create_info.flags(ash::vk::FenceCreateFlags::SIGNALED);
+            create_info = create_info.flags(ash::vk::FenceCreateFlags::SIGNALED);
         }
 
-        let fence = match unsafe {
-            device.raw_device().create_fence(&create_info, None)
-        } {
+        let fence = match unsafe { device.raw_device().create_fence(&create_info, None) } {
             Ok(val) => val,
             Err(err) => return Err(VulkanFenceError::CreationError(err)),
         };
@@ -53,9 +47,7 @@ impl VulkanFence {
     }
 
     pub fn reset(&self, device: &VulkanDevice) -> Result<(), VulkanFenceError> {
-        if let Err(err) =
-            unsafe { device.raw_device().reset_fences(&[self.fence]) }
-        {
+        if let Err(err) = unsafe { device.raw_device().reset_fences(&[self.fence]) } {
             return Err(VulkanFenceError::ResetError(err));
         }
         Ok(())

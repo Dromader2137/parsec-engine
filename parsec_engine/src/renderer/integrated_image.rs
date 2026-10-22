@@ -5,8 +5,8 @@ use crate::{
     graphics::{
         ActiveGraphicsBackend,
         image::{
-            Image, ImageAspect, ImageBuilder, ImageFormat, ImageSize,
-            ImageUsage, ImageView, ImageViewBuilder,
+            Image, ImageAspect, ImageBuilder, ImageFormat, ImageSize, ImageUsage, ImageView,
+            ImageViewBuilder,
         },
         sampler::{Sampler, SamplerBuilder},
     },
@@ -78,10 +78,7 @@ impl IntegratedImage {
         }
     }
 
-    pub fn destroy(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), ParsecError> {
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), ParsecError> {
         backend.delete_image(self.image)?;
         backend.delete_image_view(self.view)?;
         backend.delete_image_sampler(self.sampler)?;

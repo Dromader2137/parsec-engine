@@ -25,10 +25,7 @@ pub struct ObjFileHandler;
 impl AssetSourceFileHandler for ObjFileHandler {
     const EXTENSION: &'static str = "obj";
 
-    fn cook(
-        asset_source_path: &Path,
-        ctx: AssetCookContext,
-    ) -> Result<(), ParsecError> {
+    fn cook(asset_source_path: &Path, ctx: AssetCookContext) -> Result<(), ParsecError> {
         let source = std::fs::read_to_string(asset_source_path)?;
         for (name, mesh) in parse_obj(&source)? {
             ctx.add_asset::<Mesh>(&name, mesh)?;
@@ -115,11 +112,7 @@ fn parse_floats<const N: usize>(
     Ok(out)
 }
 
-fn resolve_index(
-    index: Option<&str>,
-    len: usize,
-    line: usize,
-) -> Result<Option<usize>, ObjError> {
+fn resolve_index(index: Option<&str>, len: usize, line: usize) -> Result<Option<usize>, ObjError> {
     let Some(index) = index.filter(|i| !i.is_empty()) else {
         return Ok(None);
     };

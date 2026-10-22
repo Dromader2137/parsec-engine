@@ -11,9 +11,8 @@ use crate::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         pipeline::{
-            PipelineBindingType, PipelineResource,
-            PipelineResourceBindingLayout, PipelineResourceLayout,
-            PipelineResourceLayoutBuilder, PipelineShaderStage,
+            PipelineBindingType, PipelineResource, PipelineResourceBindingLayout,
+            PipelineResourceLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
     },
     renderer::components::transform::Transform,
@@ -69,11 +68,8 @@ impl TransformData {
             .data(BufferContent::from_slice(&[scale_matrix]))
             .build(backend)
             .unwrap();
-        let look_at_matrix = Matrix4f::look_at(
-            position,
-            Vec3f::FORWARD * rotation,
-            Vec3f::UP * rotation,
-        );
+        let look_at_matrix =
+            Matrix4f::look_at(position, Vec3f::FORWARD * rotation, Vec3f::UP * rotation);
         let look_at_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Uniform])
             .data(BufferContent::from_slice(&[scale_matrix]))
@@ -134,10 +130,7 @@ impl TransformData {
         }
     }
 
-    fn update_buffers_from_data(
-        &mut self,
-        backend: &mut ActiveGraphicsBackend,
-    ) {
+    fn update_buffers_from_data(&mut self, backend: &mut ActiveGraphicsBackend) {
         backend
             .update_buffer(
                 self.translation_buffer.handle(),
@@ -181,19 +174,21 @@ impl Identifiable for TransformData {
 }
 
 pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend =
-        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut transforms_data =
-        ctx.resources.get_mut::<IdStore<TransformData>>().none_err()?;
-    let mut transforms_data_manager =
-        ctx.resources.get_mut::<TransformDataManager>().none_err()?;
+    let mut backend = ctx
+        .resources
+        .get_mut::<ActiveGraphicsBackend>()
+        .none_err()?;
+    let mut transforms_data = ctx
+        .resources
+        .get_mut::<IdStore<TransformData>>()
+        .none_err()?;
+    let mut transforms_data_manager = ctx.resources.get_mut::<TransformDataManager>().none_err()?;
     let mut transforms = ctx.world.query::<Mut<Transform>>();
 
     for (_, transform) in transforms.iter() {
-        if let std::collections::hash_map::Entry::Vacant(e) =
-            transforms_data_manager
-                .component_to_data
-                .entry(transform.transform_id())
+        if let std::collections::hash_map::Entry::Vacant(e) = transforms_data_manager
+            .component_to_data
+            .entry(transform.transform_id())
         {
             let transform_data = TransformData::new(
                 &mut backend,
@@ -209,12 +204,15 @@ pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
 }
 
 pub fn update_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend =
-        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut transforms_data =
-        ctx.resources.get_mut::<IdStore<TransformData>>().none_err()?;
-    let transforms_data_manager =
-        ctx.resources.get::<TransformDataManager>().none_err()?;
+    let mut backend = ctx
+        .resources
+        .get_mut::<ActiveGraphicsBackend>()
+        .none_err()?;
+    let mut transforms_data = ctx
+        .resources
+        .get_mut::<IdStore<TransformData>>()
+        .none_err()?;
+    let transforms_data_manager = ctx.resources.get::<TransformDataManager>().none_err()?;
     let mut transforms = ctx.world.query::<Transform>();
 
     for (_, transform) in transforms.iter() {

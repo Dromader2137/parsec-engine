@@ -94,8 +94,7 @@ fn input_mouse_button(ctx: Ctx) -> Result<(), ParsecError> {
     if !window.focused() {
         return Ok(());
     }
-    let button_event =
-        ctx.resources.get::<MouseButtonEvent>().none_err()?.clone();
+    let button_event = ctx.resources.get::<MouseButtonEvent>().none_err()?.clone();
     ctx.resources
         .get_mut::<Input>()
         .none_err()?
@@ -109,8 +108,7 @@ fn input_mouse_wheel(ctx: Ctx) -> Result<(), ParsecError> {
     if !window.focused() {
         return Ok(());
     }
-    let wheel_event =
-        ctx.resources.get::<MouseWheelEvent>().none_err()?.clone();
+    let wheel_event = ctx.resources.get::<MouseWheelEvent>().none_err()?.clone();
     ctx.resources
         .get_mut::<Input>()
         .none_err()?

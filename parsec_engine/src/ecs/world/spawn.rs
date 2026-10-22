@@ -24,9 +24,7 @@ impl<T: Component> Spawn for T {
 }
 
 impl Spawn for Box<dyn Spawn> {
-    fn archetype_id(&self) -> Result<ArchetypeId, ArchetypeError> {
-        (**self).archetype_id()
-    }
+    fn archetype_id(&self) -> Result<ArchetypeId, ArchetypeError> { (**self).archetype_id() }
     fn spawn(&self, archetype: &mut Archetype) -> Result<(), ArchetypeError> {
         (**self).spawn(archetype)
     }

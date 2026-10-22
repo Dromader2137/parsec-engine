@@ -3,15 +3,19 @@
 use parsec_engine_math::vec::Vec2f;
 
 use crate::{
-    assets::library::AssetLibrary, ecs::{
+    assets::library::AssetLibrary,
+    ecs::{
         resources::Resources,
         system::{SystemTrigger, Systems},
         world::World,
-    }, error::ParsecError, graphics::ActiveEventLoop, input::{
+    },
+    error::ParsecError,
+    graphics::ActiveEventLoop,
+    input::{
         key::StorageKeyCode,
         keys::KeyboardInputEvent,
         mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
-    }
+    },
 };
 
 #[allow(unused)]
@@ -34,13 +38,12 @@ impl App {
 
     pub fn execute(&mut self) -> Result<(), ParsecError> {
         if option_env!("PARSEC_COOK_ASSETS").is_some() {
-            return self.assets.cook_all()
+            return self.assets.cook_all();
         }
 
         self.execute_system(SystemTrigger::Start);
 
-        let event_loop =
-            winit::event_loop::EventLoop::new().expect("Valid event loop");
+        let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
         event_loop.run_app(self).unwrap();
         Ok(())
@@ -100,9 +103,7 @@ impl winit::application::ApplicationHandler for App {
                 ..
             } => {
                 let key_code = match logical_key {
-                    winit::keyboard::Key::Named(named) => {
-                        StorageKeyCode::Noncharacter(named)
-                    },
+                    winit::keyboard::Key::Named(named) => StorageKeyCode::Noncharacter(named),
                     winit::keyboard::Key::Character(char) => {
                         StorageKeyCode::Character(char.to_lowercase().into())
                     },
@@ -151,12 +152,11 @@ impl winit::application::ApplicationHandler for App {
                 phase: _,
             } => {
                 let processed_delta = match delta {
-                    winit::event::MouseScrollDelta::PixelDelta(
-                        winit::dpi::PhysicalPosition { x, y },
-                    ) => Vec2f::new(x as f32, y as f32),
-                    winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                        Vec2f::new(x, y)
-                    },
+                    winit::event::MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition {
+                        x,
+                        y,
+                    }) => Vec2f::new(x as f32, y as f32),
+                    winit::event::MouseScrollDelta::LineDelta(x, y) => Vec2f::new(x, y),
                 };
 
                 self.resources.add(MouseWheelEvent::new(processed_delta));
@@ -177,10 +177,7 @@ impl winit::application::ApplicationHandler for App {
         }
     }
 
-    fn about_to_wait(
-        &mut self,
-        _event_loop: &winit::event_loop::ActiveEventLoop,
-    ) {
+    fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
         self.execute_system(SystemTrigger::EarlyUpdate);
         self.execute_system(SystemTrigger::Update);
         self.execute_system(SystemTrigger::LateUpdate);

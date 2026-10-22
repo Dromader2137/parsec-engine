@@ -10,9 +10,8 @@ use crate::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
         pipeline::{
-            PipelineBindingType, PipelineResource,
-            PipelineResourceBindingLayout, PipelineResourceLayout,
-            PipelineResourceLayoutBuilder, PipelineShaderStage,
+            PipelineBindingType, PipelineResource, PipelineResourceBindingLayout,
+            PipelineResourceLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
     },
     renderer::components::{light::Light, transform::Transform},
@@ -92,13 +91,10 @@ impl RendererLights {
         let light_idx = self.data.light_count as usize;
         let y = light_idx / 8;
         let x = light_idx % 8;
-        let shadow_texture_from =
-            Vec2f::new(x as f32, y as f32) / Vec2f::new(8.0, 4.0);
-        let shadow_texture_to =
-            Vec2f::new((x + 1) as f32, (y + 1) as f32) / Vec2f::new(8.0, 4.0);
-        let world_to_light =
-            Matrix4f::orthographic(0.0, 100.0, light_size, light_size)
-                * Matrix4f::look_at(light_pos, light_dir, light_up);
+        let shadow_texture_from = Vec2f::new(x as f32, y as f32) / Vec2f::new(8.0, 4.0);
+        let shadow_texture_to = Vec2f::new((x + 1) as f32, (y + 1) as f32) / Vec2f::new(8.0, 4.0);
+        let world_to_light = Matrix4f::orthographic(0.0, 100.0, light_size, light_size)
+            * Matrix4f::look_at(light_pos, light_dir, light_up);
 
         self.data.light_count += 1;
         self.data.data[light_idx].world_to_light = world_to_light;
@@ -133,8 +129,10 @@ impl RendererLights {
 }
 
 pub fn update_light_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend =
-        ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
+    let mut backend = ctx
+        .resources
+        .get_mut::<ActiveGraphicsBackend>()
+        .none_err()?;
     let mut light_data = ctx.resources.get_mut::<RendererLights>().none_err()?;
     let mut lights = ctx.world.query::<(Light, Transform)>();
 

@@ -5,9 +5,7 @@ use parsec_engine::{
         mesh::{Mesh, obj::ObjFileHandler},
         shader::{
             Shader,
-            file_handler::{
-                FragmentShaderFileHandler, VertexShaderFileHandler,
-            },
+            file_handler::{FragmentShaderFileHandler, VertexShaderFileHandler},
         },
     },
     ctx::Ctx,
@@ -21,9 +19,8 @@ use parsec_engine::{
         buffer::{BufferBuilder, BufferContent, BufferUsage},
         image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
         pipeline::{
-            DefaultVertex, PipelineBindingType, PipelineCullingMode,
-            PipelineOptions, PipelineResourceBindingLayout,
-            PipelineResourceLayoutBuilder, PipelineShaderStage,
+            DefaultVertex, PipelineBindingType, PipelineCullingMode, PipelineOptions,
+            PipelineResourceBindingLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         window::Window,
     },
@@ -32,8 +29,7 @@ use parsec_engine::{
     renderer::{
         RendererMainRenderpass,
         components::{
-            camera::Camera, light::Light, mesh_renderer::MeshRenderer,
-            transform::Transform,
+            camera::Camera, light::Light, mesh_renderer::MeshRenderer, transform::Transform,
         },
         graphics_bundle::GraphicsBundle,
         integrated_image::IntegratedImageBuilder,
@@ -68,8 +64,7 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         .resources
         .get_mut::<IdStore<MaterialBase>>()
         .none_err()?;
-    let renderpass =
-        ctx.resources.get::<RendererMainRenderpass>().none_err()?;
+    let renderpass = ctx.resources.get::<RendererMainRenderpass>().none_err()?;
 
     let material_base = MaterialBase::new(
         &mut backend,
@@ -86,18 +81,15 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         renderpass.0.handle(),
         vec![
             vec![
-                PipelineResourceBindingLayout::new(
-                    PipelineBindingType::UniformBuffer,
-                    &[PipelineShaderStage::Vertex],
-                ),
-                PipelineResourceBindingLayout::new(
-                    PipelineBindingType::UniformBuffer,
-                    &[PipelineShaderStage::Vertex],
-                ),
-                PipelineResourceBindingLayout::new(
-                    PipelineBindingType::UniformBuffer,
-                    &[PipelineShaderStage::Vertex],
-                ),
+                PipelineResourceBindingLayout::new(PipelineBindingType::UniformBuffer, &[
+                    PipelineShaderStage::Vertex,
+                ]),
+                PipelineResourceBindingLayout::new(PipelineBindingType::UniformBuffer, &[
+                    PipelineShaderStage::Vertex,
+                ]),
+                PipelineResourceBindingLayout::new(PipelineBindingType::UniformBuffer, &[
+                    PipelineShaderStage::Vertex,
+                ]),
             ],
             vec![PipelineResourceBindingLayout::new(
                 PipelineBindingType::UniformBuffer,
@@ -123,8 +115,7 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         PipelineOptions::new::<DefaultVertex>(PipelineCullingMode::CullBack),
     );
 
-    let image =
-        image::load_from_memory(include_bytes!("../../test.png"))?.to_rgba8();
+    let image = image::load_from_memory(include_bytes!("../../test.png"))?.to_rgba8();
     let (width, height) = image.dimensions();
     let image_data = image.as_raw().as_bytes();
     let texture_buffer = BufferBuilder::new()
@@ -214,9 +205,9 @@ struct CameraController {
 }
 
 fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut cameras =
-        ctx.world
-            .query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
+    let mut cameras = ctx
+        .world
+        .query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
     let mut window = ctx.resources.get_mut::<Window>().none_err()?;
     let input = ctx.resources.get::<Input>().none_err()?;
     let time = ctx.resources.get::<Time>().none_err()?;
@@ -224,14 +215,11 @@ fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
     for (_, (transform, camera, camera_controller)) in cameras.iter() {
         let delta = input.mouse.positon_delta();
         camera_controller.target_yaw += -delta.x / window.width() as f32 * 10.0;
-        camera_controller.target_pitch +=
-            delta.y / window.width() as f32 * 10.0;
-        camera_controller.target_pitch =
-            camera_controller.target_pitch.clamp(-1.57, 1.57);
-        camera_controller.pitch = camera_controller.target_pitch * 0.3
-            + camera_controller.pitch * 0.7;
-        camera_controller.yaw =
-            camera_controller.target_yaw * 0.3 + camera_controller.yaw * 0.7;
+        camera_controller.target_pitch += delta.y / window.width() as f32 * 10.0;
+        camera_controller.target_pitch = camera_controller.target_pitch.clamp(-1.57, 1.57);
+        camera_controller.pitch =
+            camera_controller.target_pitch * 0.3 + camera_controller.pitch * 0.7;
+        camera_controller.yaw = camera_controller.target_yaw * 0.3 + camera_controller.yaw * 0.7;
         transform.rotation = Quat::from_euler(Vec3f::new(
             camera_controller.pitch,
             camera_controller.yaw,
@@ -240,32 +228,25 @@ fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
         camera_controller.fov -= input.mouse.wheel_delta().y;
         camera_controller.fov = camera_controller.fov.clamp(30.0, 60.0);
         camera.vertical_fov = camera_controller.fov.to_radians();
-        let rotation =
-            Quat::from_euler(Vec3f::new(0.0, camera_controller.yaw, 0.0));
+        let rotation = Quat::from_euler(Vec3f::new(0.0, camera_controller.yaw, 0.0));
         let movement_speed = 5.0;
         if input.keys.is_down("r") {
-            transform.position +=
-                Vec3f::FORWARD * rotation * time.delta_time() * movement_speed;
+            transform.position += Vec3f::FORWARD * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down("h") {
-            transform.position +=
-                Vec3f::BACK * rotation * time.delta_time() * movement_speed;
+            transform.position += Vec3f::BACK * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down("s") {
-            transform.position +=
-                Vec3f::LEFT * rotation * time.delta_time() * movement_speed;
+            transform.position += Vec3f::LEFT * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down("t") {
-            transform.position +=
-                Vec3f::RIGHT * rotation * time.delta_time() * movement_speed;
+            transform.position += Vec3f::RIGHT * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down("a") {
-            transform.position +=
-                Vec3f::UP * rotation * time.delta_time() * movement_speed;
+            transform.position += Vec3f::UP * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_down("z") {
-            transform.position +=
-                Vec3f::DOWN * rotation * time.delta_time() * movement_speed;
+            transform.position += Vec3f::DOWN * rotation * time.delta_time() * movement_speed;
         }
         if input.keys.is_pressed("c") {
             window.toggle_cursor_lock().unwrap();

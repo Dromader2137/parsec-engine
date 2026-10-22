@@ -16,33 +16,21 @@ pub enum VulkanPipelineStage {
 impl VulkanPipelineStage {
     pub fn raw_pipeline_stage(&self) -> ash::vk::PipelineStageFlags {
         match self {
-            VulkanPipelineStage::TopOfPipe => {
-                ash::vk::PipelineStageFlags::TOP_OF_PIPE
-            },
-            VulkanPipelineStage::VertexInput => {
-                ash::vk::PipelineStageFlags::VERTEX_INPUT
-            },
-            VulkanPipelineStage::VertexShader => {
-                ash::vk::PipelineStageFlags::VERTEX_SHADER
-            },
+            VulkanPipelineStage::TopOfPipe => ash::vk::PipelineStageFlags::TOP_OF_PIPE,
+            VulkanPipelineStage::VertexInput => ash::vk::PipelineStageFlags::VERTEX_INPUT,
+            VulkanPipelineStage::VertexShader => ash::vk::PipelineStageFlags::VERTEX_SHADER,
             VulkanPipelineStage::EarlyFragmentTests => {
                 ash::vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
             },
-            VulkanPipelineStage::FragmentShader => {
-                ash::vk::PipelineStageFlags::FRAGMENT_SHADER
-            },
+            VulkanPipelineStage::FragmentShader => ash::vk::PipelineStageFlags::FRAGMENT_SHADER,
             VulkanPipelineStage::LateFragmentTests => {
                 ash::vk::PipelineStageFlags::LATE_FRAGMENT_TESTS
             },
-            VulkanPipelineStage::BottomOfPipe => {
-                ash::vk::PipelineStageFlags::BOTTOM_OF_PIPE
-            },
+            VulkanPipelineStage::BottomOfPipe => ash::vk::PipelineStageFlags::BOTTOM_OF_PIPE,
             VulkanPipelineStage::ColorAttachmentOutput => {
                 ash::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
             },
-            VulkanPipelineStage::Transfer => {
-                ash::vk::PipelineStageFlags::TRANSFER
-            },
+            VulkanPipelineStage::Transfer => ash::vk::PipelineStageFlags::TRANSFER,
             VulkanPipelineStage::Host => ash::vk::PipelineStageFlags::HOST,
         }
     }

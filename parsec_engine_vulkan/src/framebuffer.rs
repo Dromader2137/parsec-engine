@@ -36,13 +36,12 @@ impl VulkanFramebuffer {
             raw_attachments.push(*attachment_view.raw_image_view());
         }
 
-        let frame_buffer_create_info =
-            ash::vk::FramebufferCreateInfo::default()
-                .render_pass(*renderpass.raw_handle())
-                .attachments(&raw_attachments)
-                .width(dimensions.x)
-                .height(dimensions.y)
-                .layers(1);
+        let frame_buffer_create_info = ash::vk::FramebufferCreateInfo::default()
+            .render_pass(*renderpass.raw_handle())
+            .attachments(&raw_attachments)
+            .width(dimensions.x)
+            .height(dimensions.y)
+            .layers(1);
 
         let raw_framebuffer = match unsafe {
             device

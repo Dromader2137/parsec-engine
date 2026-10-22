@@ -44,8 +44,7 @@ impl<V: Vertex> MeshBuffer<V> {
     }
 
     pub fn record_draw_commands(&self, command_list: &mut CommandList) {
-        command_list
-            .cmd(Command::BindVertexBuffer(self.vertex_buffer.handle()));
+        command_list.cmd(Command::BindVertexBuffer(self.vertex_buffer.handle()));
         command_list.cmd(Command::BindIndexBuffer(self.index_buffer.handle()));
         command_list.cmd(Command::DrawIndexed(self.len, 1, 0, 0, 0));
     }
@@ -55,16 +54,9 @@ impl<V: Vertex> MeshBuffer<V> {
         command_list: &mut CommandList,
         instance_count: u32,
     ) {
-        command_list
-            .cmd(Command::BindVertexBuffer(self.vertex_buffer.handle()));
+        command_list.cmd(Command::BindVertexBuffer(self.vertex_buffer.handle()));
         command_list.cmd(Command::BindIndexBuffer(self.index_buffer.handle()));
-        command_list.cmd(Command::DrawIndexed(
-            self.len,
-            instance_count,
-            0,
-            0,
-            0,
-        ));
+        command_list.cmd(Command::DrawIndexed(self.len, instance_count, 0, 0, 0));
     }
 }
 
@@ -91,11 +83,7 @@ impl<V: Vertex> MeshData<V> {
         self.buffer.record_draw_commands(command_list);
     }
 
-    pub fn record_commands_instanced(
-        &self,
-        command_list: &mut CommandList,
-        instance_count: u32,
-    ) {
+    pub fn record_commands_instanced(&self, command_list: &mut CommandList, instance_count: u32) {
         self.buffer
             .record_draw_commands_instanced(command_list, instance_count);
     }

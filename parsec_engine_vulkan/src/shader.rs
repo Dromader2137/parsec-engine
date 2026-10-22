@@ -26,12 +26,11 @@ impl VulkanShaderModule {
     ) -> Result<VulkanShaderModule, VulkanShaderError> {
         let create_info = ash::vk::ShaderModuleCreateInfo::default().code(code);
 
-        let shader_module = match unsafe {
-            device.raw_device().create_shader_module(&create_info, None)
-        } {
-            Ok(val) => val,
-            Err(err) => return Err(VulkanShaderError::CreationError(err)),
-        };
+        let shader_module =
+            match unsafe { device.raw_device().create_shader_module(&create_info, None) } {
+                Ok(val) => val,
+                Err(err) => return Err(VulkanShaderError::CreationError(err)),
+            };
 
         Ok(VulkanShaderModule {
             id: ID_COUNTER.next(),
@@ -48,9 +47,7 @@ impl VulkanShaderModule {
         }
     }
 
-    pub fn raw_handle(&self) -> &ash::vk::ShaderModule {
-        &self.raw_shader_module
-    }
+    pub fn raw_handle(&self) -> &ash::vk::ShaderModule { &self.raw_shader_module }
 
     pub fn id(&self) -> u32 { self.id }
 

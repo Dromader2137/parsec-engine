@@ -39,11 +39,7 @@ impl VulkanDevice {
         let device = unsafe {
             instance
                 .raw_handle()
-                .create_device(
-                    *physical_device.raw_handle(),
-                    &device_create_info,
-                    None,
-                )
+                .create_device(*physical_device.raw_handle(), &device_create_info, None)
                 .map_err(VulkanDeviceError::DeviceCreationError)?
         };
 
@@ -64,9 +60,7 @@ impl VulkanDevice {
 
     pub fn raw_device(&self) -> &ash::Device { &self.device }
 
-    pub fn raw_memory_properties(
-        &self,
-    ) -> ash::vk::PhysicalDeviceMemoryProperties {
+    pub fn raw_memory_properties(&self) -> ash::vk::PhysicalDeviceMemoryProperties {
         self.memory_properties
     }
 }

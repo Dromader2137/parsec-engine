@@ -3,9 +3,8 @@ use crate::{
     graphics::{
         ActiveGraphicsBackend,
         image::{
-            Image, ImageAspect, ImageBuilder, ImageFormat, ImageHandle,
-            ImageSize, ImageUsage, ImageView, ImageViewBuilder,
-            ImageViewHandle,
+            Image, ImageAspect, ImageBuilder, ImageFormat, ImageHandle, ImageSize, ImageUsage,
+            ImageView, ImageViewBuilder, ImageViewHandle,
         },
     },
 };
@@ -57,9 +56,7 @@ impl DepthImage {
         Ok(())
     }
 
-    pub fn image_handle(&self) -> ImageHandle {
-        self.image.as_ref().unwrap().handle()
-    }
+    pub fn image_handle(&self) -> ImageHandle { self.image.as_ref().unwrap().handle() }
 
     pub fn image_view_handle(&self) -> ImageViewHandle {
         self.image_view.as_ref().unwrap().handle()

@@ -63,10 +63,7 @@ impl World {
 
     /// Returns a mutable reference to the archetype stored under `archetype_id`.
     /// If there was no such archetype, it is created, added to `self` and a mutable reference is returned.
-    fn get_archetype_mut(
-        &mut self,
-        archetype_id: &ArchetypeId,
-    ) -> &mut Archetype {
+    fn get_archetype_mut(&mut self, archetype_id: &ArchetypeId) -> &mut Archetype {
         if !self.archetypes.contains_key(archetype_id) {
             let mut archetype = Archetype::new();
             archetype.create_empty(archetype_id);
@@ -106,9 +103,7 @@ impl World {
     /// - If the [archetype][Archetype] containing `entity` is already borrowed in some way.
     pub fn delete(&mut self, entity: Entity) -> Result<(), WorldError> {
         for (_, archetype) in self.archetypes.iter_mut() {
-            if archetype.entities.contains(&entity)
-                && !archetype.are_all_columns_mutable()
-            {
+            if archetype.entities.contains(&entity) && !archetype.are_all_columns_mutable() {
                 return Err(WorldError::DeleteError {
                     kind: ArchetypeError::ArchetypeColumnNotWritable,
                 });
@@ -206,8 +201,8 @@ impl World {
         &mut self,
         entity: Entity,
     ) -> Result<(), WorldError> {
-        let t_archetype_id = T::archetype_id()
-            .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
+        let t_archetype_id =
+            T::archetype_id().map_err(|e| WorldError::DeleteComponentError { kind: e })?;
         let (archetype_id, old_archetype) = match self
             .archetypes
             .iter_mut()
@@ -251,9 +246,7 @@ impl World {
             if new_archetype_id.contains_single(type_id) {
                 new_archetype
                     .add_raw(*size, *type_id, data.clone())
-                    .map_err(|e| WorldError::DeleteComponentError {
-                        kind: e,
-                    })?;
+                    .map_err(|e| WorldError::DeleteComponentError { kind: e })?;
             }
         }
         new_archetype.bundle_count += 1;

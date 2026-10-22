@@ -21,10 +21,7 @@ impl Sampler {
     pub fn handle(&self) -> SamplerHandle { self.handle }
     pub fn id(&self) -> u32 { self.handle.id }
 
-    pub fn destroy(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), SamplerError> {
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), SamplerError> {
         Ok(backend.delete_image_sampler(self)?)
     }
 }
@@ -38,10 +35,7 @@ impl Default for SamplerBuilder {
 impl SamplerBuilder {
     pub fn new() -> Self { Self }
 
-    pub fn build(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<Sampler, SamplerError> {
+    pub fn build(self, backend: &mut ActiveGraphicsBackend) -> Result<Sampler, SamplerError> {
         let handle = backend.create_image_sampler()?;
         Ok(Sampler::new(handle))
     }

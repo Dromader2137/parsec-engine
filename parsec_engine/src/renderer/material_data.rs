@@ -5,15 +5,15 @@ use crate::{
         command_list::{Command, CommandList},
         pipeline::{
             Pipeline, PipelineBuilder, PipelineError, PipelineOptions,
-            PipelineResourceBindingLayout, PipelineResourceHandle,
-            PipelineResourceLayout, PipelineResourceLayoutBuilder,
+            PipelineResourceBindingLayout, PipelineResourceHandle, PipelineResourceLayout,
+            PipelineResourceLayoutBuilder,
         },
         renderpass::RenderpassHandle,
         shader_module::ShaderHandle,
     },
     renderer::{
-        camera_data::CameraData, light_data::RendererLights,
-        shadow::RendererShadows, transform_data::TransformData,
+        camera_data::CameraData, light_data::RendererLights, shadow::RendererShadows,
+        transform_data::TransformData,
     },
     utils::{IdType, identifiable::Identifiable},
 };
@@ -44,8 +44,7 @@ impl MaterialBase {
             })
             .collect::<Vec<PipelineResourceLayout>>();
 
-        let layout_handles: Vec<_> =
-            resource_layouts.iter().map(|l| l.handle()).collect();
+        let layout_handles: Vec<_> = resource_layouts.iter().map(|l| l.handle()).collect();
         let pipeline = PipelineBuilder::new()
             .renderpass(renderpass)
             .vertex_shader(vertex_shader)
@@ -64,18 +63,11 @@ impl MaterialBase {
 
     pub fn id(&self) -> u32 { self.material_base_id }
 
-    pub fn resource_layouts(&self) -> &[PipelineResourceLayout] {
-        &self.resource_layouts
-    }
+    pub fn resource_layouts(&self) -> &[PipelineResourceLayout] { &self.resource_layouts }
 
-    pub fn destroy(
-        mut self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), PipelineError> {
+    pub fn destroy(mut self, backend: &mut ActiveGraphicsBackend) -> Result<(), PipelineError> {
         self.pipeline.destroy(backend)?;
-        for layout in
-            self.resource_layouts.drain(0..self.resource_layouts.len())
-        {
+        for layout in self.resource_layouts.drain(0..self.resource_layouts.len()) {
             layout.destroy(backend)?;
         }
         Ok(())
@@ -129,19 +121,11 @@ impl MaterialData {
         ));
         for (set_index, binding) in self.resources.iter().enumerate() {
             let pipeline_binding = match binding {
-                MaterialPipelineBinding::View => {
-                    camera_transform.look_at_resource.handle()
-                },
-                MaterialPipelineBinding::Projection => {
-                    camera.projection_resource.handle()
-                },
-                MaterialPipelineBinding::Model => {
-                    transform.model_resource.handle()
-                },
+                MaterialPipelineBinding::View => camera_transform.look_at_resource.handle(),
+                MaterialPipelineBinding::Projection => camera.projection_resource.handle(),
+                MaterialPipelineBinding::Model => transform.model_resource.handle(),
                 MaterialPipelineBinding::Light => lights.resource.handle(),
-                MaterialPipelineBinding::ShadowMap => {
-                    shadows.texture_resource.handle()
-                },
+                MaterialPipelineBinding::ShadowMap => shadows.texture_resource.handle(),
                 MaterialPipelineBinding::Generic(bind) => *bind,
             };
             command_list.cmd(Command::BindPipelineBinding(

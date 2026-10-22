@@ -43,16 +43,15 @@ impl VulkanSwapchain {
         surface: &VulkanSurface,
         device: &VulkanDevice,
         old_swapchain: Option<&VulkanSwapchain>,
-    ) -> Result<
-        (VulkanSwapchain, Vec<VulkanSwapchainImage>),
-        VulkanSwapchainError,
-    > {
-        let desired_image_count = surface.min_image_count().max(3).min(
-            match surface.max_image_count() {
-                0 => u32::MAX,
-                val => val,
-            },
-        );
+    ) -> Result<(VulkanSwapchain, Vec<VulkanSwapchainImage>), VulkanSwapchainError> {
+        let desired_image_count =
+            surface
+                .min_image_count()
+                .max(3)
+                .min(match surface.max_image_count() {
+                    0 => u32::MAX,
+                    val => val,
+                });
 
         let surface_resolution = raw_extent_2d(window.size());
 
@@ -67,37 +66,32 @@ impl VulkanSwapchain {
 
         let present_mode = ash::vk::PresentModeKHR::FIFO;
 
-        let swapchain_loader = ash::khr::swapchain::Device::new(
-            instance.raw_handle(),
-            device.raw_device(),
-        );
+        let swapchain_loader =
+            ash::khr::swapchain::Device::new(instance.raw_handle(), device.raw_device());
 
-        let mut swapchain_create_info =
-            ash::vk::SwapchainCreateInfoKHR::default()
-                .surface(*surface.raw_handle())
-                .min_image_count(desired_image_count)
-                .image_color_space(ash::vk::ColorSpaceKHR::SRGB_NONLINEAR)
-                .image_format(surface.format().raw_image_format())
-                .image_extent(surface_resolution)
-                .image_usage(ash::vk::ImageUsageFlags::COLOR_ATTACHMENT)
-                .image_sharing_mode(ash::vk::SharingMode::EXCLUSIVE)
-                .pre_transform(pre_transform)
-                .composite_alpha(ash::vk::CompositeAlphaFlagsKHR::OPAQUE)
-                .present_mode(present_mode)
-                .clipped(true)
-                .image_array_layers(1);
+        let mut swapchain_create_info = ash::vk::SwapchainCreateInfoKHR::default()
+            .surface(*surface.raw_handle())
+            .min_image_count(desired_image_count)
+            .image_color_space(ash::vk::ColorSpaceKHR::SRGB_NONLINEAR)
+            .image_format(surface.format().raw_image_format())
+            .image_extent(surface_resolution)
+            .image_usage(ash::vk::ImageUsageFlags::COLOR_ATTACHMENT)
+            .image_sharing_mode(ash::vk::SharingMode::EXCLUSIVE)
+            .pre_transform(pre_transform)
+            .composite_alpha(ash::vk::CompositeAlphaFlagsKHR::OPAQUE)
+            .present_mode(present_mode)
+            .clipped(true)
+            .image_array_layers(1);
 
         if let Some(val) = old_swapchain {
-            swapchain_create_info =
-                swapchain_create_info.old_swapchain(*val.get_swapchain_raw());
+            swapchain_create_info = swapchain_create_info.old_swapchain(*val.get_swapchain_raw());
         }
 
-        let swapchain = match unsafe {
-            swapchain_loader.create_swapchain(&swapchain_create_info, None)
-        } {
-            Ok(val) => val,
-            Err(err) => return Err(VulkanSwapchainError::CreationError(err)),
-        };
+        let swapchain =
+            match unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) } {
+                Ok(val) => val,
+                Err(err) => return Err(VulkanSwapchainError::CreationError(err)),
+            };
 
         let extent = VulkanImageSize::new(Vec2u::new(
             surface_resolution.width,
@@ -105,9 +99,7 @@ impl VulkanSwapchain {
         ))
         .ok_or(VulkanSwapchainError::InvalidSize)?;
 
-        let swapchain_images = match unsafe {
-            swapchain_loader.get_swapchain_images(swapchain)
-        } {
+        let swapchain_images = match unsafe { swapchain_loader.get_swapchain_images(swapchain) } {
             Ok(val) => val
                 .into_iter()
                 .map(|x| VulkanSwapchainImage::new(surface.format(), extent, x))
@@ -120,10 +112,7 @@ impl VulkanSwapchain {
         Ok((
             VulkanSwapchain {
                 swapchain,
-                _swapchain_image_ids: swapchain_images
-                    .iter()
-                    .map(|x| x.id())
-                    .collect(),
+                _swapchain_image_ids: swapchain_images.iter().map(|x| x.id()).collect(),
                 swapchain_loader,
             },
             swapchain_images,
@@ -193,9 +182,7 @@ impl VulkanSwapchain {
         }
     }
 
-    pub fn get_swapchain_raw(&self) -> &ash::vk::SwapchainKHR {
-        &self.swapchain
-    }
+    pub fn get_swapchain_raw(&self) -> &ash::vk::SwapchainKHR { &self.swapchain }
 
     pub fn _get_swapchain_loader_raw(&self) -> &ash::khr::swapchain::Device {
         &self.swapchain_loader

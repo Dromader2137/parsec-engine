@@ -4,9 +4,7 @@ use parsec_engine::graphics::buffer::BufferContent;
 
 use crate::{
     allocation::VulkanAllocationError,
-    allocator::{
-        VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements,
-    },
+    allocator::{VulkanAllocator, VulkanMemoryProperties, VulkanMemoryRequirements},
     buffer_usage::VulkanBufferUsage,
     create_counter,
     device::VulkanDevice,
@@ -59,25 +57,21 @@ impl VulkanBuffer {
             .usage(VulkanBufferUsage::raw_combined_buffer_usage(usage))
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
-        let buffer =
-            unsafe { device.raw_device().create_buffer(&buffer_info, None) }
-                .map_err(VulkanBufferError::CreationError)?;
+        let buffer = unsafe { device.raw_device().create_buffer(&buffer_info, None) }
+            .map_err(VulkanBufferError::CreationError)?;
 
-        let memory_requirements =
-            VulkanMemoryRequirements::from_raw_requirements(unsafe {
-                device.raw_device().get_buffer_memory_requirements(buffer)
-            });
+        let memory_requirements = VulkanMemoryRequirements::from_raw_requirements(unsafe {
+            device.raw_device().get_buffer_memory_requirements(buffer)
+        });
 
         let (memory, memory_offset, memory_size, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
             .map_err(VulkanBufferError::AllocationError)?;
 
         unsafe {
-            device.raw_device().bind_buffer_memory(
-                buffer,
-                memory.raw_memory(),
-                memory_offset,
-            )
+            device
+                .raw_device()
+                .bind_buffer_memory(buffer, memory.raw_memory(), memory_offset)
         }
         .map_err(VulkanBufferError::BindError)?;
 
@@ -106,14 +100,12 @@ impl VulkanBuffer {
             .usage(VulkanBufferUsage::raw_combined_buffer_usage(usage))
             .sharing_mode(ash::vk::SharingMode::EXCLUSIVE);
 
-        let buffer =
-            unsafe { device.raw_device().create_buffer(&buffer_info, None) }
-                .map_err(VulkanBufferError::CreationError)?;
+        let buffer = unsafe { device.raw_device().create_buffer(&buffer_info, None) }
+            .map_err(VulkanBufferError::CreationError)?;
 
-        let memory_requirements =
-            VulkanMemoryRequirements::from_raw_requirements(unsafe {
-                device.raw_device().get_buffer_memory_requirements(buffer)
-            });
+        let memory_requirements = VulkanMemoryRequirements::from_raw_requirements(unsafe {
+            device.raw_device().get_buffer_memory_requirements(buffer)
+        });
 
         let (memory, memory_offset, memory_size, allocation_id) = allocator
             .get_memory(device, memory_properties, memory_requirements)
@@ -144,11 +136,9 @@ impl VulkanBuffer {
         }
 
         if let Err(err) = unsafe {
-            device.raw_device().bind_buffer_memory(
-                buffer,
-                memory.raw_memory(),
-                memory_offset,
-            )
+            device
+                .raw_device()
+                .bind_buffer_memory(buffer, memory.raw_memory(), memory_offset)
         } {
             return Err(VulkanBufferError::BindError(err));
         }
@@ -202,11 +192,7 @@ impl VulkanBuffer {
         Ok(())
     }
 
-    pub fn destroy(
-        self,
-        device: &VulkanDevice,
-        allocator: &mut VulkanAllocator,
-    ) {
+    pub fn destroy(self, device: &VulkanDevice, allocator: &mut VulkanAllocator) {
         unsafe {
             device
                 .raw_device()
