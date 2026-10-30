@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, path::Path};
+use std::{collections::BTreeSet, path::Path, time::SystemTime};
 
 use crate::{
     assets::{
@@ -9,11 +9,11 @@ use crate::{
 };
 
 pub struct AssetCookContext<'a> {
-    source_file: &'a Path,
+    source_path: &'a Path,
 }
 
 impl<'a> AssetCookContext<'a> {
-    pub(super) fn new(source_file: &'a Path) -> Self { Self { source_file } }
+    pub(super) fn new(source_path: &'a Path) -> Self { Self { source_path } }
 
     pub fn add_asset<T: Asset>(
         &self,
@@ -22,10 +22,15 @@ impl<'a> AssetCookContext<'a> {
     ) -> Result<(), ParsecError> {
         let path = cooked_path(&combine_into_asset_name(
             subresource,
-            self.source_file,
+            self.source_path,
             T::ASSET_TYPE,
         ));
-        let bytes = postcard::to_stdvec(&T::cook(input))?;
+        let source_file = std::fs::metadata(self.source_path)?;
+        let source_modified = source_file.modified()?;
+        let source_modified_duration = source_modified
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_millis();
+        let bytes = postcard::to_stdvec(&(source_modified_duration, T::cook(input)))?;
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }

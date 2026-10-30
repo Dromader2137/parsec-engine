@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, marker::PhantomData, path::Path};
+use std::{any::Any, collections::HashMap, marker::PhantomData, path::Path, time::SystemTime};
 
 use crate::{
     assets::{
@@ -160,6 +160,12 @@ impl AssetLibrary {
             desc.source_file
         };
 
+        let source_file_meta = std::fs::metadata(source_file)?;
+        let source_modified = source_file_meta.modified()?;
+        let source_modified_duration = source_modified
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_millis();
+
         let cooked_path = cooked_path(asset_name);
         let cooked = if cooked_path.is_file() {
             Ok(())
@@ -167,15 +173,27 @@ impl AssetLibrary {
             self.cook_source_file(&source_file)
         }
         .and_then(|()| std::fs::read(&cooked_path).map_err(ParsecError::from))
-        .and_then(|bytes| postcard::from_bytes::<T::Cooked>(&bytes).map_err(ParsecError::from));
+        .and_then(|bytes| {
+            postcard::from_bytes::<(u128, T::Cooked)>(&bytes).map_err(ParsecError::from)
+        });
 
-        let (_, slot) = self.assets.get_mut(&asset_id).unwrap();
         match cooked {
-            Ok(cooked) => {
+            Ok((cook_timestamp, mut cooked)) => {
+                if source_modified_duration != cook_timestamp {
+                    let (_, new_cooked) = self.cook_source_file(&source_file)
+                        .and_then(|()| std::fs::read(&cooked_path).map_err(ParsecError::from))
+                        .and_then(|bytes| {
+                            postcard::from_bytes::<(u128, T::Cooked)>(&bytes)
+                                .map_err(ParsecError::from)
+                        })?;
+                    cooked = new_cooked;
+                }
+                let (_, slot) = self.assets.get_mut(&asset_id).unwrap();
                 *slot = AssetSlot::Loaded(Box::new(T::load(cooked, resources)));
                 Ok(AssetHandle::new(asset_id))
             },
             Err(err) => {
+                let (_, slot) = self.assets.get_mut(&asset_id).unwrap();
                 *slot = AssetSlot::Failed(AssetTrackingError::LoadFailed(asset_name));
                 Err(err)
             },

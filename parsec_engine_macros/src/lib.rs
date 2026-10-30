@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    DeriveInput, Ident, LitInt, Token,
+    DeriveInput, Ident, LitInt, LitStr, Token,
     parse::{Parse, ParseStream, Result},
     parse_macro_input,
     punctuated::Punctuated,
@@ -179,4 +179,57 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+struct EmbeddShaderInput {
+    shader_type: LitStr,
+    shader_code: LitStr,
+}
+
+impl Parse for EmbeddShaderInput {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let shader_type = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let shader_code = input.parse()?;
+        Ok(EmbeddShaderInput {
+            shader_type,
+            shader_code,
+        })
+    }
+}
+
+fn reinterpret_shader_code(bytes: &[u8]) -> Vec<u32> {
+    let size = bytes.len();
+    let words = size / 4;
+    let mut result =
+        unsafe { std::slice::from_raw_parts(bytes.as_ptr().cast::<u32>(), words) }.to_vec();
+    const MAGIC_NUMBER: u32 = 0x0723_0203;
+    if !result.is_empty() && result[0] == MAGIC_NUMBER.swap_bytes() {
+        for word in result.iter_mut() {
+            *word = word.swap_bytes();
+        }
+    }
+    result
+}
+
+#[proc_macro]
+pub fn embed_shader(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as EmbeddShaderInput);
+
+    let compiler = shaderc::Compiler::new().unwrap();
+    let spv = compiler
+        .compile_into_spirv(
+            &input.shader_code.value(),
+            match input.shader_type.value().as_str() {
+                "vert" => shaderc::ShaderKind::DefaultVertex,
+                "frag" => shaderc::ShaderKind::DefaultFragment,
+                _ => panic!("invalid shader extension"),
+            },
+            "ast",
+            "main",
+            None,
+        )
+        .unwrap();
+    let code = reinterpret_shader_code(spv.as_binary_u8());
+    TokenStream::from(quote! { &[#(#code),*] })
 }
