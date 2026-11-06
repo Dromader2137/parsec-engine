@@ -1,83 +1,47 @@
-use image::EncodableLayout;
 use parsec_engine::{
-    app::App,
-    assets::core::{
-        mesh::{Mesh, obj::ObjFileHandler},
-        shader::{
+    app::App, assets::core::{
+        mesh::{Mesh, obj::ObjFileHandler}, shader::{
             Shader,
             file_handler::{FragmentShaderFileHandler, VertexShaderFileHandler},
-        },
-    },
-    ctx::Ctx,
-    ecs::{
+        }, texture::{Texture, png::PngFileHandler},
+    }, ctx::Ctx, ecs::{
         system::SystemTrigger,
         world::{component::Component, fetch::Mut},
-    },
-    error::{OptionNoneErr, ParsecError},
-    graphics::{
+    }, error::{OptionNoneErr, ParsecError}, graphics::{
         ActiveGraphicsBackend,
-        buffer::{BufferBuilder, BufferContent, BufferUsage},
-        image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode, PipelineOptions,
             PipelineResourceBindingLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         window::Window,
-    },
-    input::{Input, InputBundle},
-    math::{quat::Quat, uvec::Vec2u, vec::Vec3f},
-    renderer::{
+    }, input::{Input, InputBundle}, math::{quat::Quat, vec::Vec3f}, renderer::{
         RendererMainRenderpass,
         components::{
             camera::Camera, light::Light, mesh_renderer::MeshRenderer, transform::Transform,
         },
         graphics_bundle::GraphicsBundle,
-        integrated_image::IntegratedImageBuilder,
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
-    },
-    time::{Time, TimeBundle},
-    utils::identifiable::IdStore,
+    }, time::{Time, TimeBundle}, utils::identifiable::IdStore,
 };
 use parsec_engine_vulkan::VulkanBackend;
 
 fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
-    let vertex_shader_handle = ctx
-        .assets
-        .load::<Shader>("main@shaders/simple.vert#shader", ctx.resources)?;
-    let fragment_shader_handle = ctx
-        .assets
-        .load::<Shader>("main@shaders/multilight.frag#shader", ctx.resources)?;
-    let mesh_handle = ctx
-        .assets
-        .load::<Mesh>("Cube@test.obj#mesh", ctx.resources)
-        .unwrap();
+    let vertex_shader_handle =
+        ctx.assets.load::<Shader>("main@shaders/simple.vert#shader", ctx.resources)?;
+    let fragment_shader_handle =
+        ctx.assets.load::<Shader>("main@shaders/multilight.frag#shader", ctx.resources)?;
+    let mesh_handle = ctx.assets.load::<Mesh>("Cube@test.obj#mesh", ctx.resources)?;
+    let texture_handle = ctx.assets.load::<Texture>("@test.png#texture", ctx.resources)?;
 
-    let mut backend = ctx
-        .resources
-        .get_mut::<ActiveGraphicsBackend>()
-        .none_err()?;
-    let mut materials = ctx
-        .resources
-        .get_mut::<IdStore<MaterialData>>()
-        .none_err()?;
-    let mut material_bases = ctx
-        .resources
-        .get_mut::<IdStore<MaterialBase>>()
-        .none_err()?;
+    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
+    let mut materials = ctx.resources.get_mut::<IdStore<MaterialData>>().none_err()?;
+    let mut material_bases = ctx.resources.get_mut::<IdStore<MaterialBase>>().none_err()?;
     let renderpass = ctx.resources.get::<RendererMainRenderpass>().none_err()?;
 
     let material_base = MaterialBase::new(
         &mut backend,
-        ctx.assets
-            .get(vertex_shader_handle)
-            .none_err()?
-            .module
-            .handle(),
-        ctx.assets
-            .get(fragment_shader_handle)
-            .none_err()?
-            .module
-            .handle(),
+        ctx.assets.get(vertex_shader_handle).none_err()?.module.handle(),
+        ctx.assets.get(fragment_shader_handle).none_err()?.module.handle(),
         renderpass.0.handle(),
         vec![
             vec![
@@ -91,58 +55,31 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
                     PipelineShaderStage::Vertex,
                 ]),
             ],
-            vec![PipelineResourceBindingLayout::new(
-                PipelineBindingType::UniformBuffer,
-                &[PipelineShaderStage::Vertex],
-            )],
-            vec![PipelineResourceBindingLayout::new(
-                PipelineBindingType::UniformBuffer,
-                &[PipelineShaderStage::Vertex],
-            )],
-            vec![PipelineResourceBindingLayout::new(
-                PipelineBindingType::StorageBuffer,
-                &[PipelineShaderStage::Fragment, PipelineShaderStage::Vertex],
-            )],
-            vec![PipelineResourceBindingLayout::new(
-                PipelineBindingType::TextureSampler,
-                &[PipelineShaderStage::Fragment],
-            )],
-            vec![PipelineResourceBindingLayout::new(
-                PipelineBindingType::TextureSampler,
-                &[PipelineShaderStage::Fragment],
-            )],
+            vec![PipelineResourceBindingLayout::new(PipelineBindingType::UniformBuffer, &[
+                PipelineShaderStage::Vertex,
+            ])],
+            vec![PipelineResourceBindingLayout::new(PipelineBindingType::UniformBuffer, &[
+                PipelineShaderStage::Vertex,
+            ])],
+            vec![PipelineResourceBindingLayout::new(PipelineBindingType::StorageBuffer, &[
+                PipelineShaderStage::Fragment,
+                PipelineShaderStage::Vertex,
+            ])],
+            vec![PipelineResourceBindingLayout::new(PipelineBindingType::TextureSampler, &[
+                PipelineShaderStage::Fragment,
+            ])],
+            vec![PipelineResourceBindingLayout::new(PipelineBindingType::TextureSampler, &[
+                PipelineShaderStage::Fragment,
+            ])],
         ],
         PipelineOptions::new::<DefaultVertex>(PipelineCullingMode::CullBack),
     );
 
-    let image = image::load_from_memory(include_bytes!("../../test.png"))?.to_rgba8();
-    let (width, height) = image.dimensions();
-    let image_data = image.as_raw().as_bytes();
-    let texture_buffer = BufferBuilder::new()
-        .usage(&[BufferUsage::TransferSrc])
-        .data(BufferContent::from_slice(image_data))
-        .build(&mut backend)
-        .unwrap();
-    let texture = IntegratedImageBuilder::default()
-        .size(ImageSize::new(Vec2u::new(width, height)).unwrap())
-        .format(ImageFormat::RGBA8SRGB)
-        .aspect(ImageAspect::Color)
-        .usage(&[ImageUsage::Sampled, ImageUsage::TransferDst])
-        .build(&mut backend)
-        .unwrap();
-    backend
-        .load_image_from_buffer(
-            texture_buffer.handle(),
-            texture.image().handle(),
-            Vec2u::new(width, height),
-            Vec2u::ZERO,
-        )
-        .unwrap();
+    let texture = ctx.assets.get(texture_handle).none_err()?;
     let texture_binding = PipelineResourceLayoutBuilder::new()
-        .bindings(&[PipelineResourceBindingLayout::new(
-            PipelineBindingType::TextureSampler,
-            &[PipelineShaderStage::Fragment],
-        )])
+        .bindings(&[PipelineResourceBindingLayout::new(PipelineBindingType::TextureSampler, &[
+            PipelineShaderStage::Fragment,
+        ])])
         .build(&mut backend)
         .unwrap()
         .create_resource(&mut backend)
@@ -150,8 +87,8 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
     backend
         .bind_sampler(
             texture_binding.handle(),
-            texture.sampler().handle(),
-            texture.view().handle(),
+            texture.sampler_handle(),
+            texture.view_handle(),
             0,
         )
         .unwrap();
@@ -171,13 +108,7 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
     ctx.world.spawn((
         Camera::new(40.0_f32.to_radians(), 0.1, 100.0),
         Transform::new(Vec3f::BACK, Vec3f::ZERO, Quat::IDENTITY),
-        CameraController {
-            yaw: 0.0,
-            target_yaw: 0.0,
-            pitch: 0.0,
-            target_pitch: 0.0,
-            fov: 40.0,
-        },
+        CameraController { yaw: 0.0, target_yaw: 0.0, pitch: 0.0, target_pitch: 0.0, fov: 40.0 },
     ))?;
     ctx.world.spawn((
         Transform::new(Vec3f::ZERO, Vec3f::ONE, Quat::IDENTITY),
@@ -205,9 +136,7 @@ struct CameraController {
 }
 
 fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut cameras = ctx
-        .world
-        .query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
+    let mut cameras = ctx.world.query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
     let mut window = ctx.resources.get_mut::<Window>().none_err()?;
     let input = ctx.resources.get::<Input>().none_err()?;
     let time = ctx.resources.get::<Time>().none_err()?;
@@ -220,11 +149,8 @@ fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
         camera_controller.pitch =
             camera_controller.target_pitch * 0.3 + camera_controller.pitch * 0.7;
         camera_controller.yaw = camera_controller.target_yaw * 0.3 + camera_controller.yaw * 0.7;
-        transform.rotation = Quat::from_euler(Vec3f::new(
-            camera_controller.pitch,
-            camera_controller.yaw,
-            0.0,
-        ));
+        transform.rotation =
+            Quat::from_euler(Vec3f::new(camera_controller.pitch, camera_controller.yaw, 0.0));
         camera_controller.fov -= input.mouse.wheel_delta().y;
         camera_controller.fov = camera_controller.fov.clamp(30.0, 60.0);
         camera.vertical_fov = camera_controller.fov.to_radians();
@@ -258,19 +184,16 @@ fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
 
 pub fn prepare_app() -> Result<App, ParsecError> {
     let mut app = App::new();
-    app.assets
-        .add_source_file_handler::<VertexShaderFileHandler>();
-    app.assets
-        .add_source_file_handler::<FragmentShaderFileHandler>();
+    app.assets.add_source_file_handler::<VertexShaderFileHandler>();
+    app.assets.add_source_file_handler::<FragmentShaderFileHandler>();
     app.assets.add_source_file_handler::<ObjFileHandler>();
+    app.assets.add_source_file_handler::<PngFileHandler>();
     app.assets.add_asset("main@shaders/simple.vert#shader")?;
     app.assets.add_asset("main@shaders/flat.frag#shader")?;
-    app.assets
-        .add_asset("main@shaders/multilight.frag#shader")?;
+    app.assets.add_asset("main@shaders/multilight.frag#shader")?;
     app.assets.add_asset("Cube@test.obj#mesh")?;
-    // app.assets.add_asset(AssetDescription::new("@test.png#texture")?;
-    app.systems
-        .add_bundle(GraphicsBundle::<VulkanBackend>::default());
+    app.assets.add_asset("@test.png#texture")?;
+    app.systems.add_bundle(GraphicsBundle::<VulkanBackend>::default());
     app.systems.add_bundle(InputBundle);
     app.systems.add_bundle(TimeBundle);
     app.systems.add(SystemTrigger::LateStart, game_startup);

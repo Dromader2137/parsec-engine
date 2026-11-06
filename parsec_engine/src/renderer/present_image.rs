@@ -18,10 +18,7 @@ impl PresentImage {
         image_handle: ImageHandle,
     ) -> Result<PresentImage, ParsecError> {
         let image_view = ImageViewBuilder::new().image(image_handle).build(backend)?;
-        Ok(PresentImage {
-            image_handle,
-            image_view: Some(image_view),
-        })
+        Ok(PresentImage { image_handle, image_view: Some(image_view) })
     }
 
     pub fn recreate(

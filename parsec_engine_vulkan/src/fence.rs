@@ -29,18 +29,13 @@ impl VulkanFence {
             Err(err) => return Err(VulkanFenceError::CreationError(err)),
         };
 
-        Ok(VulkanFence {
-            id: ID_COUNTER.next(),
-            fence,
-        })
+        Ok(VulkanFence { id: ID_COUNTER.next(), fence })
     }
 
     pub fn wait(&self, device: &VulkanDevice) -> Result<(), VulkanFenceError> {
-        if let Err(err) = unsafe {
-            device
-                .raw_device()
-                .wait_for_fences(&[self.fence], true, u64::MAX)
-        } {
+        if let Err(err) =
+            unsafe { device.raw_device().wait_for_fences(&[self.fence], true, u64::MAX) }
+        {
             return Err(VulkanFenceError::WaitError(err));
         }
         Ok(())
@@ -54,18 +49,11 @@ impl VulkanFence {
     }
 
     pub fn null() -> VulkanFence {
-        VulkanFence {
-            id: ID_COUNTER.next(),
-            fence: ash::vk::Fence::null(),
-        }
+        VulkanFence { id: ID_COUNTER.next(), fence: ash::vk::Fence::null() }
     }
 
     pub fn destroy(self, device: &VulkanDevice) {
-        unsafe {
-            device
-                .raw_device()
-                .destroy_fence(*self.get_fence_raw(), None)
-        }
+        unsafe { device.raw_device().destroy_fence(*self.get_fence_raw(), None) }
     }
 
     pub fn get_fence_raw(&self) -> &ash::vk::Fence { &self.fence }

@@ -31,11 +31,7 @@ impl Default for Keys {
 
 impl Keys {
     pub fn new() -> Keys {
-        Keys {
-            pressed: HashSet::new(),
-            down: HashSet::new(),
-            up: HashSet::new(),
-        }
+        Keys { pressed: HashSet::new(), down: HashSet::new(), up: HashSet::new() }
     }
 
     /// Takes an [InputEvent] and updated `self` accordingly.

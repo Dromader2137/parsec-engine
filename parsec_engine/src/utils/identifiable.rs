@@ -18,11 +18,7 @@ impl<T: Identifiable> Default for IdStore<T> {
 }
 
 impl<T: Identifiable> IdStore<T> {
-    pub fn new() -> IdStore<T> {
-        IdStore {
-            elements: HashMap::new(),
-        }
-    }
+    pub fn new() -> IdStore<T> { IdStore { elements: HashMap::new() } }
 
     pub fn push(&mut self, value: T) -> IdType {
         let id = value.id();

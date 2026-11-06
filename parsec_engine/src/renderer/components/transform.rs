@@ -13,12 +13,7 @@ pub struct Transform {
 create_counter! {ID_COUNTER}
 impl Transform {
     pub fn new(position: Vec3f, scale: Vec3f, rotation: Quat) -> Transform {
-        Transform {
-            transform_id: ID_COUNTER.next(),
-            position,
-            scale,
-            rotation,
-        }
+        Transform { transform_id: ID_COUNTER.next(), position, scale, rotation }
     }
 
     pub fn transform_id(&self) -> u32 { self.transform_id }

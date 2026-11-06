@@ -50,12 +50,7 @@ impl<'a> Default for BufferBuilder<'a> {
 }
 
 impl<'a> BufferBuilder<'a> {
-    pub fn new() -> Self {
-        Self {
-            data: None,
-            usage: &[],
-        }
-    }
+    pub fn new() -> Self { Self { data: None, usage: &[] } }
 
     pub fn data(mut self, data: BufferContent<'a>) -> Self {
         self.data = Some(data);

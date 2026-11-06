@@ -64,10 +64,7 @@ impl ArchetypeId {
             }
         }
 
-        Ok(ArchetypeId {
-            component_types: set,
-            hash,
-        })
+        Ok(ArchetypeId { component_types: set, hash })
     }
 
     /// Merges this [`ArchetypeId`] with `self` and outputs the resulting id.
@@ -88,10 +85,7 @@ impl ArchetypeId {
             }
         }
 
-        Ok(ArchetypeId {
-            component_types: set,
-            hash,
-        })
+        Ok(ArchetypeId { component_types: set, hash })
     }
 
     /// Subtracts the other [`ArchetypeId`] from this [`ArchetypeId`] and outputs the resulting id.
@@ -112,10 +106,7 @@ impl ArchetypeId {
             }
         }
 
-        Ok(ArchetypeId {
-            component_types: set,
-            hash,
-        })
+        Ok(ArchetypeId { component_types: set, hash })
     }
 
     /// Checks if `self` contains all components present in `other_id`.
@@ -163,10 +154,7 @@ pub struct BorrowingStats {
 
 impl BorrowingStats {
     fn new() -> BorrowingStats {
-        BorrowingStats {
-            access: ArchetypeColumnAccess::ReadWrite,
-            count: 0,
-        }
+        BorrowingStats { access: ArchetypeColumnAccess::ReadWrite, count: 0 }
     }
 
     /// Releases one borrow of an [`ArchetypeColumn`].
@@ -383,11 +371,7 @@ pub struct Archetype {
 
 impl Archetype {
     pub fn new() -> Archetype {
-        Archetype {
-            columns: HashMap::new(),
-            bundle_count: 0,
-            entities: Vec::new(),
-        }
+        Archetype { columns: HashMap::new(), bundle_count: 0, entities: Vec::new() }
     }
 
     /// Creates a new empty entity.
@@ -482,12 +466,7 @@ impl Archetype {
         }
 
         let last_pos = self.entities.len() - 1;
-        let entity_pos = match self
-            .entities
-            .iter()
-            .enumerate()
-            .find(|(_, x)| **x == entity)
-        {
+        let entity_pos = match self.entities.iter().enumerate().find(|(_, x)| **x == entity) {
             Some((pos, _)) => pos,
             None => return Err(ArchetypeError::EntityNotFound),
         };
@@ -517,12 +496,7 @@ impl Archetype {
         }
 
         let last_pos = self.entities.len() - 1;
-        let entity_pos = match self
-            .entities
-            .iter()
-            .enumerate()
-            .find(|(_, x)| **x == entity)
-        {
+        let entity_pos = match self.entities.iter().enumerate().find(|(_, x)| **x == entity) {
             Some((pos, _)) => pos,
             None => return Err(ArchetypeError::EntityNotFound),
         };

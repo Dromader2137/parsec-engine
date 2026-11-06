@@ -13,3 +13,4 @@ parsec_engine_math.workspace = true
 serde.workspace = true
 postcard.workspace = true
 shaderc.workspace = true
+image.workspace = true

@@ -18,11 +18,7 @@ pub struct Resource<'a, R: ResourceMarker> {
 impl<'a, R: ResourceMarker> Resource<'a, R> {
     pub fn new(value: &R, borrowing: Arc<BorrowingStats>) -> Result<Self, AccessError> {
         borrowing.borrow()?;
-        Ok(Self {
-            value: value as *const R,
-            borrowing,
-            _marker: PhantomData,
-        })
+        Ok(Self { value: value as *const R, borrowing, _marker: PhantomData })
     }
 }
 
@@ -35,11 +31,7 @@ pub struct ResourceMut<'a, R: ResourceMarker> {
 impl<'a, R: ResourceMarker> ResourceMut<'a, R> {
     pub fn new(value: &R, borrowing: Arc<BorrowingStats>) -> Result<Self, AccessError> {
         borrowing.borrow_mut()?;
-        Ok(Self {
-            value: value as *const R as *mut R,
-            borrowing,
-            _marker: PhantomData,
-        })
+        Ok(Self { value: value as *const R as *mut R, borrowing, _marker: PhantomData })
     }
 }
 

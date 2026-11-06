@@ -2,15 +2,22 @@ use parsec_engine_macros::embed_shader;
 
 use crate::{
     graphics::{
-        ActiveGraphicsBackend, framebuffer::{Framebuffer, FramebufferBuilder}, image::{ImageAspect, ImageFormat, ImageSize, ImageUsage}, pipeline::{
+        ActiveGraphicsBackend,
+        framebuffer::{Framebuffer, FramebufferBuilder},
+        image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
+        pipeline::{
             PipelineBindingType, PipelineOptions, PipelineResource, PipelineResourceBindingLayout,
             PipelineResourceLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
-        }, renderpass::{
+        },
+        renderpass::{
             Renderpass, RenderpassAttachment, RenderpassAttachmentLoadOp,
             RenderpassAttachmentStoreOp, RenderpassAttachmentType, RenderpassBuilder,
             RenderpassClearValue,
-        }, shader_module::{ShaderModule, ShaderModuleBuilder, ShaderType, read_shader_code},
-    }, math::uvec::Vec2u, renderer::{
+        },
+        shader_module::{ShaderModule, ShaderModuleBuilder, ShaderType},
+    },
+    math::uvec::Vec2u,
+    renderer::{
         integrated_image::{IntegratedImage, IntegratedImageBuilder},
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
     },
@@ -28,7 +35,9 @@ pub struct RendererShadows {
     pub texture_resource: PipelineResource,
 }
 
-const SHADOW_VERT: &'static [u32] = embed_shader!("vert", "
+const SHADOW_VERT: &'static [u32] = embed_shader!(
+    "vert",
+    "
 #version 450
 
 struct DirLightData {
@@ -78,13 +87,17 @@ void main() {
     gl_ClipDistance[3] = hi.y * pos.w - pos.y;
 	gl_Position = pos;
 }
-");
+"
+);
 
-const SHADOW_FRAG: &'static [u32] = embed_shader!("frag", "
+const SHADOW_FRAG: &'static [u32] = embed_shader!(
+    "frag",
+    "
 #version 450
 
 void main() {}
-");
+"
+);
 
 impl RendererShadows {
     pub fn new(backend: &mut ActiveGraphicsBackend) -> RendererShadows {
@@ -125,10 +138,10 @@ impl RendererShadows {
                         PipelineShaderStage::Vertex,
                     ]),
                 ],
-                vec![PipelineResourceBindingLayout::new(
-                    PipelineBindingType::StorageBuffer,
-                    &[PipelineShaderStage::Vertex, PipelineShaderStage::Fragment],
-                )],
+                vec![PipelineResourceBindingLayout::new(PipelineBindingType::StorageBuffer, &[
+                    PipelineShaderStage::Vertex,
+                    PipelineShaderStage::Fragment,
+                ])],
             ],
             PipelineOptions::default(),
         );

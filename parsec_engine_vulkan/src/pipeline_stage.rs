@@ -38,8 +38,6 @@ impl VulkanPipelineStage {
     pub fn raw_combined_stage(stages: &[Self]) -> ash::vk::PipelineStageFlags {
         stages
             .iter()
-            .fold(ash::vk::PipelineStageFlags::empty(), |acc, x| {
-                acc | x.raw_pipeline_stage()
-            })
+            .fold(ash::vk::PipelineStageFlags::empty(), |acc, x| acc | x.raw_pipeline_stage())
     }
 }

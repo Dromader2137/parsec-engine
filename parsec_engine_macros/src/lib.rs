@@ -191,10 +191,7 @@ impl Parse for EmbeddShaderInput {
         let shader_type = input.parse()?;
         input.parse::<Token![,]>()?;
         let shader_code = input.parse()?;
-        Ok(EmbeddShaderInput {
-            shader_type,
-            shader_code,
-        })
+        Ok(EmbeddShaderInput { shader_type, shader_code })
     }
 }
 

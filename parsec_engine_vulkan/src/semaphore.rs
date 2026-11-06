@@ -22,25 +22,15 @@ impl VulkanSemaphore {
             Err(err) => return Err(VulkanSemaphoreError::CreationError(err)),
         };
 
-        Ok(VulkanSemaphore {
-            id: ID_COUNTER.next(),
-            semaphore,
-        })
+        Ok(VulkanSemaphore { id: ID_COUNTER.next(), semaphore })
     }
 
     pub fn _null() -> VulkanSemaphore {
-        VulkanSemaphore {
-            id: ID_COUNTER.next(),
-            semaphore: ash::vk::Semaphore::null(),
-        }
+        VulkanSemaphore { id: ID_COUNTER.next(), semaphore: ash::vk::Semaphore::null() }
     }
 
     pub fn destroy(self, device: &VulkanDevice) {
-        unsafe {
-            device
-                .raw_device()
-                .destroy_semaphore(*self.get_semaphore_raw(), None)
-        }
+        unsafe { device.raw_device().destroy_semaphore(*self.get_semaphore_raw(), None) }
     }
 
     pub fn get_semaphore_raw(&self) -> &ash::vk::Semaphore { &self.semaphore }

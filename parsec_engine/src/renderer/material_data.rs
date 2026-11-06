@@ -54,11 +54,7 @@ impl MaterialBase {
             .build(backend)
             .unwrap();
 
-        MaterialBase {
-            material_base_id: ID_COUNTER.next(),
-            pipeline,
-            resource_layouts,
-        }
+        MaterialBase { material_base_id: ID_COUNTER.next(), pipeline, resource_layouts }
     }
 
     pub fn id(&self) -> u32 { self.material_base_id }
@@ -116,9 +112,7 @@ impl MaterialData {
         lights: &RendererLights,
         shadows: &RendererShadows,
     ) {
-        command_list.cmd(Command::BindGraphicsPipeline(
-            material_base.pipeline.handle(),
-        ));
+        command_list.cmd(Command::BindGraphicsPipeline(material_base.pipeline.handle()));
         for (set_index, binding) in self.resources.iter().enumerate() {
             let pipeline_binding = match binding {
                 MaterialPipelineBinding::View => camera_transform.look_at_resource.handle(),
@@ -128,10 +122,7 @@ impl MaterialData {
                 MaterialPipelineBinding::ShadowMap => shadows.texture_resource.handle(),
                 MaterialPipelineBinding::Generic(bind) => *bind,
             };
-            command_list.cmd(Command::BindPipelineBinding(
-                pipeline_binding,
-                set_index as u32,
-            ));
+            command_list.cmd(Command::BindPipelineBinding(pipeline_binding, set_index as u32));
         }
     }
 

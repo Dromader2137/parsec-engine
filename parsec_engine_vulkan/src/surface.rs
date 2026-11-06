@@ -39,12 +39,10 @@ impl VulkanInitialSurface {
         instance: &VulkanInstance,
         window: &Window,
     ) -> Result<VulkanInitialSurface, VulkanSurfaceError> {
-        let display_handle = window
-            .raw_display_handle()
-            .map_err(VulkanSurfaceError::DisplayHandleError)?;
-        let window_handle = window
-            .raw_window_handle()
-            .map_err(VulkanSurfaceError::WindowHandleError)?;
+        let display_handle =
+            window.raw_display_handle().map_err(VulkanSurfaceError::DisplayHandleError)?;
+        let window_handle =
+            window.raw_window_handle().map_err(VulkanSurfaceError::WindowHandleError)?;
 
         let surface = unsafe {
             ash_window::create_surface(
@@ -60,10 +58,7 @@ impl VulkanInitialSurface {
         let surface_loader =
             ash::khr::surface::Instance::new(instance.raw_entry(), instance.raw_handle());
 
-        Ok(VulkanInitialSurface {
-            surface,
-            surface_loader,
-        })
+        Ok(VulkanInitialSurface { surface, surface_loader })
     }
 
     pub fn check_surface_support(
@@ -92,10 +87,7 @@ impl VulkanSurface {
         initial_surface: VulkanInitialSurface,
         physical_device: &VulkanPhysicalDevice,
     ) -> Result<VulkanSurface, VulkanSurfaceError> {
-        let VulkanInitialSurface {
-            surface_loader,
-            surface,
-        } = initial_surface;
+        let VulkanInitialSurface { surface_loader, surface } = initial_surface;
 
         let surface_formats = unsafe {
             surface_loader
@@ -121,20 +113,11 @@ impl VulkanSurface {
                 let found = surface_formats
                     .iter()
                     .find(|format| format.format == preffered_format.raw_image_format());
-                if found.is_some() {
-                    Some(preffered_format)
-                } else {
-                    None
-                }
+                if found.is_some() { Some(preffered_format) } else { None }
             })
             .ok_or(VulkanSurfaceError::NoSurfaceFormatsAvailable)?;
 
-        Ok(VulkanSurface {
-            surface,
-            surface_loader,
-            surface_format,
-            surface_capabilities,
-        })
+        Ok(VulkanSurface { surface, surface_loader, surface_format, surface_capabilities })
     }
 
     pub fn destroy(&self) { unsafe { self.surface_loader.destroy_surface(self.surface, None) } }

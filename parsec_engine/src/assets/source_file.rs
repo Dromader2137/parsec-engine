@@ -20,16 +20,12 @@ impl<'a> AssetCookContext<'a> {
         subresource: &str,
         input: T::Input,
     ) -> Result<(), ParsecError> {
-        let path = cooked_path(&combine_into_asset_name(
-            subresource,
-            self.source_path,
-            T::ASSET_TYPE,
-        ));
+        let path =
+            cooked_path(&combine_into_asset_name(subresource, self.source_path, T::ASSET_TYPE));
         let source_file = std::fs::metadata(self.source_path)?;
         let source_modified = source_file.modified()?;
-        let source_modified_duration = source_modified
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_millis();
+        let source_modified_duration =
+            source_modified.duration_since(SystemTime::UNIX_EPOCH)?.as_millis();
         let bytes = postcard::to_stdvec(&(source_modified_duration, T::cook(input)))?;
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;

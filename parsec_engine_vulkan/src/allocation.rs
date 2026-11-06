@@ -41,11 +41,7 @@ impl VulkanAllocation {
     }
 
     pub fn free(self, device: &VulkanDevice) {
-        unsafe {
-            device
-                .raw_device()
-                .free_memory(self.memory.raw_memory(), None)
-        };
+        unsafe { device.raw_device().free_memory(self.memory.raw_memory(), None) };
     }
 
     fn find_block_with_size(
@@ -73,16 +69,10 @@ impl VulkanAllocation {
         let (mut cursor, start, end) = self.find_block_with_size(req.size, req.alignment)?;
         let block = cursor.remove_current()?;
         if block.end != end {
-            cursor.insert_before(VulkanMemoryBlock {
-                start: end + 1,
-                end: block.end,
-            });
+            cursor.insert_before(VulkanMemoryBlock { start: end + 1, end: block.end });
         }
         if block.start != start {
-            cursor.insert_before(VulkanMemoryBlock {
-                start: block.start,
-                end: start - 1,
-            });
+            cursor.insert_before(VulkanMemoryBlock { start: block.start, end: start - 1 });
         }
         Some((self.memory.clone(), start, end - start + 1, self.id))
     }

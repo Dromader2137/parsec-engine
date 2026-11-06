@@ -40,32 +40,23 @@ impl Matrix4f {
 
     /// An identity matrix.
     pub fn identity() -> Matrix4f {
-        Matrix4f::new([
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ])
+        Matrix4f::new([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [
+            0.0, 0.0, 0.0, 1.0,
+        ]])
     }
 
     /// A translation matrix.
     pub fn translation(vec: Vec3f) -> Matrix4f {
-        Matrix4f::new([
-            [1.0, 0.0, 0.0, vec.x],
-            [0.0, 1.0, 0.0, vec.y],
-            [0.0, 0.0, 1.0, vec.z],
-            [0.0, 0.0, 0.0, 1.0],
-        ])
+        Matrix4f::new([[1.0, 0.0, 0.0, vec.x], [0.0, 1.0, 0.0, vec.y], [0.0, 0.0, 1.0, vec.z], [
+            0.0, 0.0, 0.0, 1.0,
+        ]])
     }
 
     /// A scale matrix.
     pub fn scale(vec: Vec3f) -> Matrix4f {
-        Matrix4f::new([
-            [vec.x, 0.0, 0.0, 0.0],
-            [0.0, vec.y, 0.0, 0.0],
-            [0.0, 0.0, vec.z, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ])
+        Matrix4f::new([[vec.x, 0.0, 0.0, 0.0], [0.0, vec.y, 0.0, 0.0], [0.0, 0.0, vec.z, 0.0], [
+            0.0, 0.0, 0.0, 1.0,
+        ]])
     }
 
     /// Rotation around x-axis matrix.

@@ -25,18 +25,11 @@ impl VulkanSampler {
                 .map_err(VulkanSamplerError::SamplerCreationError)?
         };
 
-        Ok(VulkanSampler {
-            id: ID_COUNTER.next(),
-            sampler,
-        })
+        Ok(VulkanSampler { id: ID_COUNTER.next(), sampler })
     }
 
     pub fn destroy(self, device: &VulkanDevice) {
-        unsafe {
-            device
-                .raw_device()
-                .destroy_sampler(self.sampler_raw(), None)
-        }
+        unsafe { device.raw_device().destroy_sampler(self.sampler_raw(), None) }
     }
 
     pub fn sampler_raw(&self) -> ash::vk::Sampler { self.sampler }

@@ -101,18 +101,10 @@ impl TransformData {
             .unwrap();
         let model_resource = model_layout.create_resource(backend).unwrap();
         let look_at_resource = look_at_layout.create_resource(backend).unwrap();
-        model_resource
-            .bind_buffer(backend, translation_buffer.handle(), 0)
-            .unwrap();
-        model_resource
-            .bind_buffer(backend, scale_buffer.handle(), 1)
-            .unwrap();
-        model_resource
-            .bind_buffer(backend, rotation_buffer.handle(), 2)
-            .unwrap();
-        look_at_resource
-            .bind_buffer(backend, look_at_buffer.handle(), 0)
-            .unwrap();
+        model_resource.bind_buffer(backend, translation_buffer.handle(), 0).unwrap();
+        model_resource.bind_buffer(backend, scale_buffer.handle(), 1).unwrap();
+        model_resource.bind_buffer(backend, rotation_buffer.handle(), 2).unwrap();
+        look_at_resource.bind_buffer(backend, look_at_buffer.handle(), 0).unwrap();
         TransformData {
             transform_data_id: ID_COUNTER.next(),
             translation_matrix,
@@ -174,21 +166,14 @@ impl Identifiable for TransformData {
 }
 
 pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend = ctx
-        .resources
-        .get_mut::<ActiveGraphicsBackend>()
-        .none_err()?;
-    let mut transforms_data = ctx
-        .resources
-        .get_mut::<IdStore<TransformData>>()
-        .none_err()?;
+    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
+    let mut transforms_data = ctx.resources.get_mut::<IdStore<TransformData>>().none_err()?;
     let mut transforms_data_manager = ctx.resources.get_mut::<TransformDataManager>().none_err()?;
     let mut transforms = ctx.world.query::<Mut<Transform>>();
 
     for (_, transform) in transforms.iter() {
-        if let std::collections::hash_map::Entry::Vacant(e) = transforms_data_manager
-            .component_to_data
-            .entry(transform.transform_id())
+        if let std::collections::hash_map::Entry::Vacant(e) =
+            transforms_data_manager.component_to_data.entry(transform.transform_id())
         {
             let transform_data = TransformData::new(
                 &mut backend,
@@ -204,21 +189,14 @@ pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
 }
 
 pub fn update_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend = ctx
-        .resources
-        .get_mut::<ActiveGraphicsBackend>()
-        .none_err()?;
-    let mut transforms_data = ctx
-        .resources
-        .get_mut::<IdStore<TransformData>>()
-        .none_err()?;
+    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
+    let mut transforms_data = ctx.resources.get_mut::<IdStore<TransformData>>().none_err()?;
     let transforms_data_manager = ctx.resources.get::<TransformDataManager>().none_err()?;
     let mut transforms = ctx.world.query::<Transform>();
 
     for (_, transform) in transforms.iter() {
-        if let Some(data_id) = transforms_data_manager
-            .component_to_data
-            .get(&transform.transform_id())
+        if let Some(data_id) =
+            transforms_data_manager.component_to_data.get(&transform.transform_id())
         {
             let data = transforms_data.get_mut(*data_id).unwrap();
             data.translation_matrix = Matrix4f::translation(transform.position);

@@ -20,10 +20,8 @@ impl VulkanDevice {
     ) -> Result<VulkanDevice, VulkanDeviceError> {
         let device_extension_names_raw = [ash::khr::swapchain::NAME.as_ptr()];
 
-        let features = ash::vk::PhysicalDeviceFeatures {
-            shader_clip_distance: 1,
-            ..Default::default()
-        };
+        let features =
+            ash::vk::PhysicalDeviceFeatures { shader_clip_distance: 1, ..Default::default() };
 
         let priorities = [1.0];
 

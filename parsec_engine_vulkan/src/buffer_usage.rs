@@ -37,10 +37,6 @@ impl VulkanBufferUsage {
     }
 
     pub fn raw_combined_buffer_usage(usage: &[Self]) -> ash::vk::BufferUsageFlags {
-        usage
-            .iter()
-            .fold(ash::vk::BufferUsageFlags::empty(), |acc, v| {
-                acc | v.raw_buffer_usage()
-            })
+        usage.iter().fold(ash::vk::BufferUsageFlags::empty(), |acc, v| acc | v.raw_buffer_usage())
     }
 }

@@ -47,12 +47,7 @@ impl CookedMesh {
         uvs: Vec<Vec2f>,
         indices: Vec<u32>,
     ) -> Self {
-        Self {
-            positions,
-            normals,
-            uvs,
-            indices,
-        }
+        Self { positions, normals, uvs, indices }
     }
 }
 
@@ -67,12 +62,7 @@ pub struct Mesh {
 create_counter! {ID_COUNTER}
 impl Mesh {
     pub fn new(vertices: Vec<DefaultVertex>, indices: Vec<u32>) -> Mesh {
-        Mesh {
-            mesh_id: ID_COUNTER.next(),
-            vertices,
-            indices,
-            data_id: None,
-        }
+        Mesh { mesh_id: ID_COUNTER.next(), vertices, indices, data_id: None }
     }
 
     fn from_cooked(cooked: CookedMesh) -> Self {
@@ -102,10 +92,7 @@ impl Asset for Mesh {
     fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {
         let mut mesh = Mesh::from_cooked(cooked);
         let mesh_data = {
-            let mut backend = resources
-                .get_mut::<ActiveGraphicsBackend>()
-                .none_err()
-                .unwrap();
+            let mut backend = resources.get_mut::<ActiveGraphicsBackend>().none_err().unwrap();
             MeshData::new(&mut backend, &mesh.vertices, &mesh.indices)
         };
         let mut mesh_data_store =

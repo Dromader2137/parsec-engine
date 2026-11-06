@@ -55,25 +55,16 @@ impl Asset for Shader {
             _ => panic!("invalid shader extension"),
         };
         let code = reinterpret_shader_code(spv.as_binary_u8()).unwrap();
-        return CookedShader {
-            shader_type,
-            spirv_compiled_code: code,
-        };
+        return CookedShader { shader_type, spirv_compiled_code: code };
     }
 
     fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {
-        let mut backend = resources
-            .get_mut::<ActiveGraphicsBackend>()
-            .none_err()
-            .unwrap();
+        let mut backend = resources.get_mut::<ActiveGraphicsBackend>().none_err().unwrap();
         let shader_module = ShaderModuleBuilder::default()
             .shader_type(cooked.shader_type)
             .code(&cooked.spirv_compiled_code)
             .build(&mut backend)
             .unwrap();
-        Shader {
-            shader_type: cooked.shader_type,
-            module: shader_module,
-        }
+        Shader { shader_type: cooked.shader_type, module: shader_module }
     }
 }

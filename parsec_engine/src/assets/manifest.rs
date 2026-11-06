@@ -14,11 +14,7 @@ impl AssetDescription {
         asset_type: &'static str,
     ) -> Self {
         let source_file = Path::new(source_file);
-        Self {
-            subresource,
-            source_file,
-            asset_type,
-        }
+        Self { subresource, source_file, asset_type }
     }
 
     pub fn from_name(asset_name: &'static str) -> Option<Self> {
@@ -35,12 +31,7 @@ pub(super) fn combine_into_asset_name(
     source_file: &Path,
     asset_type: &str,
 ) -> String {
-    format!(
-        "{}@{}#{}",
-        subresource,
-        source_file.to_string_lossy(),
-        asset_type
-    )
+    format!("{}@{}#{}", subresource, source_file.to_string_lossy(), asset_type)
 }
 
 fn extract_from_asset_name(asset_name: &'static str) -> Option<AssetDescription> {

@@ -13,10 +13,7 @@ pub struct VulkanMemoryBarrier<'a> {
 
 impl<'a> VulkanMemoryBarrier<'a> {
     pub fn new(src_access: &'a [VulkanAccess], dst_access: &'a [VulkanAccess]) -> Self {
-        Self {
-            src_access,
-            dst_access,
-        }
+        Self { src_access, dst_access }
     }
 
     pub fn raw_memory_barrier(&self) -> ash::vk::MemoryBarrier<'_> {
@@ -40,11 +37,7 @@ impl<'buffer, 'a> VulkanBufferMemoryBarrier<'buffer, 'a> {
         dst_access: &'a [VulkanAccess],
         buffer: &'buffer VulkanBuffer,
     ) -> Self {
-        Self {
-            src_access,
-            dst_access,
-            buffer,
-        }
+        Self { src_access, dst_access, buffer }
     }
 
     pub fn raw_buffer_memory_barrier(&self) -> ash::vk::BufferMemoryBarrier<'_> {
@@ -74,13 +67,7 @@ impl<'image, 'a> VulkanImageMemoryBarrier<'image, 'a> {
         dst_layout: VulkanImageLayout,
         image: &'image Box<dyn VulkanImage>,
     ) -> Self {
-        Self {
-            src_access,
-            dst_access,
-            src_layout,
-            dst_layout,
-            image,
-        }
+        Self { src_access, dst_access, src_layout, dst_layout, image }
     }
 
     pub fn raw_image_memory_barrier(&self) -> ash::vk::ImageMemoryBarrier<'_> {

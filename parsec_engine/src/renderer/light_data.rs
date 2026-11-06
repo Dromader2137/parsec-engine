@@ -59,25 +59,17 @@ impl RendererLights {
             .unwrap();
 
         let resource_layout = PipelineResourceLayoutBuilder::new()
-            .binding(PipelineResourceBindingLayout::new(
-                PipelineBindingType::StorageBuffer,
-                &[PipelineShaderStage::Vertex, PipelineShaderStage::Fragment],
-            ))
+            .binding(PipelineResourceBindingLayout::new(PipelineBindingType::StorageBuffer, &[
+                PipelineShaderStage::Vertex,
+                PipelineShaderStage::Fragment,
+            ]))
             .build(backend)
             .unwrap();
 
         let resource = resource_layout.create_resource(backend).unwrap();
-        resource
-            .bind_buffer(backend, data_buffer.handle(), 0)
-            .unwrap();
+        resource.bind_buffer(backend, data_buffer.handle(), 0).unwrap();
 
-        RendererLights {
-            data,
-            data_buffer,
-            data_changed: false,
-            resource_layout,
-            resource,
-        }
+        RendererLights { data, data_buffer, data_changed: false, resource_layout, resource }
     }
 
     pub fn add_light_data(
@@ -114,10 +106,7 @@ impl RendererLights {
 
     pub fn update_buffer(&self, backend: &mut ActiveGraphicsBackend) {
         backend
-            .update_buffer(
-                self.data_buffer.handle(),
-                BufferContent::from_slice(&[self.data]),
-            )
+            .update_buffer(self.data_buffer.handle(), BufferContent::from_slice(&[self.data]))
             .unwrap();
     }
 
@@ -129,22 +118,13 @@ impl RendererLights {
 }
 
 pub fn update_light_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend = ctx
-        .resources
-        .get_mut::<ActiveGraphicsBackend>()
-        .none_err()?;
+    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let mut light_data = ctx.resources.get_mut::<RendererLights>().none_err()?;
     let mut lights = ctx.world.query::<(Light, Transform)>();
 
     light_data.clear_data();
     for (_, (light, transfrom)) in lights.iter() {
-        light_data.add_light_data(
-            transfrom.position,
-            light.direction,
-            light.up,
-            light.color,
-            20.0,
-        );
+        light_data.add_light_data(transfrom.position, light.direction, light.up, light.color, 20.0);
     }
     light_data.update_buffer(&mut backend);
     Ok(())

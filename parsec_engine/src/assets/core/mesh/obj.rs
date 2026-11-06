@@ -104,10 +104,7 @@ fn parse_floats<const N: usize>(
 ) -> Result<[f32; N], ObjError> {
     let mut out = [0.0; N];
     for value in out.iter_mut() {
-        *value = parts
-            .next()
-            .and_then(|p| p.parse().ok())
-            .ok_or(ObjError::InvalidNumber(line))?;
+        *value = parts.next().and_then(|p| p.parse().ok()).ok_or(ObjError::InvalidNumber(line))?;
     }
     Ok(out)
 }
@@ -122,8 +119,5 @@ fn resolve_index(index: Option<&str>, len: usize, line: usize) -> Result<Option<
         ..0 => len.checked_add_signed(index),
         0 => None,
     };
-    resolved
-        .filter(|&i| i < len)
-        .map(Some)
-        .ok_or(ObjError::InvalidIndex(line))
+    resolved.filter(|&i| i < len).map(Some).ok_or(ObjError::InvalidIndex(line))
 }

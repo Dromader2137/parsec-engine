@@ -27,26 +27,17 @@ impl VulkanPhysicalDevice {
         };
 
         let (physical_device, queue_family_index) = match physical_devices.iter().find_map(|p| {
-            unsafe {
-                instance
-                    .raw_handle()
-                    .get_physical_device_queue_family_properties(*p)
-            }
-            .iter()
-            .enumerate()
-            .find_map(|(index, info)| {
-                let supports_graphic_and_surface =
-                    info.queue_flags.contains(ash::vk::QueueFlags::GRAPHICS)
-                        && initial_surface
-                            .check_surface_support(*p, index as u32)
-                            .unwrap_or(false);
+            unsafe { instance.raw_handle().get_physical_device_queue_family_properties(*p) }
+                .iter()
+                .enumerate()
+                .find_map(|(index, info)| {
+                    let supports_graphic_and_surface = info
+                        .queue_flags
+                        .contains(ash::vk::QueueFlags::GRAPHICS)
+                        && initial_surface.check_surface_support(*p, index as u32).unwrap_or(false);
 
-                if supports_graphic_and_surface {
-                    Some((*p, index as u32))
-                } else {
-                    None
-                }
-            })
+                    if supports_graphic_and_surface { Some((*p, index as u32)) } else { None }
+                })
         }) {
             Some(val) => val,
             None => {
@@ -54,11 +45,8 @@ impl VulkanPhysicalDevice {
             },
         };
 
-        let memory_prop = unsafe {
-            instance
-                .raw_handle()
-                .get_physical_device_memory_properties(physical_device)
-        };
+        let memory_prop =
+            unsafe { instance.raw_handle().get_physical_device_memory_properties(physical_device) };
 
         Ok(VulkanPhysicalDevice {
             physical_device,

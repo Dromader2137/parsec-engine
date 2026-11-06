@@ -39,13 +39,7 @@ impl Image {
         aspect: ImageAspect,
         usage: Vec<ImageUsage>,
     ) -> Image {
-        Image {
-            handle,
-            size,
-            format,
-            aspect,
-            usage,
-        }
+        Image { handle, size, format, aspect, usage }
     }
 
     pub fn handle(&self) -> ImageHandle { self.handle }
@@ -179,13 +173,7 @@ impl<'a> ImageBuilder<'a> {
     pub fn build(self, backend: &mut ActiveGraphicsBackend) -> Result<Image, ImageError> {
         let size = self.size.ok_or(ImageError::InvalidImageSize)?;
         let handle = backend.create_image(size.get_size(), self.format, self.aspect, self.usage)?;
-        Ok(Image::new(
-            handle,
-            size.get_size(),
-            self.format,
-            self.aspect,
-            self.usage.to_vec(),
-        ))
+        Ok(Image::new(handle, size.get_size(), self.format, self.aspect, self.usage.to_vec()))
     }
 }
 

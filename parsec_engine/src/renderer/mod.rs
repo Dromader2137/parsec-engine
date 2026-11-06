@@ -97,10 +97,7 @@ pub struct RendererDepthImage(pub DepthImage);
 pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
 pub fn init_renderer(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend = ctx
-        .resources
-        .get_mut::<ActiveGraphicsBackend>()
-        .none_err()?;
+    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let window = ctx.resources.get::<Window>().none_err()?;
 
     let surface_format = backend.get_surface_format();
@@ -163,8 +160,7 @@ pub fn init_renderer(ctx: Ctx) -> Result<(), ParsecError> {
     ctx.resources.add(image_sync);
     ctx.resources.add(command_lists);
     ctx.resources.add(RendererCurrentFrame(0));
-    ctx.resources
-        .add(RendererFramesInFlight(frames_in_flight as u32));
+    ctx.resources.add(RendererFramesInFlight(frames_in_flight as u32));
     ctx.resources.add(ResizeFlag(false));
     ctx.resources.add(Vec::<Draw>::new());
     ctx.resources.add(IdStore::<MeshData<DefaultVertex>>::new());
@@ -172,12 +168,8 @@ pub fn init_renderer(ctx: Ctx) -> Result<(), ParsecError> {
     ctx.resources.add(IdStore::<MaterialData>::new());
     ctx.resources.add(IdStore::<TransformData>::new());
     ctx.resources.add(IdStore::<CameraData>::new());
-    ctx.resources.add(TransformDataManager {
-        component_to_data: HashMap::new(),
-    });
-    ctx.resources.add(CameraDataManager {
-        component_to_data: HashMap::new(),
-    });
+    ctx.resources.add(TransformDataManager { component_to_data: HashMap::new() });
+    ctx.resources.add(CameraDataManager { component_to_data: HashMap::new() });
     Ok(())
 }
 
@@ -193,17 +185,12 @@ fn recreate_size_dependent_components(
     backend.handle_resize(window).unwrap();
 
     let new_swapchain_image_handles = backend.present_images();
-    for (new_present_image_handle, present_image) in new_swapchain_image_handles
-        .into_iter()
-        .zip(present_images.iter_mut())
+    for (new_present_image_handle, present_image) in
+        new_swapchain_image_handles.into_iter().zip(present_images.iter_mut())
     {
-        present_image
-            .recreate(backend, new_present_image_handle)
-            .unwrap();
+        present_image.recreate(backend, new_present_image_handle).unwrap();
     }
-    depth_image
-        .recreate(backend, ImageSize::new(window.size()).unwrap())
-        .unwrap();
+    depth_image.recreate(backend, ImageSize::new(window.size()).unwrap()).unwrap();
     let mut new_framebuffers = present_images
         .iter()
         .map(|present_image| {
@@ -225,35 +212,20 @@ fn recreate_size_dependent_components(
 }
 
 pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend = ctx
-        .resources
-        .get_mut::<ActiveGraphicsBackend>()
-        .none_err()?;
+    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let mut current_frame = ctx.resources.get_mut::<RendererCurrentFrame>().none_err()?;
     let mut resize = ctx.resources.get_mut::<ResizeFlag>().none_err()?;
-    let frames_in_flight = ctx
-        .resources
-        .get_mut::<RendererFramesInFlight>()
-        .none_err()?;
+    let frames_in_flight = ctx.resources.get_mut::<RendererFramesInFlight>().none_err()?;
     let window = ctx.resources.get::<Window>().none_err()?;
     let frame_sync = ctx.resources.get::<Vec<RendererFrameSync>>().none_err()?;
     let image_sync = ctx.resources.get::<Vec<RendererImageSync>>().none_err()?;
-    let mut present_images = ctx
-        .resources
-        .get_mut::<RendererPresentImages>()
-        .none_err()?;
+    let mut present_images = ctx.resources.get_mut::<RendererPresentImages>().none_err()?;
     let mut depth_image = ctx.resources.get_mut::<RendererDepthImage>().none_err()?;
-    let renderpass = ctx
-        .resources
-        .get_mut::<RendererMainRenderpass>()
-        .none_err()?;
+    let renderpass = ctx.resources.get_mut::<RendererMainRenderpass>().none_err()?;
     let mut framebuffers = ctx.resources.get_mut::<RendererFramebuffers>().none_err()?;
     let mut command_lists = ctx.resources.get_mut::<Vec<CommandList>>().none_err()?;
     let draw_queue = ctx.resources.get::<Vec<Draw>>().none_err()?;
-    let meshes_data = ctx
-        .resources
-        .get::<IdStore<MeshData<DefaultVertex>>>()
-        .none_err()?;
+    let meshes_data = ctx.resources.get::<IdStore<MeshData<DefaultVertex>>>().none_err()?;
     let materials_data = ctx.resources.get::<IdStore<MaterialData>>().none_err()?;
     let material_bases = ctx.resources.get::<IdStore<MaterialBase>>().none_err()?;
     let transforms_data = ctx.resources.get::<IdStore<TransformData>>().none_err()?;
@@ -292,10 +264,8 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
 
     command_list.reset();
     command_list.cmd(Command::Begin);
-    command_list.cmd(Command::BeginRenderpass(
-        shadows.renderpass.handle(),
-        shadows.framebuffer.handle(),
-    ));
+    command_list
+        .cmd(Command::BeginRenderpass(shadows.renderpass.handle(), shadows.framebuffer.handle()));
 
     for draw in draw_queue.iter() {
         match draw {
@@ -327,10 +297,7 @@ pub fn render(ctx: Ctx) -> Result<(), ParsecError> {
     }
 
     command_list.cmd(Command::EndRenderpass);
-    command_list.cmd(Command::BeginRenderpass(
-        renderpass.0.handle(),
-        framebuffer.handle(),
-    ));
+    command_list.cmd(Command::BeginRenderpass(renderpass.0.handle(), framebuffer.handle()));
 
     for draw in draw_queue.iter() {
         match draw {

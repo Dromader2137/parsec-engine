@@ -96,14 +96,9 @@ impl<'a> VulkanDescriptorSetBinding {
             .binding(binding)
             .descriptor_count(1)
             .descriptor_type(descriptor_type.raw_descriptor_type())
-            .stage_flags(VulkanShaderStage::raw_combined_shader_stage(
-                descriptor_stage,
-            ));
+            .stage_flags(VulkanShaderStage::raw_combined_shader_stage(descriptor_stage));
 
-        VulkanDescriptorSetBinding {
-            binding,
-            binding_type: descriptor_type,
-        }
+        VulkanDescriptorSetBinding { binding, binding_type: descriptor_type }
     }
 
     pub fn binding_type(&self) -> VulkanDescriptorType { self.binding_type }
@@ -161,30 +156,19 @@ impl<'a> VulkanDescriptorSetLayout {
 
         let create_info = ash::vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings_raw);
 
-        let layout = match unsafe {
-            device
-                .raw_device()
-                .create_descriptor_set_layout(&create_info, None)
-        } {
-            Ok(val) => val,
-            Err(err) => {
-                return Err(VulkanDescriptorError::SetLayoutCreationError(err));
-            },
-        };
+        let layout =
+            match unsafe { device.raw_device().create_descriptor_set_layout(&create_info, None) } {
+                Ok(val) => val,
+                Err(err) => {
+                    return Err(VulkanDescriptorError::SetLayoutCreationError(err));
+                },
+            };
 
-        Ok(VulkanDescriptorSetLayout {
-            id: ID_COUNTER_LAYOUT.next(),
-            layout,
-            bindings,
-        })
+        Ok(VulkanDescriptorSetLayout { id: ID_COUNTER_LAYOUT.next(), layout, bindings })
     }
 
     pub fn destroy(self, device: &VulkanDevice) {
-        unsafe {
-            device
-                .raw_device()
-                .destroy_descriptor_set_layout(self.layout, None)
-        }
+        unsafe { device.raw_device().destroy_descriptor_set_layout(self.layout, None) }
     }
 
     pub fn get_layout_raw(&self) -> &ash::vk::DescriptorSetLayout { &self.layout }
@@ -273,9 +257,7 @@ impl VulkanDescriptorSet {
             .dst_array_element(0);
 
         unsafe {
-            device
-                .raw_device()
-                .update_descriptor_sets(&[write_info], &[]);
+            device.raw_device().update_descriptor_sets(&[write_info], &[]);
         }
 
         binding.replace(buffer.id());
@@ -322,9 +304,7 @@ impl VulkanDescriptorSet {
             .dst_array_element(0);
 
         unsafe {
-            device
-                .raw_device()
-                .update_descriptor_sets(&[write_info], &[]);
+            device.raw_device().update_descriptor_sets(&[write_info], &[]);
         }
 
         binding.replace((image_view.id(), sampler.id()));
@@ -342,11 +322,7 @@ impl VulkanDescriptorSet {
         self.bindings_state
             .iter()
             .filter_map(|x| {
-                if let DescriptorSetBinding::CombinedSampler(y) = x {
-                    y.map(|x| x.0)
-                } else {
-                    None
-                }
+                if let DescriptorSetBinding::CombinedSampler(y) = x { y.map(|x| x.0) } else { None }
             })
             .collect::<Vec<_>>()
     }

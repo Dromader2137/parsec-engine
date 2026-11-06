@@ -20,11 +20,7 @@ impl<E> From<E> for ParsecError
 where
     E: std::error::Error + Send + Sync + 'static,
 {
-    fn from(value: E) -> Self {
-        Self {
-            error: Box::new(value),
-        }
-    }
+    fn from(value: E) -> Self { Self { error: Box::new(value) } }
 }
 
 #[derive(Debug, thiserror::Error)]

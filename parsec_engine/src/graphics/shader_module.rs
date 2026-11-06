@@ -22,12 +22,7 @@ pub struct ShaderModule {
 }
 
 impl ShaderModule {
-    fn new(handle: ShaderHandle, shader_type: ShaderType) -> Self {
-        Self {
-            handle,
-            shader_type,
-        }
-    }
+    fn new(handle: ShaderHandle, shader_type: ShaderType) -> Self { Self { handle, shader_type } }
 
     pub fn handle(&self) -> ShaderHandle { self.handle }
     pub fn id(&self) -> u32 { self.handle.id }
@@ -48,12 +43,7 @@ impl<'a> Default for ShaderModuleBuilder<'a> {
 }
 
 impl<'a> ShaderModuleBuilder<'a> {
-    pub fn new() -> Self {
-        Self {
-            code: None,
-            shader_type: ShaderType::Vertex,
-        }
-    }
+    pub fn new() -> Self { Self { code: None, shader_type: ShaderType::Vertex } }
 
     pub fn code(mut self, code: &'a [u32]) -> Self {
         self.code = Some(code);

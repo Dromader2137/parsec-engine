@@ -56,10 +56,7 @@ impl App {
             &mut self.resources,
             &mut self.assets,
         ) {
-            panic!(
-                "System triggered with {:?} returned: {}",
-                system_trigger, err
-            );
+            panic!("System triggered with {:?} returned: {}", system_trigger, err);
         }
     }
 }
@@ -77,10 +74,8 @@ impl winit::application::ApplicationHandler for App {
         event: winit::event::DeviceEvent,
     ) {
         if let winit::event::DeviceEvent::MouseMotion { delta } = event {
-            self.resources.add(MouseMovementEvent::delta(Vec2f::new(
-                delta.0 as f32,
-                delta.1 as f32,
-            )));
+            self.resources
+                .add(MouseMovementEvent::delta(Vec2f::new(delta.0 as f32, delta.1 as f32)));
 
             self.execute_system(SystemTrigger::MouseMovement);
 
@@ -96,10 +91,7 @@ impl winit::application::ApplicationHandler for App {
     ) {
         match event {
             winit::event::WindowEvent::KeyboardInput {
-                event:
-                    winit::event::KeyEvent {
-                        state, logical_key, ..
-                    },
+                event: winit::event::KeyEvent { state, logical_key, .. },
                 ..
             } => {
                 let key_code = match logical_key {
@@ -122,10 +114,7 @@ impl winit::application::ApplicationHandler for App {
             winit::event::WindowEvent::Resized(_) => {
                 self.execute_system(SystemTrigger::WindowResized);
             },
-            winit::event::WindowEvent::CursorMoved {
-                device_id: _,
-                position,
-            } => {
+            winit::event::WindowEvent::CursorMoved { device_id: _, position } => {
                 self.resources.add(MouseMovementEvent::position(Vec2f::new(
                     position.x as f32,
                     position.y as f32,
@@ -135,22 +124,14 @@ impl winit::application::ApplicationHandler for App {
 
                 self.resources.remove::<MouseMovementEvent>().unwrap();
             },
-            winit::event::WindowEvent::MouseInput {
-                device_id: _,
-                state,
-                button,
-            } => {
+            winit::event::WindowEvent::MouseInput { device_id: _, state, button } => {
                 self.resources.add(MouseButtonEvent::new(button, state));
 
                 self.execute_system(SystemTrigger::MouseButton);
 
                 self.resources.remove::<MouseButtonEvent>().unwrap();
             },
-            winit::event::WindowEvent::MouseWheel {
-                device_id: _,
-                delta,
-                phase: _,
-            } => {
+            winit::event::WindowEvent::MouseWheel { device_id: _, delta, phase: _ } => {
                 let processed_delta = match delta {
                     winit::event::MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition {
                         x,

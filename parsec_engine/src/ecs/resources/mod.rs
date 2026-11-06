@@ -37,9 +37,7 @@ fn check_circularity(
     if node_id == target_id {
         return true;
     };
-    let resource = resources
-        .get(&node_id)
-        .expect("tried to access a nonexistent resource");
+    let resource = resources.get(&node_id).expect("tried to access a nonexistent resource");
     let mut ret = false;
     for dependency in resource.dependencies.iter() {
         ret |= check_circularity(*dependency, target_id, resources);
@@ -52,11 +50,7 @@ impl Default for Resources {
 }
 
 impl Resources {
-    pub fn new() -> Self {
-        Self {
-            resources: HashMap::new(),
-        }
-    }
+    pub fn new() -> Self { Self { resources: HashMap::new() } }
 
     /// Adds `resource` to global storage. If a resource of type `R` already exists it is
     /// replaced.
@@ -65,8 +59,7 @@ impl Resources {
     /// Adds a box containing `resource` to global storage.
     fn add_boxed(&mut self, resource: Box<dyn ResourceMarker>) {
         let type_id = (*resource).resource_id();
-        self.resources
-            .insert(type_id, ResourceData::new_any(resource));
+        self.resources.insert(type_id, ResourceData::new_any(resource));
     }
 
     pub fn add_dependency<R: ResourceMarker, D: ResourceMarker>(
@@ -93,11 +86,7 @@ impl Resources {
     /// Gets the resource of type `R`.
     pub fn get<'a, R: ResourceMarker>(&'a self) -> Option<Resource<'a, R>> {
         let resource_id = TypeId::of::<R>();
-        let ResourceData {
-            data,
-            borrowing_stats,
-            ..
-        } = &self.resources.get(&resource_id)?;
+        let ResourceData { data, borrowing_stats, .. } = &self.resources.get(&resource_id)?;
         let value = data.downcast_ref()?;
         Resource::new(value, borrowing_stats.clone()).ok()
     }
@@ -105,11 +94,7 @@ impl Resources {
     /// Gets the resource of type `R` mutably.
     pub fn get_mut<'a, R: ResourceMarker>(&'a self) -> Option<ResourceMut<'a, R>> {
         let resource_id = TypeId::of::<R>();
-        let ResourceData {
-            data,
-            borrowing_stats,
-            ..
-        } = &self.resources.get(&resource_id)?;
+        let ResourceData { data, borrowing_stats, .. } = &self.resources.get(&resource_id)?;
         let value = data.downcast_ref()?;
         ResourceMut::new(value, borrowing_stats.clone()).ok()
     }
@@ -131,17 +116,12 @@ impl Resources {
     /// - If there is no resource of type `R`.
     pub fn remove<R: ResourceMarker>(&mut self) -> Result<(), ResourceError> {
         let type_id = TypeId::of::<R>();
-        let resource = self
-            .resources
-            .get(&type_id)
-            .ok_or(ResourceError::ResourceNotFound("UNKNOWN"))?;
+        let resource =
+            self.resources.get(&type_id).ok_or(ResourceError::ResourceNotFound("UNKNOWN"))?;
         if !resource.depended_on.is_empty() {
             return Err(ResourceError::ResourceDependedOn);
         }
-        let mut resource = self
-            .resources
-            .remove(&type_id)
-            .expect("resource doesn't exist");
+        let mut resource = self.resources.remove(&type_id).expect("resource doesn't exist");
         for dependency_id in resource.dependencies.drain() {
             let dependency = self
                 .resources
@@ -167,9 +147,7 @@ fn resource_toposort(
     visited: &mut HashSet<TypeId>,
 ) {
     visited.insert(node_id);
-    let resource = resources
-        .get(&node_id)
-        .expect("tried to access a nonexistent resource");
+    let resource = resources.get(&node_id).expect("tried to access a nonexistent resource");
     for dependency in resource.depended_on.iter() {
         if visited.contains(dependency) {
             continue;
@@ -191,9 +169,7 @@ impl Drop for Resources {
         }
 
         for key in deletion_order {
-            self.resources
-                .remove(&key)
-                .expect("tried to remove a nonexistent resource");
+            self.resources.remove(&key).expect("tried to remove a nonexistent resource");
         }
     }
 }

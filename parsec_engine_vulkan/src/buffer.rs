@@ -69,9 +69,7 @@ impl VulkanBuffer {
             .map_err(VulkanBufferError::AllocationError)?;
 
         unsafe {
-            device
-                .raw_device()
-                .bind_buffer_memory(buffer, memory.raw_memory(), memory_offset)
+            device.raw_device().bind_buffer_memory(buffer, memory.raw_memory(), memory_offset)
         }
         .map_err(VulkanBufferError::BindError)?;
 
@@ -136,9 +134,7 @@ impl VulkanBuffer {
         }
 
         if let Err(err) = unsafe {
-            device
-                .raw_device()
-                .bind_buffer_memory(buffer, memory.raw_memory(), memory_offset)
+            device.raw_device().bind_buffer_memory(buffer, memory.raw_memory(), memory_offset)
         } {
             return Err(VulkanBufferError::BindError(err));
         }
@@ -193,18 +189,9 @@ impl VulkanBuffer {
     }
 
     pub fn destroy(self, device: &VulkanDevice, allocator: &mut VulkanAllocator) {
-        unsafe {
-            device
-                .raw_device()
-                .destroy_buffer(*self.get_buffer_raw(), None)
-        }
+        unsafe { device.raw_device().destroy_buffer(*self.get_buffer_raw(), None) }
 
-        allocator.free(
-            device,
-            self.allocation_id,
-            self.memory_offset,
-            self.memory_size,
-        );
+        allocator.free(device, self.allocation_id, self.memory_offset, self.memory_size);
     }
 
     pub fn get_buffer_raw(&self) -> &ash::vk::Buffer { &self.raw_buffer }

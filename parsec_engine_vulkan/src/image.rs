@@ -66,11 +66,7 @@ impl VulkanImageUsage {
     }
 
     fn raw_combined_image_usage(usage: &[Self]) -> ash::vk::ImageUsageFlags {
-        usage
-            .iter()
-            .fold(ash::vk::ImageUsageFlags::empty(), |acc, v| {
-                acc | v.raw_image_usage()
-            })
+        usage.iter().fold(ash::vk::ImageUsageFlags::empty(), |acc, v| acc | v.raw_image_usage())
     }
 }
 
@@ -218,11 +214,7 @@ pub struct VulkanImageSize {
 
 impl VulkanImageSize {
     pub fn new(size: Vec2u) -> Option<Self> {
-        if size.x == 0 || size.y == 0 {
-            None
-        } else {
-            Some(Self { size })
-        }
+        if size.x == 0 || size.y == 0 { None } else { Some(Self { size }) }
     }
 
     pub fn raw_size(&self) -> Vec2u { self.size }
@@ -296,12 +288,7 @@ impl VulkanImage for VulkanOwnedImage {
     fn raw_image(&self) -> &ash::vk::Image { &self.image }
     fn destroy(&self, device: &VulkanDevice, allocator: &mut VulkanAllocator) {
         unsafe { device.raw_device().destroy_image(*self.raw_image(), None) }
-        allocator.free(
-            device,
-            self.allocation_id,
-            self.memory_offset,
-            self.memory_size,
-        );
+        allocator.free(device, self.allocation_id, self.memory_offset, self.memory_size);
     }
 }
 
@@ -393,9 +380,7 @@ impl VulkanOwnedImage {
             .map_err(VulkanImageError::AllocationError)?;
 
         if let Err(err) = unsafe {
-            device
-                .raw_device()
-                .bind_image_memory(image, memory.raw_memory(), memory_offset)
+            device.raw_device().bind_image_memory(image, memory.raw_memory(), memory_offset)
         } {
             return Err(VulkanImageError::BindError(err));
         };
@@ -431,21 +416,15 @@ impl VulkanImageView {
         let create_info = get_image_view_create_info(image);
 
         match unsafe { device.raw_device().create_image_view(&create_info, None) } {
-            Ok(val) => Ok(VulkanImageView {
-                id: ID_COUNTER_VIEW.next(),
-                image_id: image.id(),
-                view: val,
-            }),
+            Ok(val) => {
+                Ok(VulkanImageView { id: ID_COUNTER_VIEW.next(), image_id: image.id(), view: val })
+            },
             Err(err) => Err(VulkanImageError::ViewCreationError(err)),
         }
     }
 
     pub fn destroy(self, device: &VulkanDevice) {
-        unsafe {
-            device
-                .raw_device()
-                .destroy_image_view(*self.raw_image_view(), None)
-        }
+        unsafe { device.raw_device().destroy_image_view(*self.raw_image_view(), None) }
     }
 
     pub fn raw_image_view(&self) -> &ash::vk::ImageView { &self.view }

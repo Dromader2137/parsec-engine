@@ -45,13 +45,10 @@ impl VulkanSwapchain {
         old_swapchain: Option<&VulkanSwapchain>,
     ) -> Result<(VulkanSwapchain, Vec<VulkanSwapchainImage>), VulkanSwapchainError> {
         let desired_image_count =
-            surface
-                .min_image_count()
-                .max(3)
-                .min(match surface.max_image_count() {
-                    0 => u32::MAX,
-                    val => val,
-                });
+            surface.min_image_count().max(3).min(match surface.max_image_count() {
+                0 => u32::MAX,
+                val => val,
+            });
 
         let surface_resolution = raw_extent_2d(window.size());
 
@@ -93,11 +90,9 @@ impl VulkanSwapchain {
                 Err(err) => return Err(VulkanSwapchainError::CreationError(err)),
             };
 
-        let extent = VulkanImageSize::new(Vec2u::new(
-            surface_resolution.width,
-            surface_resolution.height,
-        ))
-        .ok_or(VulkanSwapchainError::InvalidSize)?;
+        let extent =
+            VulkanImageSize::new(Vec2u::new(surface_resolution.width, surface_resolution.height))
+                .ok_or(VulkanSwapchainError::InvalidSize)?;
 
         let swapchain_images = match unsafe { swapchain_loader.get_swapchain_images(swapchain) } {
             Ok(val) => val
@@ -149,10 +144,8 @@ impl VulkanSwapchain {
         wait_semaphores: &[&VulkanSemaphore],
         image_index: u32,
     ) -> Result<(), VulkanSwapchainError> {
-        let wait_semaphores = wait_semaphores
-            .iter()
-            .map(|x| *x.get_semaphore_raw())
-            .collect::<Vec<_>>();
+        let wait_semaphores =
+            wait_semaphores.iter().map(|x| *x.get_semaphore_raw()).collect::<Vec<_>>();
         let swapchains = [self.swapchain];
         let image_indices = [image_index];
 
@@ -162,8 +155,7 @@ impl VulkanSwapchain {
             .image_indices(&image_indices);
 
         if let Err(err) = unsafe {
-            self.swapchain_loader
-                .queue_present(*present_queue.get_queue_raw(), &present_info)
+            self.swapchain_loader.queue_present(*present_queue.get_queue_raw(), &present_info)
         } {
             if err == ash::vk::Result::ERROR_OUT_OF_DATE_KHR {
                 return Err(VulkanSwapchainError::OutOfDate);
@@ -176,10 +168,7 @@ impl VulkanSwapchain {
     }
 
     pub fn destroy(&self) {
-        unsafe {
-            self.swapchain_loader
-                .destroy_swapchain(self.swapchain, None)
-        }
+        unsafe { self.swapchain_loader.destroy_swapchain(self.swapchain, None) }
     }
 
     pub fn get_swapchain_raw(&self) -> &ash::vk::SwapchainKHR { &self.swapchain }

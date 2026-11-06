@@ -363,19 +363,9 @@ impl Vec2f {
 
     pub fn new(x: f32, y: f32) -> Vec2f { Vec2f { x, y } }
 
-    pub fn from_vec2d(val: Vec2d) -> Vec2f {
-        Vec2f {
-            x: val.x as f32,
-            y: val.y as f32,
-        }
-    }
+    pub fn from_vec2d(val: Vec2d) -> Vec2f { Vec2f { x: val.x as f32, y: val.y as f32 } }
 
-    pub fn to_vec2d(&self) -> Vec2d {
-        Vec2d {
-            x: self.x as f64,
-            y: self.y as f64,
-        }
-    }
+    pub fn to_vec2d(&self) -> Vec2d { Vec2d { x: self.x as f64, y: self.y as f64 } }
 
     pub fn dot(&mut self, vec: Vec2f) -> f32 { self.x * vec.x + self.y * vec.y }
 
@@ -383,63 +373,23 @@ impl Vec2f {
 }
 
 impl Vec3f {
-    pub const ZERO: Vec3f = Vec3f {
-        x: 0.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const ONE: Vec3f = Vec3f {
-        x: 1.0,
-        y: 1.0,
-        z: 1.0,
-    };
-    pub const UP: Vec3f = Vec3f {
-        x: 0.0,
-        y: 1.0,
-        z: 0.0,
-    };
-    pub const DOWN: Vec3f = Vec3f {
-        x: 0.0,
-        y: -1.0,
-        z: 0.0,
-    };
-    pub const LEFT: Vec3f = Vec3f {
-        x: 1.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const RIGHT: Vec3f = Vec3f {
-        x: -1.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const FORWARD: Vec3f = Vec3f {
-        x: 0.0,
-        y: 0.0,
-        z: 1.0,
-    };
-    pub const BACK: Vec3f = Vec3f {
-        x: 0.0,
-        y: 0.0,
-        z: -1.0,
-    };
+    pub const ZERO: Vec3f = Vec3f { x: 0.0, y: 0.0, z: 0.0 };
+    pub const ONE: Vec3f = Vec3f { x: 1.0, y: 1.0, z: 1.0 };
+    pub const UP: Vec3f = Vec3f { x: 0.0, y: 1.0, z: 0.0 };
+    pub const DOWN: Vec3f = Vec3f { x: 0.0, y: -1.0, z: 0.0 };
+    pub const LEFT: Vec3f = Vec3f { x: 1.0, y: 0.0, z: 0.0 };
+    pub const RIGHT: Vec3f = Vec3f { x: -1.0, y: 0.0, z: 0.0 };
+    pub const FORWARD: Vec3f = Vec3f { x: 0.0, y: 0.0, z: 1.0 };
+    pub const BACK: Vec3f = Vec3f { x: 0.0, y: 0.0, z: -1.0 };
 
     pub fn new(x: f32, y: f32, z: f32) -> Vec3f { Vec3f { x, y, z } }
 
     pub fn from_vec3d(val: Vec3d) -> Vec3f {
-        Vec3f {
-            x: val.x as f32,
-            y: val.y as f32,
-            z: val.z as f32,
-        }
+        Vec3f { x: val.x as f32, y: val.y as f32, z: val.z as f32 }
     }
 
     pub fn to_vec3d(&self) -> Vec3d {
-        Vec3d {
-            x: self.x as f64,
-            y: self.y as f64,
-            z: self.z as f64,
-        }
+        Vec3d { x: self.x as f64, y: self.y as f64, z: self.z as f64 }
     }
 
     pub fn dot(&mut self, vec: Vec3f) -> f32 { self.x * vec.x + self.y * vec.y + self.z * vec.z }
@@ -458,11 +408,7 @@ impl Vec3f {
 
     pub fn normalize(&mut self) -> Vec3f {
         let len = self.length();
-        Vec3f {
-            x: self.x / len,
-            y: self.y / len,
-            z: self.z / len,
-        }
+        Vec3f { x: self.x / len, y: self.y / len, z: self.z / len }
     }
 }
 
@@ -476,19 +422,9 @@ impl Vec2d {
 
     pub fn new(x: f64, y: f64) -> Vec2d { Vec2d { x, y } }
 
-    pub fn from_vec2f(val: Vec2f) -> Vec2d {
-        Vec2d {
-            x: val.x as f64,
-            y: val.y as f64,
-        }
-    }
+    pub fn from_vec2f(val: Vec2f) -> Vec2d { Vec2d { x: val.x as f64, y: val.y as f64 } }
 
-    pub fn to_vec2f(&self) -> Vec2f {
-        Vec2f {
-            x: self.x as f32,
-            y: self.y as f32,
-        }
-    }
+    pub fn to_vec2f(&self) -> Vec2f { Vec2f { x: self.x as f32, y: self.y as f32 } }
 
     pub fn dot(&mut self, vec: Vec2d) -> f64 { self.x * vec.x + self.y * vec.y }
 
@@ -496,63 +432,23 @@ impl Vec2d {
 }
 
 impl Vec3d {
-    pub const ZERO: Vec3d = Vec3d {
-        x: 0.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const ONE: Vec3d = Vec3d {
-        x: 1.0,
-        y: 1.0,
-        z: 1.0,
-    };
-    pub const UP: Vec3d = Vec3d {
-        x: 0.0,
-        y: 1.0,
-        z: 0.0,
-    };
-    pub const DOWN: Vec3d = Vec3d {
-        x: 0.0,
-        y: -1.0,
-        z: 0.0,
-    };
-    pub const LEFT: Vec3d = Vec3d {
-        x: 1.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const RIGHT: Vec3d = Vec3d {
-        x: -1.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const FORWARD: Vec3d = Vec3d {
-        x: 0.0,
-        y: 0.0,
-        z: 1.0,
-    };
-    pub const BACK: Vec3d = Vec3d {
-        x: 0.0,
-        y: 0.0,
-        z: -1.0,
-    };
+    pub const ZERO: Vec3d = Vec3d { x: 0.0, y: 0.0, z: 0.0 };
+    pub const ONE: Vec3d = Vec3d { x: 1.0, y: 1.0, z: 1.0 };
+    pub const UP: Vec3d = Vec3d { x: 0.0, y: 1.0, z: 0.0 };
+    pub const DOWN: Vec3d = Vec3d { x: 0.0, y: -1.0, z: 0.0 };
+    pub const LEFT: Vec3d = Vec3d { x: 1.0, y: 0.0, z: 0.0 };
+    pub const RIGHT: Vec3d = Vec3d { x: -1.0, y: 0.0, z: 0.0 };
+    pub const FORWARD: Vec3d = Vec3d { x: 0.0, y: 0.0, z: 1.0 };
+    pub const BACK: Vec3d = Vec3d { x: 0.0, y: 0.0, z: -1.0 };
 
     pub fn new(x: f64, y: f64, z: f64) -> Vec3d { Vec3d { x, y, z } }
 
     pub fn from_vec3f(val: Vec3f) -> Vec3d {
-        Vec3d {
-            x: val.x as f64,
-            y: val.y as f64,
-            z: val.z as f64,
-        }
+        Vec3d { x: val.x as f64, y: val.y as f64, z: val.z as f64 }
     }
 
     pub fn to_vec3f(&self) -> Vec3f {
-        Vec3f {
-            x: self.x as f32,
-            y: self.y as f32,
-            z: self.z as f32,
-        }
+        Vec3f { x: self.x as f32, y: self.y as f32, z: self.z as f32 }
     }
 
     pub fn dot(&mut self, vec: Vec3d) -> f64 { self.x * vec.x + self.y * vec.y + self.z * vec.z }
@@ -571,11 +467,7 @@ impl Vec3d {
 
     pub fn normalize(&mut self) -> Vec3d {
         let len = self.length();
-        Vec3d {
-            x: self.x / len,
-            y: self.y / len,
-            z: self.z / len,
-        }
+        Vec3d { x: self.x / len, y: self.y / len, z: self.z / len }
     }
 }
 
@@ -588,18 +480,8 @@ impl From<Vec3f> for Vec4f {
 }
 
 impl Vec4f {
-    pub const ZERO: Vec4f = Vec4f {
-        x: 0.0,
-        y: 0.0,
-        z: 0.0,
-        w: 0.0,
-    };
-    pub const ONE: Vec4f = Vec4f {
-        x: 1.0,
-        y: 1.0,
-        z: 1.0,
-        w: 1.0,
-    };
+    pub const ZERO: Vec4f = Vec4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 };
+    pub const ONE: Vec4f = Vec4f { x: 1.0, y: 1.0, z: 1.0, w: 1.0 };
 
     pub fn new(x: f32, y: f32, z: f32, w: f32) -> Vec4f { Vec4f { x, y, z, w } }
 
@@ -609,11 +491,6 @@ impl Vec4f {
 
     pub fn normalize_xyz(&mut self) -> Vec4f {
         let len = self.length_xyz();
-        Vec4f {
-            x: self.x / len,
-            y: self.y / len,
-            z: self.z / len,
-            w: self.w,
-        }
+        Vec4f { x: self.x / len, y: self.y / len, z: self.z / len, w: self.w }
     }
 }

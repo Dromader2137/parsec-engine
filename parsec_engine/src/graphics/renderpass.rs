@@ -18,10 +18,7 @@ pub struct Renderpass {
 
 impl Renderpass {
     fn new(handle: RenderpassHandle, attachments: Vec<RenderpassAttachment>) -> Self {
-        Self {
-            handle,
-            attachments,
-        }
+        Self { handle, attachments }
     }
 
     pub fn handle(&self) -> RenderpassHandle { self.handle }
@@ -42,11 +39,7 @@ impl Default for RenderpassBuilder {
 }
 
 impl RenderpassBuilder {
-    pub fn new() -> Self {
-        Self {
-            attachments: Vec::new(),
-        }
-    }
+    pub fn new() -> Self { Self { attachments: Vec::new() } }
 
     pub fn attachment(mut self, attachment: RenderpassAttachment) -> Self {
         self.attachments.push(attachment);

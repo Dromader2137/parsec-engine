@@ -41,15 +41,10 @@ impl VulkanClearValue {
     pub fn raw_clear_value(&self) -> ash::vk::ClearValue {
         match self {
             VulkanClearValue::Color(col) => ash::vk::ClearValue {
-                color: ash::vk::ClearColorValue {
-                    float32: [col.x, col.y, col.z, col.w],
-                },
+                color: ash::vk::ClearColorValue { float32: [col.x, col.y, col.z, col.w] },
             },
             VulkanClearValue::Depth(d) => ash::vk::ClearValue {
-                depth_stencil: ash::vk::ClearDepthStencilValue {
-                    depth: *d,
-                    stencil: 0,
-                },
+                depth_stencil: ash::vk::ClearDepthStencilValue { depth: *d, stencil: 0 },
             },
         }
     }
@@ -217,9 +212,7 @@ impl VulkanRenderpass {
             .dependencies(&subpass_dependency);
 
         let renderpass = match unsafe {
-            device
-                .raw_device()
-                .create_render_pass(&renderpass_create_info, None)
+            device.raw_device().create_render_pass(&renderpass_create_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanRenderpassError::CreationError(err)),
@@ -234,11 +227,7 @@ impl VulkanRenderpass {
     }
 
     pub fn destroy(self, device: &VulkanDevice) {
-        unsafe {
-            device
-                .raw_device()
-                .destroy_render_pass(self.renderpass, None)
-        }
+        unsafe { device.raw_device().destroy_render_pass(self.renderpass, None) }
     }
 
     pub fn raw_handle(&self) -> &ash::vk::RenderPass { &self.renderpass }

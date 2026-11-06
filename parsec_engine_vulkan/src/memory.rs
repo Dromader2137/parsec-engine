@@ -27,11 +27,7 @@ impl VulkanMemory {
                 .map_err(VulkanMemoryError::AllocateMemoryError)?
         };
 
-        Ok(VulkanMemory {
-            raw_memory: memory,
-            properties: memory_properties,
-            size: memory_size,
-        })
+        Ok(VulkanMemory { raw_memory: memory, properties: memory_properties, size: memory_size })
     }
 
     pub fn size(&self) -> u64 { self.size }

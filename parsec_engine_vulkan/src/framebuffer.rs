@@ -44,9 +44,7 @@ impl VulkanFramebuffer {
             .layers(1);
 
         let raw_framebuffer = match unsafe {
-            device
-                .raw_device()
-                .create_framebuffer(&frame_buffer_create_info, None)
+            device.raw_device().create_framebuffer(&frame_buffer_create_info, None)
         } {
             Ok(val) => val,
             Err(err) => return Err(VulkanFramebufferError::CreationError(err)),
@@ -62,11 +60,7 @@ impl VulkanFramebuffer {
     }
 
     pub fn destroy(self, device: &VulkanDevice) {
-        unsafe {
-            device
-                .raw_device()
-                .destroy_framebuffer(self.raw_framebuffer, None)
-        }
+        unsafe { device.raw_device().destroy_framebuffer(self.raw_framebuffer, None) }
     }
 
     pub fn raw_handle(&self) -> &ash::vk::Framebuffer { &self.raw_framebuffer }

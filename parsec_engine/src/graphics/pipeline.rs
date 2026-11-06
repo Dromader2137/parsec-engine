@@ -34,14 +34,7 @@ impl Pipeline {
         renderpass: RenderpassHandle,
         options: PipelineOptions,
     ) -> Self {
-        Self {
-            handle,
-            resource_layouts,
-            vertex_shader,
-            fragment_shader,
-            renderpass,
-            options,
-        }
+        Self { handle, resource_layouts, vertex_shader, fragment_shader, renderpass, options }
     }
 
     pub fn handle(&self) -> PipelineHandle { self.handle }
@@ -111,12 +104,8 @@ impl PipelineBuilder {
     }
 
     pub fn build(self, backend: &mut ActiveGraphicsBackend) -> Result<Pipeline, PipelineError> {
-        let vs = self
-            .vertex_shader
-            .ok_or(PipelineError::VertexShaderNotSet)?;
-        let fs = self
-            .fragment_shader
-            .ok_or(PipelineError::FragmentShaderNotSet)?;
+        let vs = self.vertex_shader.ok_or(PipelineError::VertexShaderNotSet)?;
+        let fs = self.fragment_shader.ok_or(PipelineError::FragmentShaderNotSet)?;
         let renderpass = self.renderpass.ok_or(PipelineError::RenderpassNotSet)?;
         let handle = backend.create_pipeline(
             vs,
@@ -125,14 +114,7 @@ impl PipelineBuilder {
             &self.resource_layouts,
             self.options.clone(),
         )?;
-        Ok(Pipeline::new(
-            handle,
-            self.resource_layouts,
-            vs,
-            fs,
-            renderpass,
-            self.options,
-        ))
+        Ok(Pipeline::new(handle, self.resource_layouts, vs, fs, renderpass, self.options))
     }
 }
 
@@ -193,11 +175,7 @@ impl Default for PipelineResourceLayoutBuilder {
 }
 
 impl PipelineResourceLayoutBuilder {
-    pub fn new() -> Self {
-        Self {
-            bindings: Vec::new(),
-        }
-    }
+    pub fn new() -> Self { Self { bindings: Vec::new() } }
 
     pub fn binding(mut self, binding: PipelineResourceBindingLayout) -> Self {
         self.bindings.push(binding);
@@ -276,10 +254,7 @@ impl PipelineResourceBindingLayout {
         binding_type: PipelineBindingType,
         shader_stages: &[PipelineShaderStage],
     ) -> PipelineResourceBindingLayout {
-        PipelineResourceBindingLayout {
-            binding_type,
-            shader_stages: shader_stages.to_vec(),
-        }
+        PipelineResourceBindingLayout { binding_type, shader_stages: shader_stages.to_vec() }
     }
 }
 
@@ -332,18 +307,10 @@ pub struct DefaultVertex {
 impl Vertex for DefaultVertex {
     fn fields() -> Vec<VertexField> {
         vec![
-            VertexField {
-                format: VertexFieldFormat::Vec3,
-            },
-            VertexField {
-                format: VertexFieldFormat::Vec3,
-            },
-            VertexField {
-                format: VertexFieldFormat::Vec3,
-            },
-            VertexField {
-                format: VertexFieldFormat::Vec2,
-            },
+            VertexField { format: VertexFieldFormat::Vec3 },
+            VertexField { format: VertexFieldFormat::Vec3 },
+            VertexField { format: VertexFieldFormat::Vec3 },
+            VertexField { format: VertexFieldFormat::Vec2 },
         ]
     }
 }
@@ -373,9 +340,7 @@ pub struct PipelineOptions {
 impl Default for PipelineOptions {
     fn default() -> Self {
         PipelineOptions {
-            vertex_layout: PipelineVertexLayout {
-                fields: DefaultVertex::fields(),
-            },
+            vertex_layout: PipelineVertexLayout { fields: DefaultVertex::fields() },
             culling_mode: PipelineCullingMode::None,
         }
     }
@@ -383,12 +348,7 @@ impl Default for PipelineOptions {
 
 impl PipelineOptions {
     pub fn new<V: Vertex>(culling_mode: PipelineCullingMode) -> Self {
-        Self {
-            vertex_layout: PipelineVertexLayout {
-                fields: V::fields(),
-            },
-            culling_mode,
-        }
+        Self { vertex_layout: PipelineVertexLayout { fields: V::fields() }, culling_mode }
     }
 }
 

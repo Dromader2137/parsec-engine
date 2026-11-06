@@ -35,12 +35,7 @@ impl<V: Vertex> MeshBuffer<V> {
             .build(backend)
             .unwrap();
 
-        MeshBuffer {
-            vertex_buffer,
-            index_buffer,
-            len: indices.len() as u32,
-            _marker: PhantomData,
-        }
+        MeshBuffer { vertex_buffer, index_buffer, len: indices.len() as u32, _marker: PhantomData }
     }
 
     pub fn record_draw_commands(&self, command_list: &mut CommandList) {
@@ -73,10 +68,7 @@ impl<V: Vertex> MeshData<V> {
         indices: &[u32],
     ) -> MeshData<V> {
         let buffer = MeshBuffer::new(backend, vertices, indices);
-        MeshData {
-            mesh_data_id: ID_COUNTER.next(),
-            buffer,
-        }
+        MeshData { mesh_data_id: ID_COUNTER.next(), buffer }
     }
 
     pub fn record_commands(&self, command_list: &mut CommandList) {
@@ -84,8 +76,7 @@ impl<V: Vertex> MeshData<V> {
     }
 
     pub fn record_commands_instanced(&self, command_list: &mut CommandList, instance_count: u32) {
-        self.buffer
-            .record_draw_commands_instanced(command_list, instance_count);
+        self.buffer.record_draw_commands_instanced(command_list, instance_count);
     }
 }
 

@@ -23,11 +23,7 @@ pub struct GraphicsBundle<B: GraphicsBackend> {
 }
 
 impl<B: GraphicsBackend> Default for GraphicsBundle<B> {
-    fn default() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
-    }
+    fn default() -> Self { Self { _marker: PhantomData } }
 }
 
 impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
@@ -39,9 +35,7 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
                 ActiveGraphicsBackend::with_backend::<B>(&window)?
             };
             ctx.resources.add(backend);
-            ctx.resources
-                .add_dependency::<ActiveGraphicsBackend, Window>()
-                .unwrap();
+            ctx.resources.add_dependency::<ActiveGraphicsBackend, Window>().unwrap();
             Ok(())
         });
         systems.add(SystemTrigger::LateStart, init_renderer);
@@ -70,10 +64,7 @@ fn request_redraw(ctx: Ctx) -> Result<(), ParsecError> {
 }
 
 fn end_wait_idle(ctx: Ctx) -> Result<(), ParsecError> {
-    ctx.resources
-        .get::<ActiveGraphicsBackend>()
-        .none_err()?
-        .wait_idle();
+    ctx.resources.get::<ActiveGraphicsBackend>().none_err()?.wait_idle();
     Ok(())
 }
 
@@ -98,15 +89,11 @@ fn auto_enqueue(ctx: Ctx) -> Result<(), ParsecError> {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
             let mesh_asset = ctx.assets.get::<Mesh>(mesh_renderer.mesh).none_err()?;
             if mesh_asset.data_id.is_none()
-                || !camera_data_manager
-                    .component_to_data
-                    .contains_key(&camera.camera_id())
+                || !camera_data_manager.component_to_data.contains_key(&camera.camera_id())
                 || !transform_data_manager
                     .component_to_data
                     .contains_key(&camera_transform.transform_id())
-                || !transform_data_manager
-                    .component_to_data
-                    .contains_key(&transform.transform_id())
+                || !transform_data_manager.component_to_data.contains_key(&transform.transform_id())
             {
                 continue;
             }

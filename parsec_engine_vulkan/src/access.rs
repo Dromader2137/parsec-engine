@@ -50,8 +50,6 @@ impl VulkanAccess {
     }
 
     pub fn raw_combined_access_flag(access: &[Self]) -> ash::vk::AccessFlags {
-        access.iter().fold(ash::vk::AccessFlags::empty(), |acc, x| {
-            acc | x.raw_access_flag()
-        })
+        access.iter().fold(ash::vk::AccessFlags::empty(), |acc, x| acc | x.raw_access_flag())
     }
 }

@@ -12,3 +12,4 @@ match_block_trailing_comma = true
 hex_literal_case = "Upper"
 format_strings = true
 fn_single_line = true
+use_small_heuristics = "Max"

@@ -19,10 +19,7 @@ pub enum VulkanQueueError {
 impl VulkanQueue {
     pub fn present(device: &VulkanDevice, family_index: u32) -> VulkanQueue {
         let raw_queue = unsafe { device.raw_device().get_device_queue(family_index, 0) };
-        VulkanQueue {
-            queue: raw_queue,
-            internal_semaphore: None,
-        }
+        VulkanQueue { queue: raw_queue, internal_semaphore: None }
     }
 
     pub fn submit(
@@ -35,29 +32,17 @@ impl VulkanQueue {
         wait_dst_stage: VulkanPipelineStage,
         image_map: &mut HashMap<u32, Box<dyn VulkanImage>>,
     ) -> Result<(), VulkanQueueError> {
-        let raw_command_buffers = command_buffers
-            .iter()
-            .map(|x| *x.raw_command_buffer())
-            .collect::<Vec<_>>();
-        let mut wait_semaphores = wait_semaphores
-            .iter()
-            .map(|x| *x.get_semaphore_raw())
-            .collect::<Vec<_>>();
-        let mut signal_semaphores = signal_semaphores
-            .iter()
-            .map(|x| *x.get_semaphore_raw())
-            .collect::<Vec<_>>();
+        let raw_command_buffers =
+            command_buffers.iter().map(|x| *x.raw_command_buffer()).collect::<Vec<_>>();
+        let mut wait_semaphores =
+            wait_semaphores.iter().map(|x| *x.get_semaphore_raw()).collect::<Vec<_>>();
+        let mut signal_semaphores =
+            signal_semaphores.iter().map(|x| *x.get_semaphore_raw()).collect::<Vec<_>>();
         match self.internal_semaphore.clone() {
             Some(sem) => wait_semaphores.push(*sem.get_semaphore_raw()),
             None => self.internal_semaphore = Some(VulkanSemaphore::new(device).unwrap()),
         }
-        signal_semaphores.push(
-            *self
-                .internal_semaphore
-                .as_ref()
-                .unwrap()
-                .get_semaphore_raw(),
-        );
+        signal_semaphores.push(*self.internal_semaphore.as_ref().unwrap().get_semaphore_raw());
 
         let pipeline_stage = &[wait_dst_stage.raw_pipeline_stage()];
         let submit_info = ash::vk::SubmitInfo::default()

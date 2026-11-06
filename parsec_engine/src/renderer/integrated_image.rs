@@ -57,25 +57,15 @@ impl<'a> IntegratedImageBuilder<'a> {
             .aspect(self.aspect)
             .usage(self.usage)
             .build(backend)?;
-        let view = ImageViewBuilder::new()
-            .image(image.handle())
-            .build(backend)?;
+        let view = ImageViewBuilder::new().image(image.handle()).build(backend)?;
         let sampler = SamplerBuilder::new().build(backend)?;
-        Ok(IntegratedImage {
-            image,
-            view,
-            sampler,
-        })
+        Ok(IntegratedImage { image, view, sampler })
     }
 }
 
 impl IntegratedImage {
     pub fn new(image: Image, view: ImageView, sampler: Sampler) -> Self {
-        Self {
-            image,
-            view,
-            sampler,
-        }
+        Self { image, view, sampler }
     }
 
     pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), ParsecError> {

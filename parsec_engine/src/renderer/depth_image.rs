@@ -26,13 +26,8 @@ impl DepthImage {
             .aspect(ImageAspect::Depth)
             .usage(&[ImageUsage::DepthAttachment])
             .build(backend)?;
-        let image_view = ImageViewBuilder::new()
-            .image(image.handle())
-            .build(backend)?;
-        Ok(DepthImage {
-            image: Some(image),
-            image_view: Some(image_view),
-        })
+        let image_view = ImageViewBuilder::new().image(image.handle()).build(backend)?;
+        Ok(DepthImage { image: Some(image), image_view: Some(image_view) })
     }
 
     pub fn recreate(
@@ -48,9 +43,7 @@ impl DepthImage {
             .aspect(ImageAspect::Depth)
             .usage(&[ImageUsage::DepthAttachment])
             .build(backend)?;
-        let image_view = ImageViewBuilder::new()
-            .image(image.handle())
-            .build(backend)?;
+        let image_view = ImageViewBuilder::new().image(image.handle()).build(backend)?;
         self.image = Some(image);
         self.image_view = Some(image_view);
         Ok(())

@@ -68,9 +68,7 @@ pub struct VulkanAllocator {
 
 impl VulkanAllocator {
     pub fn new() -> VulkanAllocator {
-        VulkanAllocator {
-            allocations_by_type: std::array::from_fn(|_| Vec::new()),
-        }
+        VulkanAllocator { allocations_by_type: std::array::from_fn(|_| Vec::new()) }
     }
 
     pub fn get_memory(
@@ -100,20 +98,14 @@ impl VulkanAllocator {
             }
         }
 
-        allocations.push(VulkanAllocation::new(
-            device,
-            memory_type,
-            memory_id,
-            1 << 28,
-        )?);
+        allocations.push(VulkanAllocation::new(device, memory_type, memory_id, 1 << 28)?);
 
-        let allocation = allocations
-            .last_mut()
-            .expect("There always is an allocation at this point!");
+        let allocation =
+            allocations.last_mut().expect("There always is an allocation at this point!");
 
-        allocation.try_get_free_memory(memory_requirements).ok_or(
-            VulkanAllocationError::UnableToAllocateThisSize(memory_requirements.size),
-        )
+        allocation
+            .try_get_free_memory(memory_requirements)
+            .ok_or(VulkanAllocationError::UnableToAllocateThisSize(memory_requirements.size))
     }
 
     pub fn free(&mut self, device: &VulkanDevice, allocation_id: u32, offset: u64, size: u64) {

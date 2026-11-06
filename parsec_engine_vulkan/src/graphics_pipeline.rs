@@ -30,11 +30,7 @@ impl VulkanShaderStage {
     }
 
     pub fn raw_combined_shader_stage(usage: &[Self]) -> ash::vk::ShaderStageFlags {
-        usage
-            .iter()
-            .fold(ash::vk::ShaderStageFlags::empty(), |acc, v| {
-                acc | v.raw_shader_stage()
-            })
+        usage.iter().fold(ash::vk::ShaderStageFlags::empty(), |acc, v| acc | v.raw_shader_stage())
     }
 }
 
@@ -132,18 +128,14 @@ impl VulkanGraphicsPipeline {
         descriptor_set_layouts: &Vec<VulkanDescriptorSetLayout>,
         options: VulkanPipelineOptions,
     ) -> Result<VulkanGraphicsPipeline, VulkanGraphicsPipelineError> {
-        let set_layouts: Vec<_> = descriptor_set_layouts
-            .iter()
-            .map(|x| *x.get_layout_raw())
-            .collect();
+        let set_layouts: Vec<_> =
+            descriptor_set_layouts.iter().map(|x| *x.get_layout_raw()).collect();
 
         let layout_create_info =
             ash::vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
 
         let pipeline_layout = match unsafe {
-            device
-                .raw_device()
-                .create_pipeline_layout(&layout_create_info, None)
+            device.raw_device().create_pipeline_layout(&layout_create_info, None)
         } {
             Ok(val) => val,
             Err(err) => {
@@ -206,10 +198,7 @@ impl VulkanGraphicsPipeline {
             .logic_op(ash::vk::LogicOp::CLEAR)
             .attachments(&color_blend_attachment_states);
 
-        let dynamic_state = [
-            ash::vk::DynamicState::VIEWPORT,
-            ash::vk::DynamicState::SCISSOR,
-        ];
+        let dynamic_state = [ash::vk::DynamicState::VIEWPORT, ash::vk::DynamicState::SCISSOR];
         let dynamic_state_info =
             ash::vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&dynamic_state);
 
@@ -304,12 +293,8 @@ impl VulkanGraphicsPipeline {
 
     pub fn destroy(self, device: &VulkanDevice) {
         unsafe {
-            device
-                .raw_device()
-                .destroy_pipeline(self.graphics_pipeline, None);
-            device
-                .raw_device()
-                .destroy_pipeline_layout(self.graphics_pipeline_layout, None);
+            device.raw_device().destroy_pipeline(self.graphics_pipeline, None);
+            device.raw_device().destroy_pipeline_layout(self.graphics_pipeline_layout, None);
         }
     }
 

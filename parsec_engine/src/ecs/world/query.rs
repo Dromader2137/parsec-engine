@@ -22,22 +22,11 @@ impl<T: Fetch> Query<T> {
         let archetypes = world
             .archetypes
             .iter()
-            .filter_map(|(id, arch)| {
-                if id.contains(&archetype_id) {
-                    Some(arch)
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(id, arch)| if id.contains(&archetype_id) { Some(arch) } else { None })
             .collect::<Vec<_>>();
-        let fetches = archetypes
-            .iter()
-            .map(|arch| T::prepare(arch))
-            .collect::<Result<Vec<_>, _>>()?;
-        let entities = archetypes
-            .iter()
-            .map(|arch| arch.entities.clone())
-            .collect();
+        let fetches =
+            archetypes.iter().map(|arch| T::prepare(arch)).collect::<Result<Vec<_>, _>>()?;
+        let entities = archetypes.iter().map(|arch| arch.entities.clone()).collect();
         Ok(Query { fetches, entities })
     }
 
@@ -93,9 +82,6 @@ impl<'a, T: Fetch + 'static> Iterator for QueryIter<'a, T> {
         let state = self.query.fetches[self.outside_idx].clone();
         let inside_idx = self.inside_idx;
         self.inside_idx += 1;
-        Some((
-            self.query.entities[self.outside_idx][inside_idx],
-            T::get(state, inside_idx),
-        ))
+        Some((self.query.entities[self.outside_idx][inside_idx], T::get(state, inside_idx)))
     }
 }

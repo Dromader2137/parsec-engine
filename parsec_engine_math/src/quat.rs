@@ -54,12 +54,7 @@ impl MulAssign<Quat> for Vec3f {
 }
 
 impl Quat {
-    pub const IDENTITY: Quat = Quat {
-        r: 1.0,
-        i: 0.0,
-        j: 0.0,
-        k: 0.0,
-    };
+    pub const IDENTITY: Quat = Quat { r: 1.0, i: 0.0, j: 0.0, k: 0.0 };
 
     pub fn new(r: f32, i: f32, j: f32, k: f32) -> Quat { Quat { i, j, k, r } }
 

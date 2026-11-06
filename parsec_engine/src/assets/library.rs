@@ -17,21 +17,11 @@ pub struct AssetHandle<T: Asset> {
 }
 
 impl<T: Asset> Clone for AssetHandle<T> {
-    fn clone(&self) -> Self {
-        Self {
-            asset_id: self.asset_id,
-            _marker: PhantomData,
-        }
-    }
+    fn clone(&self) -> Self { Self { asset_id: self.asset_id, _marker: PhantomData } }
 }
 impl<T: Asset> Copy for AssetHandle<T> {}
 impl<T: Asset> AssetHandle<T> {
-    pub(crate) fn new(asset_id: AssetId) -> Self {
-        Self {
-            asset_id,
-            _marker: PhantomData,
-        }
-    }
+    pub(crate) fn new(asset_id: AssetId) -> Self { Self { asset_id, _marker: PhantomData } }
 }
 
 #[derive(Debug, Default)]
@@ -101,10 +91,7 @@ impl AssetLibrary {
     }
 
     pub fn source_file_by_path(&self, path: &Path) -> Option<AssetSourceId> {
-        self.files
-            .iter()
-            .find(|(_, file)| file.filepath == path)
-            .map(|(&id, _)| id)
+        self.files.iter().find(|(_, file)| file.filepath == path).map(|(&id, _)| id)
     }
 
     pub fn source_file(&self, source_id: AssetSourceId) -> Option<&AssetSourceFile> {
@@ -162,25 +149,22 @@ impl AssetLibrary {
 
         let source_file_meta = std::fs::metadata(source_file)?;
         let source_modified = source_file_meta.modified()?;
-        let source_modified_duration = source_modified
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_millis();
+        let source_modified_duration =
+            source_modified.duration_since(SystemTime::UNIX_EPOCH)?.as_millis();
 
         let cooked_path = cooked_path(asset_name);
-        let cooked = if cooked_path.is_file() {
-            Ok(())
-        } else {
-            self.cook_source_file(&source_file)
-        }
-        .and_then(|()| std::fs::read(&cooked_path).map_err(ParsecError::from))
-        .and_then(|bytes| {
-            postcard::from_bytes::<(u128, T::Cooked)>(&bytes).map_err(ParsecError::from)
-        });
+        let cooked =
+            if cooked_path.is_file() { Ok(()) } else { self.cook_source_file(&source_file) }
+                .and_then(|()| std::fs::read(&cooked_path).map_err(ParsecError::from))
+                .and_then(|bytes| {
+                    postcard::from_bytes::<(u128, T::Cooked)>(&bytes).map_err(ParsecError::from)
+                });
 
         match cooked {
             Ok((cook_timestamp, mut cooked)) => {
                 if source_modified_duration != cook_timestamp {
-                    let (_, new_cooked) = self.cook_source_file(&source_file)
+                    let (_, new_cooked) = self
+                        .cook_source_file(&source_file)
                         .and_then(|()| std::fs::read(&cooked_path).map_err(ParsecError::from))
                         .and_then(|bytes| {
                             postcard::from_bytes::<(u128, T::Cooked)>(&bytes)

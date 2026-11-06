@@ -42,12 +42,7 @@ pub enum Command {
 pub struct ImageBarrier {}
 
 impl CommandList {
-    pub fn new(id: u32) -> CommandList {
-        CommandList {
-            id,
-            commands: Vec::new(),
-        }
-    }
+    pub fn new(id: u32) -> CommandList { CommandList { id, commands: Vec::new() } }
 
     pub fn reset(&mut self) { self.commands.clear(); }
 

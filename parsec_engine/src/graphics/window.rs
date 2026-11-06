@@ -85,9 +85,7 @@ impl Window {
             _ => winit::window::CursorGrabMode::None,
         };
 
-        self.window
-            .set_cursor_grab(new_mode)
-            .map_err(WindowError::SetCursorModeError)?;
+        self.window.set_cursor_grab(new_mode).map_err(WindowError::SetCursorModeError)?;
 
         self.cursor_mode = new_mode;
         Ok(())

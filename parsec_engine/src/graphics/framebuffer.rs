@@ -30,12 +30,7 @@ impl Framebuffer {
         renderpass: RenderpassHandle,
         size: Vec2u,
     ) -> Self {
-        Self {
-            handle,
-            attachments,
-            renderpass,
-            size,
-        }
+        Self { handle, attachments, renderpass, size }
     }
 
     pub fn handle(&self) -> FramebufferHandle { self.handle }
@@ -60,13 +55,7 @@ impl Default for FramebufferBuilder {
 }
 
 impl FramebufferBuilder {
-    pub fn new() -> Self {
-        Self {
-            attachments: Vec::new(),
-            size: None,
-            renderpass: None,
-        }
-    }
+    pub fn new() -> Self { Self { attachments: Vec::new(), size: None, renderpass: None } }
 
     pub fn attachment(mut self, view: ImageViewHandle) -> Self {
         self.attachments.push(view);

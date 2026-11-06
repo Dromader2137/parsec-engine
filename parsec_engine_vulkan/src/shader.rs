@@ -40,11 +40,7 @@ impl VulkanShaderModule {
     }
 
     pub fn destroy(self, device: &VulkanDevice) {
-        unsafe {
-            device
-                .raw_device()
-                .destroy_shader_module(self.raw_shader_module, None)
-        }
+        unsafe { device.raw_device().destroy_shader_module(self.raw_shader_module, None) }
     }
 
     pub fn raw_handle(&self) -> &ash::vk::ShaderModule { &self.raw_shader_module }

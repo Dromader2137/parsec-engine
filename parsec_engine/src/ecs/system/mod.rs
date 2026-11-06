@@ -48,11 +48,7 @@ pub struct Systems {
 }
 
 impl Systems {
-    pub fn new() -> Systems {
-        Systems {
-            systems: HashMap::new(),
-        }
-    }
+    pub fn new() -> Systems { Systems { systems: HashMap::new() } }
 
     fn get_systems_by_trigger(
         &mut self,
@@ -119,10 +115,7 @@ where
 {
     type ResultingSystem = FunctionSystem<F, CtxMarker>;
     fn into_system(self) -> Self::ResultingSystem {
-        FunctionSystem {
-            function: self,
-            _marker: PhantomData,
-        }
+        FunctionSystem { function: self, _marker: PhantomData }
     }
 }
 impl<F> System for FunctionSystem<F, CtxMarker>
@@ -141,10 +134,7 @@ where
 {
     type ResultingSystem = FunctionSystem<F, CtxResultMarker>;
     fn into_system(self) -> Self::ResultingSystem {
-        FunctionSystem {
-            function: self,
-            _marker: PhantomData,
-        }
+        FunctionSystem { function: self, _marker: PhantomData }
     }
 }
 impl<F> System for FunctionSystem<F, CtxResultMarker>
