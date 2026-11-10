@@ -1,37 +1,49 @@
 use parsec_engine::{
-    app::App, assets::core::{
-        mesh::{Mesh, obj::ObjFileHandler}, shader::{
+    app::App,
+    assets::core::{
+        mesh::{Mesh, obj::ObjFileHandler},
+        shader::{
             Shader,
             file_handler::{FragmentShaderFileHandler, VertexShaderFileHandler},
-        }, texture::{Texture, png::PngFileHandler},
-    }, ctx::Ctx, ecs::{
+        },
+        texture::{Texture, png::PngFileHandler},
+    },
+    ctx::Ctx,
+    ecs::{
         system::SystemTrigger,
         world::{component::Component, fetch::Mut},
-    }, error::{OptionNoneErr, ParsecError}, graphics::{
+    },
+    error::{OptionNoneErr, ParsecError},
+    graphics::{
         ActiveGraphicsBackend,
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode, PipelineOptions,
             PipelineResourceBindingLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         window::Window,
-    }, input::{Input, InputBundle}, math::{quat::Quat, vec::Vec3f}, renderer::{
+    },
+    input::{Input, InputBundle},
+    math::{quat::Quat, vec::Vec3f},
+    renderer::{
         RendererMainRenderpass,
         components::{
             camera::Camera, light::Light, mesh_renderer::MeshRenderer, transform::Transform,
         },
         graphics_bundle::GraphicsBundle,
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
-    }, time::{Time, TimeBundle}, utils::identifiable::IdStore,
+    },
+    time::{Time, TimeBundle},
+    utils::identifiable::IdStore,
 };
 use parsec_engine_vulkan::VulkanBackend;
 
 fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
-    let vertex_shader_handle =
+    let (vertex_shader, _) =
         ctx.assets.load::<Shader>("main@shaders/simple.vert#shader", ctx.resources)?;
-    let fragment_shader_handle =
+    let (fragment_shader, _) =
         ctx.assets.load::<Shader>("main@shaders/multilight.frag#shader", ctx.resources)?;
-    let mesh_handle = ctx.assets.load::<Mesh>("Cube@test.obj#mesh", ctx.resources)?;
-    let texture_handle = ctx.assets.load::<Texture>("@test.png#texture", ctx.resources)?;
+    let (_, mesh_handle) = ctx.assets.load::<Mesh>("Cube@test.obj#mesh", ctx.resources)?;
+    let (texture, _) = ctx.assets.load::<Texture>("@test.png#texture", ctx.resources)?;
 
     let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
     let mut materials = ctx.resources.get_mut::<IdStore<MaterialData>>().none_err()?;
@@ -40,8 +52,8 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
 
     let material_base = MaterialBase::new(
         &mut backend,
-        ctx.assets.get(vertex_shader_handle).none_err()?.module.handle(),
-        ctx.assets.get(fragment_shader_handle).none_err()?.module.handle(),
+        vertex_shader.module.handle(),
+        fragment_shader.module.handle(),
         renderpass.0.handle(),
         vec![
             vec![
@@ -75,7 +87,6 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         PipelineOptions::new::<DefaultVertex>(PipelineCullingMode::CullBack),
     );
 
-    let texture = ctx.assets.get(texture_handle).none_err()?;
     let texture_binding = PipelineResourceLayoutBuilder::new()
         .bindings(&[PipelineResourceBindingLayout::new(PipelineBindingType::TextureSampler, &[
             PipelineShaderStage::Fragment,
@@ -85,12 +96,7 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         .create_resource(&mut backend)
         .unwrap();
     backend
-        .bind_sampler(
-            texture_binding.handle(),
-            texture.sampler_handle(),
-            texture.view_handle(),
-            0,
-        )
+        .bind_sampler(texture_binding.handle(), texture.sampler_handle(), texture.view_handle(), 0)
         .unwrap();
 
     let material = MaterialData::new(&material_base, vec![

@@ -1,4 +1,12 @@
-use std::{any::Any, collections::HashMap, marker::PhantomData, path::Path, time::SystemTime};
+use std::{
+    any::Any,
+    collections::HashMap,
+    marker::PhantomData,
+    ops::Deref,
+    path::Path,
+    sync::{Arc, RwLock},
+    time::SystemTime,
+};
 
 use crate::{
     assets::{
@@ -10,18 +18,25 @@ use crate::{
     error::ParsecError,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct AssetHandle<T: Asset> {
-    asset_id: AssetId,
+    asset_slot: Arc<RwLock<AssetSlot>>,
     _marker: PhantomData<T>,
 }
 
-impl<T: Asset> Clone for AssetHandle<T> {
-    fn clone(&self) -> Self { Self { asset_id: self.asset_id, _marker: PhantomData } }
+impl<T: Asset> Deref for AssetHandle<T> {
+    type Target = Option<&T>;
 }
-impl<T: Asset> Copy for AssetHandle<T> {}
+
 impl<T: Asset> AssetHandle<T> {
-    pub(crate) fn new(asset_id: AssetId) -> Self { Self { asset_id, _marker: PhantomData } }
+    pub(crate) fn new(asset_slot: Arc<RwLock<AssetSlot>>) -> Self {
+        Self { asset_slot, _marker: PhantomData }
+    }
+
+    fn get(&self, resources: &mut Resources) -> Option<&T> {
+        let lock = self.asset_slot.read().expect("lock shouldn't be poisoned here");
+        if let AssetSlot::Loaded(asset) = &*lock { asset.downcast_ref::<T>() } else { None }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -30,11 +45,11 @@ enum AssetSlot {
     Unloaded,
     Loading,
     Loaded(Box<dyn Any>),
-    Failed(AssetTrackingError),
+    Failed(AssetError),
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum AssetTrackingError {
+pub enum AssetError {
     #[error("asset source file {0:?} has no valid extension")]
     InvalidExtension(&'static Path),
     #[error("no asset source file handler registered for extension {0:?}")]
@@ -57,7 +72,7 @@ type SourceFileHandlerFn = fn(&Path, AssetCookContext) -> Result<(), ParsecError
 
 #[derive(Debug)]
 pub struct AssetLibrary {
-    assets: HashMap<AssetId, (AssetDescription, AssetSlot)>,
+    assets: HashMap<AssetId, (AssetDescription, Arc<RwLock<AssetSlot>>)>,
     names: HashMap<&'static str, AssetId>,
     files: HashMap<AssetSourceId, AssetSourceFile>,
     source_file_handlers: HashMap<&'static str, SourceFileHandlerFn>,
@@ -73,15 +88,15 @@ impl AssetLibrary {
         }
     }
 
-    pub fn add_asset(&mut self, asset_name: &'static str) -> Result<(), AssetTrackingError> {
+    pub fn add_asset(&mut self, asset_name: &'static str) -> Result<(), AssetError> {
         if self.names.contains_key(asset_name) {
-            return Err(AssetTrackingError::DuplicateName(asset_name));
+            return Err(AssetError::DuplicateName(asset_name));
         }
         let description = AssetDescription::from_name(asset_name)
-            .ok_or(AssetTrackingError::InvalidAssetName(asset_name))?;
+            .ok_or(AssetError::InvalidAssetName(asset_name))?;
         let id = AssetId(self.assets.len() as u64);
         let slot = AssetSlot::Unloaded;
-        self.assets.insert(id, (description, slot));
+        self.assets.insert(id, (description, Arc::new(RwLock::new(slot))));
         self.names.insert(asset_name, id);
         Ok(())
     }
@@ -111,39 +126,31 @@ impl AssetLibrary {
     }
 
     fn cook_source_file(&self, path: &'static Path) -> Result<(), ParsecError> {
-        let extension = path
-            .extension()
-            .and_then(|x| x.to_str())
-            .ok_or(AssetTrackingError::InvalidExtension(path))?;
+        let extension =
+            path.extension().and_then(|x| x.to_str()).ok_or(AssetError::InvalidExtension(path))?;
         let handler = self
             .source_file_handlers
             .get(extension)
-            .ok_or(AssetTrackingError::HandlerNotFound(extension))?;
+            .ok_or(AssetError::HandlerNotFound(extension))?;
         if !path.is_file() {
-            return Err(AssetTrackingError::FileNotFound(path).into());
+            return Err(AssetError::FileNotFound(path).into());
         }
         handler(path, AssetCookContext::new(path))
     }
 
     pub fn load<T: Asset>(
-        &mut self,
+        &self,
         asset_name: &'static str,
         resources: &mut Resources,
     ) -> Result<AssetHandle<T>, ParsecError> {
-        let asset_id = *self
-            .names
-            .get(asset_name)
-            .ok_or_else(|| AssetTrackingError::AssetNotFound(asset_name))?;
+        let asset_id =
+            *self.names.get(asset_name).ok_or_else(|| AssetError::AssetNotFound(asset_name))?;
 
         let source_file = {
             let (desc, slot) = self.assets.get_mut(&asset_id).unwrap();
             if desc.asset_type != T::ASSET_TYPE {
-                return Err(AssetTrackingError::TypeMismatch(asset_name).into());
+                return Err(AssetError::TypeMismatch(asset_name).into());
             }
-            if matches!(slot, AssetSlot::Loaded(_)) {
-                return Ok(AssetHandle::new(asset_id));
-            }
-            *slot = AssetSlot::Loading;
             desc.source_file
         };
 
@@ -173,12 +180,21 @@ impl AssetLibrary {
                     cooked = new_cooked;
                 }
                 let (_, slot) = self.assets.get_mut(&asset_id).unwrap();
-                *slot = AssetSlot::Loaded(Box::new(T::load(cooked, resources)));
-                Ok(AssetHandle::new(asset_id))
+                let asset = Box::new(T::load(cooked, resources));
+                let lock = slot.write().unwrap();
+                
+                *slot = AssetSlot::Loaded(asset);
+                if let AssetSlot::Loaded(asset) = slot {
+                    return Ok((
+                        asset.downcast_ref::<T>().expect("types should match at this point"),
+                        AssetHandle::new(asset_id),
+                    ));
+                }
+                Err(AssetError::LoadFailed("internal error").into())
             },
             Err(err) => {
                 let (_, slot) = self.assets.get_mut(&asset_id).unwrap();
-                *slot = AssetSlot::Failed(AssetTrackingError::LoadFailed(asset_name));
+                *slot = AssetSlot::Failed(AssetError::LoadFailed(asset_name));
                 Err(err)
             },
         }
