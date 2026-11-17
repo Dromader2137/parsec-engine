@@ -1,36 +1,94 @@
-use std::fmt::{Debug, Display};
+use std::{backtrace::Backtrace, error::Error, fmt::Debug};
 
-pub struct ParsecError {
-    error: Box<dyn std::error::Error + Send + Sync + 'static>,
-}
-
-impl Debug for ParsecError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("{}", self.error))
-    }
-}
-
-impl Display for ParsecError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        (self as &dyn std::fmt::Debug).fmt(f)
-    }
-}
-
-impl<E> From<E> for ParsecError
-where
-    E: std::error::Error + Send + Sync + 'static,
-{
-    fn from(value: E) -> Self { Self { error: Box::new(value) } }
-}
+use crate::{assets::AssetError, ecs::world::WorldError, renderer::RendererError};
 
 #[derive(Debug, thiserror::Error)]
-#[error("option is none")]
-pub struct OptionIsNone;
-
-pub trait OptionNoneErr<T> {
-    fn none_err(self) -> Result<T, ParsecError>;
+#[non_exhaustive]
+pub enum ParsecError {
+    #[error(transparent)] Asset(#[from] AssetError),
+    #[error(transparent)] World(#[from] WorldError),
+    #[error(transparent)] Graphics(#[from] GraphicsError),
+    #[error(transparent)] Input(#[from] InputError),
+    #[error(transparent)] Renderer(#[from] RendererError),
+    #[error(transparent)] Utils(#[from] UtilsError),
 }
 
-impl<T> OptionNoneErr<T> for Option<T> {
-    fn none_err(self) -> Result<T, ParsecError> { self.ok_or_else(|| OptionIsNone.into()) }
+#[derive(Debug)]
+enum ParsecErrorKind {
+    Fatal,
+    Error,
+    Warning,
+    Info,
+}
+
+impl ParsecError {
+    fn new(
+        kind: ParsecErrorKind,
+        source: Option<Box<dyn Error + Send + Sync + 'static>>,
+        message: Option<String>,
+        backtrace: Option<Backtrace>,
+    ) -> Self {
+        Self { kind, message, source, backtrace }
+    }
+
+    pub fn is_fatal(&self) -> bool { matches!(self.kind, ParsecErrorKind::Fatal) }
+}
+
+pub trait ParsecErrorMsg<T>
+where
+    Self: Sized,
+{
+    fn msg(self, msg: String) -> Self;
+}
+
+impl<T> ParsecErrorMsg<T> for Result<T, ParsecError> {
+    fn msg(self, msg: String) -> Self {
+        self.map_err(|mut err| {
+            err.message = Some(msg);
+            return err;
+        })
+    }
+}
+
+pub trait IntoParsecError<T> {
+    fn fatal(self) -> Result<T, ParsecError>;
+    fn error(self) -> Result<T, ParsecError>;
+    fn warn(self) -> Result<T, ParsecError>;
+    fn info(self) -> Result<T, ParsecError>;
+}
+
+impl<T> IntoParsecError<T> for Result<T, Box<dyn Error + Send + Sync + 'static>> {
+    fn fatal(self) -> Result<T, ParsecError> {
+        self.map_err(|err| ParsecError::new(ParsecErrorKind::Fatal, None, Some(err), Some(err)))
+    }
+
+    fn error(self) -> Result<T, ParsecError> {
+        self.map_err(|err| ParsecError::new(ParsecErrorKind::Error, Some(err), None))
+    }
+
+    fn warn(self) -> Result<T, ParsecError> {
+        self.map_err(|err| ParsecError::new(ParsecErrorKind::Warning, Some(err), None))
+    }
+
+    fn info(self) -> Result<T, ParsecError> {
+        self.map_err(|err| ParsecError::new(ParsecErrorKind::Info, Some(err), None))
+    }
+}
+
+impl<T> IntoParsecError<T> for Option<T> {
+    fn fatal(self) -> Result<T, ParsecError> {
+        self.ok_or(ParsecError::new(ParsecErrorKind::Fatal, None, None))
+    }
+
+    fn error(self) -> Result<T, ParsecError> {
+        self.ok_or(ParsecError::new(ParsecErrorKind::Error, None, None))
+    }
+
+    fn warn(self) -> Result<T, ParsecError> {
+        self.ok_or(ParsecError::new(ParsecErrorKind::Warning, None, None))
+    }
+
+    fn info(self) -> Result<T, ParsecError> {
+        self.ok_or(ParsecError::new(ParsecErrorKind::Info, None, None))
+    }
 }

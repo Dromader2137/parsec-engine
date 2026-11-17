@@ -56,7 +56,11 @@ impl App {
             &mut self.resources,
             &mut self.assets,
         ) {
-            panic!("System triggered with {:?} returned: {}", system_trigger, err);
+            if err.is_fatal() {
+                panic!("XX: {:?}", err);
+            } else {
+                println!("EE: {:?}", err);
+            }
         }
     }
 }

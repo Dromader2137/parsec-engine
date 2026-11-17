@@ -26,9 +26,9 @@ use parsec_engine::{
 use parsec_engine_vulkan::VulkanBackend;
 
 fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
-    let vertex_shader_handle =
+    let vertex_shader =
         ctx.assets.load::<Shader>("main@shaders/simple.vert#shader", ctx.resources)?;
-    let fragment_shader_handle =
+    let fragment_shader =
         ctx.assets.load::<Shader>("main@shaders/multilight.frag#shader", ctx.resources)?;
     let mesh_handle = ctx.assets.load::<Mesh>("Cube@test.obj#mesh", ctx.resources)?;
     let texture_handle = ctx.assets.load::<Texture>("@test.png#texture", ctx.resources)?;
@@ -40,8 +40,8 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
 
     let material_base = MaterialBase::new(
         &mut backend,
-        ctx.assets.get(vertex_shader_handle).none_err()?.module.handle(),
-        ctx.assets.get(fragment_shader_handle).none_err()?.module.handle(),
+        vertex_shader.resolve(ctx.assets).none_err()?.module.handle(),
+        fragment_shader.resolve(ctx.assets).none_err()?.module.handle(),
         renderpass.0.handle(),
         vec![
             vec![
@@ -75,7 +75,7 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         PipelineOptions::new::<DefaultVertex>(PipelineCullingMode::CullBack),
     );
 
-    let texture = ctx.assets.get(texture_handle).none_err()?;
+    let texture = texture_handle.resolve(ctx.assets).none_err()?;
     let texture_binding = PipelineResourceLayoutBuilder::new()
         .bindings(&[PipelineResourceBindingLayout::new(PipelineBindingType::TextureSampler, &[
             PipelineShaderStage::Fragment,

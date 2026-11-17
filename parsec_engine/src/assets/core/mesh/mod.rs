@@ -4,7 +4,6 @@ use crate::{
     assets::Asset,
     create_counter,
     ecs::resources::Resources,
-    error::OptionNoneErr,
     graphics::{ActiveGraphicsBackend, pipeline::DefaultVertex},
     renderer::mesh_data::MeshData,
     utils::{

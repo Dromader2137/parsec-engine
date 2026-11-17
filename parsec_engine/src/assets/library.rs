@@ -22,6 +22,13 @@ impl<T: Asset> Clone for AssetHandle<T> {
 impl<T: Asset> Copy for AssetHandle<T> {}
 impl<T: Asset> AssetHandle<T> {
     pub(crate) fn new(asset_id: AssetId) -> Self { Self { asset_id, _marker: PhantomData } }
+
+    pub fn resolve<'lib>(&self, library: &'lib AssetLibrary) -> Option<&'lib T> {
+        match library.assets.get(&self.asset_id)? {
+            (_, AssetSlot::Loaded(asset_any)) => asset_any.downcast_ref::<T>(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -30,11 +37,13 @@ enum AssetSlot {
     Unloaded,
     Loading,
     Loaded(Box<dyn Any>),
-    Failed(AssetTrackingError),
+    #[allow(unused)]
+    Failed(AssetLibraryError),
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum AssetTrackingError {
+#[non_exhaustive]
+pub enum AssetLibraryError {
     #[error("asset source file {0:?} has no valid extension")]
     InvalidExtension(&'static Path),
     #[error("no asset source file handler registered for extension {0:?}")]
@@ -73,12 +82,12 @@ impl AssetLibrary {
         }
     }
 
-    pub fn add_asset(&mut self, asset_name: &'static str) -> Result<(), AssetTrackingError> {
+    pub fn add_asset(&mut self, asset_name: &'static str) -> Result<(), AssetLibraryError> {
         if self.names.contains_key(asset_name) {
-            return Err(AssetTrackingError::DuplicateName(asset_name));
+            return Err(AssetLibraryError::DuplicateName(asset_name));
         }
         let description = AssetDescription::from_name(asset_name)
-            .ok_or(AssetTrackingError::InvalidAssetName(asset_name))?;
+            .ok_or(AssetLibraryError::InvalidAssetName(asset_name))?;
         let id = AssetId(self.assets.len() as u64);
         let slot = AssetSlot::Unloaded;
         self.assets.insert(id, (description, slot));
@@ -114,13 +123,13 @@ impl AssetLibrary {
         let extension = path
             .extension()
             .and_then(|x| x.to_str())
-            .ok_or(AssetTrackingError::InvalidExtension(path))?;
+            .ok_or(AssetLibraryError::InvalidExtension(path))?;
         let handler = self
             .source_file_handlers
             .get(extension)
-            .ok_or(AssetTrackingError::HandlerNotFound(extension))?;
+            .ok_or(AssetLibraryError::HandlerNotFound(extension))?;
         if !path.is_file() {
-            return Err(AssetTrackingError::FileNotFound(path).into());
+            return Err(AssetLibraryError::FileNotFound(path).into());
         }
         handler(path, AssetCookContext::new(path))
     }
@@ -133,12 +142,12 @@ impl AssetLibrary {
         let asset_id = *self
             .names
             .get(asset_name)
-            .ok_or_else(|| AssetTrackingError::AssetNotFound(asset_name))?;
+            .ok_or_else(|| AssetLibraryError::AssetNotFound(asset_name))?;
 
         let source_file = {
             let (desc, slot) = self.assets.get_mut(&asset_id).unwrap();
             if desc.asset_type != T::ASSET_TYPE {
-                return Err(AssetTrackingError::TypeMismatch(asset_name).into());
+                return Err(AssetLibraryError::TypeMismatch(asset_name).into());
             }
             if matches!(slot, AssetSlot::Loaded(_)) {
                 return Ok(AssetHandle::new(asset_id));
@@ -178,20 +187,9 @@ impl AssetLibrary {
             },
             Err(err) => {
                 let (_, slot) = self.assets.get_mut(&asset_id).unwrap();
-                *slot = AssetSlot::Failed(AssetTrackingError::LoadFailed(asset_name));
+                *slot = AssetSlot::Failed(AssetLibraryError::LoadFailed(asset_name));
                 Err(err)
             },
-        }
-    }
-
-    pub fn get<T: Asset>(&self, handle: AssetHandle<T>) -> Option<&T> {
-        match self.assets.get(&handle.asset_id)? {
-            (_, AssetSlot::Loaded(asset_any)) => asset_any.downcast_ref::<T>(),
-            (_, AssetSlot::Failed(err)) => {
-                println!("ERROR: {}", err);
-                None
-            },
-            _ => None,
         }
     }
 

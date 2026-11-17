@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use crate::{
-    assets::core::mesh::Mesh,
     ctx::Ctx,
     ecs::system::{SystemBundle, SystemTrigger, Systems},
     error::{OptionNoneErr, ParsecError},
@@ -87,7 +86,7 @@ fn auto_enqueue(ctx: Ctx) -> Result<(), ParsecError> {
 
     for (_, (camera_transform, camera)) in cameras.iter() {
         for (_, (transform, mesh_renderer)) in mesh_renderers.iter() {
-            let mesh_asset = ctx.assets.get::<Mesh>(mesh_renderer.mesh).none_err()?;
+            let mesh_asset = mesh_renderer.mesh.resolve(ctx.assets).none_err()?;
             if mesh_asset.data_id.is_none()
                 || !camera_data_manager.component_to_data.contains_key(&camera.camera_id())
                 || !transform_data_manager
