@@ -43,6 +43,21 @@ enum AssetSlot {
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
+pub enum AssetLoadError {
+    #[error("asset '{0}' not found")]
+    NotFound(&'static str),
+    #[error("asset '{0}' is of a different type than requested")]
+    TypeMismatch(&'static str),
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
+    #[error(transparent)]
+    Time(#[from] std::time::SystemTimeError),
+    #[error(transparent)]
+    Parse(#[from] postcard::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum AssetLibraryError {
     #[error("asset source file {0:?} has no valid extension")]
     InvalidExtension(&'static Path),
@@ -119,7 +134,11 @@ impl AssetLibrary {
         self.assets.iter().map(|(&id, (desc, _))| (id, desc))
     }
 
-    fn cook_source_file(&self, path: &'static Path) -> Result<(), ParsecError> {
+    fn asset_by_name(&self, asset_name: &'static str) -> Option<AssetId> {
+        self.names.get(asset_name).cloned()
+    }
+
+    fn cook_source_file<T: Asset>(&self, path: &'static Path) -> Result<(u128, T), AssetCookError> {
         let extension = path
             .extension()
             .and_then(|x| x.to_str())
@@ -131,43 +150,41 @@ impl AssetLibrary {
         if !path.is_file() {
             return Err(AssetLibraryError::FileNotFound(path).into());
         }
-        handler(path, AssetCookContext::new(path))
+        handler(path, AssetCookContext::new(path))?;
+        let bytes = std::fs::read(path)?;
+        let deserialized = postcard::from_bytes(&bytes)?;
+        Ok(deserialized)
     }
 
     pub fn load<T: Asset>(
         &mut self,
         asset_name: &'static str,
         resources: &mut Resources,
-    ) -> Result<AssetHandle<T>, ParsecError> {
-        let asset_id = *self
-            .names
-            .get(asset_name)
-            .ok_or_else(|| AssetLibraryError::AssetNotFound(asset_name))?;
+    ) -> Result<AssetHandle<T>, AssetLoadError> {
+        use AssetLoadError::*;
 
-        let source_file = {
-            let (desc, slot) = self.assets.get_mut(&asset_id).unwrap();
-            if desc.asset_type != T::ASSET_TYPE {
-                return Err(AssetLibraryError::TypeMismatch(asset_name).into());
-            }
-            if matches!(slot, AssetSlot::Loaded(_)) {
-                return Ok(AssetHandle::new(asset_id));
-            }
-            *slot = AssetSlot::Loading;
-            desc.source_file
-        };
+        let asset_id = self.asset_by_name(asset_name).ok_or(NotFound(asset_name))?;
 
-        let source_file_meta = std::fs::metadata(source_file)?;
+        let (desc, slot) = self.assets.get_mut(&asset_id).ok_or(NotFound(asset_name))?;
+
+        if desc.asset_type != T::ASSET_TYPE {
+            return Err(TypeMismatch(asset_name));
+        }
+
+        if matches!(slot, AssetSlot::Loaded(_)) {
+            return Ok(AssetHandle::new(asset_id));
+        }
+
+        *slot = AssetSlot::Loading;
+
+        let source_file_meta = std::fs::metadata(desc.source_file)?;
         let source_modified = source_file_meta.modified()?;
         let source_modified_duration =
             source_modified.duration_since(SystemTime::UNIX_EPOCH)?.as_millis();
 
         let cooked_path = cooked_path(asset_name);
-        let cooked =
-            if cooked_path.is_file() { Ok(()) } else { self.cook_source_file(&source_file) }
-                .and_then(|()| std::fs::read(&cooked_path).map_err(ParsecError::from))
-                .and_then(|bytes| {
-                    postcard::from_bytes::<(u128, T::Cooked)>(&bytes).map_err(ParsecError::from)
-                });
+        let (cook_timestamp, cooked) = 
+            if cooked_path.is_file() { Ok() } else { self.cook_source_file(&desc.source_file) }
 
         match cooked {
             Ok((cook_timestamp, mut cooked)) => {
