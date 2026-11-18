@@ -4,13 +4,12 @@ use parsec_engine_math::vec::{Vec2f, Vec3f};
 
 use crate::{
     assets::{
-        core::mesh::{InputMesh, Mesh},
-        source_file::{AssetCookContext, AssetSourceFileHandler},
-    },
-    error::ParsecError,
+        core::mesh::{InputMesh, Mesh}, library::AssetCookError, source_file::{AssetCookContext, AssetSourceFileHandler},
+    }, error::ParsecError,
 };
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 enum ObjError {
     #[error("obj line {0}: invalid number")]
     InvalidNumber(usize),
@@ -20,14 +19,20 @@ enum ObjError {
     DegenerateFace(usize),
 }
 
+impl Into<AssetCookError> for ObjError {
+    fn into(self) -> AssetCookError {
+        AssetCookError::HandlerInternal(Box::new(self))
+    }
+}
+
 pub struct ObjFileHandler;
 
 impl AssetSourceFileHandler for ObjFileHandler {
     const EXTENSION: &'static str = "obj";
 
-    fn cook(asset_source_path: &Path, ctx: AssetCookContext) -> Result<(), ParsecError> {
+    fn cook(asset_source_path: &Path, ctx: AssetCookContext) -> Result<(), AssetCookError> {
         let source = std::fs::read_to_string(asset_source_path)?;
-        for (name, mesh) in parse_obj(&source)? {
+        for (name, mesh) in parse_obj(&source).map_err(|err| err.into())? {
             ctx.add_asset::<Mesh>(&name, mesh)?;
         }
         Ok(())
