@@ -1,14 +1,10 @@
 use std::fmt::Debug;
 
 use crate::{
-    error::ParsecError,
-    graphics::{
-        ActiveGraphicsBackend,
-        image::{
-            Image, ImageAspect, ImageBuilder, ImageFormat, ImageSize, ImageUsage, ImageView,
-            ImageViewBuilder,
-        },
-        sampler::{Sampler, SamplerBuilder},
+    error::ParsecError, graphics::{
+        ActiveGraphicsBackend, image::{
+            Image, ImageAspect, ImageBuilder, ImageError, ImageFormat, ImageSize, ImageUsage, ImageView, ImageViewBuilder,
+        }, sampler::{Sampler, SamplerBuilder, SamplerError},
     },
 };
 
@@ -50,7 +46,7 @@ impl<'a> IntegratedImageBuilder<'a> {
     pub fn build(
         self,
         backend: &mut ActiveGraphicsBackend,
-    ) -> Result<IntegratedImage, ParsecError> {
+    ) -> Result<IntegratedImage, IntegratedImageError> {
         let image = ImageBuilder::new()
             .size(self.size)
             .format(self.format)
@@ -68,10 +64,10 @@ impl IntegratedImage {
         Self { image, view, sampler }
     }
 
-    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), ParsecError> {
-        backend.delete_image(self.image)?;
-        backend.delete_image_view(self.view)?;
-        backend.delete_image_sampler(self.sampler)?;
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), IntegratedImageError> {
+        self.image.destroy(backend)?;
+        self.view.destroy(backend)?;
+        self.sampler.destroy(backend)?;
         Ok(())
     }
 
@@ -80,4 +76,13 @@ impl IntegratedImage {
     pub fn view(&self) -> &ImageView { &self.view }
 
     pub fn sampler(&self) -> &Sampler { &self.sampler }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum IntegratedImageError {
+    #[error(transparent)]
+    Image(#[from] ImageError),
+    #[error(transparent)]
+    Sampler(#[from] SamplerError)
 }

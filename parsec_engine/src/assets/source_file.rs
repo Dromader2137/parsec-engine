@@ -24,7 +24,10 @@ impl<'a> AssetCookContext<'a> {
         let source_modified = source_file.modified()?;
         let source_modified_duration =
             source_modified.duration_since(SystemTime::UNIX_EPOCH)?.as_millis();
-        let bytes = postcard::to_stdvec(&(source_modified_duration, T::cook(input)?))?;
+        let bytes = postcard::to_stdvec(&(
+            source_modified_duration,
+            T::cook(input).map_err(|err| AssetCookError::Other(Box::new(err)))?,
+        ))?;
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }

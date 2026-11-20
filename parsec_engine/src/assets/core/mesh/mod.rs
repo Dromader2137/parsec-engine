@@ -88,19 +88,11 @@ impl Identifiable for Mesh {
 #[non_exhaustive]
 enum MeshCookError {}
 
-impl Into<AssetCookError> for MeshCookError {
-    fn into(self) -> AssetCookError { AssetCookError::AssetInternal(Box::new(self)) }
-}
-
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 enum MeshLoadError {
     #[error("graphics backend not found in resources")]
     GraphicsBackendNotFound,
-}
-
-impl Into<AssetLoadError> for MeshLoadError {
-    fn into(self) -> AssetLoadError { AssetLoadError::AssetInternal(Box::new(self)) }
 }
 
 impl Asset for Mesh {

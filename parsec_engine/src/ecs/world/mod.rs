@@ -35,6 +35,8 @@ pub enum WorldError {
     AddComponent(ArchetypeError),
     #[error("failed to delete components: {0}")]
     DeleteComponent(ArchetypeError),
+    #[error("failed to query: {0}")]
+    Query(ArchetypeError),
 }
 
 /// Stores all data about components and entities.
@@ -54,7 +56,7 @@ impl World {
 
     /// Creates a query for all entities matching `T`. Panics on archetype errors.
     pub fn query<T: Fetch>(&self) -> Query<T> {
-        Query::<T>::from_world(self).expect("query failed")
+        Query::<T>::from_world(self).map_err(|err| WorldError::Query(err))
     }
 
     /// Returns a mutable reference to the archetype stored under `archetype_id`.
@@ -76,12 +78,11 @@ impl World {
     /// - If `T` can't produce a valid [`ArchetypeId`].
     /// - If the [archetype][Archetype] is already borrowed in some way.
     pub fn spawn<T: Spawn>(&mut self, bundle: T) -> Result<Entity, WorldError> {
-        let archetype_id = bundle.archetype_id().map_err(|e| WorldError::Spawn { kind: e })?;
+        let archetype_id = bundle.archetype_id().map_err(|err| WorldError::Spawn(err))?;
         let entity_id = ENTITY_ID_COUNTER.next();
         let archetype = self.get_archetype_mut(&archetype_id);
-        let entity =
-            archetype.new_entity(entity_id).map_err(|e| WorldError::Spawn { kind: e })?;
-        bundle.spawn(archetype).map_err(|e| WorldError::Spawn { kind: e })?;
+        let entity = archetype.new_entity(entity_id).map_err(|err| WorldError::Spawn(err))?;
+        bundle.spawn(archetype).map_err(|err| WorldError::Spawn(err))?;
         archetype.bundle_count += 1;
         Ok(entity)
     }
@@ -130,16 +131,14 @@ impl World {
                     return Err(WorldError::Delete { kind: ArchetypeError::EntityNotFound });
                 },
             };
-        let t_archetype_id = bundle_extension
-            .archetype_id()
-            .map_err(|e| WorldError::AddComponent { kind: e })?;
+        let t_archetype_id =
+            bundle_extension.archetype_id().map_err(|e| WorldError::AddComponent { kind: e })?;
         let new_archetype_id = archetype_id
             .merge_with(t_archetype_id)
             .map_err(|e| WorldError::AddComponent { kind: e })?;
 
-        let (old_entity, map) = old_archetype
-            .cut_entity(entity)
-            .map_err(|e| WorldError::AddComponent { kind: e })?;
+        let (old_entity, map) =
+            old_archetype.cut_entity(entity).map_err(|e| WorldError::AddComponent { kind: e })?;
         old_archetype.bundle_count -= 1;
 
         let new_archetype = self.get_archetype_mut(&new_archetype_id);
@@ -162,9 +161,7 @@ impl World {
                 .add_raw(*size, *type_id, data.clone())
                 .map_err(|e| WorldError::AddComponent { kind: e })?;
         }
-        bundle_extension
-            .add_to(new_archetype)
-            .map_err(|e| WorldError::AddComponent { kind: e })?;
+        bundle_extension.add_to(new_archetype).map_err(|e| WorldError::AddComponent { kind: e })?;
         new_archetype.bundle_count += 1;
         new_archetype.moved_entity(old_entity);
 

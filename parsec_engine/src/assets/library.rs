@@ -54,7 +54,7 @@ pub enum AssetLoadError {
     #[error(transparent)]
     Parse(#[from] postcard::Error),
     #[error(transparent)]
-    AssetInternal(Box<dyn std::error::Error + Send + Sync + 'static>),
+    Other(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -73,9 +73,7 @@ pub enum AssetCookError {
     #[error(transparent)]
     Parse(#[from] postcard::Error),
     #[error(transparent)]
-    AssetInternal(Box<dyn std::error::Error + Send + Sync + 'static>),
-    #[error(transparent)]
-    HandlerInternal(Box<dyn std::error::Error + Send + Sync + 'static>),
+    Other(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -223,7 +221,9 @@ impl AssetLibrary {
 
         let (_, slot) =
             self.assets.get_mut(&asset_id).ok_or(AssetLoadError::NotFound(asset_name))?;
-        *slot = AssetSlot::Loaded(Box::new(T::load(cooked_asset, resources)?));
+        *slot = AssetSlot::Loaded(Box::new(
+            T::load(cooked_asset, resources).map_err(|err| AssetLoadError::Other(Box::new(err)))?,
+        ));
         Ok(AssetHandle::new(asset_id))
     }
 

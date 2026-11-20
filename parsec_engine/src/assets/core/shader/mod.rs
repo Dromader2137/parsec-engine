@@ -1,10 +1,11 @@
 use crate::{
     assets::Asset,
     ecs::resources::Resources,
-    error::OptionNoneErr,
     graphics::{
         ActiveGraphicsBackend,
-        shader_module::{ShaderModule, ShaderModuleBuilder, ShaderType, reinterpret_shader_code},
+        shader_module::{
+            ShaderError, ShaderModule, ShaderModuleBuilder, ShaderType, reinterpret_shader_code,
+        },
     },
 };
 
@@ -28,14 +29,37 @@ pub struct Shader {
     pub module: ShaderModule,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum ShaderCookError {
+    #[error("invalid shader extension '{0}'")]
+    InvalidShaderExtension(String),
+    #[error("failed to compile shader: {0}")]
+    Compilation(shaderc::Error),
+    #[error("failed to create compiler: {0}")]
+    CompilerInitialization(shaderc::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum ShaderLoadError {
+    #[error("graphics backend not found in resources")]
+    GraphicsBackendNotFound,
+    #[error(transparent)]
+    Build(#[from] ShaderError),
+}
+
 impl Asset for Shader {
     type Input = InputShader;
     type Cooked = CookedShader;
+    type CookError = ShaderCookError;
+    type LoadError = ShaderLoadError;
 
     const ASSET_TYPE: &'static str = "shader";
 
-    fn cook(input_data: Self::Input) -> Self::Cooked {
-        let compiler = shaderc::Compiler::new().unwrap();
+    fn cook(input_data: Self::Input) -> Result<Self::Cooked, Self::CookError> {
+        let compiler =
+            shaderc::Compiler::new().map_err(|err| ShaderCookError::CompilerInitialization(err))?;
         let spv = compiler
             .compile_into_spirv(
                 &input_data.shader_code,
@@ -48,23 +72,24 @@ impl Asset for Shader {
                 "main",
                 None,
             )
-            .unwrap();
+            .map_err(|err| ShaderCookError::Compilation(err))?;
         let shader_type = match input_data.shader_extension.as_str() {
-            "vert" => ShaderType::Vertex,
-            "frag" => ShaderType::Fragment,
-            _ => panic!("invalid shader extension"),
-        };
+            "vert" => Ok(ShaderType::Vertex),
+            "frag" => Ok(ShaderType::Fragment),
+            val => Err(ShaderCookError::InvalidShaderExtension(val.to_string())),
+        }?;
         let code = reinterpret_shader_code(spv.as_binary_u8()).unwrap();
-        return CookedShader { shader_type, spirv_compiled_code: code };
+        Ok(CookedShader { shader_type, spirv_compiled_code: code })
     }
 
-    fn load(cooked: Self::Cooked, resources: &mut Resources) -> Self {
-        let mut backend = resources.get_mut::<ActiveGraphicsBackend>().none_err().unwrap();
+    fn load(cooked: Self::Cooked, resources: &mut Resources) -> Result<Self, Self::LoadError> {
+        let mut backend = resources
+            .get_mut::<ActiveGraphicsBackend>()
+            .ok_or(ShaderLoadError::GraphicsBackendNotFound)?;
         let shader_module = ShaderModuleBuilder::default()
             .shader_type(cooked.shader_type)
             .code(&cooked.spirv_compiled_code)
-            .build(&mut backend)
-            .unwrap();
-        Shader { shader_type: cooked.shader_type, module: shader_module }
+            .build(&mut backend)?;
+        Ok(Shader { shader_type: cooked.shader_type, module: shader_module })
     }
 }

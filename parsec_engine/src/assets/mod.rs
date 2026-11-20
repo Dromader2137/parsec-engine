@@ -23,8 +23,8 @@ pub enum AssetError {
 pub trait Asset: Sized + 'static {
     type Input: 'static;
     type Cooked: serde::Serialize + serde::de::DeserializeOwned + 'static;
-    type CookError: Into<AssetCookError> + 'static;
-    type LoadError: Into<AssetLoadError> + 'static;
+    type CookError: std::error::Error + Send + Sync + 'static;
+    type LoadError: std::error::Error + Send + Sync + 'static;
 
     const ASSET_TYPE: &'static str;
 
