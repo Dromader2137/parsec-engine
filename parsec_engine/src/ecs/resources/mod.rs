@@ -106,8 +106,8 @@ impl Resources {
         if !self.resources.contains_key(&resource_id) {
             self.add(res);
         }
-        // UNWRAP: can't fail, because the line above adds a  resource
-        // of type R.
+        // UNWRAP: can't fail, because the line above adds a  resource of type R.
+        #[allow(clippy::unwrap_used)]
         self.get_mut().unwrap()
     }
 

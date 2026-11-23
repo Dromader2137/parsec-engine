@@ -1,27 +1,39 @@
 use parsec_engine::{
-    app::App, assets::core::{
-        mesh::{Mesh, obj::ObjFileHandler}, shader::{
+    app::App,
+    assets::core::{
+        mesh::{Mesh, obj::ObjFileHandler},
+        shader::{
             Shader,
             file_handler::{FragmentShaderFileHandler, VertexShaderFileHandler},
-        }, texture::{Texture, png::PngFileHandler},
-    }, ctx::Ctx, ecs::{
+        },
+        texture::{Texture, png::PngFileHandler},
+    },
+    ctx::Ctx,
+    ecs::{
         system::SystemTrigger,
         world::{component::Component, fetch::Mut},
-    }, error::{OptionNoneErr, ParsecError}, graphics::{
+    },
+    error::ParsecError,
+    graphics::{
         ActiveGraphicsBackend,
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode, PipelineOptions,
             PipelineResourceBindingLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         window::Window,
-    }, input::{Input, InputBundle}, math::{quat::Quat, vec::Vec3f}, renderer::{
+    },
+    input::{Input, InputBundle},
+    math::{quat::Quat, vec::Vec3f},
+    renderer::{
         RendererMainRenderpass,
         components::{
             camera::Camera, light::Light, mesh_renderer::MeshRenderer, transform::Transform,
         },
         graphics_bundle::GraphicsBundle,
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
-    }, time::{Time, TimeBundle}, utils::identifiable::IdStore,
+    },
+    time::{Time, TimeBundle},
+    utils::identifiable::IdStore,
 };
 use parsec_engine_vulkan::VulkanBackend;
 
@@ -73,7 +85,7 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
             ])],
         ],
         PipelineOptions::new::<DefaultVertex>(PipelineCullingMode::CullBack),
-    );
+    )?;
 
     let texture = texture_handle.resolve(ctx.assets).none_err()?;
     let texture_binding = PipelineResourceLayoutBuilder::new()
@@ -85,12 +97,7 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         .create_resource(&mut backend)
         .unwrap();
     backend
-        .bind_sampler(
-            texture_binding.handle(),
-            texture.sampler_handle(),
-            texture.view_handle(),
-            0,
-        )
+        .bind_sampler(texture_binding.handle(), texture.sampler_handle(), texture.view_handle(), 0)
         .unwrap();
 
     let material = MaterialData::new(&material_base, vec![
@@ -136,7 +143,7 @@ struct CameraController {
 }
 
 fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut cameras = ctx.world.query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>();
+    let mut cameras = ctx.world.query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>()?;
     let mut window = ctx.resources.get_mut::<Window>().none_err()?;
     let input = ctx.resources.get::<Input>().none_err()?;
     let time = ctx.resources.get::<Time>().none_err()?;

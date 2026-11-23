@@ -3,15 +3,9 @@
 use parsec_engine_math::vec::Vec2f;
 
 use crate::{
-    assets::library::AssetLibrary,
-    ecs::{
-        resources::{ResourceError, ResourceMarker, Resources},
-        system::{SystemTrigger, Systems},
-        world::World,
-    },
-    error::ParsecError,
-    graphics::ActiveEventLoop,
-    input::{
+    assets::library::AssetLibrary, ecs::{
+        EcsError, resources::{ResourceError, ResourceMarker, Resources}, system::{SystemTrigger, Systems}, world::World,
+    }, error::ParsecError, graphics::ActiveEventLoop, input::{
         key::StorageKeyCode,
         keys::KeyboardInputEvent,
         mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
@@ -25,14 +19,6 @@ pub enum AppError {
     EventLoop(#[from] winit::error::EventLoopError),
     #[error("failed to remove event resource: {0}")]
     Resource(#[from] ResourceError),
-}
-
-fn report(err: ParsecError) {
-    if err.is_fatal() {
-        panic!("XX: {:?}", err);
-    } else {
-        println!("EE: {:?}", err);
-    }
 }
 
 #[allow(unused)]
@@ -55,7 +41,8 @@ impl App {
 
     pub fn execute(&mut self) -> Result<(), ParsecError> {
         if option_env!("PARSEC_COOK_ASSETS").is_some() {
-            return self.assets.cook_all();
+            self.assets.cook_all()?;
+            return Ok(());
         }
 
         self.execute_system(SystemTrigger::Start);
@@ -73,13 +60,14 @@ impl App {
             &mut self.resources,
             &mut self.assets,
         ) {
-            report(err);
+            println!("{}", err);
         }
     }
 
     fn remove_resource<R: ResourceMarker>(&mut self) {
         if let Err(err) = self.resources.remove::<R>() {
-            report(AppError::from(err).into());
+            let perr = ParsecError::Ecs(EcsError::Resource(err));
+            println!("{}", perr);
         }
     }
 }

@@ -38,6 +38,8 @@ pub enum ShaderCookError {
     Compilation(shaderc::Error),
     #[error("failed to create compiler: {0}")]
     CompilerInitialization(shaderc::Error),
+    #[error(transparent)]
+    Reinterpret(#[from] ShaderError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -78,7 +80,7 @@ impl Asset for Shader {
             "frag" => Ok(ShaderType::Fragment),
             val => Err(ShaderCookError::InvalidShaderExtension(val.to_string())),
         }?;
-        let code = reinterpret_shader_code(spv.as_binary_u8()).unwrap();
+        let code = reinterpret_shader_code(spv.as_binary_u8())?;
         Ok(CookedShader { shader_type, spirv_compiled_code: code })
     }
 

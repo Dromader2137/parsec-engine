@@ -33,11 +33,11 @@ impl Texture {
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-enum TextureCookError {}
+pub enum TextureCookError {}
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-enum TextureLoadError {
+pub enum TextureLoadError {
     #[error("graphics backend not found in resources")]
     GraphicsBackendNotFound,
     #[error(transparent)]

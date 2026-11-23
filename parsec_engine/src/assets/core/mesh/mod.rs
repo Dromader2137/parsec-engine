@@ -1,10 +1,7 @@
 use parsec_engine_math::vec::{Vec2f, Vec3f};
 
 use crate::{
-    assets::{
-        Asset,
-        library::{AssetCookError, AssetLoadError},
-    },
+    assets::Asset,
     create_counter,
     ecs::resources::Resources,
     graphics::{ActiveGraphicsBackend, buffer::BufferError, pipeline::DefaultVertex},
@@ -86,11 +83,11 @@ impl Identifiable for Mesh {
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-enum MeshCookError {}
+pub enum MeshCookError {}
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-enum MeshLoadError {
+pub enum MeshLoadError {
     #[error("graphics backend not found in resources")]
     GraphicsBackendNotFound,
     #[error(transparent)]

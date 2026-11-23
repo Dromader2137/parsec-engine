@@ -17,6 +17,8 @@ enum ObjError {
     InvalidIndex(usize),
     #[error("obj line {0}: face has fewer than 3 vertices")]
     DegenerateFace(usize),
+    #[error("no mesh found in obj")]
+    NoMesh
 }
 
 pub struct ObjFileHandler;
@@ -66,7 +68,7 @@ fn parse_obj(source: &str) -> Result<Vec<(String, InputMesh)>, ObjError> {
                 vertex_map.clear();
             },
             Some("f") => {
-                let mesh = &mut meshes.last_mut().unwrap().1;
+                let mesh = &mut meshes.last_mut().ok_or(ObjError::NoMesh)?.1;
                 let mut face = Vec::new();
                 for vertex in parts {
                     let mut indices = vertex.split('/');

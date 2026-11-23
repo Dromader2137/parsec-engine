@@ -227,7 +227,7 @@ impl AssetLibrary {
         Ok(AssetHandle::new(asset_id))
     }
 
-    pub fn cook_all(&self) -> Result<(), ParsecError> {
+    pub fn cook_all(&self) -> Result<(), AssetError> {
         for (_, source_file) in self.source_files() {
             self.cook_source_file(&source_file.filepath)?;
         }
