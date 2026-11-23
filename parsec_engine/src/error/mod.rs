@@ -1,6 +1,9 @@
 use std::{backtrace::Backtrace, error::Error, fmt::Debug};
 
-use crate::{assets::AssetError, ecs::world::WorldError, renderer::RendererError};
+use crate::{
+    assets::AssetError, ecs::world::WorldError, input::InputError, renderer::RendererError,
+    utils::UtilsError,
+};
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum Access {
@@ -16,8 +16,8 @@ pub struct BorrowingStats {
 
 impl BorrowingStats {
     pub fn borrow(&self) -> Result<(), AccessError> {
-        let mut access = self.access.lock().expect("no poison");
-        let mut count = self.borrow_count.lock().expect("no poison");
+        let mut access = self.access.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut count = self.borrow_count.lock().unwrap_or_else(PoisonError::into_inner);
         match *access {
             Access::ReadWrite => {
                 *access = Access::Read;
@@ -34,7 +34,7 @@ impl BorrowingStats {
     }
 
     pub fn borrow_mut(&self) -> Result<(), AccessError> {
-        let mut access = self.access.lock().expect("no poison");
+        let mut access = self.access.lock().unwrap_or_else(PoisonError::into_inner);
         match *access {
             Access::ReadWrite => {
                 *access = Access::None;
@@ -46,8 +46,8 @@ impl BorrowingStats {
     }
 
     pub fn free(&self) {
-        let mut access = self.access.lock().expect("no poison");
-        let mut count = self.borrow_count.lock().expect("no poison");
+        let mut access = self.access.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut count = self.borrow_count.lock().unwrap_or_else(PoisonError::into_inner);
         match *access {
             Access::Read => {
                 *count -= 1;
@@ -61,7 +61,11 @@ impl BorrowingStats {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum AccessError {
+    #[error("already borrowed immutably")]
     AlreadyBorrowed,
+    #[error("already borrowed mutably")]
     AlreadyBorrowedMut,
 }
