@@ -1,18 +1,14 @@
 use parsec_engine_math::uvec::Vec2u;
 
 use crate::{
-    error::ParsecError,
     graphics::{
         ActiveGraphicsBackend,
+        backend::BackendError,
         buffer::BufferHandle,
         command_list::{Command, CommandList},
-        image::{
-            ImageAspect, ImageBuilder, ImageFormat, ImageSize, ImageUsage,
-            ImageViewBuilder,
-        },
-        sampler::SamplerBuilder,
+        image::{ImageAspect, ImageFormat, ImageSize, ImageUsage},
     },
-    renderer::integrated_image::IntegratedImage,
+    renderer::integrated_image::{IntegratedImage, IntegratedImageBuilder, IntegratedImageError},
 };
 
 pub struct ImageAtlasRegion {
@@ -58,18 +54,13 @@ impl<'a> ImageAtlasBuilder<'a> {
     pub fn build(
         self,
         backend: &mut ActiveGraphicsBackend,
-    ) -> Result<ImageAtlas, ParsecError> {
-        let image = ImageBuilder::new()
+    ) -> Result<ImageAtlas, IntegratedImageError> {
+        let image = IntegratedImageBuilder::default()
             .size(self.size)
             .format(self.format)
             .aspect(self.aspect)
             .usage(self.usage)
             .build(backend)?;
-        let view = ImageViewBuilder::new()
-            .image(image.handle())
-            .build(backend)?;
-        let sampler = SamplerBuilder::new().build(backend)?;
-        let image = IntegratedImage::new(image, view, sampler);
 
         Ok(ImageAtlas {
             size: self.size.get_size(),
@@ -85,30 +76,22 @@ impl ImageAtlas {
         backend: &mut ActiveGraphicsBackend,
         buffer: BufferHandle,
         region: ImageAtlasRegion,
-    ) -> Result<(), ParsecError> {
+    ) -> Result<(), BackendError> {
         backend.load_image_from_buffer(
             buffer,
             self.image.image().handle(),
             region.size,
             region.offset,
-        )?;
-        Ok(())
+        )
     }
 
-    pub fn set_rendering_region(
-        mut command_list: CommandList,
-        region: ImageAtlasRegion,
-    ) -> Result<(), ParsecError> {
+    pub fn set_rendering_region(mut command_list: CommandList, region: ImageAtlasRegion) {
         command_list
             .cmd(Command::SetScissor(region.offset, region.size.signed()));
         command_list.cmd(Command::SetViewport(region.size));
-        Ok(())
     }
 
-    pub fn destroy(
-        self,
-        backend: &mut ActiveGraphicsBackend,
-    ) -> Result<(), ParsecError> {
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), IntegratedImageError> {
         self.image.destroy(backend)
     }
 

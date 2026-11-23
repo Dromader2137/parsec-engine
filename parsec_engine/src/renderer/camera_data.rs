@@ -6,7 +6,7 @@ use crate::{
     create_counter,
     ctx::Ctx,
     ecs::world::fetch::Mut,
-    error::{OptionNoneErr, ParsecError},
+    error::ParsecError,
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -16,7 +16,7 @@ use crate::{
         },
         window::Window,
     },
-    renderer::components::camera::Camera,
+    renderer::{RendererError, components::camera::Camera, get_resource, get_resource_mut},
     utils::{
         IdType,
         identifiable::{IdStore, Identifiable},
@@ -43,35 +43,34 @@ impl CameraData {
         vfov: f32,
         near: f32,
         far: f32,
-    ) -> CameraData {
+    ) -> Result<CameraData, RendererError> {
         let projection_matrix = Matrix4f::perspective(vfov, window.aspect_ratio(), near, far);
         let projection_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Uniform])
             .data(BufferContent::from_slice(&[projection_matrix]))
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let projection_layout = PipelineResourceLayoutBuilder::new()
             .binding(PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
             })
-            .build(backend)
-            .unwrap();
-        let projection_binding = projection_layout.create_resource(backend).unwrap();
-        projection_binding.bind_buffer(backend, projection_buffer.handle(), 0).unwrap();
-        CameraData {
+            .build(backend)?;
+        let projection_binding = projection_layout.create_resource(backend)?;
+        projection_binding.bind_buffer(backend, projection_buffer.handle(), 0)?;
+        Ok(CameraData {
             camera_data_id: ID_COUNTER.next(),
             projection_matrix,
             projection_buffer,
             projection_layout,
             projection_resource: projection_binding,
-        }
+        })
     }
 
-    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) {
-        self.projection_buffer.destroy(backend).unwrap();
-        self.projection_resource.destroy(backend).unwrap();
-        self.projection_layout.destroy(backend).unwrap();
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), RendererError> {
+        self.projection_buffer.destroy(backend)?;
+        self.projection_resource.destroy(backend)?;
+        self.projection_layout.destroy(backend)?;
+        Ok(())
     }
 }
 
@@ -80,11 +79,11 @@ impl Identifiable for CameraData {
 }
 
 pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let window = ctx.resources.get::<Window>().none_err()?;
-    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut cameras_data = ctx.resources.get_mut::<IdStore<CameraData>>().none_err()?;
-    let mut camera_data_manager = ctx.resources.get_mut::<CameraDataManager>().none_err()?;
-    let mut cameras = ctx.world.query::<Mut<Camera>>();
+    let window = get_resource::<Window>(ctx.resources)?;
+    let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
+    let mut cameras_data = get_resource_mut::<IdStore<CameraData>>(ctx.resources)?;
+    let mut camera_data_manager = get_resource_mut::<CameraDataManager>(ctx.resources)?;
+    let mut cameras = ctx.world.query::<Mut<Camera>>().map_err(RendererError::from)?;
 
     for (_, camera) in cameras.iter() {
         if let std::collections::hash_map::Entry::Vacant(e) =
@@ -96,7 +95,7 @@ pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
                 camera.vertical_fov,
                 camera.near_clipping_plane,
                 camera.far_clipping_plane,
-            );
+            )?;
             let data_id = cameras_data.push(camera_data);
             e.insert(data_id);
         }
@@ -106,16 +105,18 @@ pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
 }
 
 pub fn update_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let window = ctx.resources.get::<Window>().none_err()?;
-    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut cameras_data = ctx.resources.get_mut::<IdStore<CameraData>>().none_err()?;
-    let camera_data_manager = ctx.resources.get::<CameraDataManager>().none_err()?;
-    let mut cameras = ctx.world.query::<Camera>();
+    let window = get_resource::<Window>(ctx.resources)?;
+    let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
+    let mut cameras_data = get_resource_mut::<IdStore<CameraData>>(ctx.resources)?;
+    let camera_data_manager = get_resource::<CameraDataManager>(ctx.resources)?;
+    let mut cameras = ctx.world.query::<Camera>().map_err(RendererError::from)?;
 
     let aspect_ratio = window.aspect_ratio();
     for (_, camera) in cameras.iter() {
         if let Some(data_id) = camera_data_manager.component_to_data.get(&camera.camera_id()) {
-            let camera_data = cameras_data.get_mut(*data_id).unwrap();
+            let camera_data = cameras_data
+                .get_mut(*data_id)
+                .ok_or(RendererError::CameraDataNotFound(*data_id))?;
             camera_data.projection_matrix = Matrix4f::perspective(
                 camera.vertical_fov,
                 aspect_ratio,
@@ -127,7 +128,7 @@ pub fn update_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
                     camera_data.projection_buffer.handle(),
                     BufferContent::from_slice(&[camera_data.projection_matrix]),
                 )
-                .unwrap();
+                .map_err(RendererError::from)?;
         }
     }
 

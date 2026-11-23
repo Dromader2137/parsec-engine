@@ -6,7 +6,7 @@ use crate::{
     create_counter,
     ctx::Ctx,
     ecs::world::fetch::Mut,
-    error::{OptionNoneErr, ParsecError},
+    error::ParsecError,
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -15,7 +15,9 @@ use crate::{
             PipelineResourceLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
     },
-    renderer::components::transform::Transform,
+    renderer::{
+        RendererError, components::transform::Transform, get_resource, get_resource_mut,
+    },
     utils::{
         IdType,
         identifiable::{IdStore, Identifiable},
@@ -49,32 +51,28 @@ impl TransformData {
         position: Vec3f,
         scale: Vec3f,
         rotation: Quat,
-    ) -> TransformData {
+    ) -> Result<TransformData, RendererError> {
         let translation_matrix = Matrix4f::translation(position);
         let translation_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Uniform])
             .data(BufferContent::from_slice(&[translation_matrix]))
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let scale_matrix = Matrix4f::scale(scale);
         let scale_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Uniform])
             .data(BufferContent::from_slice(&[scale_matrix]))
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let rotation_matrix = rotation.into_matrix();
         let rotation_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Uniform])
             .data(BufferContent::from_slice(&[scale_matrix]))
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let look_at_matrix =
             Matrix4f::look_at(position, Vec3f::FORWARD * rotation, Vec3f::UP * rotation);
         let look_at_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Uniform])
             .data(BufferContent::from_slice(&[scale_matrix]))
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let model_layout = PipelineResourceLayoutBuilder::new()
             .bindings(&[
                 PipelineResourceBindingLayout {
@@ -90,22 +88,20 @@ impl TransformData {
                     shader_stages: vec![PipelineShaderStage::Vertex],
                 },
             ])
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let look_at_layout = PipelineResourceLayoutBuilder::new()
             .bindings(&[PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::UniformBuffer,
                 shader_stages: vec![PipelineShaderStage::Vertex],
             }])
-            .build(backend)
-            .unwrap();
-        let model_resource = model_layout.create_resource(backend).unwrap();
-        let look_at_resource = look_at_layout.create_resource(backend).unwrap();
-        model_resource.bind_buffer(backend, translation_buffer.handle(), 0).unwrap();
-        model_resource.bind_buffer(backend, scale_buffer.handle(), 1).unwrap();
-        model_resource.bind_buffer(backend, rotation_buffer.handle(), 2).unwrap();
-        look_at_resource.bind_buffer(backend, look_at_buffer.handle(), 0).unwrap();
-        TransformData {
+            .build(backend)?;
+        let model_resource = model_layout.create_resource(backend)?;
+        let look_at_resource = look_at_layout.create_resource(backend)?;
+        model_resource.bind_buffer(backend, translation_buffer.handle(), 0)?;
+        model_resource.bind_buffer(backend, scale_buffer.handle(), 1)?;
+        model_resource.bind_buffer(backend, rotation_buffer.handle(), 2)?;
+        look_at_resource.bind_buffer(backend, look_at_buffer.handle(), 0)?;
+        Ok(TransformData {
             transform_data_id: ID_COUNTER.next(),
             translation_matrix,
             scale_matrix,
@@ -119,45 +115,46 @@ impl TransformData {
             look_at_buffer,
             look_at_layout,
             look_at_resource,
-        }
+        })
     }
 
-    fn update_buffers_from_data(&mut self, backend: &mut ActiveGraphicsBackend) {
+    fn update_buffers_from_data(
+        &mut self,
+        backend: &mut ActiveGraphicsBackend,
+    ) -> Result<(), RendererError> {
         backend
             .update_buffer(
                 self.translation_buffer.handle(),
                 BufferContent::from_slice(&[self.translation_matrix]),
-            )
-            .unwrap();
+            )?;
         backend
             .update_buffer(
                 self.scale_buffer.handle(),
                 BufferContent::from_slice(&[self.scale_matrix]),
-            )
-            .unwrap();
+            )?;
         backend
             .update_buffer(
                 self.rotation_buffer.handle(),
                 BufferContent::from_slice(&[self.rotation_matrix]),
-            )
-            .unwrap();
+            )?;
         backend
             .update_buffer(
                 self.look_at_buffer.handle(),
                 BufferContent::from_slice(&[self.look_at_matrix]),
-            )
-            .unwrap();
+            )?;
+        Ok(())
     }
 
-    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) {
-        self.translation_buffer.destroy(backend).unwrap();
-        self.scale_buffer.destroy(backend).unwrap();
-        self.rotation_buffer.destroy(backend).unwrap();
-        self.look_at_buffer.destroy(backend).unwrap();
-        self.model_resource.destroy(backend).unwrap();
-        self.look_at_resource.destroy(backend).unwrap();
-        self.model_layout.destroy(backend).unwrap();
-        self.look_at_layout.destroy(backend).unwrap();
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), RendererError> {
+        self.translation_buffer.destroy(backend)?;
+        self.scale_buffer.destroy(backend)?;
+        self.rotation_buffer.destroy(backend)?;
+        self.look_at_buffer.destroy(backend)?;
+        self.model_resource.destroy(backend)?;
+        self.look_at_resource.destroy(backend)?;
+        self.model_layout.destroy(backend)?;
+        self.look_at_layout.destroy(backend)?;
+        Ok(())
     }
 }
 
@@ -166,10 +163,10 @@ impl Identifiable for TransformData {
 }
 
 pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut transforms_data = ctx.resources.get_mut::<IdStore<TransformData>>().none_err()?;
-    let mut transforms_data_manager = ctx.resources.get_mut::<TransformDataManager>().none_err()?;
-    let mut transforms = ctx.world.query::<Mut<Transform>>();
+    let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
+    let mut transforms_data = get_resource_mut::<IdStore<TransformData>>(ctx.resources)?;
+    let mut transforms_data_manager = get_resource_mut::<TransformDataManager>(ctx.resources)?;
+    let mut transforms = ctx.world.query::<Mut<Transform>>().map_err(RendererError::from)?;
 
     for (_, transform) in transforms.iter() {
         if let std::collections::hash_map::Entry::Vacant(e) =
@@ -180,7 +177,7 @@ pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
                 transform.position,
                 transform.scale,
                 transform.rotation,
-            );
+            )?;
             let data_id = transforms_data.push(transform_data);
             e.insert(data_id);
         }
@@ -189,16 +186,18 @@ pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
 }
 
 pub fn update_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut transforms_data = ctx.resources.get_mut::<IdStore<TransformData>>().none_err()?;
-    let transforms_data_manager = ctx.resources.get::<TransformDataManager>().none_err()?;
-    let mut transforms = ctx.world.query::<Transform>();
+    let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
+    let mut transforms_data = get_resource_mut::<IdStore<TransformData>>(ctx.resources)?;
+    let transforms_data_manager = get_resource::<TransformDataManager>(ctx.resources)?;
+    let mut transforms = ctx.world.query::<Transform>().map_err(RendererError::from)?;
 
     for (_, transform) in transforms.iter() {
         if let Some(data_id) =
             transforms_data_manager.component_to_data.get(&transform.transform_id())
         {
-            let data = transforms_data.get_mut(*data_id).unwrap();
+            let data = transforms_data
+                .get_mut(*data_id)
+                .ok_or(RendererError::TransformDataNotFound(*data_id))?;
             data.translation_matrix = Matrix4f::translation(transform.position);
             data.scale_matrix = Matrix4f::scale(transform.scale);
             data.rotation_matrix = transform.rotation.into_matrix();
@@ -207,7 +206,7 @@ pub fn update_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
                 Vec3f::FORWARD * transform.rotation,
                 Vec3f::UP * transform.rotation,
             );
-            data.update_buffers_from_data(&mut backend);
+            data.update_buffers_from_data(&mut backend)?;
         }
     }
     Ok(())

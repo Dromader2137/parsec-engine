@@ -12,8 +12,8 @@ use crate::{
         shader_module::ShaderHandle,
     },
     renderer::{
-        camera_data::CameraData, light_data::RendererLights, shadow::RendererShadows,
-        transform_data::TransformData,
+        RendererError, camera_data::CameraData, light_data::RendererLights,
+        shadow::RendererShadows, transform_data::TransformData,
     },
     utils::{IdType, identifiable::Identifiable},
 };
@@ -33,16 +33,13 @@ impl MaterialBase {
         renderpass: RenderpassHandle,
         binding_layouts: Vec<Vec<PipelineResourceBindingLayout>>,
         pipeline_options: PipelineOptions,
-    ) -> MaterialBase {
+    ) -> Result<MaterialBase, RendererError> {
         let resource_layouts = binding_layouts
             .iter()
             .map(|binding_layout| {
-                PipelineResourceLayoutBuilder::new()
-                    .bindings(binding_layout)
-                    .build(backend)
-                    .unwrap()
+                PipelineResourceLayoutBuilder::new().bindings(binding_layout).build(backend)
             })
-            .collect::<Vec<PipelineResourceLayout>>();
+            .collect::<Result<Vec<PipelineResourceLayout>, _>>()?;
 
         let layout_handles: Vec<_> = resource_layouts.iter().map(|l| l.handle()).collect();
         let pipeline = PipelineBuilder::new()
@@ -51,10 +48,9 @@ impl MaterialBase {
             .fragment_shader(fragment_shader)
             .resource_layouts(&layout_handles)
             .cull_mode(pipeline_options.culling_mode)
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
 
-        MaterialBase { material_base_id: ID_COUNTER.next(), pipeline, resource_layouts }
+        Ok(MaterialBase { material_base_id: ID_COUNTER.next(), pipeline, resource_layouts })
     }
 
     pub fn id(&self) -> u32 { self.material_base_id }

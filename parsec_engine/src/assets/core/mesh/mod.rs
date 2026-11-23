@@ -7,7 +7,7 @@ use crate::{
     },
     create_counter,
     ecs::resources::Resources,
-    graphics::{ActiveGraphicsBackend, pipeline::DefaultVertex},
+    graphics::{ActiveGraphicsBackend, buffer::BufferError, pipeline::DefaultVertex},
     renderer::mesh_data::MeshData,
     utils::{
         IdType,
@@ -93,6 +93,8 @@ enum MeshCookError {}
 enum MeshLoadError {
     #[error("graphics backend not found in resources")]
     GraphicsBackendNotFound,
+    #[error(transparent)]
+    Buffer(#[from] BufferError),
 }
 
 impl Asset for Mesh {
@@ -113,7 +115,7 @@ impl Asset for Mesh {
             let mut backend = resources
                 .get_mut::<ActiveGraphicsBackend>()
                 .ok_or(MeshLoadError::GraphicsBackendNotFound)?;
-            MeshData::new(&mut backend, &mesh.vertices, &mesh.indices)
+            MeshData::new(&mut backend, &mesh.vertices, &mesh.indices)?
         };
         let mut mesh_data_store =
             resources.get_add::<IdStore<MeshData<DefaultVertex>>>(IdStore::new());

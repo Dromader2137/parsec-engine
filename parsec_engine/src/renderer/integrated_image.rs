@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    error::ParsecError, graphics::{
+    graphics::{
         ActiveGraphicsBackend, image::{
             Image, ImageAspect, ImageBuilder, ImageError, ImageFormat, ImageSize, ImageUsage, ImageView, ImageViewBuilder,
         }, sampler::{Sampler, SamplerBuilder, SamplerError},

@@ -4,7 +4,7 @@ use crate::{
     create_counter,
     graphics::{
         ActiveGraphicsBackend,
-        buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
+        buffer::{Buffer, BufferBuilder, BufferContent, BufferError, BufferUsage},
         command_list::{Command, CommandList},
         pipeline::Vertex,
     },
@@ -23,19 +23,22 @@ impl<V: Vertex> MeshBuffer<V> {
         backend: &mut ActiveGraphicsBackend,
         vertices: &[V],
         indices: &[u32],
-    ) -> MeshBuffer<V> {
+    ) -> Result<MeshBuffer<V>, BufferError> {
         let vertex_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Vertex])
             .data(BufferContent::from_slice(vertices))
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let index_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Index])
             .data(BufferContent::from_slice(indices))
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
 
-        MeshBuffer { vertex_buffer, index_buffer, len: indices.len() as u32, _marker: PhantomData }
+        Ok(MeshBuffer {
+            vertex_buffer,
+            index_buffer,
+            len: indices.len() as u32,
+            _marker: PhantomData,
+        })
     }
 
     pub fn record_draw_commands(&self, command_list: &mut CommandList) {
@@ -66,9 +69,9 @@ impl<V: Vertex> MeshData<V> {
         backend: &mut ActiveGraphicsBackend,
         vertices: &[V],
         indices: &[u32],
-    ) -> MeshData<V> {
-        let buffer = MeshBuffer::new(backend, vertices, indices);
-        MeshData { mesh_data_id: ID_COUNTER.next(), buffer }
+    ) -> Result<MeshData<V>, BufferError> {
+        let buffer = MeshBuffer::new(backend, vertices, indices)?;
+        Ok(MeshData { mesh_data_id: ID_COUNTER.next(), buffer })
     }
 
     pub fn record_commands(&self, command_list: &mut CommandList) {

@@ -5,7 +5,7 @@ use parsec_engine_math::{
 
 use crate::{
     ctx::Ctx,
-    error::{OptionNoneErr, ParsecError},
+    error::ParsecError,
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -14,7 +14,11 @@ use crate::{
             PipelineResourceLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
     },
-    renderer::components::{light::Light, transform::Transform},
+    renderer::{
+        RendererError,
+        components::{light::Light, transform::Transform},
+        get_resource_mut,
+    },
 };
 
 pub const MAX_LIGHT_COUNT: usize = 32;
@@ -45,7 +49,7 @@ pub struct RendererLights {
 }
 
 impl RendererLights {
-    pub fn new(backend: &mut ActiveGraphicsBackend) -> RendererLights {
+    pub fn new(backend: &mut ActiveGraphicsBackend) -> Result<RendererLights, RendererError> {
         let data = RendererLightsData {
             light_count: 0,
             _pad: [0; 3],
@@ -55,21 +59,19 @@ impl RendererLights {
         let data_buffer = BufferBuilder::new()
             .usage(&[BufferUsage::Storage])
             .data(BufferContent::from_slice(&[data]))
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
 
         let resource_layout = PipelineResourceLayoutBuilder::new()
             .binding(PipelineResourceBindingLayout::new(PipelineBindingType::StorageBuffer, &[
                 PipelineShaderStage::Vertex,
                 PipelineShaderStage::Fragment,
             ]))
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
 
-        let resource = resource_layout.create_resource(backend).unwrap();
-        resource.bind_buffer(backend, data_buffer.handle(), 0).unwrap();
+        let resource = resource_layout.create_resource(backend)?;
+        resource.bind_buffer(backend, data_buffer.handle(), 0)?;
 
-        RendererLights { data, data_buffer, data_changed: false, resource_layout, resource }
+        Ok(RendererLights { data, data_buffer, data_changed: false, resource_layout, resource })
     }
 
     pub fn add_light_data(
@@ -104,28 +106,29 @@ impl RendererLights {
 
     pub fn clear_data(&mut self) { self.data.light_count = 0; }
 
-    pub fn update_buffer(&self, backend: &mut ActiveGraphicsBackend) {
+    pub fn update_buffer(&self, backend: &mut ActiveGraphicsBackend) -> Result<(), RendererError> {
         backend
-            .update_buffer(self.data_buffer.handle(), BufferContent::from_slice(&[self.data]))
-            .unwrap();
+            .update_buffer(self.data_buffer.handle(), BufferContent::from_slice(&[self.data]))?;
+        Ok(())
     }
 
-    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) {
-        self.resource.destroy(backend).unwrap();
-        self.resource_layout.destroy(backend).unwrap();
-        self.data_buffer.destroy(backend).unwrap();
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), RendererError> {
+        self.resource.destroy(backend)?;
+        self.resource_layout.destroy(backend)?;
+        self.data_buffer.destroy(backend)?;
+        Ok(())
     }
 }
 
 pub fn update_light_data(ctx: Ctx) -> Result<(), ParsecError> {
-    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut light_data = ctx.resources.get_mut::<RendererLights>().none_err()?;
-    let mut lights = ctx.world.query::<(Light, Transform)>();
+    let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
+    let mut light_data = get_resource_mut::<RendererLights>(ctx.resources)?;
+    let mut lights = ctx.world.query::<(Light, Transform)>().map_err(RendererError::from)?;
 
     light_data.clear_data();
     for (_, (light, transfrom)) in lights.iter() {
         light_data.add_light_data(transfrom.position, light.direction, light.up, light.color, 20.0);
     }
-    light_data.update_buffer(&mut backend);
+    light_data.update_buffer(&mut backend)?;
     Ok(())
 }

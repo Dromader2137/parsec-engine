@@ -18,6 +18,7 @@ use crate::{
     },
     math::uvec::Vec2u,
     renderer::{
+        RendererError,
         integrated_image::{IntegratedImage, IntegratedImageBuilder},
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
     },
@@ -100,7 +101,7 @@ void main() {}
 );
 
 impl RendererShadows {
-    pub fn new(backend: &mut ActiveGraphicsBackend) -> RendererShadows {
+    pub fn new(backend: &mut ActiveGraphicsBackend) -> Result<RendererShadows, RendererError> {
         let renderpass = RenderpassBuilder::new()
             .attachment(RenderpassAttachment {
                 attachment_type: RenderpassAttachmentType::Depth,
@@ -109,18 +110,15 @@ impl RendererShadows {
                 load_op: RenderpassAttachmentLoadOp::Clear,
                 store_op: RenderpassAttachmentStoreOp::Store,
             })
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let vertex_shader = ShaderModuleBuilder::new()
             .code(SHADOW_VERT)
             .shader_type(ShaderType::Vertex)
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let fragment_shader = ShaderModuleBuilder::new()
             .code(SHADOW_FRAG)
             .shader_type(ShaderType::Fragment)
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
         let material_base = MaterialBase::new(
             &mut *backend,
             vertex_shader.handle(),
@@ -144,7 +142,7 @@ impl RendererShadows {
                 ])],
             ],
             PipelineOptions::default(),
-        );
+        )?;
 
         let texture_size = 1 << 12;
 
@@ -154,40 +152,35 @@ impl RendererShadows {
         ]);
 
         let shadow_texture = IntegratedImageBuilder::default()
-            .size(ImageSize::new(Vec2u::new(texture_size << 1, texture_size)).unwrap())
+            .size(ImageSize::new(Vec2u::new(texture_size << 1, texture_size))?)
             .format(ImageFormat::D32)
             .aspect(ImageAspect::Depth)
             .usage(&[ImageUsage::DepthAttachment, ImageUsage::Sampled])
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
 
         let texture_resource_layout = PipelineResourceLayoutBuilder::new()
             .bindings(&[PipelineResourceBindingLayout {
                 binding_type: PipelineBindingType::TextureSampler,
                 shader_stages: vec![PipelineShaderStage::Fragment],
             }])
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
 
-        let texture_resource = texture_resource_layout.create_resource(backend).unwrap();
+        let texture_resource = texture_resource_layout.create_resource(backend)?;
 
-        texture_resource
-            .bind_sampler(
-                backend,
-                shadow_texture.sampler().handle(),
-                shadow_texture.view().handle(),
-                0,
-            )
-            .unwrap();
+        texture_resource.bind_sampler(
+            backend,
+            shadow_texture.sampler().handle(),
+            shadow_texture.view().handle(),
+            0,
+        )?;
 
         let framebuffer = FramebufferBuilder::new()
             .attachment(shadow_texture.view().handle())
             .size(Vec2u::new(texture_size << 1, texture_size))
             .renderpass(renderpass.handle())
-            .build(backend)
-            .unwrap();
+            .build(backend)?;
 
-        RendererShadows {
+        Ok(RendererShadows {
             shadow_texture,
             renderpass,
             material,
@@ -197,18 +190,19 @@ impl RendererShadows {
             texture_resource_layout,
             texture_resource,
             framebuffer,
-        }
+        })
     }
 
-    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) {
-        self.texture_resource.destroy(backend).unwrap();
-        self.texture_resource_layout.destroy(backend).unwrap();
-        self.shadow_texture.destroy(backend).unwrap();
-        self.framebuffer.destroy(backend).unwrap();
-        self.renderpass.destroy(backend).unwrap();
+    pub fn destroy(self, backend: &mut ActiveGraphicsBackend) -> Result<(), RendererError> {
+        self.texture_resource.destroy(backend)?;
+        self.texture_resource_layout.destroy(backend)?;
+        self.shadow_texture.destroy(backend)?;
+        self.framebuffer.destroy(backend)?;
+        self.renderpass.destroy(backend)?;
         // TODO maybe cleanup shadow material
-        self.material_base.destroy(backend).unwrap();
-        self.fragment_shader.destroy(backend).unwrap();
-        self.vertex_shader.destroy(backend).unwrap();
+        self.material_base.destroy(backend)?;
+        self.fragment_shader.destroy(backend)?;
+        self.vertex_shader.destroy(backend)?;
+        Ok(())
     }
 }
