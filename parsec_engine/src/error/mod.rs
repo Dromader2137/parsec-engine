@@ -1,7 +1,7 @@
 use std::{backtrace::Backtrace, error::Error, fmt::Debug};
 
 use crate::{
-    assets::AssetError, ecs::world::WorldError, input::InputError, renderer::RendererError,
+    assets::AssetError, ecs::EcsError, input::InputError, renderer::RendererError,
     utils::UtilsError,
 };
 
@@ -9,7 +9,7 @@ use crate::{
 #[non_exhaustive]
 pub enum ParsecError {
     #[error(transparent)] Asset(#[from] AssetError),
-    #[error(transparent)] World(#[from] WorldError),
+    #[error(transparent)] Ecs(#[from] EcsError),
     #[error(transparent)] Graphics(#[from] GraphicsError),
     #[error(transparent)] Input(#[from] InputError),
     #[error(transparent)] Renderer(#[from] RendererError),

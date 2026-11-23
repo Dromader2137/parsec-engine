@@ -3,7 +3,7 @@
 use std::{
     any::TypeId,
     marker::PhantomData,
-    sync::{Arc, RwLock},
+    sync::{Arc, PoisonError, RwLock},
 };
 
 use parsec_engine_macros::{impl_fetch, multiple_tuples};
@@ -59,7 +59,7 @@ impl<T: Component> Fetch for T {
     }
 
     fn release(state: Self::State) -> Result<(), ArchetypeError> {
-        let mut lock = state.access.write().unwrap();
+        let mut lock = state.access.write().unwrap_or_else(PoisonError::into_inner);
         lock.release_lock();
         Ok(())
     }
@@ -103,7 +103,7 @@ impl<T: Component> Fetch for Mut<T> {
     }
 
     fn release(state: Self::State) -> Result<(), ArchetypeError> {
-        let mut lock = state.access.write().unwrap();
+        let mut lock = state.access.write().unwrap_or_else(PoisonError::into_inner);
         lock.release_lock();
         Ok(())
     }

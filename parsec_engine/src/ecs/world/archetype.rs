@@ -5,7 +5,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
-    sync::{Arc, RwLock},
+    sync::{Arc, PoisonError, RwLock},
 };
 
 use parsec_engine_macros::{impl_spawn, multiple_tuples};
@@ -17,6 +17,7 @@ use crate::ecs::{
 };
 
 #[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ArchetypeError {
     #[error("Archetype column is not writable")]
     ArchetypeColumnNotWritable,
@@ -198,12 +199,12 @@ impl ArchetypeColumn {
     }
 
     fn is_mutable(&self) -> bool {
-        let access = self.borrow.read().unwrap().access;
+        let access = self.borrow.read().unwrap_or_else(PoisonError::into_inner).access;
         access == ArchetypeColumnAccess::ReadWrite
     }
 
     fn is_readable(&self) -> bool {
-        let access = self.borrow.read().unwrap().access;
+        let access = self.borrow.read().unwrap_or_else(PoisonError::into_inner).access;
         access == ArchetypeColumnAccess::Read || access == ArchetypeColumnAccess::ReadWrite
     }
 
@@ -495,6 +496,10 @@ impl Archetype {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
         }
 
+        if self.entities.is_empty() {
+            return Err(ArchetypeError::EntityNotFound);
+        }
+
         let last_pos = self.entities.len() - 1;
         let entity_pos = match self.entities.iter().enumerate().find(|(_, x)| **x == entity) {
             Some((pos, _)) => pos,
@@ -551,8 +556,10 @@ impl Archetype {
     ) -> Result<(*const [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
         let column = self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
         let slice = column.get_slice::<T>()?;
-        column.borrow.write().unwrap().count += 1;
-        column.borrow.write().unwrap().access = ArchetypeColumnAccess::Read;
+        let mut borrow = column.borrow.write().unwrap_or_else(PoisonError::into_inner);
+        borrow.count += 1;
+        borrow.access = ArchetypeColumnAccess::Read;
+        drop(borrow);
         Ok((slice, column.borrow.clone(), slice.len()))
     }
 
@@ -567,7 +574,8 @@ impl Archetype {
     ) -> Result<(*mut [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
         let column = self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
         let slice = column.get_mut_slice::<T>()?;
-        column.borrow.write().unwrap().access = ArchetypeColumnAccess::None;
+        column.borrow.write().unwrap_or_else(PoisonError::into_inner).access =
+            ArchetypeColumnAccess::None;
         Ok((slice, column.borrow.clone(), slice.len()))
     }
 

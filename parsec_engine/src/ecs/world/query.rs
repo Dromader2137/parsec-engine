@@ -2,12 +2,9 @@
 
 use std::marker::PhantomData;
 
-use crate::{
-    ecs::{
-        entity::Entity,
-        world::{World, fetch::Fetch},
-    },
-    error::ParsecError,
+use crate::ecs::{
+    entity::Entity,
+    world::{World, archetype::ArchetypeError, fetch::Fetch},
 };
 
 /// Stores the data needed to query entities from [`World`][crate::ecs::world::World].
@@ -17,7 +14,7 @@ pub struct Query<T: Fetch + Fetch> {
 }
 
 impl<T: Fetch> Query<T> {
-    pub fn from_world(world: &World) -> Result<Self, ParsecError> {
+    pub fn from_world(world: &World) -> Result<Self, ArchetypeError> {
         let archetype_id = T::archetype_id()?;
         let archetypes = world
             .archetypes
@@ -50,7 +47,7 @@ impl<T: Fetch> Query<T> {
 impl<T: Fetch> Drop for Query<T> {
     fn drop(&mut self) {
         for fetch in self.fetches.iter_mut() {
-            T::release(fetch.clone()).unwrap();
+            let _ = T::release(fetch.clone());
         }
     }
 }

@@ -4,7 +4,7 @@ mod data;
 pub mod resource;
 
 use std::{
-    any::{Any, TypeId},
+    any::{Any, TypeId, type_name},
     collections::{HashMap, HashSet},
 };
 
@@ -37,7 +37,9 @@ fn check_circularity(
     if node_id == target_id {
         return true;
     };
-    let resource = resources.get(&node_id).expect("tried to access a nonexistent resource");
+    let Some(resource) = resources.get(&node_id) else {
+        return false;
+    };
     let mut ret = false;
     for dependency in resource.dependencies.iter() {
         ret |= check_circularity(*dependency, target_id, resources);
@@ -73,12 +75,12 @@ impl Resources {
         let resource = self
             .resources
             .get_mut(&resource_id)
-            .ok_or(ResourceError::ResourceNotFound("UNKNOWN NAME"))?;
+            .ok_or(ResourceError::ResourceNotFound(type_name::<R>()))?;
         resource.dependencies.insert(dependency_id);
         let dependency = self
             .resources
             .get_mut(&dependency_id)
-            .ok_or(ResourceError::ResourceNotFound("UNKNOWN NAME"))?;
+            .ok_or(ResourceError::ResourceNotFound(type_name::<D>()))?;
         dependency.depended_on.insert(resource_id);
         Ok(())
     }
@@ -117,23 +119,26 @@ impl Resources {
     pub fn remove<R: ResourceMarker>(&mut self) -> Result<(), ResourceError> {
         let type_id = TypeId::of::<R>();
         let resource =
-            self.resources.get(&type_id).ok_or(ResourceError::ResourceNotFound("UNKNOWN"))?;
+            self.resources.get(&type_id).ok_or(ResourceError::ResourceNotFound(type_name::<R>()))?;
         if !resource.depended_on.is_empty() {
             return Err(ResourceError::ResourceDependedOn);
         }
-        let mut resource = self.resources.remove(&type_id).expect("resource doesn't exist");
+        let mut resource = self
+            .resources
+            .remove(&type_id)
+            .ok_or(ResourceError::ResourceNotFound(type_name::<R>()))?;
         for dependency_id in resource.dependencies.drain() {
             let dependency = self
                 .resources
                 .get_mut(&dependency_id)
-                .ok_or(ResourceError::ResourceNotFound("UNKNOWN"))?;
+                .ok_or(ResourceError::ResourceNotFound(type_name::<R>()))?;
             dependency.depended_on.remove(&type_id);
         }
         for dependent_id in resource.depended_on.drain() {
             let dependent = self
                 .resources
                 .get_mut(&dependent_id)
-                .ok_or(ResourceError::ResourceNotFound("UNKNOWN"))?;
+                .ok_or(ResourceError::ResourceNotFound(type_name::<R>()))?;
             dependent.dependencies.remove(&type_id);
         }
         Ok(())
@@ -147,7 +152,9 @@ fn resource_toposort(
     visited: &mut HashSet<TypeId>,
 ) {
     visited.insert(node_id);
-    let resource = resources.get(&node_id).expect("tried to access a nonexistent resource");
+    let Some(resource) = resources.get(&node_id) else {
+        return;
+    };
     for dependency in resource.depended_on.iter() {
         if visited.contains(dependency) {
             continue;
@@ -169,25 +176,26 @@ impl Drop for Resources {
         }
 
         for key in deletion_order {
-            self.resources.remove(&key).expect("tried to remove a nonexistent resource");
+            self.resources.remove(&key);
         }
     }
 }
 
 #[derive(thiserror::Error, Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ResourceError {
-    #[error("Failed to borrow this resourcs")]
+    #[error("failed to borrow resource")]
     UnableToBorrow,
-    #[error("Failed to mutably borrow this resourcs")]
+    #[error("failed to mutably borrow resource")]
     UnableToBorrowMutably,
-    #[error("Resource of this type already exists")]
+    #[error("resource of this type already exists")]
     ResourceAlreadyExists,
-    #[error("Resource of this type is also stored somewhere else")]
+    #[error("resource of this type is also stored somewhere else")]
     ResourceNotUnique,
-    #[error("Failed to find a resource of a type: {0}")]
+    #[error("resource '{0}' not found")]
     ResourceNotFound(&'static str),
-    #[error("Other resources depend on this on so it can't be deleted")]
+    #[error("other resources depend on this one so it can't be deleted")]
     ResourceDependedOn,
-    #[error("Circular resource dependencies are not allowed")]
+    #[error("circular resource dependencies are not allowed")]
     CircularityNotAllowed,
 }
