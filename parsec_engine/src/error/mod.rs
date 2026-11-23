@@ -2,7 +2,7 @@ use std::{backtrace::Backtrace, error::Error, fmt::Debug};
 
 use crate::{
     assets::AssetError, ecs::EcsError, graphics::GraphicsError, input::InputError,
-    renderer::RendererError, utils::UtilsError,
+    renderer::RendererError, time::TimeError, utils::UtilsError,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -14,6 +14,7 @@ pub enum ParsecError {
     #[error(transparent)] Input(#[from] InputError),
     #[error(transparent)] Renderer(#[from] RendererError),
     #[error(transparent)] Utils(#[from] UtilsError),
+    #[error(transparent)] Time(#[from] TimeError),
 }
 
 #[derive(Debug)]

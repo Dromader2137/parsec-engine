@@ -5,8 +5,17 @@ use std::time::{SystemTime, SystemTimeError};
 use crate::{
     ctx::Ctx,
     ecs::system::{SystemBundle, SystemTrigger, Systems},
-    error::{OptionNoneErr, ParsecError},
+    error::ParsecError,
 };
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum TimeError {
+    #[error("time resource not found")]
+    TimeNotFound,
+    #[error(transparent)]
+    SystemTime(#[from] SystemTimeError),
+}
 
 /// Stores timing information like delta_time and current_time.
 pub struct Time {
@@ -22,12 +31,12 @@ impl Time {
         Time { start_time, previous_time: start_time, current_time: start_time, delta_time: 0.0 }
     }
 
-    fn update_time(&mut self) {
+    fn update_time(&mut self) -> Result<(), TimeError> {
         self.previous_time = self.current_time;
         self.current_time = SystemTime::now();
-        self.delta_time = (self.current_time.duration_since(self.previous_time).unwrap().as_nanos()
-            as f64
+        self.delta_time = (self.current_time.duration_since(self.previous_time)?.as_nanos() as f64
             / 1000000000.0) as f32;
+        Ok(())
     }
 
     /// Gets frame duration in seconds.
@@ -47,7 +56,7 @@ impl Time {
 fn time_init(ctx: Ctx) { ctx.resources.add(Time::new()); }
 
 fn time_update(ctx: Ctx) -> Result<(), ParsecError> {
-    ctx.resources.get_mut::<Time>().none_err()?.update_time();
+    ctx.resources.get_mut::<Time>().ok_or(TimeError::TimeNotFound)?.update_time()?;
     Ok(())
 }
 
