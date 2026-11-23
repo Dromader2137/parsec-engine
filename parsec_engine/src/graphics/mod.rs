@@ -27,9 +27,19 @@ use std::{
     thread::{self, ThreadId},
 };
 
-use crate::{
-    error::ParsecError,
-    graphics::{backend::GraphicsBackend, window::Window},
+use crate::graphics::{
+    backend::{BackendError, GraphicsBackend},
+    buffer::BufferError,
+    command_list::CommandListError,
+    framebuffer::FramebufferError,
+    gpu_cpu_fence::GpuToCpuFenceError,
+    gpu_gpu_fence::GpuToGpuFenceError,
+    image::ImageError,
+    pipeline::PipelineError,
+    renderpass::RenderpassError,
+    sampler::SamplerError,
+    shader_module::ShaderError,
+    window::{Window, WindowError},
 };
 
 pub mod backend;
@@ -45,6 +55,37 @@ pub mod sampler;
 pub mod shader_module;
 pub mod window;
 
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum GraphicsError {
+    #[error("backend error: {0}")]
+    Backend(#[from] BackendError),
+    #[error("buffer error: {0}")]
+    Buffer(#[from] BufferError),
+    #[error("command list error: {0}")]
+    CommandList(#[from] CommandListError),
+    #[error("framebuffer error: {0}")]
+    Framebuffer(#[from] FramebufferError),
+    #[error("gpu to cpu fence error: {0}")]
+    GpuToCpuFence(#[from] GpuToCpuFenceError),
+    #[error("gpu to gpu fence error: {0}")]
+    GpuToGpuFence(#[from] GpuToGpuFenceError),
+    #[error("image error: {0}")]
+    Image(#[from] ImageError),
+    #[error("pipeline error: {0}")]
+    Pipeline(#[from] PipelineError),
+    #[error("renderpass error: {0}")]
+    Renderpass(#[from] RenderpassError),
+    #[error("sampler error: {0}")]
+    Sampler(#[from] SamplerError),
+    #[error("shader error: {0}")]
+    Shader(#[from] ShaderError),
+    #[error("window error: {0}")]
+    Window(#[from] WindowError),
+    #[error(transparent)]
+    EventLoopAccess(#[from] EventLoopAccessError),
+}
+
 pub struct ActiveGraphicsBackend(Box<dyn GraphicsBackend>);
 
 impl Deref for ActiveGraphicsBackend {
@@ -57,7 +98,7 @@ impl DerefMut for ActiveGraphicsBackend {
 }
 
 impl ActiveGraphicsBackend {
-    pub fn with_backend<T: GraphicsBackend>(window: &Window) -> Result<Self, ParsecError> {
+    pub fn with_backend<T: GraphicsBackend>(window: &Window) -> Result<Self, BackendError> {
         let backend = T::init(window)?;
         Ok(Self(Box::new(backend)))
     }
@@ -85,9 +126,9 @@ impl ActiveEventLoop {
 
     pub fn raw_active_event_loop(
         &self,
-    ) -> Result<&winit::event_loop::ActiveEventLoop, ParsecError> {
+    ) -> Result<&winit::event_loop::ActiveEventLoop, EventLoopAccessError> {
         if self.thread_id != thread::current().id() {
-            return Err(EventLoopAccessError.into());
+            return Err(EventLoopAccessError);
         }
         Ok(unsafe { self.raw_active_event_loop.as_ref() })
     }

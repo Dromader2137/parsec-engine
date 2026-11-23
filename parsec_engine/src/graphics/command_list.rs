@@ -16,6 +16,7 @@ pub struct CommandList {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum CommandListError {
     #[error(transparent)]
     Backend(#[from] BackendError),

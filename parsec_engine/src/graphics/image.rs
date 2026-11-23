@@ -201,6 +201,7 @@ impl ImageViewBuilder {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ImageError {
     #[error(transparent)]
     Backend(#[from] BackendError),

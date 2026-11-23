@@ -353,6 +353,7 @@ impl PipelineOptions {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum PipelineError {
     #[error(transparent)]
     Backend(#[from] BackendError),

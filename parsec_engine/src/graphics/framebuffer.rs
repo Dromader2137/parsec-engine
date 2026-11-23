@@ -84,6 +84,7 @@ impl FramebufferBuilder {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum FramebufferError {
     #[error(transparent)]
     Backend(#[from] BackendError),

@@ -1,8 +1,8 @@
 use std::{backtrace::Backtrace, error::Error, fmt::Debug};
 
 use crate::{
-    assets::AssetError, ecs::EcsError, input::InputError, renderer::RendererError,
-    utils::UtilsError,
+    assets::AssetError, ecs::EcsError, graphics::GraphicsError, input::InputError,
+    renderer::RendererError, utils::UtilsError,
 };
 
 #[derive(Debug, thiserror::Error)]

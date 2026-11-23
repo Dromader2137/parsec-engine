@@ -42,6 +42,7 @@ impl SamplerBuilder {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum SamplerError {
     #[error(transparent)]
     Backend(#[from] BackendError),

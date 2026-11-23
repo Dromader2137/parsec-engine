@@ -14,6 +14,7 @@ pub struct Window {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum WindowError {
     #[error("Failed to create window: {0}")]
     CreationError(winit::error::OsError),

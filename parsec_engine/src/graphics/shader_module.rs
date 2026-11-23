@@ -63,6 +63,7 @@ impl<'a> ShaderModuleBuilder<'a> {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ShaderError {
     #[error(transparent)]
     Backend(#[from] BackendError),

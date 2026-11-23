@@ -89,6 +89,7 @@ impl<'a> BufferContent<'a> {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum BufferError {
     #[error(transparent)]
     Backend(#[from] BackendError),

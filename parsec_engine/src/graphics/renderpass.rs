@@ -87,6 +87,7 @@ pub struct RenderpassAttachment {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum RenderpassError {
     #[error(transparent)]
     Backend(#[from] BackendError),

@@ -6,6 +6,7 @@ pub struct GpuToGpuFence {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum GpuToGpuFenceError {
     #[error(transparent)]
     Backend(#[from] BackendError),
