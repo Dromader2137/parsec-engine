@@ -5,7 +5,7 @@ use parsec_engine_math::vec::Vec2f;
 use crate::{
     assets::library::AssetLibrary,
     ecs::{
-        resources::Resources,
+        resources::{ResourceError, ResourceMarker, Resources},
         system::{SystemTrigger, Systems},
         world::World,
     },
@@ -17,6 +17,23 @@ use crate::{
         mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
     },
 };
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum AppError {
+    #[error("event loop error: {0}")]
+    EventLoop(#[from] winit::error::EventLoopError),
+    #[error("failed to remove event resource: {0}")]
+    Resource(#[from] ResourceError),
+}
+
+fn report(err: ParsecError) {
+    if err.is_fatal() {
+        panic!("XX: {:?}", err);
+    } else {
+        println!("EE: {:?}", err);
+    }
+}
 
 #[allow(unused)]
 pub struct App {
@@ -43,9 +60,9 @@ impl App {
 
         self.execute_system(SystemTrigger::Start);
 
-        let event_loop = winit::event_loop::EventLoop::new().expect("Valid event loop");
+        let event_loop = winit::event_loop::EventLoop::new().map_err(AppError::from)?;
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
-        event_loop.run_app(self).unwrap();
+        event_loop.run_app(self).map_err(AppError::from)?;
         Ok(())
     }
 
@@ -56,11 +73,13 @@ impl App {
             &mut self.resources,
             &mut self.assets,
         ) {
-            if err.is_fatal() {
-                panic!("XX: {:?}", err);
-            } else {
-                println!("EE: {:?}", err);
-            }
+            report(err);
+        }
+    }
+
+    fn remove_resource<R: ResourceMarker>(&mut self) {
+        if let Err(err) = self.resources.remove::<R>() {
+            report(AppError::from(err).into());
         }
     }
 }
@@ -83,7 +102,7 @@ impl winit::application::ApplicationHandler for App {
 
             self.execute_system(SystemTrigger::MouseMovement);
 
-            self.resources.remove::<MouseMovementEvent>().unwrap();
+            self.remove_resource::<MouseMovementEvent>();
         }
     }
 
@@ -110,7 +129,7 @@ impl winit::application::ApplicationHandler for App {
 
                 self.execute_system(SystemTrigger::KeyboardInput);
 
-                self.resources.remove::<KeyboardInputEvent>().unwrap();
+                self.remove_resource::<KeyboardInputEvent>();
             },
             winit::event::WindowEvent::CursorLeft { device_id: _ } => {
                 self.execute_system(SystemTrigger::WindowCursorLeft);
@@ -126,14 +145,14 @@ impl winit::application::ApplicationHandler for App {
 
                 self.execute_system(SystemTrigger::MouseMovement);
 
-                self.resources.remove::<MouseMovementEvent>().unwrap();
+                self.remove_resource::<MouseMovementEvent>();
             },
             winit::event::WindowEvent::MouseInput { device_id: _, state, button } => {
                 self.resources.add(MouseButtonEvent::new(button, state));
 
                 self.execute_system(SystemTrigger::MouseButton);
 
-                self.resources.remove::<MouseButtonEvent>().unwrap();
+                self.remove_resource::<MouseButtonEvent>();
             },
             winit::event::WindowEvent::MouseWheel { device_id: _, delta, phase: _ } => {
                 let processed_delta = match delta {
@@ -148,10 +167,10 @@ impl winit::application::ApplicationHandler for App {
 
                 self.execute_system(SystemTrigger::MouseWheel);
 
-                self.resources.remove::<MouseWheelEvent>().unwrap();
+                self.remove_resource::<MouseWheelEvent>();
             },
             winit::event::WindowEvent::CloseRequested => {
-                self.resources.remove::<ActiveEventLoop>().unwrap();
+                self.remove_resource::<ActiveEventLoop>();
                 self.execute_system(SystemTrigger::End);
                 event_loop.exit();
             },

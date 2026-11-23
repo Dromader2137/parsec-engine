@@ -1,6 +1,7 @@
 use std::{backtrace::Backtrace, error::Error, fmt::Debug};
 
 use crate::{
+    app::AppError,
     assets::AssetError, ecs::EcsError, graphics::GraphicsError, input::InputError,
     renderer::RendererError, time::TimeError, utils::UtilsError,
 };
@@ -15,6 +16,7 @@ pub enum ParsecError {
     #[error(transparent)] Renderer(#[from] RendererError),
     #[error(transparent)] Utils(#[from] UtilsError),
     #[error(transparent)] Time(#[from] TimeError),
+    #[error(transparent)] App(#[from] AppError),
 }
 
 #[derive(Debug)]
