@@ -5,7 +5,7 @@ use parsec_engine_math::{
 
 use crate::{
     ctx::Ctx,
-    error::ParsecError,
+    error::SystemError,
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -120,7 +120,7 @@ impl RendererLights {
     }
 }
 
-pub fn update_light_data(ctx: Ctx) -> Result<(), ParsecError> {
+pub fn update_light_data(ctx: Ctx) -> Result<(), SystemError> {
     let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
     let mut light_data = get_resource_mut::<RendererLights>(ctx.resources)?;
     let mut lights = ctx.world.query::<(Light, Transform)>().map_err(RendererError::from)?;

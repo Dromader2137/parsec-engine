@@ -1,43 +1,33 @@
 use parsec_engine::{
-    app::App,
-    assets::core::{
+    app::App, assets::core::{
         mesh::{Mesh, obj::ObjFileHandler},
         shader::{
             Shader,
             file_handler::{FragmentShaderFileHandler, VertexShaderFileHandler},
         },
         texture::{Texture, png::PngFileHandler},
-    },
-    ctx::Ctx,
-    ecs::{
+    }, ctx::Ctx, ecs::{
         system::SystemTrigger,
         world::{component::Component, fetch::Mut},
-    },
-    error::ParsecError,
-    graphics::{
+    }, error::{NoneToErr, SystemError}, graphics::{
         ActiveGraphicsBackend,
         pipeline::{
             DefaultVertex, PipelineBindingType, PipelineCullingMode, PipelineOptions,
             PipelineResourceBindingLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
         window::Window,
-    },
-    input::{Input, InputBundle},
-    math::{quat::Quat, vec::Vec3f},
-    renderer::{
+    }, input::{Input, InputBundle}, math::{quat::Quat, vec::Vec3f}, renderer::{
         RendererMainRenderpass,
         components::{
             camera::Camera, light::Light, mesh_renderer::MeshRenderer, transform::Transform,
         },
         graphics_bundle::GraphicsBundle,
         material_data::{MaterialBase, MaterialData, MaterialPipelineBinding},
-    },
-    time::{Time, TimeBundle},
-    utils::identifiable::IdStore,
+    }, time::{Time, TimeBundle}, utils::identifiable::IdStore,
 };
 use parsec_engine_vulkan::VulkanBackend;
 
-fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
+fn game_startup(ctx: Ctx) -> Result<(), SystemError> {
     let vertex_shader =
         ctx.assets.load::<Shader>("main@shaders/simple.vert#shader", ctx.resources)?;
     let fragment_shader =
@@ -45,15 +35,15 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
     let mesh_handle = ctx.assets.load::<Mesh>("Cube@test.obj#mesh", ctx.resources)?;
     let texture_handle = ctx.assets.load::<Texture>("@test.png#texture", ctx.resources)?;
 
-    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().none_err()?;
-    let mut materials = ctx.resources.get_mut::<IdStore<MaterialData>>().none_err()?;
-    let mut material_bases = ctx.resources.get_mut::<IdStore<MaterialBase>>().none_err()?;
-    let renderpass = ctx.resources.get::<RendererMainRenderpass>().none_err()?;
+    let mut backend = ctx.resources.get_mut::<ActiveGraphicsBackend>().to_err()?;
+    let mut materials = ctx.resources.get_mut::<IdStore<MaterialData>>().to_err()?;
+    let mut material_bases = ctx.resources.get_mut::<IdStore<MaterialBase>>().to_err()?;
+    let renderpass = ctx.resources.get::<RendererMainRenderpass>().to_err()?;
 
     let material_base = MaterialBase::new(
         &mut backend,
-        vertex_shader.resolve(ctx.assets).none_err()?.module.handle(),
-        fragment_shader.resolve(ctx.assets).none_err()?.module.handle(),
+        vertex_shader.resolve(ctx.assets).to_err()?.module.handle(),
+        fragment_shader.resolve(ctx.assets).to_err()?.module.handle(),
         renderpass.0.handle(),
         vec![
             vec![
@@ -87,7 +77,7 @@ fn game_startup(ctx: Ctx) -> Result<(), ParsecError> {
         PipelineOptions::new::<DefaultVertex>(PipelineCullingMode::CullBack),
     )?;
 
-    let texture = texture_handle.resolve(ctx.assets).none_err()?;
+    let texture = texture_handle.resolve(ctx.assets).to_err()?;
     let texture_binding = PipelineResourceLayoutBuilder::new()
         .bindings(&[PipelineResourceBindingLayout::new(PipelineBindingType::TextureSampler, &[
             PipelineShaderStage::Fragment,
@@ -142,11 +132,11 @@ struct CameraController {
     fov: f32,
 }
 
-fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
+fn camera_controller(ctx: Ctx) -> Result<(), SystemError> {
     let mut cameras = ctx.world.query::<(Mut<Transform>, Mut<Camera>, Mut<CameraController>)>()?;
-    let mut window = ctx.resources.get_mut::<Window>().none_err()?;
-    let input = ctx.resources.get::<Input>().none_err()?;
-    let time = ctx.resources.get::<Time>().none_err()?;
+    let mut window = ctx.resources.get_mut::<Window>().to_err()?;
+    let input = ctx.resources.get::<Input>().to_err()?;
+    let time = ctx.resources.get::<Time>().to_err()?;
 
     for (_, (transform, camera, camera_controller)) in cameras.iter() {
         let delta = input.mouse.positon_delta();
@@ -189,7 +179,7 @@ fn camera_controller(ctx: Ctx) -> Result<(), ParsecError> {
     Ok(())
 }
 
-pub fn prepare_app() -> Result<App, ParsecError> {
+pub fn prepare_app() -> Result<App, SystemError> {
     let mut app = App::new();
     app.assets.add_source_file_handler::<VertexShaderFileHandler>();
     app.assets.add_source_file_handler::<FragmentShaderFileHandler>();

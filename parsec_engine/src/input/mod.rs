@@ -5,7 +5,7 @@ use keys::Keys;
 use crate::{
     ctx::Ctx,
     ecs::system::{SystemBundle, SystemTrigger, Systems},
-    error::ParsecError,
+    error::SystemError,
     graphics::window::Window,
     input::{
         keys::KeyboardInputEvent,
@@ -51,21 +51,21 @@ impl Input {
 
 fn input_start(ctx: Ctx) { ctx.resources.add(Input::new()); }
 
-fn input_clear(ctx: Ctx) -> Result<(), ParsecError> {
+fn input_clear(ctx: Ctx) -> Result<(), SystemError> {
     let mut input = ctx.resources.get_mut::<Input>().ok_or(InputError::InputNotFound)?;
     input.keys.clear();
     input.mouse.clear();
     Ok(())
 }
 
-fn input_clear_all(ctx: Ctx) -> Result<(), ParsecError> {
+fn input_clear_all(ctx: Ctx) -> Result<(), SystemError> {
     let mut input = ctx.resources.get_mut::<Input>().ok_or(InputError::InputNotFound)?;
     input.keys.clear_all();
     input.mouse.clear();
     Ok(())
 }
 
-fn input_keyboard_event(ctx: Ctx) -> Result<(), ParsecError> {
+fn input_keyboard_event(ctx: Ctx) -> Result<(), SystemError> {
     let window = ctx.resources.get::<Window>().ok_or(InputError::WindowNotFound)?;
     if !window.focused() {
         return Ok(());
@@ -80,40 +80,39 @@ fn input_keyboard_event(ctx: Ctx) -> Result<(), ParsecError> {
     Ok(())
 }
 
-fn input_mouse_movement(ctx: Ctx) -> Result<(), ParsecError> {
+fn input_mouse_movement(ctx: Ctx) -> Result<(), SystemError> {
     let window = ctx.resources.get::<Window>().ok_or(InputError::WindowNotFound)?;
     if !window.focused() {
         return Ok(());
     }
-    let movement_event = ctx
+    let movement_event = *ctx
         .resources
         .get::<MouseMovementEvent>()
-        .ok_or(InputError::MouseInputEventNotFound)?
-        .clone();
+        .ok_or(InputError::MouseInputEventNotFound)?;
     let mut input = ctx.resources.get_mut::<Input>().ok_or(InputError::InputNotFound)?;
     input.mouse.process_movement(movement_event);
     Ok(())
 }
 
-fn input_mouse_button(ctx: Ctx) -> Result<(), ParsecError> {
+fn input_mouse_button(ctx: Ctx) -> Result<(), SystemError> {
     let window = ctx.resources.get::<Window>().ok_or(InputError::WindowNotFound)?;
     if !window.focused() {
         return Ok(());
     }
     let button_event =
-        ctx.resources.get::<MouseButtonEvent>().ok_or(InputError::MouseInputEventNotFound)?.clone();
+        *ctx.resources.get::<MouseButtonEvent>().ok_or(InputError::MouseInputEventNotFound)?;
     let mut input = ctx.resources.get_mut::<Input>().ok_or(InputError::InputNotFound)?;
     input.mouse.process_button_event(button_event);
     Ok(())
 }
 
-fn input_mouse_wheel(ctx: Ctx) -> Result<(), ParsecError> {
+fn input_mouse_wheel(ctx: Ctx) -> Result<(), SystemError> {
     let window = ctx.resources.get::<Window>().ok_or(InputError::WindowNotFound)?;
     if !window.focused() {
         return Ok(());
     }
     let wheel_event =
-        ctx.resources.get::<MouseWheelEvent>().ok_or(InputError::MouseInputEventNotFound)?.clone();
+        *ctx.resources.get::<MouseWheelEvent>().ok_or(InputError::MouseInputEventNotFound)?;
     let mut input = ctx.resources.get_mut::<Input>().ok_or(InputError::InputNotFound)?;
     input.mouse.process_wheel_event(wheel_event);
     Ok(())

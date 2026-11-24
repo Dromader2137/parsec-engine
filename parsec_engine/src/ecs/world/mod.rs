@@ -92,7 +92,7 @@ impl World {
     /// - If `entity` doesn't exist.
     /// - If the [archetype][Archetype] containing `entity` is already borrowed in some way.
     pub fn delete(&mut self, entity: Entity) -> Result<(), WorldError> {
-        for (_, archetype) in self.archetypes.iter_mut() {
+        for archetype in self.archetypes.values_mut() {
             if archetype.entities.contains(&entity) && !archetype.are_all_columns_mutable() {
                 return Err(WorldError::Delete(ArchetypeError::ArchetypeColumnNotWritable));
             }

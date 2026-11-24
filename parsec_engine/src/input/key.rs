@@ -10,13 +10,13 @@ pub enum StorageKeyCode {
 }
 
 pub trait KeyCode {
-    fn into_storage_key_code(&self) -> StorageKeyCode;
+    fn into_storage_key_code(self) -> StorageKeyCode;
 }
 
 impl KeyCode for Noncharacter {
-    fn into_storage_key_code(&self) -> StorageKeyCode { StorageKeyCode::Noncharacter(*self) }
+    fn into_storage_key_code(self) -> StorageKeyCode { StorageKeyCode::Noncharacter(self) }
 }
 
 impl KeyCode for &'static str {
-    fn into_storage_key_code(&self) -> StorageKeyCode { StorageKeyCode::Character((*self).into()) }
+    fn into_storage_key_code(self) -> StorageKeyCode { StorageKeyCode::Character(self.into()) }
 }

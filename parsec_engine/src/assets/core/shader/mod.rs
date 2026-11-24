@@ -61,7 +61,7 @@ impl Asset for Shader {
 
     fn cook(input_data: Self::Input) -> Result<Self::Cooked, Self::CookError> {
         let compiler =
-            shaderc::Compiler::new().map_err(|err| ShaderCookError::CompilerInitialization(err))?;
+            shaderc::Compiler::new().map_err(ShaderCookError::CompilerInitialization)?;
         let spv = compiler
             .compile_into_spirv(
                 &input_data.shader_code,
@@ -74,7 +74,7 @@ impl Asset for Shader {
                 "main",
                 None,
             )
-            .map_err(|err| ShaderCookError::Compilation(err))?;
+            .map_err(ShaderCookError::Compilation)?;
         let shader_type = match input_data.shader_extension.as_str() {
             "vert" => Ok(ShaderType::Vertex),
             "frag" => Ok(ShaderType::Fragment),

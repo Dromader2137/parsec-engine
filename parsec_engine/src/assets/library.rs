@@ -7,7 +7,6 @@ use crate::{
         source_file::{AssetCookContext, AssetSourceFile, AssetSourceFileHandler, AssetSourceId},
     },
     ecs::resources::Resources,
-    error::ParsecError,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -17,7 +16,7 @@ pub struct AssetHandle<T: Asset> {
 }
 
 impl<T: Asset> Clone for AssetHandle<T> {
-    fn clone(&self) -> Self { Self { asset_id: self.asset_id, _marker: PhantomData } }
+    fn clone(&self) -> Self { *self }
 }
 impl<T: Asset> Copy for AssetHandle<T> {}
 impl<T: Asset> AssetHandle<T> {
@@ -229,8 +228,14 @@ impl AssetLibrary {
 
     pub fn cook_all(&self) -> Result<(), AssetError> {
         for (_, source_file) in self.source_files() {
-            self.cook_source_file(&source_file.filepath)?;
+            self.cook_source_file(source_file.filepath)?;
         }
         Ok(())
+    }
+}
+
+impl Default for AssetLibrary {
+    fn default() -> Self {
+        Self::new()
     }
 }

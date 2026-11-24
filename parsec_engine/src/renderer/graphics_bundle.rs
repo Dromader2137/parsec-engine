@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     ctx::Ctx,
     ecs::system::{SystemBundle, SystemTrigger, Systems},
-    error::ParsecError,
+    error::SystemError,
     graphics::{ActiveEventLoop, ActiveGraphicsBackend, backend::GraphicsBackend, window::Window},
     renderer::{
         RendererError, ResizeFlag,
@@ -28,7 +28,7 @@ impl<B: GraphicsBackend> Default for GraphicsBundle<B> {
 impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
     fn insert(self, systems: &mut Systems) {
         systems.add(SystemTrigger::LateStart, init_window);
-        systems.add(SystemTrigger::LateStart, |ctx: Ctx| -> Result<(), ParsecError> {
+        systems.add(SystemTrigger::LateStart, |ctx: Ctx| -> Result<(), SystemError> {
             let backend = {
                 let window = get_resource::<Window>(ctx.resources)?;
                 ActiveGraphicsBackend::with_backend::<B>(&window).map_err(RendererError::from)?
@@ -54,22 +54,22 @@ impl<B: GraphicsBackend> SystemBundle for GraphicsBundle<B> {
     }
 }
 
-fn mark_resize(ctx: Ctx) -> Result<(), ParsecError> {
+fn mark_resize(ctx: Ctx) -> Result<(), SystemError> {
     get_resource_mut::<ResizeFlag>(ctx.resources)?.0 = true;
     Ok(())
 }
 
-fn request_redraw(ctx: Ctx) -> Result<(), ParsecError> {
+fn request_redraw(ctx: Ctx) -> Result<(), SystemError> {
     get_resource::<Window>(ctx.resources)?.request_redraw();
     Ok(())
 }
 
-fn end_wait_idle(ctx: Ctx) -> Result<(), ParsecError> {
+fn end_wait_idle(ctx: Ctx) -> Result<(), SystemError> {
     get_resource::<ActiveGraphicsBackend>(ctx.resources)?.wait_idle();
     Ok(())
 }
 
-fn init_window(ctx: Ctx) -> Result<(), ParsecError> {
+fn init_window(ctx: Ctx) -> Result<(), SystemError> {
     let window = {
         let event_loop = get_resource::<ActiveEventLoop>(ctx.resources)?;
         let event_loop = event_loop.raw_active_event_loop().map_err(RendererError::from)?;
@@ -79,7 +79,7 @@ fn init_window(ctx: Ctx) -> Result<(), ParsecError> {
     Ok(())
 }
 
-fn auto_enqueue(ctx: Ctx) -> Result<(), ParsecError> {
+fn auto_enqueue(ctx: Ctx) -> Result<(), SystemError> {
     let mut draw_queue = get_resource_mut::<Vec<Draw>>(ctx.resources)?;
     let camera_data_manager = get_resource::<CameraDataManager>(ctx.resources)?;
     let transform_data_manager = get_resource::<TransformDataManager>(ctx.resources)?;

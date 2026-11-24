@@ -6,7 +6,7 @@ use crate::{
     create_counter,
     ctx::Ctx,
     ecs::world::fetch::Mut,
-    error::ParsecError,
+    error::SystemError,
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -162,7 +162,7 @@ impl Identifiable for TransformData {
     fn id(&self) -> IdType { self.transform_data_id }
 }
 
-pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
+pub fn add_transform_data(ctx: Ctx) -> Result<(), SystemError> {
     let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
     let mut transforms_data = get_resource_mut::<IdStore<TransformData>>(ctx.resources)?;
     let mut transforms_data_manager = get_resource_mut::<TransformDataManager>(ctx.resources)?;
@@ -185,7 +185,7 @@ pub fn add_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
     Ok(())
 }
 
-pub fn update_transform_data(ctx: Ctx) -> Result<(), ParsecError> {
+pub fn update_transform_data(ctx: Ctx) -> Result<(), SystemError> {
     let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
     let mut transforms_data = get_resource_mut::<IdStore<TransformData>>(ctx.resources)?;
     let transforms_data_manager = get_resource::<TransformDataManager>(ctx.resources)?;

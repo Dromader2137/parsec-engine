@@ -43,9 +43,9 @@ fn extract_from_asset_name(asset_name: &'static str) -> Option<AssetDescription>
 
 fn six_bytes_to_char(sb: u8) -> char {
     match sb {
-        0..=25 => ('A' as u8 + sb) as char,
-        26..=51 => ('a' as u8 + (sb - 26)) as char,
-        52..=61 => ('0' as u8 + (sb - 52)) as char,
+        0..=25 => (b'A' + sb) as char,
+        26..=51 => (b'a' + (sb - 26)) as char,
+        52..=61 => (b'0' + (sb - 52)) as char,
         62 => '-',
         63 => '_',
         _ => unreachable!(),
@@ -56,10 +56,10 @@ pub(super) fn cooked_path(name: &str) -> PathBuf {
     let bytes = name.as_bytes();
     let base64 = bytes
         .chunks(3)
-        .map(|chunk| {
-            let a = chunk.get(0).map(|x| *x).unwrap_or_default();
-            let b = chunk.get(1).map(|x| *x).unwrap_or_default();
-            let c = chunk.get(2).map(|x| *x).unwrap_or_default();
+        .flat_map(|chunk| {
+            let a = chunk.first().copied().unwrap_or_default();
+            let b = chunk.get(1).copied().unwrap_or_default();
+            let c = chunk.get(2).copied().unwrap_or_default();
             let b1 = six_bytes_to_char((a & 0xFC) >> 2);
             let b2 = six_bytes_to_char(((a & 0x03) << 4) | ((b & 0xF0) >> 4));
             if chunk.get(1).is_none() {
@@ -72,7 +72,6 @@ pub(super) fn cooked_path(name: &str) -> PathBuf {
             let b4 = six_bytes_to_char(c & 0x3F);
             [b1, b2, b3, b4]
         })
-        .flatten()
         .collect::<String>();
     Path::new("assets").join(format!("{base64}.asset"))
 }

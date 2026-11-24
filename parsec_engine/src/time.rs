@@ -5,7 +5,7 @@ use std::time::{SystemTime, SystemTimeError};
 use crate::{
     ctx::Ctx,
     ecs::system::{SystemBundle, SystemTrigger, Systems},
-    error::ParsecError,
+    error::SystemError,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -55,7 +55,7 @@ impl Time {
 
 fn time_init(ctx: Ctx) { ctx.resources.add(Time::new()); }
 
-fn time_update(ctx: Ctx) -> Result<(), ParsecError> {
+fn time_update(ctx: Ctx) -> Result<(), SystemError> {
     ctx.resources.get_mut::<Time>().ok_or(TimeError::TimeNotFound)?.update_time()?;
     Ok(())
 }

@@ -6,7 +6,7 @@ use crate::{
     create_counter,
     ctx::Ctx,
     ecs::world::fetch::Mut,
-    error::ParsecError,
+    error::SystemError,
     graphics::{
         ActiveGraphicsBackend,
         buffer::{Buffer, BufferBuilder, BufferContent, BufferUsage},
@@ -78,7 +78,7 @@ impl Identifiable for CameraData {
     fn id(&self) -> IdType { self.camera_data_id }
 }
 
-pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
+pub fn add_camera_data(ctx: Ctx) -> Result<(), SystemError> {
     let window = get_resource::<Window>(ctx.resources)?;
     let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
     let mut cameras_data = get_resource_mut::<IdStore<CameraData>>(ctx.resources)?;
@@ -104,7 +104,7 @@ pub fn add_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
     Ok(())
 }
 
-pub fn update_camera_data(ctx: Ctx) -> Result<(), ParsecError> {
+pub fn update_camera_data(ctx: Ctx) -> Result<(), SystemError> {
     let window = get_resource::<Window>(ctx.resources)?;
     let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
     let mut cameras_data = get_resource_mut::<IdStore<CameraData>>(ctx.resources)?;

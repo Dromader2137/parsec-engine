@@ -36,7 +36,7 @@ pub struct RendererShadows {
     pub texture_resource: PipelineResource,
 }
 
-const SHADOW_VERT: &'static [u32] = embed_shader!(
+const SHADOW_VERT: &[u32] = embed_shader!(
     "vert",
     "
 #version 450
@@ -91,7 +91,7 @@ void main() {
 "
 );
 
-const SHADOW_FRAG: &'static [u32] = embed_shader!(
+const SHADOW_FRAG: &[u32] = embed_shader!(
     "frag",
     "
 #version 450

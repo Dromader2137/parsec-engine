@@ -6,7 +6,7 @@ use crate::{
     assets::library::AssetLibrary,
     ctx::Ctx,
     ecs::{resources::Resources, world::World},
-    error::ParsecError,
+    error::SystemError,
 };
 
 /// List of possible actions a system can run on.
@@ -73,7 +73,7 @@ impl Systems {
         world: &mut World,
         resources: &mut Resources,
         assets: &mut AssetLibrary,
-    ) -> Result<(), ParsecError> {
+    ) -> Result<(), SystemError> {
         if let Some(systems) = self.systems.get_mut(&system_type) {
             for system in systems.iter_mut() {
                 system.run(Ctx {
@@ -93,7 +93,7 @@ impl Default for Systems {
 
 /// Marks a type that is a system.
 pub trait System: Send + Sync + 'static {
-    fn run<'a>(&mut self, ctx: Ctx<'a>) -> Result<(), ParsecError>;
+    fn run<'a>(&mut self, ctx: Ctx<'a>) -> Result<(), SystemError>;
 }
 
 pub trait IntoSystem<Marker> {
@@ -122,7 +122,7 @@ impl<F> System for FunctionSystem<F, CtxMarker>
 where
     F: for<'a> FnMut(Ctx<'a>) + Send + Sync + 'static,
 {
-    fn run<'a>(&mut self, ctx: Ctx<'a>) -> Result<(), ParsecError> {
+    fn run<'a>(&mut self, ctx: Ctx<'a>) -> Result<(), SystemError> {
         (self.function)(ctx);
         Ok(())
     }
@@ -130,7 +130,7 @@ where
 
 impl<F> IntoSystem<CtxResultMarker> for F
 where
-    F: for<'a> FnMut(Ctx<'a>) -> Result<(), ParsecError> + Send + Sync + 'static,
+    F: for<'a> FnMut(Ctx<'a>) -> Result<(), SystemError> + Send + Sync + 'static,
 {
     type ResultingSystem = FunctionSystem<F, CtxResultMarker>;
     fn into_system(self) -> Self::ResultingSystem {
@@ -139,9 +139,9 @@ where
 }
 impl<F> System for FunctionSystem<F, CtxResultMarker>
 where
-    F: for<'a> FnMut(Ctx<'a>) -> Result<(), ParsecError> + Send + Sync + 'static,
+    F: for<'a> FnMut(Ctx<'a>) -> Result<(), SystemError> + Send + Sync + 'static,
 {
-    fn run<'a>(&mut self, ctx: Ctx<'a>) -> Result<(), ParsecError> { (self.function)(ctx) }
+    fn run<'a>(&mut self, ctx: Ctx<'a>) -> Result<(), SystemError> { (self.function)(ctx) }
 }
 
 /// Marks a type used to group systems into interdependent bundles.

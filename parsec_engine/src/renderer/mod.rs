@@ -27,7 +27,7 @@ use crate::{
         },
         world::WorldError,
     },
-    error::ParsecError,
+    error::SystemError,
     graphics::{
         ActiveGraphicsBackend, EventLoopAccessError,
         backend::BackendError,
@@ -150,7 +150,7 @@ pub struct RendererDepthImage(pub DepthImage);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RendererFramebuffers(pub Vec<Framebuffer>);
 
-pub fn init_renderer(ctx: Ctx) -> Result<(), ParsecError> { Ok(try_init_renderer(ctx)?) }
+pub fn init_renderer(ctx: Ctx) -> Result<(), SystemError> { Ok(try_init_renderer(ctx)?) }
 
 fn try_init_renderer(ctx: Ctx) -> Result<(), RendererError> {
     let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
@@ -264,7 +264,7 @@ fn recreate_size_dependent_components(
     Ok(())
 }
 
-pub fn render(ctx: Ctx) -> Result<(), ParsecError> { Ok(try_render(ctx)?) }
+pub fn render(ctx: Ctx) -> Result<(), SystemError> { Ok(try_render(ctx)?) }
 
 fn try_render(ctx: Ctx) -> Result<(), RendererError> {
     let mut backend = get_resource_mut::<ActiveGraphicsBackend>(ctx.resources)?;
@@ -414,7 +414,7 @@ fn try_render(ctx: Ctx) -> Result<(), RendererError> {
     Ok(())
 }
 
-pub fn queue_clear(ctx: Ctx) -> Result<(), ParsecError> {
+pub fn queue_clear(ctx: Ctx) -> Result<(), SystemError> {
     get_resource_mut::<Vec<Draw>>(ctx.resources)?.clear();
     Ok(())
 }

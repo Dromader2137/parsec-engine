@@ -345,6 +345,7 @@ impl ArchetypeColumn {
     /// # Errors
     ///
     /// - If the column is not writable (`self.borrow.access` != [`ArchetypeColumnAccess::ReadWrite`]).
+    #[allow(clippy::mut_from_ref)]
     fn get_mut_slice<T: Component>(&self) -> Result<&mut [T], ArchetypeError> {
         if !self.is_mutable() {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
@@ -443,7 +444,7 @@ impl Archetype {
 
     /// Check if all columns all mutable. Useful for spawns/deletes/cuts.
     pub fn are_all_columns_mutable(&self) -> bool {
-        for (_, column) in self.columns.iter() {
+        for column in self.columns.values() {
             if !column.is_mutable() {
                 return false;
             }
@@ -472,7 +473,7 @@ impl Archetype {
             None => return Err(ArchetypeError::EntityNotFound),
         };
 
-        for (_, column) in self.columns.iter_mut() {
+        for column in self.columns.values_mut() {
             column.copy(last_pos, entity_pos)?;
             column.pop()?;
         }
@@ -525,7 +526,7 @@ impl Archetype {
     pub fn trim_columns(&mut self) {
         let desired_len = self.columns.iter().map(|x| x.1.rows).min().unwrap_or(0);
 
-        for (_, column) in self.columns.iter_mut() {
+        for column in self.columns.values_mut() {
             while column.rows < desired_len {
                 unsafe { column.pop_unchecked() };
             }

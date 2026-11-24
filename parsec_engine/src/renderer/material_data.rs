@@ -98,6 +98,7 @@ impl MaterialData {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn bind(
         &self,
         command_list: &mut CommandList,

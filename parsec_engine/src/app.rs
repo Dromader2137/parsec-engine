@@ -4,8 +4,8 @@ use parsec_engine_math::vec::Vec2f;
 
 use crate::{
     assets::library::AssetLibrary, ecs::{
-        EcsError, resources::{ResourceError, ResourceMarker, Resources}, system::{SystemTrigger, Systems}, world::World,
-    }, error::ParsecError, graphics::ActiveEventLoop, input::{
+        resources::{ResourceError, ResourceMarker, Resources}, system::{SystemTrigger, Systems}, world::World,
+    }, error::SystemError, graphics::ActiveEventLoop, input::{
         key::StorageKeyCode,
         keys::KeyboardInputEvent,
         mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
@@ -39,7 +39,7 @@ impl App {
         }
     }
 
-    pub fn execute(&mut self) -> Result<(), ParsecError> {
+    pub fn execute(&mut self) -> Result<(), SystemError> {
         if option_env!("PARSEC_COOK_ASSETS").is_some() {
             self.assets.cook_all()?;
             return Ok(());
@@ -66,9 +66,14 @@ impl App {
 
     fn remove_resource<R: ResourceMarker>(&mut self) {
         if let Err(err) = self.resources.remove::<R>() {
-            let perr = ParsecError::Ecs(EcsError::Resource(err));
-            println!("{}", perr);
+            println!("{}", err);
         }
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
