@@ -25,7 +25,7 @@ create_counter! {FRAMEBUFFER_ID_COUNTER}
 impl VulkanFramebuffer {
     pub fn new(
         device: &VulkanDevice,
-        attachments: &[(&VulkanImageView, &Box<dyn VulkanImage>)],
+        attachments: &[(&VulkanImageView, &dyn VulkanImage)],
         renderpass: &VulkanRenderpass,
         dimensions: Vec2u,
     ) -> Result<VulkanFramebuffer, VulkanFramebufferError> {

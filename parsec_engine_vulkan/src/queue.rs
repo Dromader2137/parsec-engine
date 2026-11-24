@@ -22,6 +22,7 @@ impl VulkanQueue {
         VulkanQueue { queue: raw_queue, internal_semaphore: None }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn submit(
         &mut self,
         device: &VulkanDevice,

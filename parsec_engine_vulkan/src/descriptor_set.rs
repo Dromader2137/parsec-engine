@@ -86,7 +86,7 @@ pub enum VulkanDescriptorError {
     SetDeletionError(ash::vk::Result),
 }
 
-impl<'a> VulkanDescriptorSetBinding {
+impl VulkanDescriptorSetBinding {
     pub fn new(
         binding: u32,
         descriptor_type: VulkanDescriptorType,
@@ -147,7 +147,7 @@ impl VulkanDescriptorPool {
 }
 
 create_counter! {ID_COUNTER_LAYOUT}
-impl<'a> VulkanDescriptorSetLayout {
+impl VulkanDescriptorSetLayout {
     pub fn new(
         device: &VulkanDevice,
         bindings: Vec<VulkanDescriptorSetBinding>,

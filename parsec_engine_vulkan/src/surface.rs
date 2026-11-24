@@ -109,11 +109,11 @@ impl VulkanSurface {
 
         let surface_format = *preferred_formats
             .iter()
-            .find_map(|preffered_format| {
+            .find(|preffered_format| {
                 let found = surface_formats
                     .iter()
                     .find(|format| format.format == preffered_format.raw_image_format());
-                if found.is_some() { Some(preffered_format) } else { None }
+                found.is_some()
             })
             .ok_or(VulkanSurfaceError::NoSurfaceFormatsAvailable)?;
 

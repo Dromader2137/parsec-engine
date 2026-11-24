@@ -225,7 +225,7 @@ enum VulkanCommand<'a> {
     BindVertexBuffer(&'a VulkanBuffer),
     BindIndexBuffer(&'a VulkanBuffer),
     BindDescriptorSet(&'a VulkanDescriptorSet, u32),
-    CopyBufferToImage(&'a VulkanBuffer, &'a Box<dyn VulkanImage>, Vec2u, Vec2u),
+    CopyBufferToImage(&'a VulkanBuffer, &'a dyn VulkanImage, Vec2u, Vec2u),
     CopyBufferToBuffer(&'a VulkanBuffer, &'a VulkanBuffer),
 }
 
@@ -252,7 +252,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
             });
         }
 
-        for (buffer_id, _) in buffer_map.iter() {
+        for buffer_id in buffer_map.keys() {
             state.buffer_properties.insert(*buffer_id, VulkanCommandBufferBufferState {
                 last_pipeline_stage: vec![VulkanPipelineStage::BottomOfPipe],
                 last_access: Vec::new(),
@@ -287,7 +287,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
                         device
                             .raw_device()
                             .begin_command_buffer(command_buffer.raw_command_buffer, &begin_info)
-                            .map_err(|err| VulkanCommandBufferError::RawBeginError(err))?;
+                            .map_err(VulkanCommandBufferError::RawBeginError)?;
                     }
                 },
                 VulkanCommand::End => {
@@ -295,7 +295,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
                         device
                             .raw_device()
                             .end_command_buffer(command_buffer.raw_command_buffer)
-                            .map_err(|err| VulkanCommandBufferError::RawEndError(err))?
+                            .map_err(VulkanCommandBufferError::RawEndError)?
                     };
                 },
                 VulkanCommand::BeginRenderpass(renderpass, framebuffer) => {
@@ -323,7 +323,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
                                 &[VulkanAccess::ShaderRead],
                                 layout,
                                 VulkanImageLayout::ShaderReadOnlyOptimal,
-                                image,
+                                image.as_ref(),
                             )],
                         )?;
 
@@ -901,7 +901,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
     pub fn copy_buffer_to_image<'b: 'a>(
         &mut self,
         buffer: &'b VulkanBuffer,
-        image: &'b Box<dyn VulkanImage>,
+        image: &'b dyn VulkanImage,
         image_size: Vec2u,
         image_offset: Vec2u,
     ) -> Result<(), VulkanCommandBufferError> {
@@ -933,6 +933,7 @@ impl<'a> VulkanCommandBufferBuilder<'a> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn pipeline_barrier(
         &self,
         device: &VulkanDevice,

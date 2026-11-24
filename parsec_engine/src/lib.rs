@@ -1,3 +1,6 @@
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+
 pub mod app;
 pub mod assets;
 pub mod ctx;

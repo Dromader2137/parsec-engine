@@ -642,7 +642,7 @@ impl GraphicsBackend for VulkanBackend {
                     let b = self.buffers.get(&buffer.id()).unwrap();
                     let i = self.images.get(&image.id()).unwrap();
                     builder
-                        .copy_buffer_to_image(b, i, *image_size, *image_offset)
+                        .copy_buffer_to_image(b, i.as_ref(), *image_size, *image_offset)
                         .map_err(BackendError::new)?
                 },
                 Command::CopyBufferToBuffer(src, dst) => {
@@ -756,7 +756,7 @@ impl GraphicsBackend for VulkanBackend {
         let img = self.images.get(&image.id()).ok_or(VulkanBackendError::NotFound("image"))?;
         builder.begin().map_err(BackendError::new)?;
         builder
-            .copy_buffer_to_image(buf, img, image_size, image_offset)
+            .copy_buffer_to_image(buf, img.as_ref(), image_size, image_offset)
             .map_err(BackendError::new)?;
         builder.end().map_err(BackendError::new)?;
         builder.build(&self.device, &mut cmd).map_err(BackendError::new)?;
@@ -786,7 +786,7 @@ impl GraphicsBackend for VulkanBackend {
 
     fn create_image_view(&mut self, image: ImageHandle) -> Result<ImageViewHandle, BackendError> {
         let im = self.images.get(&image.id()).ok_or(VulkanBackendError::NotFound("image"))?;
-        let iv = VulkanImageView::from_image(&self.device, im).map_err(BackendError::new)?;
+        let iv = VulkanImageView::from_image(&self.device, im.as_ref()).map_err(BackendError::new)?;
         let iv_id = iv.id();
         self.image_views.insert(iv_id, iv);
         Ok(ImageViewHandle::new(iv_id))
@@ -830,7 +830,7 @@ impl GraphicsBackend for VulkanBackend {
                     .map(|image_view| {
                         self.images
                             .get(&image_view.image_id())
-                            .map(|img| (image_view, img))
+                            .map(|img| (image_view, img.as_ref()))
                             .ok_or(VulkanBackendError::NotFound("image"))
                     })
             })

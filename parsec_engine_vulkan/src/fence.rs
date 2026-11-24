@@ -9,11 +9,11 @@ pub struct VulkanFence {
 #[derive(Debug, thiserror::Error)]
 pub enum VulkanFenceError {
     #[error("Failed to create fence: {0}")]
-    CreationError(ash::vk::Result),
+    Creation(ash::vk::Result),
     #[error("Failed to wait for fence: {0}")]
-    WaitError(ash::vk::Result),
+    Wait(ash::vk::Result),
     #[error("Failed to reset fence: {0}")]
-    ResetError(ash::vk::Result),
+    Reset(ash::vk::Result),
 }
 
 create_counter! {ID_COUNTER}
@@ -26,7 +26,7 @@ impl VulkanFence {
 
         let fence = match unsafe { device.raw_device().create_fence(&create_info, None) } {
             Ok(val) => val,
-            Err(err) => return Err(VulkanFenceError::CreationError(err)),
+            Err(err) => return Err(VulkanFenceError::Creation(err)),
         };
 
         Ok(VulkanFence { id: ID_COUNTER.next(), fence })
@@ -36,14 +36,14 @@ impl VulkanFence {
         if let Err(err) =
             unsafe { device.raw_device().wait_for_fences(&[self.fence], true, u64::MAX) }
         {
-            return Err(VulkanFenceError::WaitError(err));
+            return Err(VulkanFenceError::Wait(err));
         }
         Ok(())
     }
 
     pub fn reset(&self, device: &VulkanDevice) -> Result<(), VulkanFenceError> {
         if let Err(err) = unsafe { device.raw_device().reset_fences(&[self.fence]) } {
-            return Err(VulkanFenceError::ResetError(err));
+            return Err(VulkanFenceError::Reset(err));
         }
         Ok(())
     }

@@ -125,7 +125,7 @@ impl VulkanGraphicsPipeline {
         renderpass: &VulkanRenderpass,
         vertex_shader: &VulkanShaderModule,
         fragment_shader: &VulkanShaderModule,
-        descriptor_set_layouts: &Vec<VulkanDescriptorSetLayout>,
+        descriptor_set_layouts: &[VulkanDescriptorSetLayout],
         options: VulkanPipelineOptions,
     ) -> Result<VulkanGraphicsPipeline, VulkanGraphicsPipelineError> {
         let set_layouts: Vec<_> =

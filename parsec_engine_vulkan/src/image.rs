@@ -306,7 +306,7 @@ pub enum VulkanImageError {
     FormatNotSupported,
 }
 
-fn get_image_view_create_info(image: &Box<dyn VulkanImage>) -> ash::vk::ImageViewCreateInfo<'_> {
+fn get_image_view_create_info(image: &dyn VulkanImage) -> ash::vk::ImageViewCreateInfo<'_> {
     ash::vk::ImageViewCreateInfo::default()
         .view_type(ash::vk::ImageViewType::TYPE_2D)
         .format(image.format().raw_image_format())
@@ -411,7 +411,7 @@ create_counter! {ID_COUNTER_VIEW}
 impl VulkanImageView {
     pub fn from_image(
         device: &VulkanDevice,
-        image: &Box<dyn VulkanImage>,
+        image: &dyn VulkanImage,
     ) -> Result<VulkanImageView, VulkanImageError> {
         let create_info = get_image_view_create_info(image);
 

@@ -371,6 +371,10 @@ pub struct Archetype {
     pub entities: Vec<Entity>,
 }
 
+type CutEntityData = (Entity, HashMap<TypeId, (usize, Vec<u8>)>);
+type RawData<T> = (*const [T], Arc<RwLock<BorrowingStats>>, usize);
+type RawMutData<T> = (*mut [T], Arc<RwLock<BorrowingStats>>, usize);
+
 impl Archetype {
     pub fn new() -> Archetype {
         Archetype { columns: HashMap::new(), bundle_count: 0, entities: Vec::new() }
@@ -492,7 +496,7 @@ impl Archetype {
     pub fn cut_entity(
         &mut self,
         entity: Entity,
-    ) -> Result<(Entity, HashMap<TypeId, (usize, Vec<u8>)>), ArchetypeError> {
+    ) -> Result<CutEntityData, ArchetypeError> {
         if !self.are_all_columns_mutable() {
             return Err(ArchetypeError::ArchetypeColumnNotWritable);
         }
@@ -554,7 +558,7 @@ impl Archetype {
     /// - If column storing `T` components is not readable.
     pub fn get<T: Component>(
         &self,
-    ) -> Result<(*const [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
+    ) -> Result<RawData<T>, ArchetypeError> {
         let column = self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
         let slice = column.get_slice::<T>()?;
         let mut borrow = column.borrow.write().unwrap_or_else(PoisonError::into_inner);
@@ -572,7 +576,7 @@ impl Archetype {
     /// - If column storing `T` components is not writable.
     pub fn get_mut<T: Component>(
         &self,
-    ) -> Result<(*mut [T], Arc<RwLock<BorrowingStats>>, usize), ArchetypeError> {
+    ) -> Result<RawMutData<T>, ArchetypeError> {
         let column = self.get_column::<T>().ok_or(ArchetypeError::TypeNotFound)?;
         let slice = column.get_mut_slice::<T>()?;
         column.borrow.write().unwrap_or_else(PoisonError::into_inner).access =
