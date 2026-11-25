@@ -2,11 +2,12 @@ use crate::{
     create_counter,
     ecs::world::component::Component,
     math::{quat::Quat, vec::Vec3f},
+    utils::IdType,
 };
 
 #[derive(Debug, Component)]
 pub struct Transform {
-    transform_id: u32,
+    transform_id: IdType,
     pub position: Vec3f,
     pub scale: Vec3f,
     pub rotation: Quat,

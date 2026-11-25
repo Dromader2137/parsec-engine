@@ -1,8 +1,8 @@
-use crate::{create_counter, ecs::world::component::Component};
+use crate::{create_counter, ecs::world::component::Component, utils::IdType};
 
 #[derive(Debug, Component)]
 pub struct Camera {
-    camera_id: u32,
+    camera_id: IdType,
     pub vertical_fov: f32,
     pub near_clipping_plane: f32,
     pub far_clipping_plane: f32,

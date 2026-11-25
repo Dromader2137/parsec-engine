@@ -1,16 +1,15 @@
 use crate::{
-    assets::{core::mesh::Mesh, library::AssetHandle},
-    ecs::world::component::Component,
+    assets::{core::mesh::Mesh, library::AssetHandle}, ecs::world::component::Component, renderer::material_data::MaterialData, utils::{IdType, identifiable::Identifiable},
 };
 
 #[derive(Debug, Component)]
 pub struct MeshRenderer {
     pub mesh: AssetHandle<Mesh>,
-    pub material_id: u32,
+    pub material_id: IdType,
 }
 
 impl MeshRenderer {
-    pub fn new(mesh: AssetHandle<Mesh>, material_id: u32) -> MeshRenderer {
-        MeshRenderer { mesh, material_id }
+    pub fn new(mesh: AssetHandle<Mesh>, material: &MaterialData) -> MeshRenderer {
+        MeshRenderer { mesh, material_id: material.id() }
     }
 }

@@ -1,8 +1,8 @@
-use crate::{create_counter, ecs::world::component::Component, math::vec::Vec3f};
+use crate::{create_counter, ecs::world::component::Component, math::vec::Vec3f, utils::IdType};
 
 #[derive(Debug, Component)]
 pub struct Light {
-    light_id: u32,
+    light_id: IdType,
     pub direction: Vec3f,
     pub up: Vec3f,
     pub color: Vec3f,
