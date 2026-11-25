@@ -114,7 +114,7 @@ fn game_startup(ctx: Ctx) -> Result<(), SystemError> {
     ctx.world.spawn((
         Transform::new(Vec3f::ONE * 20.0, Vec3f::ONE, Quat::IDENTITY),
         Light::new(
-            (Vec3f::ONE * -1.0).normalize(),
+            Vec3f::new(-1.0, -1.0, -1.0).normalize(),
             Vec3f::new(-1.0, 1.0, -1.0).normalize(),
             Vec3f::ONE * 0.9,
         ),
