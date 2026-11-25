@@ -1,7 +1,6 @@
 use core::cmp::Ord;
 
-use parsec_engine::graphics::window::Window;
-use parsec_engine_math::uvec::Vec2u;
+use parsec_engine::{graphics::window::Window, math::uvec::Vec2u};
 
 use crate::{
     device::VulkanDevice,

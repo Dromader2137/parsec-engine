@@ -1,9 +1,11 @@
 //! Module responsible for handling windows.
 
-use parsec_engine_math::{uvec::Vec2u, vec::Vec2f};
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-use crate::create_counter;
+use crate::{
+    create_counter,
+    math::{uvec::Vec2u, vec::Vec2f},
+};
 
 #[derive(Debug)]
 pub struct Window {

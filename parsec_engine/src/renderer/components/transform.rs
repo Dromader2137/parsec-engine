@@ -1,6 +1,8 @@
-use parsec_engine_math::{quat::Quat, vec::Vec3f};
-
-use crate::{create_counter, ecs::world::component::Component};
+use crate::{
+    create_counter,
+    ecs::world::component::Component,
+    math::{quat::Quat, vec::Vec3f},
+};
 
 #[derive(Debug, Component)]
 pub struct Transform {

@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use parsec_engine_math::{mat::Matrix4f, quat::Quat, vec::Vec3f};
-
 use crate::{
     create_counter,
     ctx::Ctx,
@@ -15,9 +13,8 @@ use crate::{
             PipelineResourceLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
     },
-    renderer::{
-        RendererError, components::transform::Transform, get_resource, get_resource_mut,
-    },
+    math::{mat::Matrix4f, quat::Quat, vec::Vec3f},
+    renderer::{RendererError, components::transform::Transform, get_resource, get_resource_mut},
     utils::{
         IdType,
         identifiable::{IdStore, Identifiable},
@@ -122,26 +119,22 @@ impl TransformData {
         &mut self,
         backend: &mut ActiveGraphicsBackend,
     ) -> Result<(), RendererError> {
-        backend
-            .update_buffer(
-                self.translation_buffer.handle(),
-                BufferContent::from_slice(&[self.translation_matrix]),
-            )?;
-        backend
-            .update_buffer(
-                self.scale_buffer.handle(),
-                BufferContent::from_slice(&[self.scale_matrix]),
-            )?;
-        backend
-            .update_buffer(
-                self.rotation_buffer.handle(),
-                BufferContent::from_slice(&[self.rotation_matrix]),
-            )?;
-        backend
-            .update_buffer(
-                self.look_at_buffer.handle(),
-                BufferContent::from_slice(&[self.look_at_matrix]),
-            )?;
+        backend.update_buffer(
+            self.translation_buffer.handle(),
+            BufferContent::from_slice(&[self.translation_matrix]),
+        )?;
+        backend.update_buffer(
+            self.scale_buffer.handle(),
+            BufferContent::from_slice(&[self.scale_matrix]),
+        )?;
+        backend.update_buffer(
+            self.rotation_buffer.handle(),
+            BufferContent::from_slice(&[self.rotation_matrix]),
+        )?;
+        backend.update_buffer(
+            self.look_at_buffer.handle(),
+            BufferContent::from_slice(&[self.look_at_matrix]),
+        )?;
         Ok(())
     }
 

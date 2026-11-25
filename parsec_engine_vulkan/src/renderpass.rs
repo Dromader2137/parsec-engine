@@ -1,8 +1,10 @@
-use parsec_engine::graphics::renderpass::{
-    RenderpassAttachment, RenderpassAttachmentLoadOp, RenderpassAttachmentStoreOp,
-    RenderpassAttachmentType, RenderpassClearValue,
+use parsec_engine::{
+    graphics::renderpass::{
+        RenderpassAttachment, RenderpassAttachmentLoadOp, RenderpassAttachmentStoreOp,
+        RenderpassAttachmentType, RenderpassClearValue,
+    },
+    math::vec::Vec4f,
 };
-use parsec_engine_math::vec::Vec4f;
 
 use crate::{
     access::VulkanAccess, create_counter, device::VulkanDevice, image::VulkanImageFormat,

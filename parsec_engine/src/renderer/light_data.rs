@@ -1,8 +1,3 @@
-use parsec_engine_math::{
-    mat::Matrix4f,
-    vec::{Vec2f, Vec3f, Vec4f},
-};
-
 use crate::{
     ctx::Ctx,
     error::SystemError,
@@ -13,6 +8,10 @@ use crate::{
             PipelineBindingType, PipelineResource, PipelineResourceBindingLayout,
             PipelineResourceLayout, PipelineResourceLayoutBuilder, PipelineShaderStage,
         },
+    },
+    math::{
+        mat::Matrix4f,
+        vec::{Vec2f, Vec3f, Vec4f},
     },
     renderer::{
         RendererError,

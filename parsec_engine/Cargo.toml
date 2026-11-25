@@ -9,7 +9,6 @@ once_cell.workspace = true
 thiserror.workspace = true
 winit.workspace = true
 parsec_engine_macros.workspace = true
-parsec_engine_math.workspace = true
 serde.workspace = true
 postcard.workspace = true
 shaderc.workspace = true

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use parsec_engine_math::{ivec::Vec2i, uvec::Vec2u};
+use parsec_engine::math::{ivec::Vec2i, uvec::Vec2u};
 
 use crate::{
     access::VulkanAccess,

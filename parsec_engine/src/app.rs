@@ -1,7 +1,5 @@
 //! Modele responsible managing the lifecycle of an application.
 
-use parsec_engine_math::vec::Vec2f;
-
 use crate::{
     assets::library::AssetLibrary, ecs::{
         resources::{ResourceError, ResourceMarker, Resources}, system::{SystemTrigger, Systems}, world::World,
@@ -9,7 +7,7 @@ use crate::{
         key::StorageKeyCode,
         keys::KeyboardInputEvent,
         mouse::{MouseButtonEvent, MouseMovementEvent, MouseWheelEvent},
-    },
+    }, math::vec::Vec2f,
 };
 
 #[derive(Debug, thiserror::Error)]

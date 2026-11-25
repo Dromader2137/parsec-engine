@@ -1,4 +1,4 @@
-use parsec_engine_math::{ivec::Vec2i, uvec::Vec2u};
+use parsec_engine::math::{ivec::Vec2i, uvec::Vec2u};
 
 pub fn raw_extent_2d(dimensions: Vec2u) -> ash::vk::Extent2D {
     ash::vk::Extent2D { width: dimensions.x, height: dimensions.y }

@@ -1,12 +1,13 @@
 use std::{collections::HashMap, path::Path, str::SplitWhitespace};
 
-use parsec_engine_math::vec::{Vec2f, Vec3f};
-
-use crate::
+use crate::{
     assets::{
-        core::mesh::{InputMesh, Mesh}, library::AssetCookError, source_file::{AssetCookContext, AssetSourceFileHandler},
-    }
-;
+        core::mesh::{InputMesh, Mesh},
+        library::AssetCookError,
+        source_file::{AssetCookContext, AssetSourceFileHandler},
+    },
+    math::vec::{Vec2f, Vec3f},
+};
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -18,7 +19,7 @@ enum ObjError {
     #[error("obj line {0}: face has fewer than 3 vertices")]
     DegenerateFace(usize),
     #[error("no mesh found in obj")]
-    NoMesh
+    NoMesh,
 }
 
 pub struct ObjFileHandler;
@@ -28,7 +29,9 @@ impl AssetSourceFileHandler for ObjFileHandler {
 
     fn cook(asset_source_path: &Path, ctx: AssetCookContext) -> Result<(), AssetCookError> {
         let source = std::fs::read_to_string(asset_source_path)?;
-        for (name, mesh) in parse_obj(&source).map_err(|err| AssetCookError::Other(Box::new(err)))? {
+        for (name, mesh) in
+            parse_obj(&source).map_err(|err| AssetCookError::Other(Box::new(err)))?
+        {
             ctx.add_asset::<Mesh>(&name, mesh)?;
         }
         Ok(())

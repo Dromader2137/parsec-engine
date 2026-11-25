@@ -1,5 +1,7 @@
-use parsec_engine::graphics::image::{ImageAspect, ImageFormat, ImageUsage};
-use parsec_engine_math::uvec::Vec2u;
+use parsec_engine::{
+    graphics::image::{ImageAspect, ImageFormat, ImageUsage},
+    math::uvec::Vec2u,
+};
 
 use crate::{
     allocation::VulkanAllocationError,

@@ -1,6 +1,4 @@
-use parsec_engine_math::vec::Vec3f;
-
-use crate::{create_counter, ecs::world::component::Component};
+use crate::{create_counter, ecs::world::component::Component, math::vec::Vec3f};
 
 #[derive(Debug, Component)]
 pub struct Light {

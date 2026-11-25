@@ -10,4 +10,3 @@ ash-window.workspace = true
 thiserror.workspace = true
 winit.workspace = true
 parsec_engine.workspace = true
-parsec_engine_math.workspace = true

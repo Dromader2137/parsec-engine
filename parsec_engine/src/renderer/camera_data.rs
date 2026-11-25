@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use parsec_engine_math::mat::Matrix4f;
-
 use crate::{
     create_counter,
     ctx::Ctx,
@@ -16,6 +14,7 @@ use crate::{
         },
         window::Window,
     },
+    math::mat::Matrix4f,
     renderer::{RendererError, components::camera::Camera, get_resource, get_resource_mut},
     utils::{
         IdType,

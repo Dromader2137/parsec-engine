@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["parsec_engine", "parsec_engine_examples", "parsec_engine_macros", 
-	"parsec_engine_math", "parsec_engine_vulkan"]
+members = ["parsec_engine", "parsec_engine_examples", "parsec_engine_macros", "parsec_engine_vulkan"]
 
 [workspace.package]
 version = "0.1.0"
@@ -23,5 +22,4 @@ shaderc = "0.10.1"
 
 parsec_engine = { path = "parsec_engine", version = "0.1.0" }
 parsec_engine_macros = { path = "parsec_engine_macros", version = "0.1.0" }
-parsec_engine_math = { path = "parsec_engine_math", version = "0.1.0" }
 parsec_engine_vulkan = { path = "parsec_engine_vulkan", version = "0.1.0" }

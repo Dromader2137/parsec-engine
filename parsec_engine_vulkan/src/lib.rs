@@ -5,24 +5,29 @@
 
 use std::collections::HashMap;
 
-use parsec_engine::graphics::{
-    backend::{BackendError, GraphicsBackend},
-    buffer::{Buffer, BufferContent, BufferHandle, BufferUsage},
-    command_list::{Command, CommandList},
-    framebuffer::{Framebuffer, FramebufferHandle},
-    gpu_cpu_fence::GpuToCpuFence,
-    gpu_gpu_fence::GpuToGpuFence,
-    image::{Image, ImageAspect, ImageFormat, ImageHandle, ImageUsage, ImageView, ImageViewHandle},
-    pipeline::{
-        Pipeline, PipelineHandle, PipelineOptions, PipelineResource, PipelineResourceBindingLayout,
-        PipelineResourceHandle, PipelineResourceLayout, PipelineResourceLayoutHandle,
+use parsec_engine::{
+    graphics::{
+        backend::{BackendError, GraphicsBackend},
+        buffer::{Buffer, BufferContent, BufferHandle, BufferUsage},
+        command_list::{Command, CommandList},
+        framebuffer::{Framebuffer, FramebufferHandle},
+        gpu_cpu_fence::GpuToCpuFence,
+        gpu_gpu_fence::GpuToGpuFence,
+        image::{
+            Image, ImageAspect, ImageFormat, ImageHandle, ImageUsage, ImageView, ImageViewHandle,
+        },
+        pipeline::{
+            Pipeline, PipelineHandle, PipelineOptions, PipelineResource,
+            PipelineResourceBindingLayout, PipelineResourceHandle, PipelineResourceLayout,
+            PipelineResourceLayoutHandle,
+        },
+        renderpass::{Renderpass, RenderpassAttachment, RenderpassHandle},
+        sampler::{Sampler, SamplerHandle},
+        shader_module::{ShaderHandle, ShaderModule, ShaderType},
+        window::Window,
     },
-    renderpass::{Renderpass, RenderpassAttachment, RenderpassHandle},
-    sampler::{Sampler, SamplerHandle},
-    shader_module::{ShaderHandle, ShaderModule, ShaderType},
-    window::Window,
+    math::{ivec::Vec2i, uvec::Vec2u},
 };
-use parsec_engine_math::{ivec::Vec2i, uvec::Vec2u};
 
 use crate::{
     allocator::{VulkanAllocator, VulkanMemoryProperties},
@@ -786,7 +791,8 @@ impl GraphicsBackend for VulkanBackend {
 
     fn create_image_view(&mut self, image: ImageHandle) -> Result<ImageViewHandle, BackendError> {
         let im = self.images.get(&image.id()).ok_or(VulkanBackendError::NotFound("image"))?;
-        let iv = VulkanImageView::from_image(&self.device, im.as_ref()).map_err(BackendError::new)?;
+        let iv =
+            VulkanImageView::from_image(&self.device, im.as_ref()).map_err(BackendError::new)?;
         let iv_id = iv.id();
         self.image_views.insert(iv_id, iv);
         Ok(ImageViewHandle::new(iv_id))

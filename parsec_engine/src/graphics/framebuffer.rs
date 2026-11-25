@@ -1,8 +1,9 @@
-use parsec_engine_math::uvec::Vec2u;
-
-use crate::graphics::{
-    ActiveGraphicsBackend, backend::BackendError, image::ImageViewHandle,
-    renderpass::RenderpassHandle,
+use crate::{
+    graphics::{
+        ActiveGraphicsBackend, backend::BackendError, image::ImageViewHandle,
+        renderpass::RenderpassHandle,
+    },
+    math::uvec::Vec2u,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

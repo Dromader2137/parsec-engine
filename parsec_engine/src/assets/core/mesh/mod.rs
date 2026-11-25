@@ -1,10 +1,9 @@
-use parsec_engine_math::vec::{Vec2f, Vec3f};
-
 use crate::{
     assets::Asset,
     create_counter,
     ecs::resources::Resources,
     graphics::{ActiveGraphicsBackend, buffer::BufferError, pipeline::DefaultVertex},
+    math::vec::{Vec2f, Vec3f},
     renderer::mesh_data::MeshData,
     utils::{
         IdType,

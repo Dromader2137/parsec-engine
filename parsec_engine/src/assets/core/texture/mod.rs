@@ -1,11 +1,19 @@
 pub mod png;
 
-use parsec_engine_math::uvec::Vec2u;
-
 use crate::{
-    assets::Asset, ecs::resources::Resources, graphics::{
-        ActiveGraphicsBackend, buffer::{BufferBuilder, BufferContent, BufferError, BufferUsage}, image::{ImageAspect, ImageError, ImageFormat, ImageHandle, ImageSize, ImageUsage, ImageViewHandle}, sampler::SamplerHandle,
-    }, renderer::integrated_image::{IntegratedImage, IntegratedImageBuilder, IntegratedImageError},
+    assets::Asset,
+    ecs::resources::Resources,
+    graphics::{
+        ActiveGraphicsBackend,
+        buffer::{BufferBuilder, BufferContent, BufferError, BufferUsage},
+        image::{
+            ImageAspect, ImageError, ImageFormat, ImageHandle, ImageSize, ImageUsage,
+            ImageViewHandle,
+        },
+        sampler::SamplerHandle,
+    },
+    math::uvec::Vec2u,
+    renderer::integrated_image::{IntegratedImage, IntegratedImageBuilder, IntegratedImageError},
 };
 
 pub struct TextureInput {
@@ -64,7 +72,7 @@ impl Asset for Texture {
     fn load(cooked: Self::Cooked, resources: &mut Resources) -> Result<Self, Self::LoadError> {
         let mut backend = resources
             .get_mut::<ActiveGraphicsBackend>()
-                .ok_or(TextureLoadError::GraphicsBackendNotFound)?;
+            .ok_or(TextureLoadError::GraphicsBackendNotFound)?;
         let buffer = BufferBuilder::new()
             .usage(&[BufferUsage::TransferSrc])
             .data(BufferContent::from_slice(&cooked.pixel_data))
@@ -75,13 +83,12 @@ impl Asset for Texture {
             .aspect(ImageAspect::Color)
             .usage(&[ImageUsage::Sampled, ImageUsage::TransferDst])
             .build(&mut backend)?;
-        integrated_image.image()
-            .load_from_buffer(
-                &mut backend,
-                buffer.handle(),
-                Vec2u::new(cooked.height, cooked.height),
-                Vec2u::ZERO,
-            )?;
+        integrated_image.image().load_from_buffer(
+            &mut backend,
+            buffer.handle(),
+            Vec2u::new(cooked.height, cooked.height),
+            Vec2u::ZERO,
+        )?;
         Ok(Self { integrated_image })
     }
 }

@@ -1,4 +1,4 @@
-use parsec_engine_math::uvec::Vec2u;
+use parsec_engine::math::uvec::Vec2u;
 
 use crate::{
     create_counter,

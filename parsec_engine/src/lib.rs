@@ -11,5 +11,4 @@ pub mod input;
 pub mod renderer;
 pub mod time;
 pub mod utils;
-
-pub use parsec_engine_math as math;
+pub mod math;

@@ -1,20 +1,24 @@
-use parsec_engine_math::uvec::Vec2u;
-
-use crate::graphics::{
-    buffer::{Buffer, BufferContent, BufferHandle, BufferUsage},
-    command_list::CommandList,
-    framebuffer::{Framebuffer, FramebufferHandle},
-    gpu_cpu_fence::GpuToCpuFence,
-    gpu_gpu_fence::GpuToGpuFence,
-    image::{Image, ImageAspect, ImageFormat, ImageHandle, ImageUsage, ImageView, ImageViewHandle},
-    pipeline::{
-        Pipeline, PipelineHandle, PipelineOptions, PipelineResource, PipelineResourceBindingLayout,
-        PipelineResourceHandle, PipelineResourceLayout, PipelineResourceLayoutHandle,
+use crate::{
+    graphics::{
+        buffer::{Buffer, BufferContent, BufferHandle, BufferUsage},
+        command_list::CommandList,
+        framebuffer::{Framebuffer, FramebufferHandle},
+        gpu_cpu_fence::GpuToCpuFence,
+        gpu_gpu_fence::GpuToGpuFence,
+        image::{
+            Image, ImageAspect, ImageFormat, ImageHandle, ImageUsage, ImageView, ImageViewHandle,
+        },
+        pipeline::{
+            Pipeline, PipelineHandle, PipelineOptions, PipelineResource,
+            PipelineResourceBindingLayout, PipelineResourceHandle, PipelineResourceLayout,
+            PipelineResourceLayoutHandle,
+        },
+        renderpass::{Renderpass, RenderpassAttachment, RenderpassHandle},
+        sampler::{Sampler, SamplerHandle},
+        shader_module::{ShaderHandle, ShaderModule, ShaderType},
+        window::Window,
     },
-    renderpass::{Renderpass, RenderpassAttachment, RenderpassHandle},
-    sampler::{Sampler, SamplerHandle},
-    shader_module::{ShaderHandle, ShaderModule, ShaderType},
-    window::Window,
+    math::uvec::Vec2u,
 };
 
 #[derive(Debug, thiserror::Error)]
