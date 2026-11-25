@@ -5,7 +5,7 @@ use crate::{
 
 pub mod core;
 pub mod library;
-pub mod manifest;
+mod description;
 pub mod source_file;
 
 #[derive(Debug, thiserror::Error)]

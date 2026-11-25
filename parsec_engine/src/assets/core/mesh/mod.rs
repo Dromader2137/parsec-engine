@@ -31,15 +31,6 @@ pub struct CookedMesh {
 }
 
 impl CookedMesh {
-    pub fn from_input(input_mesh: InputMesh) -> Self {
-        Self {
-            positions: input_mesh.positions,
-            normals: input_mesh.normals,
-            uvs: input_mesh.uvs,
-            indices: input_mesh.indices,
-        }
-    }
-
     pub fn new(
         positions: Vec<Vec3f>,
         normals: Vec<Vec3f>,
@@ -47,6 +38,10 @@ impl CookedMesh {
         indices: Vec<u32>,
     ) -> Self {
         Self { positions, normals, uvs, indices }
+    }
+
+    pub fn from_input(input_mesh: InputMesh) -> Self {
+        Self::new(input_mesh.positions, input_mesh.normals, input_mesh.uvs, input_mesh.indices)
     }
 }
 

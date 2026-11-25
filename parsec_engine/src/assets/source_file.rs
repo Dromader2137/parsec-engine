@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, path::Path, time::SystemTime};
 use crate::assets::{
     Asset, AssetId,
     library::AssetCookError,
-    manifest::{combine_into_asset_name, cooked_path},
+    description::{combine_into_asset_name, cooked_path},
 };
 
 pub struct AssetCookContext<'a> {
@@ -43,10 +43,11 @@ pub trait AssetSourceFileHandler {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct AssetSourceId(pub(super) u64);
+pub(super) struct AssetSourceId(pub(super) u64);
 
 #[derive(Debug)]
-pub struct AssetSourceFile {
-    pub filepath: &'static Path,
-    pub asset_ids: BTreeSet<AssetId>,
+pub(super) struct AssetSourceFile {
+    pub(super) filepath: &'static Path,
+    #[allow(unused)]
+    pub(super) asset_ids: BTreeSet<AssetId>,
 }

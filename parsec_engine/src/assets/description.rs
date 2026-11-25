@@ -1,14 +1,15 @@
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy)]
-pub struct AssetDescription {
-    pub subresource: &'static str,
-    pub source_file: &'static Path,
-    pub asset_type: &'static str,
+pub(super) struct AssetDescription {
+    #[allow(unused)]
+    pub(super) subresource: &'static str,
+    pub(super) source_file: &'static Path,
+    pub(super) asset_type: &'static str,
 }
 
 impl AssetDescription {
-    pub fn new(
+    pub(super) fn new(
         subresource: &'static str,
         source_file: &'static Path,
         asset_type: &'static str,
@@ -17,12 +18,8 @@ impl AssetDescription {
         Self { subresource, source_file, asset_type }
     }
 
-    pub fn from_name(asset_name: &'static str) -> Option<Self> {
+    pub(super) fn from_name(asset_name: &'static str) -> Option<Self> {
         extract_from_asset_name(asset_name)
-    }
-
-    pub fn into_name(self) -> String {
-        combine_into_asset_name(self.subresource, self.source_file, self.asset_type)
     }
 }
 

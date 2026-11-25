@@ -3,7 +3,7 @@ use std::{any::Any, collections::HashMap, marker::PhantomData, path::Path, time:
 use crate::{
     assets::{
         Asset, AssetError, AssetId,
-        manifest::{AssetDescription, cooked_path},
+        description::{AssetDescription, cooked_path},
         source_file::{AssetCookContext, AssetSourceFile, AssetSourceFileHandler, AssetSourceId},
     },
     ecs::resources::Resources,
@@ -20,7 +20,7 @@ impl<T: Asset> Clone for AssetHandle<T> {
 }
 impl<T: Asset> Copy for AssetHandle<T> {}
 impl<T: Asset> AssetHandle<T> {
-    pub(crate) fn new(asset_id: AssetId) -> Self { Self { asset_id, _marker: PhantomData } }
+    pub(super) fn new(asset_id: AssetId) -> Self { Self { asset_id, _marker: PhantomData } }
 
     pub fn resolve<'lib>(&self, library: &'lib AssetLibrary) -> Option<&'lib T> {
         match library.assets.get(&self.asset_id)? {
@@ -44,7 +44,7 @@ pub enum AssetLoadError {
     NotFound(&'static str),
     #[error("cooked asset file for '{0}' not found")]
     CookedFileNotFound(&'static str),
-    #[error("asset '{0}' is of a different type than requested")]
+    #[error("asset is of a different type than requested")]
     TypeMismatch(&'static str),
     #[error(transparent)]
     IO(#[from] std::io::Error),
@@ -95,7 +95,7 @@ pub struct AssetLibrary {
 }
 
 impl AssetLibrary {
-    pub fn new() -> AssetLibrary {
+    pub(crate) fn new() -> AssetLibrary {
         AssetLibrary {
             assets: HashMap::new(),
             names: HashMap::new(),
@@ -104,7 +104,7 @@ impl AssetLibrary {
         }
     }
 
-    pub fn add_asset(&mut self, asset_name: &'static str) -> Result<(), AssetAddError> {
+    pub fn add_asset(&mut self, asset_name: &'static str) -> Result<(), AssetError> {
         if self.names.contains_key(asset_name) {
             Err(AssetAddError::Duplicate(asset_name))?;
         }
@@ -121,24 +121,8 @@ impl AssetLibrary {
         self.source_file_handlers.insert(H::EXTENSION, H::cook);
     }
 
-    pub fn source_file_by_path(&self, path: &Path) -> Option<AssetSourceId> {
-        self.files.iter().find(|(_, file)| file.filepath == path).map(|(&id, _)| id)
-    }
-
-    pub fn source_file(&self, source_id: AssetSourceId) -> Option<&AssetSourceFile> {
-        self.files.get(&source_id)
-    }
-
-    pub fn source_files(&self) -> impl Iterator<Item = (AssetSourceId, &AssetSourceFile)> {
+    fn source_files(&self) -> impl Iterator<Item = (AssetSourceId, &AssetSourceFile)> {
         self.files.iter().map(|(&id, file)| (id, file))
-    }
-
-    pub fn asset_description(&self, asset_id: AssetId) -> Option<&AssetDescription> {
-        self.assets.get(&asset_id).map(|(desc, _)| desc)
-    }
-
-    pub fn asset_descriptions(&self) -> impl Iterator<Item = (AssetId, &AssetDescription)> {
-        self.assets.iter().map(|(&id, (desc, _))| (id, desc))
     }
 
     fn asset_by_name(&self, asset_name: &'static str) -> Option<AssetId> {
