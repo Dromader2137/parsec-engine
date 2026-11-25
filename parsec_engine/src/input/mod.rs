@@ -42,7 +42,7 @@ impl Default for Input {
 }
 
 impl Input {
-    pub fn new() -> Input { Input { keys: Keys::new(), mouse: Mouse::new() } }
+    fn new() -> Input { Input { keys: Keys::new(), mouse: Mouse::new() } }
 }
 
 /*

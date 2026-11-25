@@ -52,7 +52,7 @@ impl Default for Resources {
 }
 
 impl Resources {
-    pub fn new() -> Self { Self { resources: HashMap::new() } }
+    pub(crate) fn new() -> Self { Self { resources: HashMap::new() } }
 
     /// Adds `resource` to global storage. If a resource of type `R` already exists it is
     /// replaced.

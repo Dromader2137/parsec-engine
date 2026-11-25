@@ -48,7 +48,7 @@ pub struct Systems {
 }
 
 impl Systems {
-    pub fn new() -> Systems { Systems { systems: HashMap::new() } }
+    pub(crate) fn new() -> Systems { Systems { systems: HashMap::new() } }
 
     fn get_systems_by_trigger(
         &mut self,
@@ -67,7 +67,7 @@ impl Systems {
     pub fn add_bundle(&mut self, bundle: impl SystemBundle) { bundle.insert(self); }
 
     /// Executes all the systems registered for trigger `system_type`.
-    pub fn fire_trigger(
+    pub(crate) fn fire_trigger(
         &mut self,
         system_type: SystemTrigger,
         world: &mut World,

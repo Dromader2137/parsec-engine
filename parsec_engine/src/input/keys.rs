@@ -6,13 +6,13 @@ use crate::input::key::{KeyCode, KeyState, StorageKeyCode};
 
 /// A keybord input event.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct KeyboardInputEvent {
+pub(crate) struct KeyboardInputEvent {
     key: StorageKeyCode,
     state: KeyState,
 }
 
 impl KeyboardInputEvent {
-    pub fn new(key: StorageKeyCode, state: KeyState) -> KeyboardInputEvent {
+    pub(crate) fn new(key: StorageKeyCode, state: KeyState) -> KeyboardInputEvent {
         KeyboardInputEvent { key, state }
     }
 }
@@ -35,7 +35,7 @@ impl Keys {
     }
 
     /// Takes an [InputEvent] and updated `self` accordingly.
-    pub fn process_input_event(&mut self, event: KeyboardInputEvent) {
+    pub(crate) fn process_input_event(&mut self, event: KeyboardInputEvent) {
         match event.state {
             KeyState::Pressed => self.press(event.key),
             KeyState::Released => self.lift(event.key),
@@ -55,13 +55,13 @@ impl Keys {
     }
 
     /// Clears pressed and up state.
-    pub fn clear(&mut self) {
+    pub(super) fn clear(&mut self) {
         self.pressed.clear();
         self.up.clear();
     }
 
     /// Clears all keys state.
-    pub fn clear_all(&mut self) {
+    pub(super) fn clear_all(&mut self) {
         self.pressed.clear();
         self.down.clear();
         self.up.clear();

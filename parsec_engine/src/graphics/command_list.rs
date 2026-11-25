@@ -10,19 +10,6 @@ use crate::graphics::{
 };
 
 #[derive(Debug)]
-pub struct CommandList {
-    id: u32,
-    commands: Vec<Command>,
-}
-
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum CommandListError {
-    #[error(transparent)]
-    Backend(#[from] BackendError),
-}
-
-#[derive(Debug)]
 pub enum Command {
     Begin,
     End,
@@ -40,7 +27,11 @@ pub enum Command {
     CopyBufferToBuffer(BufferHandle, BufferHandle),
 }
 
-pub struct ImageBarrier {}
+#[derive(Debug)]
+pub struct CommandList {
+    id: u32,
+    commands: Vec<Command>,
+}
 
 impl CommandList {
     pub fn new(id: u32) -> CommandList { CommandList { id, commands: Vec::new() } }
@@ -52,4 +43,11 @@ impl CommandList {
     pub fn id(&self) -> u32 { self.id }
 
     pub fn commands(&self) -> &[Command] { &self.commands }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum CommandListError {
+    #[error(transparent)]
+    Backend(#[from] BackendError),
 }

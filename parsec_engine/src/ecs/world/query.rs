@@ -14,7 +14,7 @@ pub struct Query<T: Fetch + Fetch> {
 }
 
 impl<T: Fetch> Query<T> {
-    pub fn from_world(world: &World) -> Result<Self, ArchetypeError> {
+    pub(super) fn from_world(world: &World) -> Result<Self, ArchetypeError> {
         let archetype_id = T::archetype_id()?;
         let archetypes = world
             .archetypes
